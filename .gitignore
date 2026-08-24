@@ -179,3 +179,21 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# --- AJUSTES PARA EL TRABAJO GRUPAL ---
+
+# Archivo de plantilla para tus compañeros (Este NO se ignora, se sube como guía)
+!.env.example
+
+# Carpetas de configuración de editores de código (Vital para que no choquen)
+.idea/             # Si alguien usa PyCharm o WebStorm
+.vscode/           # Si alguien usa Visual Studio Code
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp              # Archivos temporales de Vim/Linux
+
+# Archivos del sistema operativo
+Thumbs.db          # Basura de Windows
+.DS_Store          # Basura de macOS
