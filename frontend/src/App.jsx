@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-// Importamos los componentes del flujo de inicio
-import LoadingScreen from './LoadingScreen';
-import LoginScreen from './LoginScreen';
+// Importamos las vistas
+import LoadingScreen from './views/LoadingScreen';
+import LoginScreen from './views/LoginScreen';
+import DashboardContent from './views/DashboardContent';
 
-// Importamos los componentes del Dashboard
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
-import DashboardContent from './DashboardContent';
+// Importamos los componentes de estructura (Layout)
+import Sidebar from './components/layout/Sidebar';
+import Topbar from './components/layout/Topbar';
+import DbConnectionTest from './components/DbConnectionTest';
 
 export default function App() {
   // Estados de nuestra aplicación
@@ -34,6 +35,7 @@ export default function App() {
           <Topbar />
           <DashboardContent />
         </div>
+        <DbConnectionTest />
       </div>
     );
   }
@@ -61,6 +63,9 @@ export default function App() {
         // Le pasamos la función al LoginScreen para que sepa cuándo entrar
         <LoginScreen onLogin={() => setIsAuthenticated(true)} />
       )}
+
+      {/* Widget de Test BD & Backend */}
+      <DbConnectionTest />
       
     </div>
   );

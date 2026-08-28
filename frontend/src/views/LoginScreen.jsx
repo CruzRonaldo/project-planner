@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import logoEmpresa from './assets/logoempresa1.png';
+import logoEmpresa from '../assets/logoempresa1.png';
 import { ShieldCheck, User, Mail, Lock, Eye, EyeOff, LayoutGrid } from 'lucide-react';
 
-// 1. Recibe la función onLogin como parámetro
 export default function LoginScreen({ onLogin }) {
     const [role, setRole] = useState('admin');
     const [email, setEmail] = useState('');
@@ -14,7 +13,7 @@ export default function LoginScreen({ onLogin }) {
         e.preventDefault();
         console.log({ role, email, password, rememberMe });
 
-        // 2. Llama a la función aquí para "entrar" al sistema
+        // Llama a la función aquí para "entrar" al sistema
         onLogin();
     };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import logoEmpresa from './assets/logoempresa1.png';
+import logoEmpresa from '../assets/logoempresa1.png';
 
 export default function LoadingScreen() {
   return (
