@@ -8,11 +8,21 @@ import LoginScreen from './LoginScreen';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import DashboardContent from './DashboardContent';
+import StrategicPlanning from './StrategicPlanning';
+import Portfolio from './Portfolio';
+import MobileNavigation from './MobileNavigation';
 
 export default function App() {
   // Estados de nuestra aplicación
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false); // <-- ¡NUESTRO NUEVO ESTADO!
+  const [activeView, setActiveView] = useState('dashboard');
+
+  const renderActiveView = () => {
+    if (activeView === 'planning') return <StrategicPlanning />;
+    if (activeView === 'portfolio') return <Portfolio />;
+    return <DashboardContent />;
+  };
   
   useEffect(() => {
     // Simula una carga de 2.5 segundos antes de mostrar el login
@@ -29,11 +39,12 @@ export default function App() {
   if (isAuthenticated) {
     return (
       <div className="flex h-screen bg-[#0d1117] text-white font-sans overflow-hidden animate-in fade-in duration-1000">
-        <Sidebar />
-        <div className="flex-1 flex flex-col h-screen overflow-hidden">
-          <Topbar />
-          <DashboardContent />
+        <Sidebar activeView={activeView} onNavigate={setActiveView} />
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-16 lg:pb-0">
+          <Topbar activeView={activeView} />
+          {renderActiveView()}
         </div>
+        <MobileNavigation activeView={activeView} onNavigate={setActiveView} />
       </div>
     );
   }
