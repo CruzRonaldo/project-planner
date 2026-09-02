@@ -2,11 +2,13 @@ import React from 'react';
 import { Search, Bell } from 'lucide-react';
 
 export default function Topbar({ activeView }) {
-  const placeholders = {
-    dashboard: 'Buscar proyectos, hitos o equipos...',
-    planning: 'Buscar en planificación maestra...',
-    portfolio: 'Buscar por nombre de proyecto, líder, etiquetas...',
-  };
+ const placeholders = {
+  dashboard: 'Buscar proyectos, hitos o equipos...',
+  planning: 'Buscar en planificación maestra...',
+  portfolio: 'Buscar por nombre de proyecto, líder, etiquetas...',
+  operations: 'Buscar órdenes de trabajo, tareas o alertas...',
+  'technical-team': 'Buscar ingenieros, arquitectos o proyectos...',
+};
   const placeholder = placeholders[activeView] ?? placeholders.dashboard;
 
   return (
