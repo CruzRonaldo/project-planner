@@ -90,17 +90,20 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     """
     CRUD para Miembros del Equipo Técnico
     """
-    queryset = TeamMember.objects.select_related('technical_area', 'status').all()
+    queryset = TeamMember.objects.select_related('technical_area', 'status', 'project').all()
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
         area = self.request.query_params.get('area')
         status_id = self.request.query_params.get('status')
+        project_id = self.request.query_params.get('project')
         if area:
             queryset = queryset.filter(technical_area_id=area)
         if status_id:
             queryset = queryset.filter(status_id=status_id)
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
         return queryset
 
 
@@ -108,7 +111,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     CRUD principal para Proyectos y Portafolio
     """
-    queryset = Project.objects.prefetch_related('milestones', 'tasks', 'drive_links').all()
+    queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members').all()
     serializer_class = ProjectSerializer
 
     @action(detail=True, methods=['get', 'post'], url_path='optimize')
@@ -197,7 +200,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     """
     CRUD para Tareas Operativas y Ruta Crítica
     """
-    queryset = Task.objects.select_related('project', 'category', 'assigned_to', 'milestone').prefetch_related('predecessors').all()
+    queryset = Task.objects.select_related('project', 'category', 'assigned_to', 'milestone').prefetch_related('predecessors', 'drive_links').all()
     serializer_class = TaskSerializer
 
     def get_queryset(self):
@@ -223,12 +226,15 @@ class DriveLinkViewSet(viewsets.ModelViewSet):
     """
     CRUD para Enlaces de Google Drive
     """
-    queryset = DriveLink.objects.select_related('project').all()
+    queryset = DriveLink.objects.select_related('task', 'task__project').all()
     serializer_class = DriveLinkSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        task_id = self.request.query_params.get('task')
         project_id = self.request.query_params.get('project')
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
         if project_id:
-            queryset = queryset.filter(project_id=project_id)
+            queryset = queryset.filter(task__project_id=project_id)
         return queryset

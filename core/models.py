@@ -45,6 +45,7 @@ class TeamMember(models.Model):
     role = models.CharField(max_length=100, verbose_name="Rol / Especialidad", help_text="Ej. Modelador Revit, Renderista, Desarrollador")
     technical_area = models.ForeignKey(TechnicalArea, on_delete=models.PROTECT, related_name='members', verbose_name="Área Técnica")
     status = models.ForeignKey(TeamStatus, on_delete=models.SET_NULL, null=True, related_name='members', verbose_name="Estado Actual")
+    project = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='team_members', verbose_name="Proyecto Asignado")
     is_active = models.BooleanField(default=True, verbose_name="¿Está activo en la empresa?")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -54,7 +55,8 @@ class TeamMember(models.Model):
         ordering = ['last_name', 'first_name']
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.role})"
+        project_str = f" - {self.project.code}" if self.project else " (Sin Proyecto)"
+        return f"{self.first_name} {self.last_name} ({self.role}){project_str}"
 
 
 class Project(models.Model):
@@ -178,10 +180,10 @@ class PerformanceMetric(models.Model):
 
 class DriveLink(models.Model):
     """
-    Enlaces a documentación y entregables alojados en Google Drive
+    Enlaces a documentación y entregables alojados en Google Drive vinculados a tareas
     """
     FILE_TYPES = [
-        ('FOLDER', 'Carpeta Principal de Proyecto'),
+        ('FOLDER', 'Carpeta de Tarea / Entregable'),
         ('DOCUMENT', 'Documento / Especificación Técnica'),
         ('BIM_MODEL', 'Modelo BIM / Revit'),
         ('RENDER_360', 'Render / Recorrido Virtual 360°'),
@@ -189,11 +191,11 @@ class DriveLink(models.Model):
         ('OTHER', 'Otro'),
     ]
 
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='drive_links', verbose_name="Proyecto")
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='drive_links', verbose_name="Tarea")
     title = models.CharField(max_length=200, verbose_name="Título del Enlace")
     drive_url = models.URLField(max_length=500, verbose_name="URL de Google Drive")
     file_id = models.CharField(max_length=150, blank=True, null=True, verbose_name="Google Drive File/Folder ID")
-    file_type = models.CharField(max_length=20, choices=FILE_TYPES, default='FOLDER', verbose_name="Tipo de Archivo")
+    file_type = models.CharField(max_length=20, choices=FILE_TYPES, default='DOCUMENT', verbose_name="Tipo de Archivo")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -201,4 +203,4 @@ class DriveLink(models.Model):
         verbose_name_plural = "Enlaces de Drive"
 
     def __str__(self):
-        return f"{self.project.code} - {self.title} ({self.get_file_type_display()})"
+        return f"{self.task.title} - {self.title} ({self.get_file_type_display()})"

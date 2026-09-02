@@ -38,6 +38,8 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     technical_area_name = serializers.ReadOnlyField(source='technical_area.name')
     status_name = serializers.ReadOnlyField(source='status.name')
     status_color = serializers.ReadOnlyField(source='status.color_code')
+    project_code = serializers.ReadOnlyField(source='project.code')
+    project_name = serializers.ReadOnlyField(source='project.name')
     full_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -54,6 +56,9 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'status',
             'status_name',
             'status_color',
+            'project',
+            'project_code',
+            'project_name',
             'is_active',
             'created_at',
         ]
@@ -85,6 +90,7 @@ class TaskSerializer(serializers.ModelSerializer):
     """
     category_name = serializers.ReadOnlyField(source='category.name')
     assigned_to_name = serializers.SerializerMethodField()
+    drive_links_count = serializers.IntegerField(source='drive_links.count', read_only=True)
 
     class Meta:
         model = Task
@@ -105,6 +111,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'is_critical_path',
             'tolerance_days',
             'predecessors',
+            'drive_links_count',
             'status',
             'created_at',
             'updated_at',
@@ -118,15 +125,21 @@ class TaskSerializer(serializers.ModelSerializer):
 
 class DriveLinkSerializer(serializers.ModelSerializer):
     """
-    Serializador para los enlaces y archivos asociados en Google Drive
+    Serializador para los enlaces y archivos asociados en Google Drive vinculados a tareas
     """
     file_type_display = serializers.CharField(source='get_file_type_display', read_only=True)
+    task_title = serializers.ReadOnlyField(source='task.title')
+    project_id = serializers.ReadOnlyField(source='task.project_id')
+    project_code = serializers.ReadOnlyField(source='task.project.code')
 
     class Meta:
         model = DriveLink
         fields = [
             'id',
-            'project',
+            'task',
+            'task_title',
+            'project_id',
+            'project_code',
             'title',
             'drive_url',
             'file_id',
@@ -168,7 +181,8 @@ class ProjectSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     milestones_count = serializers.IntegerField(source='milestones.count', read_only=True)
     tasks_count = serializers.IntegerField(source='tasks.count', read_only=True)
-    drive_links_count = serializers.IntegerField(source='drive_links.count', read_only=True)
+    team_members_count = serializers.IntegerField(source='team_members.count', read_only=True)
+    drive_links_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -185,7 +199,11 @@ class ProjectSerializer(serializers.ModelSerializer):
             'status_display',
             'milestones_count',
             'tasks_count',
+            'team_members_count',
             'drive_links_count',
             'created_at',
             'updated_at',
         ]
+
+    def get_drive_links_count(self, obj):
+        return DriveLink.objects.filter(task__project=obj).count()

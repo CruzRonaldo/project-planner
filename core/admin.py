@@ -27,6 +27,12 @@ class DriveLinkInline(admin.TabularInline):
     extra = 1
 
 
+class TeamMemberInline(admin.TabularInline):
+    model = TeamMember
+    extra = 0
+    fields = ('first_name', 'last_name', 'role', 'technical_area', 'status', 'is_active')
+
+
 class PerformanceMetricInline(admin.TabularInline):
     model = PerformanceMetric
     extra = 1
@@ -46,9 +52,9 @@ class TeamStatusAdmin(admin.ModelAdmin):
 
 @admin.register(TeamMember)
 class TeamMemberAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'role', 'technical_area', 'status', 'is_active')
-    list_filter = ('technical_area', 'status', 'is_active')
-    search_fields = ('first_name', 'last_name', 'email', 'role')
+    list_display = ('first_name', 'last_name', 'role', 'technical_area', 'status', 'project', 'is_active')
+    list_filter = ('project', 'technical_area', 'status', 'is_active')
+    search_fields = ('first_name', 'last_name', 'email', 'role', 'project__name', 'project__code')
 
 
 @admin.register(Project)
@@ -56,7 +62,7 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'status', 'start_date', 'end_date', 'duration_months', 'budget')
     list_filter = ('status', 'start_date')
     search_fields = ('code', 'name', 'description')
-    inlines = [MilestoneInline, TaskInline, DriveLinkInline, PerformanceMetricInline]
+    inlines = [TeamMemberInline, MilestoneInline, TaskInline, PerformanceMetricInline]
 
 
 @admin.register(Milestone)
@@ -72,6 +78,7 @@ class TaskAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_critical_path', 'category', 'project')
     search_fields = ('title', 'description', 'project__name', 'project__code')
     filter_horizontal = ('predecessors',)
+    inlines = [DriveLinkInline]
 
 
 @admin.register(PerformanceMetric)
@@ -83,6 +90,6 @@ class PerformanceMetricAdmin(admin.ModelAdmin):
 
 @admin.register(DriveLink)
 class DriveLinkAdmin(admin.ModelAdmin):
-    list_display = ('title', 'project', 'file_type', 'drive_url', 'created_at')
-    list_filter = ('file_type', 'project')
-    search_fields = ('title', 'project__name', 'project__code')
+    list_display = ('title', 'task', 'file_type', 'drive_url', 'created_at')
+    list_filter = ('file_type', 'task__project')
+    search_fields = ('title', 'task__title', 'task__project__name', 'task__project__code')
