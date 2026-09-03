@@ -14,3 +14,26 @@ html, body, #root {
   overflow-x: hidden;
   background-color: #050B14;
 }
+
+/* Las etiquetas pequeñas también siguen el tamaño global de letra. */
+.text-\[8px\] {
+  font-size: 0.5rem !important;
+}
+
+.text-\[9px\] {
+  font-size: 0.5625rem !important;
+}
+
+.text-\[10px\] {
+  font-size: 0.625rem !important;
+}
+
+.text-\[11px\] {
+  font-size: 0.6875rem !important;
+}
+
+@media (min-width: 768px) {
+  .md\:text-\[28px\] {
+    font-size: 1.75rem !important;
+  }
+}

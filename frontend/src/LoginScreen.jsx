@@ -15,17 +15,17 @@ export default function LoginScreen({ onLogin }) {
         console.log({ role, email, password, rememberMe });
 
         // 2. Llama a la función aquí para "entrar" al sistema
-        onLogin();
+        onLogin({ role, email });
     };
 
     return (
         <>
             {/* Header: Logo superior */}
-            <header className="relative z-10 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-700">
-                <div className="bg-cyan-500 p-2 rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-                    <LayoutGrid className="w-5 h-5" />
+            <header className="relative z-10 flex items-center gap-[12px] animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="bg-cyan-500 p-[8px] rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                    <LayoutGrid className="h-[20px] w-[20px]" />
                 </div>
-                <span className="font-extrabold tracking-wider text-white text-sm sm:text-base">
+                <span className="text-[16px] font-extrabold tracking-wider text-white">
                     PROJECT PLANNER
                 </span>
             </header>
@@ -51,10 +51,10 @@ export default function LoginScreen({ onLogin }) {
                     <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative pt-20 mt-24">
 
                         {/* Contenedor del Logo elevado */}
-                        <div className="absolute -top-32 left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none drop-shadow-[0_20px_35px_rgba(0,0,0,0.95)]">
+                        <div className="absolute -top-[128px] left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none drop-shadow-[0_20px_35px_rgba(0,0,0,0.95)]">
                             <div
                                 style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }}
-                                className="w-44 h-44 flex items-center justify-center bg-transparent"
+                                className="h-[176px] w-[176px] flex items-center justify-center bg-transparent"
                             >
                                 <img
                                     src={logoEmpresa}

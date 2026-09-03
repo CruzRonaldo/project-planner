@@ -10,7 +10,7 @@ export default function LoadingScreen() {
         <div className="absolute inset-0 bg-cyan-500 blur-[50px] opacity-20 animate-pulse" />
         <div 
           style={{ clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' }}
-          className="w-40 h-40 flex items-center justify-center bg-transparent animate-pulse"
+          className="h-[160px] w-[160px] flex items-center justify-center bg-transparent animate-pulse"
         >
           <img 
             src={logoEmpresa} 
