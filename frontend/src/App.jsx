@@ -9,11 +9,19 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import DashboardContent from './DashboardContent';
 import StrategicPlanning from './StrategicPlanning';
+import { createStrategicPlanningData } from './strategicPlanningData';
 import Portfolio from './Portfolio';
+import { createPortfolioData } from './portfolioData';
 import MobileNavigation from './MobileNavigation';
 import RolesManagement from './RolesManagement';
 import HumanResources from './HumanResources';
 import { createHumanResourcesData } from './humanResourcesData';
+import Integrations from './Integrations';
+import { createIntegrationsData } from './integrationsData';
+import TechnicalTeam from './TechnicalTeam';
+import { createTechnicalTeamData } from './technicalTeamData';
+import Operations from './Operations';
+import { createOperationsData } from './operationsData';
 
 const initialUsers = [
   { id: 'usr-ana', name: 'Ana Rojas', email: 'ana.rojas@empresa.com', isSubAdmin: false, isOnline: true },
@@ -36,8 +44,17 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false); // <-- ¡NUESTRO NUEVO ESTADO!
   const [activeView, setActiveView] = useState('dashboard');
+  const [strategicPlanningData, setStrategicPlanningData] = useState(createStrategicPlanningData);
+  const [portfolioData, setPortfolioData] = useState(createPortfolioData);
+  const [portfolioQuery, setPortfolioQuery] = useState('');
   const [humanResourcesData, setHumanResourcesData] = useState(createHumanResourcesData);
   const [humanResourcesQuery, setHumanResourcesQuery] = useState('');
+  const [integrationsData, setIntegrationsData] = useState(createIntegrationsData);
+  const [integrationsQuery, setIntegrationsQuery] = useState('');
+  const [technicalTeamData, setTechnicalTeamData] = useState(createTechnicalTeamData);
+  const [technicalTeamQuery, setTechnicalTeamQuery] = useState('');
+  const [operationsData, setOperationsData] = useState(createOperationsData);
+  const [operationsQuery, setOperationsQuery] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState(() => {
     try {
@@ -128,10 +145,31 @@ export default function App() {
   };
 
   const renderActiveView = () => {
-    if (activeView === 'planning') return <StrategicPlanning />;
-    if (activeView === 'portfolio') return <Portfolio />;
+    if (activeView === 'planning') {
+      const canManage = displayedCurrentUser?.accountType === 'admin' || displayedCurrentUser?.roleLabel === 'SubAdministrador';
+      return <StrategicPlanning data={strategicPlanningData} onChange={setStrategicPlanningData} canManage={canManage} />;
+    }
+    if (activeView === 'portfolio') {
+      const canManage = displayedCurrentUser?.accountType === 'admin' || displayedCurrentUser?.roleLabel === 'SubAdministrador';
+      return <Portfolio data={portfolioData} onChange={setPortfolioData} query={portfolioQuery} onQueryChange={setPortfolioQuery} canManage={canManage} currentUserName={displayedCurrentUser?.name} />;
+    }
+    if (activeView === 'operations') {
+      const canManage = displayedCurrentUser?.accountType === 'admin' || displayedCurrentUser?.roleLabel === 'SubAdministrador';
+      const projectOptions = portfolioData.projects.map((project) => `${project.name} (${project.code})`);
+      const responsibleOptions = technicalTeamData.members.map((member) => ({ id: member.id, name: `${member.firstNames} ${member.lastNames}`, specialty: member.specialty }));
+      return <Operations data={operationsData} onChange={setOperationsData} query={operationsQuery} onQueryChange={setOperationsQuery} canManage={canManage} projectOptions={projectOptions} responsibleOptions={responsibleOptions} />;
+    }
+    if (activeView === 'technical-team') {
+      const canManage = displayedCurrentUser?.accountType === 'admin' || displayedCurrentUser?.roleLabel === 'SubAdministrador';
+      const projectOptions = portfolioData.projects.map((project) => `${project.name} (${project.code})`);
+      return <TechnicalTeam data={technicalTeamData} onChange={setTechnicalTeamData} query={technicalTeamQuery} onQueryChange={setTechnicalTeamQuery} canManage={canManage} projectOptions={projectOptions} />;
+    }
     if (activeView === 'human-resources') {
-      return <HumanResources data={humanResourcesData} onChange={setHumanResourcesData} query={humanResourcesQuery} onQueryChange={setHumanResourcesQuery} />;
+      const canManage = displayedCurrentUser?.accountType === 'admin' || displayedCurrentUser?.roleLabel === 'SubAdministrador';
+      return <HumanResources data={humanResourcesData} onChange={setHumanResourcesData} query={humanResourcesQuery} onQueryChange={setHumanResourcesQuery} canManage={canManage} />;
+    }
+    if (activeView === 'integrations') {
+      return <Integrations data={integrationsData} onChange={setIntegrationsData} query={integrationsQuery} onQueryChange={setIntegrationsQuery} />;
     }
     if (activeView === 'roles' && displayedCurrentUser?.accountType === 'admin') {
       return <RolesManagement users={users} onToggleSubAdmin={handleToggleSubAdmin} />;
@@ -172,8 +210,8 @@ export default function App() {
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-16 lg:pb-0">
           <Topbar
             activeView={activeView}
-            searchValue={activeView === 'human-resources' ? humanResourcesQuery : undefined}
-            onSearchChange={activeView === 'human-resources' ? setHumanResourcesQuery : undefined}
+            searchValue={activeView === 'human-resources' ? humanResourcesQuery : activeView === 'integrations' ? integrationsQuery : activeView === 'technical-team' ? technicalTeamQuery : activeView === 'portfolio' ? portfolioQuery : activeView === 'operations' ? operationsQuery : undefined}
+            onSearchChange={activeView === 'human-resources' ? setHumanResourcesQuery : activeView === 'integrations' ? setIntegrationsQuery : activeView === 'technical-team' ? setTechnicalTeamQuery : activeView === 'portfolio' ? setPortfolioQuery : activeView === 'operations' ? setOperationsQuery : undefined}
             currentUser={displayedCurrentUser}
             users={users}
             onToggleSubAdmin={handleToggleSubAdmin}

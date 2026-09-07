@@ -7,8 +7,11 @@ export default function Topbar({ activeView, currentUser, users, onToggleSubAdmi
     dashboard: 'Buscar proyectos, hitos o equipos...',
     planning: 'Buscar en planificación maestra...',
     portfolio: 'Buscar por nombre de proyecto, líder, etiquetas...',
+    operations: 'Buscar órdenes de trabajo, tareas o alertas...',
     roles: 'Buscar usuarios, correos o roles...',
     'human-resources': 'Buscar personal, disponibilidad o estados...',
+    integrations: 'Buscar integración, actividad o estado...',
+    'technical-team': 'Buscar técnico, área, especialidad o proyecto...',
   };
   const placeholder = placeholders[activeView] ?? placeholders.dashboard;
 
