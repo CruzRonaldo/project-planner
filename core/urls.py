@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     test_db_connection,
+    login_view,
     TechnicalAreaViewSet,
     TeamStatusViewSet,
     TeamMemberViewSet,
@@ -24,6 +25,9 @@ router.register(r'performance-metrics', PerformanceMetricViewSet, basename='perf
 router.register(r'drive-links', DriveLinkViewSet, basename='drive-link')
 
 urlpatterns = [
+    # Endpoint de autenticación (Login)
+    path('auth/login/', login_view, name='api_login'),
+
     # Endpoint de verificación de base de datos
     path('test-db/', test_db_connection, name='test_db_connection'),
 

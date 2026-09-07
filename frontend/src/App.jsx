@@ -1,30 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 // Importamos las vistas
-import LoadingScreen from './views/LoadingScreen';
-import LoginScreen from './views/LoginScreen';
-import DashboardContent from './views/DashboardContent';
-import StrategicPlanning from './views/StrategicPlanning';
-import Portfolio from './views/Portfolio';
+import LoadingScreen from "./views/LoadingScreen";
+import LoginScreen from "./views/LoginScreen";
+import DashboardContent from "./views/DashboardContent";
+import StrategicPlanning from "./views/StrategicPlanning";
+import Portfolio from "./views/Portfolio";
 
 // Importamos los componentes de estructura (Layout)
-import Sidebar from './components/layout/Sidebar';
-import Topbar from './components/layout/Topbar';
-import DbConnectionTest from './components/DbConnectionTest';
-import MobileNavigation from './views/MobileNavigation';
+import Sidebar from "./components/layout/Sidebar";
+import Topbar from "./components/layout/Topbar";
+//import DbConnectionTest from "./components/DbConnectionTest";
+import MobileNavigation from "./views/MobileNavigation";
 
 export default function App() {
   // Estados de nuestra aplicación
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // <-- ¡NUESTRO NUEVO ESTADO!
-  const [activeView, setActiveView] = useState('dashboard');
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("project_planner_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem("project_planner_user") !== null;
+  });
+  const [activeView, setActiveView] = useState("dashboard");
+
+  const handleLogin = (userData) => {
+    setCurrentUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("project_planner_user");
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
 
   const renderActiveView = () => {
-    if (activeView === 'planning') return <StrategicPlanning />;
-    if (activeView === 'portfolio') return <Portfolio />;
+    if (activeView === "planning") return <StrategicPlanning />;
+    if (activeView === "portfolio") return <Portfolio />;
     return <DashboardContent />;
   };
-  
+
   useEffect(() => {
     // Simula una carga de 2.5 segundos antes de mostrar el login
     const timer = setTimeout(() => {
@@ -42,11 +63,15 @@ export default function App() {
       <div className="flex h-screen bg-[#0d1117] text-white font-sans overflow-hidden animate-in fade-in duration-1000">
         <Sidebar activeView={activeView} onNavigate={setActiveView} />
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-16 lg:pb-0">
-          <Topbar activeView={activeView} />
+          <Topbar
+            activeView={activeView}
+            user={currentUser}
+            onLogout={handleLogout}
+          />
           {renderActiveView()}
         </div>
-        <MobileNavigation activeView={activeView} onNavigate={setActiveView} /> 
-        <DbConnectionTest />  
+        <MobileNavigation activeView={activeView} onNavigate={setActiveView} />
+        {/* <DbConnectionTest />   */}
       </div>
     );
   }
@@ -56,10 +81,9 @@ export default function App() {
   // =========================================================
   return (
     <div className="min-h-screen w-full bg-[#050B14] text-slate-100 flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden font-sans select-none">
-      
       {/* Rejilla de fondo */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#111e33_1px,transparent_1px),linear-gradient(to_bottom,#111e33_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_40%_50%,#000_70%,transparent_100%)] pointer-events-none opacity-40" />
-      
+
       {/* Radar de círculos concéntricos */}
       <div className="absolute left-[28%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-cyan-900/30 pointer-events-none flex items-center justify-center">
         <div className="w-[500px] h-[500px] rounded-full border border-cyan-800/30 flex items-center justify-center">
@@ -71,13 +95,12 @@ export default function App() {
       {isLoading ? (
         <LoadingScreen />
       ) : (
-        // Le pasamos la función al LoginScreen para que sepa cuándo entrar
-        <LoginScreen onLogin={() => setIsAuthenticated(true)} />
+        // Le pasamos la función al LoginScreen para que reciba los datos del usuario logueado
+        <LoginScreen onLogin={handleLogin} />
       )}
 
       {/* Widget de Test BD & Backend */}
-      <DbConnectionTest />
-      
+      {/* <DbConnectionTest /> */}
     </div>
   );
 }
