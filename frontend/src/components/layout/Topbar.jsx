@@ -21,13 +21,6 @@ export default function Topbar({
   };
   const placeholder = placeholders[activeView] ?? placeholders.dashboard;
 
-  const displayName = user?.first_name
-    ? `${user.first_name} ${user.last_name || ""}`.trim()
-    : user?.username || "Usuario";
-  const roleDisplay =
-    user?.role_display ||
-    (user?.is_superuser ? "Project Manager (Admin)" : "Equipo Técnico");
-
   return (
     <header className="flex items-center justify-between gap-3 border-b border-[#30363d] bg-[#0d1117] px-3 py-3 sm:gap-6 sm:px-6 sm:py-4">
       <div className="flex min-w-0 flex-1 items-center rounded-lg border border-[#30363d] bg-[#161b22] px-3 py-2.5 sm:max-w-md sm:px-4">

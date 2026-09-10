@@ -17,30 +17,23 @@ import MobileNavigation from "./views/MobileNavigation";
 
 const initialUsers = [
   {
-    id: "usr-ana",
-    name: "Ana Rojas",
-    email: "ana.rojas@empresa.com",
-    isSubAdmin: false,
-    isOnline: true,
-  },
-  {
-    id: "usr-luis",
-    name: "Luis Mendoza",
-    email: "luis.mendoza@empresa.com",
+    id: "usr-sistemas",
+    name: "Luis Gonzales (Sistemas)",
+    email: "sistemas@projectplanner.com",
     isSubAdmin: false,
     isOnline: false,
   },
   {
-    id: "usr-maria",
-    name: "María Torres",
-    email: "maria.torres@empresa.com",
+    id: "usr-civil",
+    name: "Andrea Rojas (Civil)",
+    email: "civil@projectplanner.com",
     isSubAdmin: false,
-    isOnline: true,
+    isOnline: false,
   },
   {
-    id: "usr-diego",
-    name: "Diego Ramos",
-    email: "diego.ramos@empresa.com",
+    id: "usr-arquitectura",
+    name: "Carlos Mendoza (Arquitectura)",
+    email: "arquitectura@projectplanner.com",
     isSubAdmin: false,
     isOnline: false,
   },
@@ -82,6 +75,14 @@ export default function App() {
     try {
       const savedUsers = window.localStorage.getItem("project-planner-users");
       const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
+      // Si existen usuarios antiguos de prueba (@empresa.com), los limpiamos
+      if (
+        Array.isArray(parsedUsers) &&
+        parsedUsers.some((u) => u.email?.includes("@empresa.com") || u.id === "usr-ana")
+      ) {
+        window.localStorage.removeItem("project-planner-users");
+        return initialUsers;
+      }
       return Array.isArray(parsedUsers) ? parsedUsers : initialUsers;
     } catch {
       return initialUsers;
@@ -96,7 +97,11 @@ export default function App() {
 
   const registeredCurrentUser =
     currentUser?.accountType === "user"
-      ? users.find((user) => user.id === currentUser.id)
+      ? users.find(
+          (user) =>
+            user.id === currentUser.id ||
+            (user.email && currentUser.email && user.email.toLowerCase() === currentUser.email.toLowerCase()),
+        )
       : null;
 
   const displayedCurrentUser = currentUser
