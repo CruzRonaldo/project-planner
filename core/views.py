@@ -10,6 +10,7 @@ from django.contrib.auth.models import update_last_login
 
 from .models import (
     TechnicalArea,
+    Role,
     TeamStatus,
     TeamMember,
     Project,
@@ -20,6 +21,7 @@ from .models import (
 )
 from .serializers import (
     TechnicalAreaSerializer,
+    RoleSerializer,
     TeamStatusSerializer,
     TeamMemberSerializer,
     ProjectSerializer,
@@ -143,10 +145,28 @@ def login_view(request):
 
 class TechnicalAreaViewSet(viewsets.ModelViewSet):
     """
-    CRUD para Áreas Técnicas (Arquitectura, Estructuras, Sistemas)
+    CRUD para Áreas Técnicas (Arquitectura, Civil, Sistemas)
     """
     queryset = TechnicalArea.objects.all()
     serializer_class = TechnicalAreaSerializer
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para Roles y Cargos Técnicos por Área con soporte de filtrado por área técnica
+    """
+    queryset = Role.objects.select_related('technical_area').all()
+    serializer_class = RoleSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        technical_area_id = (
+            self.request.query_params.get('technical_area') or
+            self.request.query_params.get('area')
+        )
+        if technical_area_id:
+            queryset = queryset.filter(technical_area_id=technical_area_id)
+        return queryset
 
 
 class TeamStatusViewSet(viewsets.ModelViewSet):
@@ -161,7 +181,7 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     """
     CRUD para Miembros del Equipo Técnico
     """
-    queryset = TeamMember.objects.select_related('technical_area', 'status', 'project').all()
+    queryset = TeamMember.objects.select_related('role', 'technical_area', 'status', 'project').all()
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):

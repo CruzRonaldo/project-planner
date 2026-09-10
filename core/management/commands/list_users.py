@@ -18,7 +18,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"\n=== LISTA DE USUARIOS REGISTRADOS ({total}) ===\n"))
 
         # Encabezado de la tabla
-        header = f"{'ID':<4} | {'Usuario':<20} | {'Email':<30} | {'Rol / Nivel':<20} | {'Estado':<10}"
+        header = f"{'ID':<4} | {'Usuario':<16} | {'Nombre / Área':<28} | {'Email':<32} | {'Nivel':<18} | {'Estado':<10}"
         separator = "-" * len(header)
         self.stdout.write(header)
         self.stdout.write(separator)
@@ -34,8 +34,9 @@ class Command(BaseCommand):
 
             status = "Activo" if u.is_active else "Inactivo"
             email = u.email if u.email else "(sin email)"
+            full_name = f"{u.first_name} {u.last_name}".strip() or "-"
 
-            row = f"{u.id:<4} | {u.username:<20} | {email:<30} | {role:<20} | {status:<10}"
+            row = f"{u.id:<4} | {u.username:<16} | {full_name:<28} | {email:<32} | {role:<18} | {status:<10}"
             
             if u.is_superuser:
                 self.stdout.write(self.style.SUCCESS(row))

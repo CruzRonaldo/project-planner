@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import (
     TechnicalArea,
+    Role,
     TeamStatus,
     TeamMember,
     Project,
@@ -16,10 +17,34 @@ class TechnicalAreaSerializer(serializers.ModelSerializer):
     Serializador para las áreas técnicas (Arquitectura, Estructuras, Sistemas)
     """
     members_count = serializers.IntegerField(source='members.count', read_only=True)
+    roles_count = serializers.IntegerField(source='roles.count', read_only=True)
 
     class Meta:
         model = TechnicalArea
-        fields = ['id', 'name', 'description', 'members_count', 'created_at']
+        fields = ['id', 'name', 'description', 'members_count', 'roles_count', 'created_at']
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    """
+    Serializador para roles y cargos técnicos por área con funciones y capacidades
+    """
+    technical_area_name = serializers.ReadOnlyField(source='technical_area.name')
+    members_count = serializers.IntegerField(source='members.count', read_only=True)
+
+    class Meta:
+        model = Role
+        fields = [
+            'id',
+            'technical_area',
+            'technical_area_name',
+            'name',
+            'description',
+            'can_manage_projects',
+            'can_manage_tasks',
+            'can_view_metrics',
+            'members_count',
+            'created_at',
+        ]
 
 
 class TeamStatusSerializer(serializers.ModelSerializer):
@@ -33,9 +58,10 @@ class TeamStatusSerializer(serializers.ModelSerializer):
 
 class TeamMemberSerializer(serializers.ModelSerializer):
     """
-    Serializador para el personal técnico, incluyendo nombres legibles de área y estado
+    Serializador para el personal técnico, incluyendo nombres legibles de área, rol y estado
     """
     technical_area_name = serializers.ReadOnlyField(source='technical_area.name')
+    role_name = serializers.ReadOnlyField(source='role.name')
     status_name = serializers.ReadOnlyField(source='status.name')
     status_color = serializers.ReadOnlyField(source='status.color_code')
     project_code = serializers.ReadOnlyField(source='project.code')
@@ -51,6 +77,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'full_name',
             'email',
             'role',
+            'role_name',
             'technical_area',
             'technical_area_name',
             'status',
