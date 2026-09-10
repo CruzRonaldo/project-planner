@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (
     TechnicalArea,
+    Role,
     TeamStatus,
     TeamMember,
     Project,
@@ -44,6 +45,13 @@ class TechnicalAreaAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'technical_area', 'can_manage_projects', 'can_manage_tasks', 'can_view_metrics', 'created_at')
+    list_filter = ('technical_area', 'can_manage_projects', 'can_manage_tasks', 'can_view_metrics')
+    search_fields = ('name', 'description', 'technical_area__name')
+
+
 @admin.register(TeamStatus)
 class TeamStatusAdmin(admin.ModelAdmin):
     list_display = ('name', 'color_code', 'description')
@@ -53,8 +61,8 @@ class TeamStatusAdmin(admin.ModelAdmin):
 @admin.register(TeamMember)
 class TeamMemberAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'role', 'technical_area', 'status', 'project', 'is_active')
-    list_filter = ('project', 'technical_area', 'status', 'is_active')
-    search_fields = ('first_name', 'last_name', 'email', 'role', 'project__name', 'project__code')
+    list_filter = ('project', 'technical_area', 'role', 'status', 'is_active')
+    search_fields = ('first_name', 'last_name', 'email', 'role__name', 'project__name', 'project__code')
 
 
 @admin.register(Project)

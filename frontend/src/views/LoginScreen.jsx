@@ -8,7 +8,9 @@ import {
   Eye,
   EyeOff,
   LayoutGrid,
+  AlertCircle,
 } from "lucide-react";
+import api from "../services/api";
 
 export default function LoginScreen({ onLogin }) {
   const [role, setRole] = useState("admin");
@@ -16,23 +18,60 @@ export default function LoginScreen({ onLogin }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ role, email, password, rememberMe });
+    setErrorMessage("");
+    setIsLoading(true);
 
-    // 2. Llama a la función aquí para "entrar" al sistema
-    onLogin({ role, email });
+    try {
+      const response = await api.post("/auth/login/", {
+        email: email.trim(),
+        password: password,
+        role: role,
+      });
+
+      if (response.data.status === "success") {
+        const userData = response.data.user;
+        if (rememberMe) {
+          localStorage.setItem(
+            "project_planner_user",
+            JSON.stringify(userData),
+          );
+        }
+        // Llamamos a la función del padre pasando los datos reales del usuario
+        onLogin(userData);
+      }
+    } catch (error) {
+      console.error("Error al iniciar sesión:", error);
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        setErrorMessage(error.response.data.message);
+      } else if (error.request) {
+        setErrorMessage(
+          "No se pudo conectar con el servidor Django. Asegúrese de que esté corriendo en el puerto 8000.",
+        );
+      } else {
+        setErrorMessage("Ocurrió un error inesperado al iniciar sesión.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <>
       {/* Header: Logo superior */}
-      <header className="relative z-10 flex items-center gap-[12px] animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="bg-cyan-500 p-[8px] rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-          <LayoutGrid className="h-[20px] w-[20px]" />
+      <header className="relative z-10 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-700">
+        <div className="bg-cyan-500 p-2 rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+          <LayoutGrid className="w-5 h-5" />
         </div>
-        <span className="text-[16px] font-extrabold tracking-wider text-white">
+        <span className="font-extrabold tracking-wider text-white text-sm sm:text-base">
           PROJECT PLANNER
         </span>
       </header>
@@ -55,24 +94,23 @@ export default function LoginScreen({ onLogin }) {
         </div>
 
         {/* Columna Derecha: Tarjeta de Login */}
-        <div className="lg:col-span-6 flex justify-center lg:justify-end">
-          <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative pt-20 mt-24">
-            {/* Contenedor del Logo elevado */}
-            <div className="absolute -top-[128px] left-1/2 -translate-x-1/2 flex justify-center items-center pointer-events-none drop-shadow-[0_20px_35px_rgba(0,0,0,0.95)]">
-              <div
-                style={{
-                  clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-                }}
-                className="h-[176px] w-[176px] flex items-center justify-center bg-transparent"
-              >
-                <img
-                  src={logoEmpresa}
-                  alt="Logo LS Empresa"
-                  className="w-full h-full object-cover scale-105"
-                />
-              </div>
+        <div className="lg:col-span-6 flex flex-col items-center lg:items-center">
+          {/* Contenedor del Logo elevado */}
+          <div className="flex justify-center items-center mb-6 drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)]">
+            <div
+              style={{
+                clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+              }}
+              className="w-36 h-36 flex items-center justify-center bg-transparent"
+            >
+              <img
+                src={logoEmpresa}
+                alt="Logo LS Empresa"
+                className="w-full h-full object-contain"
+              />
             </div>
-
+          </div>
+          <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative ">
             <div className="space-y-1 mb-8 text-left">
               <h3 className="text-2xl font-bold text-white tracking-tight">
                 Iniciar Sesión
@@ -217,12 +255,30 @@ export default function LoginScreen({ onLogin }) {
                 </a>
               </div>
 
+              {/* Mensaje de Error si las credenciales o rol fallan */}
+              {errorMessage && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3.5 rounded-xl text-xs flex items-start gap-2.5 animate-in fade-in duration-300">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               {/* Botón Submit */}
               <button
                 type="submit"
-                className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] cursor-pointer"
+                disabled={isLoading}
+                className={`w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] cursor-pointer flex items-center justify-center gap-2 ${
+                  isLoading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
               >
-                Iniciar Sesión
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Verificando credenciales...</span>
+                  </>
+                ) : (
+                  "Iniciar Sesión"
+                )}
               </button>
             </form>
           </div>

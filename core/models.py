@@ -19,6 +19,34 @@ class TechnicalArea(models.Model):
         return self.name
 
 
+class Role(models.Model):
+    """
+    Roles y cargos técnicos especializados asignados a un área técnica específica,
+    con definición de funciones y capacidades en el sistema.
+    """
+    technical_area = models.ForeignKey(
+        TechnicalArea,
+        on_delete=models.CASCADE,
+        related_name='roles',
+        verbose_name="Área Técnica"
+    )
+    name = models.CharField(max_length=100, verbose_name="Nombre del Rol / Cargo")
+    description = models.TextField(blank=True, null=True, verbose_name="Descripción / Funciones del Puesto")
+    can_manage_projects = models.BooleanField(default=False, verbose_name="¿Puede gestionar proyectos?")
+    can_manage_tasks = models.BooleanField(default=True, verbose_name="¿Puede gestionar tareas?")
+    can_view_metrics = models.BooleanField(default=True, verbose_name="¿Puede ver métricas?")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Rol / Cargo Técnico"
+        verbose_name_plural = "Roles / Cargos Técnicos"
+        ordering = ['technical_area', 'name']
+        unique_together = ('technical_area', 'name')
+
+    def __str__(self):
+        return f"{self.name} ({self.technical_area.name})"
+
+
 class TeamStatus(models.Model):
     """
     Estados de disponibilidad para los equipos (Active, Stand-by, Support, etc.)
@@ -42,7 +70,14 @@ class TeamMember(models.Model):
     first_name = models.CharField(max_length=100, verbose_name="Nombres")
     last_name = models.CharField(max_length=100, verbose_name="Apellidos")
     email = models.EmailField(unique=True, verbose_name="Correo Electrónico")
-    role = models.CharField(max_length=100, verbose_name="Rol / Especialidad", help_text="Ej. Modelador Revit, Renderista, Desarrollador")
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='members',
+        verbose_name="Rol / Cargo Asignado"
+    )
     technical_area = models.ForeignKey(TechnicalArea, on_delete=models.PROTECT, related_name='members', verbose_name="Área Técnica")
     status = models.ForeignKey(TeamStatus, on_delete=models.SET_NULL, null=True, related_name='members', verbose_name="Estado Actual")
     project = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='team_members', verbose_name="Proyecto Asignado")
@@ -56,7 +91,8 @@ class TeamMember(models.Model):
 
     def __str__(self):
         project_str = f" - {self.project.code}" if self.project else " (Sin Proyecto)"
-        return f"{self.first_name} {self.last_name} ({self.role}){project_str}"
+        role_str = self.role.name if self.role else "Sin Rol"
+        return f"{self.first_name} {self.last_name} ({role_str}){project_str}"
 
 
 class Project(models.Model):

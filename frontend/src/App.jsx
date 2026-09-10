@@ -10,38 +10,30 @@ import RolesManagement from "./views/RolesManagement";
 import HumanResources from "./views/HumanResources";
 import { createHumanResourcesData } from "./views/humanResourcesData";
 
-// Importamos los componentes de estructura (Layout actual)
+// Importamos los componentes de estructura (Layout)
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
-import DbConnectionTest from "./components/DbConnectionTest";
 import MobileNavigation from "./views/MobileNavigation";
 
 const initialUsers = [
   {
-    id: "usr-ana",
-    name: "Ana Rojas",
-    email: "ana.rojas@empresa.com",
-    isSubAdmin: false,
-    isOnline: true,
-  },
-  {
-    id: "usr-luis",
-    name: "Luis Mendoza",
-    email: "luis.mendoza@empresa.com",
+    id: "usr-sistemas",
+    name: "Luis Gonzales (Sistemas)",
+    email: "sistemas@projectplanner.com",
     isSubAdmin: false,
     isOnline: false,
   },
   {
-    id: "usr-maria",
-    name: "María Torres",
-    email: "maria.torres@empresa.com",
+    id: "usr-civil",
+    name: "Andrea Rojas (Civil)",
+    email: "civil@projectplanner.com",
     isSubAdmin: false,
-    isOnline: true,
+    isOnline: false,
   },
   {
-    id: "usr-diego",
-    name: "Diego Ramos",
-    email: "diego.ramos@empresa.com",
+    id: "usr-arquitectura",
+    name: "Carlos Mendoza (Arquitectura)",
+    email: "arquitectura@projectplanner.com",
     isSubAdmin: false,
     isOnline: false,
   },
@@ -62,19 +54,35 @@ function createNameFromEmail(email) {
 }
 
 export default function App() {
-  // Estados de nuestra aplicación
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // <-- ¡NUESTRO NUEVO ESTADO!
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("project_planner_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem("project_planner_user") !== null;
+  });
   const [activeView, setActiveView] = useState("dashboard");
   const [humanResourcesData, setHumanResourcesData] = useState(
     createHumanResourcesData,
   );
   const [humanResourcesQuery, setHumanResourcesQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState(() => {
     try {
       const savedUsers = window.localStorage.getItem("project-planner-users");
       const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
+      // Si existen usuarios antiguos de prueba (@empresa.com), los limpiamos
+      if (
+        Array.isArray(parsedUsers) &&
+        parsedUsers.some((u) => u.email?.includes("@empresa.com") || u.id === "usr-ana")
+      ) {
+        window.localStorage.removeItem("project-planner-users");
+        return initialUsers;
+      }
       return Array.isArray(parsedUsers) ? parsedUsers : initialUsers;
     } catch {
       return initialUsers;
@@ -89,14 +97,25 @@ export default function App() {
 
   const registeredCurrentUser =
     currentUser?.accountType === "user"
-      ? users.find((user) => user.id === currentUser.id)
+      ? users.find(
+          (user) =>
+            user.id === currentUser.id ||
+            (user.email && currentUser.email && user.email.toLowerCase() === currentUser.email.toLowerCase()),
+        )
       : null;
 
   const displayedCurrentUser = currentUser
     ? {
         ...currentUser,
-        name: registeredCurrentUser?.name ?? currentUser.name,
+        name: currentUser.first_name
+          ? `${currentUser.first_name} ${currentUser.last_name || ""}`.trim()
+          : currentUser.username ||
+            registeredCurrentUser?.name ||
+            currentUser.name ||
+            "Usuario",
         roleLabel:
+          currentUser.role === "admin" ||
+          currentUser.is_superuser ||
           currentUser.accountType === "admin"
             ? "Project Manager"
             : registeredCurrentUser?.isSubAdmin
@@ -105,46 +124,16 @@ export default function App() {
       }
     : null;
 
-  const handleLogin = ({ role, email }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (role === "admin") {
-      setCurrentUser({
-        id: "admin-carlos",
-        name: "Carlos M.",
-        email: normalizedEmail,
-        accountType: "admin",
-      });
-    } else {
-      let registeredUser = users.find(
-        (user) => user.email.toLowerCase() === normalizedEmail,
-      );
-
-      if (!registeredUser) {
-        registeredUser = {
-          id: `usr-${Date.now()}`,
-          name: createNameFromEmail(normalizedEmail),
-          email: normalizedEmail,
-          isSubAdmin: false,
-          isOnline: true,
-        };
-        setUsers((currentUsers) => [...currentUsers, registeredUser]);
-      } else {
-        setUsers((currentUsers) =>
-          currentUsers.map((user) =>
-            user.id === registeredUser.id ? { ...user, isOnline: true } : user,
-          ),
-        );
-      }
-
-      setCurrentUser({
-        id: registeredUser.id,
-        name: registeredUser.name,
-        email: registeredUser.email,
-        accountType: "user",
-      });
-    }
-
+  const handleLogin = (userData) => {
+    // Compatible tanto con la respuesta del backend como con el formato anterior
+    const accountType =
+      userData?.role === "admin" || userData?.is_superuser ? "admin" : "user";
+    const userToSave = {
+      ...userData,
+      accountType,
+      name: userData?.username || userData?.name || "Usuario",
+    };
+    setCurrentUser(userToSave);
     setActiveView("dashboard");
     setIsAuthenticated(true);
   };
@@ -158,14 +147,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    if (currentUser?.accountType === "user") {
-      setUsers((currentUsers) =>
-        currentUsers.map((user) =>
-          user.id === currentUser.id ? { ...user, isOnline: false } : user,
-        ),
-      );
-    }
-
+    localStorage.removeItem("project_planner_user");
     setCurrentUser(null);
     setActiveView("dashboard");
     setIsAuthenticated(false);
@@ -186,7 +168,9 @@ export default function App() {
     }
     if (
       activeView === "roles" &&
-      displayedCurrentUser?.accountType === "admin"
+      (displayedCurrentUser?.accountType === "admin" ||
+        displayedCurrentUser?.role === "admin" ||
+        displayedCurrentUser?.is_superuser)
     ) {
       return (
         <RolesManagement
@@ -199,11 +183,9 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Simula una carga de 2.5 segundos antes de mostrar el login
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2500);
-
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -219,9 +201,7 @@ export default function App() {
     document.documentElement.style.fontSize = `${16 * (fontScale / 100)}px`;
   }, [fontScale]);
 
-  // =========================================================
-  // SI ESTÁ AUTENTICADO: MOSTRAMOS EL DASHBOARD
-  // =========================================================
+  // Si está autenticado: Mostramos el Dashboard completo
   if (isAuthenticated) {
     return (
       <div className="flex h-screen bg-[#0d1117] text-white font-sans overflow-hidden animate-in fade-in duration-1000">
@@ -251,36 +231,31 @@ export default function App() {
           {renderActiveView()}
         </div>
         <MobileNavigation activeView={activeView} onNavigate={setActiveView} />
-        <DbConnectionTest />
       </div>
     );
   }
 
-  // =========================================================
-  // SI NO ESTÁ AUTENTICADO: MOSTRAMOS CARGA O LOGIN
-  // =========================================================
+  // Si no está autenticado: Mostramos Carga o Login
   return (
-    <div className="min-h-screen w-full bg-[#050B14] text-slate-100 flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden font-sans select-none">
-      {/* Rejilla de fondo */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#111e33_1px,transparent_1px),linear-gradient(to_bottom,#111e33_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_40%_50%,#000_70%,transparent_100%)] pointer-events-none opacity-40" />
-
-      {/* Radar de círculos concéntricos */}
-      <div className="absolute left-[28%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-cyan-900/30 pointer-events-none flex items-center justify-center">
+    <div
+      className="min-h-screen w-full bg-[#050B14] text-slate-100 flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden font-
+  sans select-none"
+    >
+      <div
+        className="absolute inset-0 bg-[linear-gradient(to_right,#111e33_1px,transparent_1px),linear-gradient(to_bottom,#111e33_1px,
+  transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_40%_50%,#000_70%,transparent_100%)] pointer-events-none
+  opacity-40"
+      />
+      <div
+        className="absolute left-[28%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-cyan-900/30
+  pointer-events-none flex items-center justify-center"
+      >
         <div className="w-[500px] h-[500px] rounded-full border border-cyan-800/30 flex items-center justify-center">
           <div className="w-[300px] h-[300px] rounded-full border border-cyan-700/20" />
         </div>
       </div>
 
-      {/* Magia Condicional Modificada */}
-      {isLoading ? (
-        <LoadingScreen />
-      ) : (
-        // Le pasamos la función al LoginScreen para que sepa cuándo entrar
-        <LoginScreen onLogin={handleLogin} />
-      )}
-
-      {/* Widget de Test BD & Backend */}
-      <DbConnectionTest />
+      {isLoading ? <LoadingScreen /> : <LoginScreen onLogin={handleLogin} />}
     </div>
   );
 }

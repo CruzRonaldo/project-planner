@@ -2,7 +2,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     test_db_connection,
+    login_view,
     TechnicalAreaViewSet,
+    RoleViewSet,
     TeamStatusViewSet,
     TeamMemberViewSet,
     ProjectViewSet,
@@ -15,6 +17,7 @@ from .views import (
 # Creamos el enrutador REST
 router = DefaultRouter()
 router.register(r'technical-areas', TechnicalAreaViewSet, basename='technical-area')
+router.register(r'roles', RoleViewSet, basename='role')
 router.register(r'team-statuses', TeamStatusViewSet, basename='team-status')
 router.register(r'team-members', TeamMemberViewSet, basename='team-member')
 router.register(r'projects', ProjectViewSet, basename='project')
@@ -24,6 +27,9 @@ router.register(r'performance-metrics', PerformanceMetricViewSet, basename='perf
 router.register(r'drive-links', DriveLinkViewSet, basename='drive-link')
 
 urlpatterns = [
+    # Endpoint de autenticación (Login)
+    path('auth/login/', login_view, name='api_login'),
+
     # Endpoint de verificación de base de datos
     path('test-db/', test_db_connection, name='test_db_connection'),
 

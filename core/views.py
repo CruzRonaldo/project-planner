@@ -1,12 +1,16 @@
 import time
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.http import JsonResponse
 from django.db import connection
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import update_last_login
 
 from .models import (
     TechnicalArea,
+    Role,
     TeamStatus,
     TeamMember,
     Project,
@@ -17,6 +21,7 @@ from .models import (
 )
 from .serializers import (
     TechnicalAreaSerializer,
+    RoleSerializer,
     TeamStatusSerializer,
     TeamMemberSerializer,
     ProjectSerializer,
@@ -68,14 +73,100 @@ def test_db_connection(request):
             },
             'message': f'Error al conectar con la base de datos: {str(e)}'
         }, status=500)
+User = get_user_model()
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    """
+    Endpoint de autenticación para verificar credenciales de usuario y rol.
+    Actualiza la fecha de último inicio de sesión (last_login) en MySQL.
+    """
+    data = request.data
+    identifier = (data.get('email') or data.get('username') or '').strip()
+    password = data.get('password', '')
+    selected_role = data.get('role', 'user').lower()  # 'admin' o 'user'
+
+    if not identifier or not password:
+        return Response({
+            'status': 'error',
+            'message': 'Por favor ingrese correo o usuario y contraseña.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Buscar usuario por email o por username
+    user = User.objects.filter(email__iexact=identifier).first()
+    if not user:
+        user = User.objects.filter(username__iexact=identifier).first()
+
+    if not user or not user.check_password(password):
+        return Response({
+            'status': 'error',
+            'message': 'Credenciales invalidas. Verifique su correo/usuario y contrasena.'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not user.is_active:
+        return Response({
+            'status': 'error',
+            'message': 'Esta cuenta de usuario ha sido desactivada.'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    # Validar coincidencia de rol
+    is_admin = user.is_superuser or user.is_staff
+
+    if selected_role == 'admin' and not is_admin:
+        return Response({
+            'status': 'error',
+            'message': f"Acceso denegado: El usuario '{user.username}' no tiene permisos de Administrador."
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    # Actualizar last_login en la base de datos MySQL
+    update_last_login(None, user)
+
+    user_role = 'admin' if is_admin else 'user'
+    role_display = 'Project Manager (Admin)' if is_admin else 'Equipo Tecnico'
+
+    return Response({
+        'status': 'success',
+        'message': f'Bienvenido al sistema, {user.username}',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user_role,
+            'role_display': role_display,
+            'is_superuser': user.is_superuser,
+            'last_login': user.last_login,
+        }
+    }, status=status.HTTP_200_OK)
 
 
 class TechnicalAreaViewSet(viewsets.ModelViewSet):
     """
-    CRUD para Áreas Técnicas (Arquitectura, Estructuras, Sistemas)
+    CRUD para Áreas Técnicas (Arquitectura, Civil, Sistemas)
     """
     queryset = TechnicalArea.objects.all()
     serializer_class = TechnicalAreaSerializer
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para Roles y Cargos Técnicos por Área con soporte de filtrado por área técnica
+    """
+    queryset = Role.objects.select_related('technical_area').all()
+    serializer_class = RoleSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        technical_area_id = (
+            self.request.query_params.get('technical_area') or
+            self.request.query_params.get('area')
+        )
+        if technical_area_id:
+            queryset = queryset.filter(technical_area_id=technical_area_id)
+        return queryset
 
 
 class TeamStatusViewSet(viewsets.ModelViewSet):
@@ -90,7 +181,7 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     """
     CRUD para Miembros del Equipo Técnico
     """
-    queryset = TeamMember.objects.select_related('technical_area', 'status', 'project').all()
+    queryset = TeamMember.objects.select_related('role', 'technical_area', 'status', 'project').all()
     serializer_class = TeamMemberSerializer
 
     def get_queryset(self):
