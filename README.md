@@ -58,13 +58,29 @@ CREATE DATABASE project_planner CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 
 Puedes hacerlo desde MySQL Workbench, la terminal de MySQL, o cualquier cliente de tu preferencia.
 
-### 2.2 Aplicar migraciones e iniciar el servidor
+### 2.2 Aplicar migraciones
 
 ```bash
 # Aplicar migraciones
 python manage.py migrate
+```
 
-# Iniciar servidor backend (Puerto 8000)
+### 2.3 Cargar datos iniciales y usuarios
+
+```bash
+# Poblar áreas, roles, proyectos y usuarios de prueba (sistemas, civil, arquitectura)
+python manage.py seed_data
+
+# Crear usuario Administrador (Project Manager)
+python manage.py createsuperuser
+
+# (Opcional) Listar usuarios registrados
+python manage.py list_users
+```
+
+### 2.4 Iniciar el servidor backend (Puerto 8000)
+
+```bash
 python manage.py runserver
 ```
 
