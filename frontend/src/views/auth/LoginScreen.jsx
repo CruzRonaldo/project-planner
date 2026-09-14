@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import logoEmpresa from "../../assets/logoempresa1.png";
+import logoEmpresa from '../../assets/logoempresa1.png';
 import {
   ShieldCheck,
   User,
@@ -7,7 +7,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  LayoutGrid,
   AlertCircle,
 } from "lucide-react";
 import api from "../../services/api";
@@ -68,9 +67,11 @@ export default function LoginScreen({ onLogin }) {
     <>
       {/* Header: Logo superior */}
       <header className="relative z-10 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="bg-cyan-500 p-2 rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-          <LayoutGrid className="w-5 h-5" />
-        </div>
+        <img
+          src={logoEmpresa}
+          alt="Logo Project Planner"
+          className="w-8 h-8 object-contain"
+        />
         <span className="font-extrabold tracking-wider text-white text-sm sm:text-base">
           PROJECT PLANNER
         </span>
@@ -131,11 +132,10 @@ export default function LoginScreen({ onLogin }) {
                   <button
                     type="button"
                     onClick={() => setRole("admin")}
-                    className={`text-left p-3.5 rounded-2xl border transition-all relative ${
-                      role === "admin"
+                    className={`text-left p-3.5 rounded-2xl border transition-all relative ${role === "admin"
                         ? "border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
                         : "border-slate-800 bg-[#121C33]/50 hover:border-slate-700"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="bg-cyan-500/20 p-2 rounded-xl text-cyan-400">
@@ -159,11 +159,10 @@ export default function LoginScreen({ onLogin }) {
                   <button
                     type="button"
                     onClick={() => setRole("user")}
-                    className={`text-left p-3.5 rounded-2xl border transition-all relative ${
-                      role === "user"
+                    className={`text-left p-3.5 rounded-2xl border transition-all relative ${role === "user"
                         ? "border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
                         : "border-slate-800 bg-[#121C33]/50 hover:border-slate-700"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="bg-slate-800 p-2 rounded-xl text-slate-400">
@@ -267,9 +266,8 @@ export default function LoginScreen({ onLogin }) {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] cursor-pointer flex items-center justify-center gap-2 ${
-                  isLoading ? "opacity-70 cursor-not-allowed" : ""
-                }`}
+                className={`w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] cursor-pointer flex items-center justify-center gap-2 ${isLoading ? "opacity-70 cursor-not-allowed" : ""
+                  }`}
               >
                 {isLoading ? (
                   <>
