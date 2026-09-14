@@ -6,6 +6,7 @@ import {
   Users,
   UserCog,
   Code,
+  Settings,
 } from 'lucide-react';
 
 export const USER_ROLES = {
@@ -114,6 +115,19 @@ export const NAVIGATION_ITEMS = [
     roles: [USER_ROLES.ADMIN],
     category: 'admin',
     searchPlaceholder: 'Buscar usuarios, correos o roles...',
+    enabled: true,
+    showInSidebar: false,
+    showInMobile: false,
+  },
+  {
+    id: 'configuracion',
+    path: '/configuracion',
+    label: 'Configuración',
+    mobileLabel: 'Config',
+    icon: Settings,
+    roles: [USER_ROLES.ADMIN, USER_ROLES.USER],
+    category: 'common',
+    searchPlaceholder: 'Buscar en configuración...',
     enabled: true,
     showInSidebar: false,
     showInMobile: false,

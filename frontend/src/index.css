@@ -1,38 +1,60 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
+@custom-variant midnight (&:where(.midnight, .midnight *));
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
+html.light {
+  color-scheme: light;
+  --app-bg: #f8fafc;
+  --app-fg: #0f172a;
+}
+
+html.dark {
+  color-scheme: dark;
+  --app-bg: #0d1117;
+  --app-fg: #f1f5f9;
+}
+
+html.midnight {
+  color-scheme: dark;
+  --app-bg: #050b14;
+  --app-fg: #ecfeff;
+}
+
 html, body, #root {
-  width: 100% !important;
-  min-height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
-  background-color: #050B14;
+  background-color: var(--app-bg, #0d1117);
+  color: var(--app-fg, #f1f5f9);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Las etiquetas pequeñas también siguen el tamaño global de letra. */
-.text-\[8px\] {
+.text-[8px] {
   font-size: 0.5rem !important;
 }
 
-.text-\[9px\] {
+.text-[9px] {
   font-size: 0.5625rem !important;
 }
 
-.text-\[10px\] {
+.text-[10px] {
   font-size: 0.625rem !important;
 }
 
-.text-\[11px\] {
+.text-[11px] {
   font-size: 0.6875rem !important;
 }
 
 @media (min-width: 768px) {
-  .md\:text-\[28px\] {
+  .md\:text-[28px] {
     font-size: 1.75rem !important;
   }
 }
