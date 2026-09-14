@@ -5,10 +5,10 @@ const mainItems = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, enabled: true },
   { id: 'planning', label: 'Planificación Estratégica', icon: TrendingUp, enabled: true },
   { id: 'portfolio', label: 'Portafolio', icon: Briefcase, enabled: true },
-  { id: 'operations', label: 'Gestión Operativa', icon: Zap },
-  { id: 'technical-team', label: 'Equipo Técnico', icon: Users, enabled: false },
+  { id: 'operations', label: 'Gestión Operativa', icon: Zap, enabled: true },
+  { id: 'technical-team', label: 'Equipo Técnico', icon: Users, enabled: true },
   { id: 'human-resources', label: 'Recursos Humanos', icon: UserCog, enabled: true },
-  { id: 'integrations', label: 'Integraciones', icon: Code },
+  { id: 'integrations', label: 'Integraciones', icon: Code, enabled: true },
 ];
 
 export default function Sidebar({ activeView, onNavigate, fontScale, onFontScaleChange }) {
