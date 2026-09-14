@@ -12,8 +12,6 @@ export default function App() {
     displayedCurrentUser,
     activeView,
     setActiveView,
-    fontScale,
-    setFontScale,
     users,
     handleLogin,
     handleLogout,
@@ -29,13 +27,11 @@ export default function App() {
   // Si está autenticado: Mostramos el Dashboard completo
   if (isAuthenticated) {
     return (
-      <div className="flex h-screen bg-[#0d1117] text-white font-sans overflow-hidden animate-in fade-in duration-1000">
+      <div className="flex h-screen font-sans overflow-hidden animate-in fade-in duration-1000 transition-colors bg-slate-50 text-slate-900 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50">
         <Sidebar
           items={allowedSidebarItems}
           activeView={activeView}
           onNavigate={setActiveView}
-          fontScale={fontScale}
-          onFontScaleChange={setFontScale}
         />
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-16 lg:pb-0">
           <Topbar

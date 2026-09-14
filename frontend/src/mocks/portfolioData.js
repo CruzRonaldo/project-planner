@@ -8,11 +8,11 @@ export const projectAreas = [
 ];
 
 export const projectStatuses = [
-  { id: 'planning', label: 'En Planificación', className: 'bg-cyan-500/10 text-cyan-400', barClass: 'bg-cyan-500' },
-  { id: 'active', label: 'Activo', className: 'bg-blue-500/10 text-blue-400', barClass: 'bg-blue-500' },
-  { id: 'paused', label: 'En Pausa', className: 'bg-amber-500/10 text-amber-400', barClass: 'bg-amber-500' },
-  { id: 'completed', label: 'Completado', className: 'bg-slate-500/15 text-slate-300', barClass: 'bg-slate-300' },
-  { id: 'risk', label: 'En Riesgo', className: 'bg-red-500/10 text-red-400', barClass: 'bg-red-500' },
+  { id: 'planning', label: 'En Planificación', className: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 midnight:bg-cyan-500/10 midnight:text-cyan-300', barClass: 'bg-cyan-500' },
+  { id: 'active', label: 'Activo', className: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300', barClass: 'bg-blue-500 midnight:bg-cyan-400' },
+  { id: 'paused', label: 'En Pausa', className: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/10 midnight:text-amber-300', barClass: 'bg-amber-500' },
+  { id: 'completed', label: 'Completado', className: 'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300 midnight:bg-cyan-900/30 midnight:text-cyan-500/70', barClass: 'bg-slate-400 dark:bg-slate-300 midnight:bg-cyan-700' },
+  { id: 'risk', label: 'En Riesgo', className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300', barClass: 'bg-red-500' },
 ];
 
 export const projectLeaders = [

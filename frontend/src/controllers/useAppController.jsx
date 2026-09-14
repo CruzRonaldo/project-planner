@@ -19,6 +19,7 @@ import {
   HumanResources,
   Integrations,
   RolesManagement,
+  Configuration,
 } from '../views';
 
 // Importamos datos mock aislados para visualización (se sustituirán con endpoints de Django)
@@ -140,6 +141,10 @@ export function useAppController() {
       window.localStorage.getItem('project-planner-font-scale')
     );
     return savedScale >= 85 && savedScale <= 120 ? savedScale : 100;
+  });
+
+  const [theme, setTheme] = useState(() => {
+    return window.localStorage.getItem('project-planner-theme') || 'dark';
   });
 
   const registeredCurrentUser = useMemo(() => {
@@ -269,6 +274,14 @@ export function useAppController() {
     );
     document.documentElement.style.fontSize = `${16 * (fontScale / 100)}px`;
   }, [fontScale]);
+
+  useEffect(() => {
+    window.localStorage.setItem('project-planner-theme', theme);
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark', 'midnight');
+    root.classList.add(theme);
+    root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+  }, [theme]);
 
   // Guardia de sincronización de rutas y sesión
   useEffect(() => {
@@ -415,6 +428,18 @@ export function useAppController() {
         />
       );
     }
+    if (activeView === 'configuracion') {
+      return (
+        <Configuration
+          currentUser={displayedCurrentUser}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          users={users}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      );
+    }
     if (activeView === 'roles' && isAdmin) {
       return (
         <RolesManagement
@@ -442,6 +467,8 @@ export function useAppController() {
     isAdmin,
     displayedCurrentUser,
     handleToggleSubAdmin,
+    fontScale,
+    theme,
   ]);
 
   return {
@@ -452,6 +479,8 @@ export function useAppController() {
     setActiveView,
     fontScale,
     setFontScale,
+    theme,
+    setTheme,
     users,
     handleLogin,
     handleLogout,

@@ -8,7 +8,7 @@ export { Portfolio, Operations, TechnicalTeam } from './technical';
 export { HumanResources } from './human-resources';
 
 // Common
-export { DashboardContent, Integrations } from './common';
+export { DashboardContent, Integrations, Configuration } from './common';
 
 // Auth & System
 export { LoginScreen, LoadingScreen } from './auth';

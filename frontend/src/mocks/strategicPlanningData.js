@@ -22,9 +22,9 @@ export const scheduleAdjustmentReasons = [
 ];
 
 export const milestoneStatuses = [
-  { id: 'pending', label: 'Pendiente', badge: 'bg-amber-500/10 text-amber-400' },
-  { id: 'upcoming', label: 'Próximo', badge: 'bg-blue-500/10 text-blue-400' },
-  { id: 'completed', label: 'Completado', badge: 'bg-emerald-500/10 text-emerald-400' },
+  { id: 'pending', label: 'Pendiente', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/10 midnight:text-amber-300' },
+  { id: 'upcoming', label: 'Próximo', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300' },
+  { id: 'completed', label: 'Completado', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
 ];
 
 export const milestoneValidators = [
