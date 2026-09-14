@@ -23,6 +23,9 @@ import { createTechnicalTeamData } from './technicalTeamData';
 import Operations from './Operations';
 import { createOperationsData } from './operationsData';
 
+import Configuration from './Configuration';
+
+
 const initialUsers = [
   { id: 'usr-ana', name: 'Ana Rojas', email: 'ana.rojas@empresa.com', isSubAdmin: false, isOnline: true },
   { id: 'usr-luis', name: 'Luis Mendoza', email: 'luis.mendoza@empresa.com', isSubAdmin: false, isOnline: false },
@@ -70,20 +73,24 @@ export default function App() {
     return savedScale >= 85 && savedScale <= 120 ? savedScale : 100;
   });
 
+  const [theme, setTheme] = useState(() => {
+    return window.localStorage.getItem("project-planner-theme") || "dark";
+  });
+
   const registeredCurrentUser = currentUser?.accountType === 'user'
     ? users.find((user) => user.id === currentUser.id)
     : null;
 
   const displayedCurrentUser = currentUser
     ? {
-        ...currentUser,
-        name: registeredCurrentUser?.name ?? currentUser.name,
-        roleLabel: currentUser.accountType === 'admin'
-          ? 'Project Manager'
-          : registeredCurrentUser?.isSubAdmin
-            ? 'SubAdministrador'
-            : 'Equipo Técnico',
-      }
+      ...currentUser,
+      name: registeredCurrentUser?.name ?? currentUser.name,
+      roleLabel: currentUser.accountType === 'admin'
+        ? 'Project Manager'
+        : registeredCurrentUser?.isSubAdmin
+          ? 'SubAdministrador'
+          : 'Equipo Técnico',
+    }
     : null;
 
   const handleLogin = ({ role, email }) => {
@@ -171,12 +178,24 @@ export default function App() {
     if (activeView === 'integrations') {
       return <Integrations data={integrationsData} onChange={setIntegrationsData} query={integrationsQuery} onQueryChange={setIntegrationsQuery} />;
     }
+    if (activeView === 'configuracion') {
+      return (
+        <Configuration
+          currentUser={displayedCurrentUser}
+          fontScale={fontScale}
+          setFontScale={setFontScale}
+          users={users}
+          theme={theme}
+          setTheme={setTheme}
+        />
+      );
+    }
     if (activeView === 'roles' && displayedCurrentUser?.accountType === 'admin') {
       return <RolesManagement users={users} onToggleSubAdmin={handleToggleSubAdmin} />;
     }
     return <DashboardContent />;
   };
-  
+
   useEffect(() => {
     // Simula una carga de 2.5 segundos antes de mostrar el login
     const timer = setTimeout(() => {
@@ -195,12 +214,20 @@ export default function App() {
     document.documentElement.style.fontSize = `${16 * (fontScale / 100)}px`;
   }, [fontScale]);
 
+  useEffect(() => {
+    window.localStorage.setItem("project-planner-theme", theme);
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark', 'midnight');
+    root.classList.add(theme);
+    root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+  }, [theme]);
+
   // =========================================================
   // SI ESTÁ AUTENTICADO: MOSTRAMOS EL DASHBOARD
   // =========================================================
   if (isAuthenticated) {
     return (
-      <div className="flex h-screen bg-[#0d1117] text-white font-sans overflow-hidden animate-in fade-in duration-1000">
+      <div className="flex h-screen font-sans overflow-hidden animate-in fade-in duration-1000 transition-colors bg-slate-50 text-slate-900 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50">
         <Sidebar
           activeView={activeView}
           onNavigate={setActiveView}
@@ -230,10 +257,10 @@ export default function App() {
   // =========================================================
   return (
     <div className="min-h-screen w-full bg-[#050B14] text-slate-100 flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden font-sans select-none">
-      
+
       {/* Rejilla de fondo */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#111e33_1px,transparent_1px),linear-gradient(to_bottom,#111e33_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_40%_50%,#000_70%,transparent_100%)] pointer-events-none opacity-40" />
-      
+
       {/* Radar de círculos concéntricos */}
       <div className="absolute left-[28%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-cyan-900/30 pointer-events-none flex items-center justify-center">
         <div className="w-[500px] h-[500px] rounded-full border border-cyan-800/30 flex items-center justify-center">
@@ -248,7 +275,7 @@ export default function App() {
         // Le pasamos la función al LoginScreen para que sepa cuándo entrar
         <LoginScreen onLogin={handleLogin} />
       )}
-      
+
     </div>
   );
 }

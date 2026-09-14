@@ -16,11 +16,23 @@ export default function Topbar({ activeView, currentUser, users, onToggleSubAdmi
   const placeholder = placeholders[activeView] ?? placeholders.dashboard;
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-[#30363d] bg-[#0d1117] px-3 py-3 sm:gap-6 sm:px-6 sm:py-4">
-      <div className="flex min-w-0 flex-1 items-center rounded-lg border border-[#30363d] bg-[#161b22] px-3 py-2.5 sm:max-w-md sm:px-4">
-        <Search size={18} className="shrink-0 text-gray-400" />
-        <input key={activeView} type="text" placeholder={placeholder} aria-label={placeholder} value={searchValue} onChange={onSearchChange ? (event) => onSearchChange(event.target.value) : undefined} className="ml-3 min-w-0 w-full bg-transparent text-sm text-white placeholder-gray-500 outline-none" />
+    <header className="flex items-center justify-between gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-4 transition-colors duration-300 bg-white border-b border-slate-200 dark:bg-[#0d1117] dark:border-[#30363d] midnight:bg-[#050B14] midnight:border-cyan-900/30">
+      
+      {/* Contenedor del Buscador */}
+      <div className="flex min-w-0 flex-1 items-center rounded-lg px-3 py-2.5 sm:max-w-md sm:px-4 transition-colors duration-300 bg-slate-100 border border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-800/30">
+        <Search size={18} className="shrink-0 transition-colors duration-300 text-slate-500 dark:text-gray-400 midnight:text-cyan-500/70" />
+        
+        <input 
+          key={activeView} 
+          type="text" 
+          placeholder={placeholder} 
+          aria-label={placeholder} 
+          value={searchValue} 
+          onChange={onSearchChange ? (event) => onSearchChange(event.target.value) : undefined} 
+          className="ml-3 min-w-0 w-full bg-transparent text-sm outline-none transition-colors duration-300 text-slate-900 placeholder-slate-400 dark:text-white dark:placeholder-gray-500 midnight:text-cyan-50 midnight:placeholder-cyan-600/50" 
+        />
       </div>
+
       <ProfileControls
         currentUser={currentUser}
         users={users}
