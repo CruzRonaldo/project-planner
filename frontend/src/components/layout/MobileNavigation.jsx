@@ -11,14 +11,14 @@ const mobileItems = [
   { id: 'integrations', label: 'Integrar', icon: Code },
 ];
 
-export default function MobileNavigation({ activeView, onNavigate }) {
+export default function MobileNavigation({ items = mobileItems, activeView, onNavigate }) {
   return (
     <nav
       aria-label="Navegación móvil"
       className="fixed inset-x-0 bottom-0 z-50 flex overflow-x-auto border-t border-[#30363d] bg-[#10141b]/95 shadow-[0_-10px_30px_rgba(0,0,0,0.3)] backdrop-blur lg:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {mobileItems.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         const isActive = activeView === item.id;
 
@@ -34,7 +34,7 @@ export default function MobileNavigation({ activeView, onNavigate }) {
             }`}
           >
             <Icon size={19} />
-            <span>{item.label}</span>
+            <span>{item.mobileLabel || item.label}</span>
           </button>
         );
       })}

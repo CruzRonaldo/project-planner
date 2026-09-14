@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { createIntegrationsData, filterIntegrations, summarizeIntegrations, testIntegration, updateIntegration } from '../src/integrationsData.js';
+import { createIntegrationsData, filterIntegrations, summarizeIntegrations, testIntegration, updateIntegration } from '../src/mocks/integrationsData.js';
 
 test('El panel inicia con cuatro integraciones y los valores de la referencia', () => {
   const data = createIntegrationsData();

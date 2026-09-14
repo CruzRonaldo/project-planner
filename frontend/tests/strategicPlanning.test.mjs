@@ -11,7 +11,7 @@ import {
   formatPlanningPeriod,
   milestoneValidators,
   scheduleAdjustmentReasons,
-} from '../src/strategicPlanningData.js';
+} from '../src/mocks/strategicPlanningData.js';
 
 test('El Calendario Maestro inicia con sus seis proyectos y periodos', () => {
   const data = createStrategicPlanningData();

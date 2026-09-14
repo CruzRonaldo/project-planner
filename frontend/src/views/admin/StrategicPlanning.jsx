@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, X } from 'lucide-react';
-import { adjustProjectSchedule, createGlobalMilestone, createStrategicPlanningData, formatMilestoneDate, formatPlanningPeriod, milestoneStatuses, milestoneValidators, planningMonths, scheduleAdjustmentReasons } from './strategicPlanningData';
+import { adjustProjectSchedule, createGlobalMilestone, createStrategicPlanningData, formatMilestoneDate, formatPlanningPeriod, milestoneStatuses, milestoneValidators, planningMonths, scheduleAdjustmentReasons } from '../../mocks/strategicPlanningData';
 
 const months = planningMonths.map((month) => month.short);
 

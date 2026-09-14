@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration } from '../src/operationsData.js';
+import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration } from '../src/mocks/operationsData.js';
 
 const validDraft = {
   project: 'Torre Reforma (PRJ-2026-001)', type: 'Inspección técnica', title: 'Vaciado de losa Nivel 4',

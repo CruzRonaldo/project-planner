@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Cloud, RotateCw, Save, Settings2, Workflow, X, Zap } from 'lucide-react';
-import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from './integrationsData';
+import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };
 const activityStyles = {

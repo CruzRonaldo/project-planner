@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, X, Zap } from 'lucide-react';
-import { buildWorkOrdersCsv, createWorkOrder, filterWorkOrders, getWorkOrderDuration, operationalAreas, operationalProjects, operationTypes, workOrderPriorities, workOrderStatuses } from './operationsData';
+import { buildWorkOrdersCsv, createWorkOrder, filterWorkOrders, getWorkOrderDuration, operationalAreas, operationalProjects, operationTypes, workOrderPriorities, workOrderStatuses } from '../../mocks/operationsData';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-[#30363d] bg-[#0b1424] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400';
 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];

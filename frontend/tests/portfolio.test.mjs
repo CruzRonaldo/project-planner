@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { addPortfolioProject, createPortfolioData, createProjectCode, filterPortfolio, formatMoney, getProjectDuration } from '../src/portfolioData.js';
+import { addPortfolioProject, createPortfolioData, createProjectCode, filterPortfolio, formatMoney, getProjectDuration } from '../src/mocks/portfolioData.js';
 
 const validDraft = {
   code: 'PRJ-2026-005', area: 'Edificaciones Comerciales', name: 'Torre Reforma Corporativa',

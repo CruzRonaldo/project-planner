@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, Cloud, ExternalLink, FolderPlus, Save, X } from 'lucide-react';
-import { addPortfolioProject, createProjectCode, filterPortfolio, formatMoney, formatProjectTerm, getProjectDuration, projectAreas, projectLeaders, projectStatuses } from './portfolioData';
+import { addPortfolioProject, createProjectCode, filterPortfolio, formatMoney, formatProjectTerm, getProjectDuration, projectAreas, projectLeaders, projectStatuses } from '../../mocks/portfolioData';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400';
 const filters = [{ id: 'all', label: 'Todos' }, ...projectStatuses.map((status) => ({ id: status.id, label: status.label }))];

@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { addTechnicalMember, buildTechnicalTeamCsv, createTechnicalTeamData, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam } from '../src/technicalTeamData.js';
+import { addTechnicalMember, buildTechnicalTeamCsv, createTechnicalTeamData, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam } from '../src/mocks/technicalTeamData.js';
 
 const validDraft = {
   firstNames: 'Sofía Alejandra', lastNames: 'Torres Valdivia', email: 'sofia.nueva@empresa.com',

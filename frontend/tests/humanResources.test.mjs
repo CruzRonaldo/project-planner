@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../src/humanResourcesData.js';
+import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../src/mocks/humanResourcesData.js';
 
 test('Los totales coinciden con los 18 registros de demostración', () => {
   const { members } = createHumanResourcesData();

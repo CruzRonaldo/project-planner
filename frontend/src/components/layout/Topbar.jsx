@@ -11,6 +11,7 @@ export default function Topbar({
   onNavigate,
   searchValue,
   onSearchChange,
+  searchPlaceholder,
 }) {
   const placeholders = {
     dashboard: "Buscar proyectos, hitos o equipos...",
@@ -22,7 +23,7 @@ export default function Topbar({
     integrations: "Buscar integración, actividad o estado...",
     "technical-team": "Buscar técnico, área, especialidad o proyecto...",
   };
-  const placeholder = placeholders[activeView] ?? placeholders.dashboard;
+  const placeholder = searchPlaceholder || placeholders[activeView] || placeholders.dashboard;
 
   return (
     <header className="flex items-center justify-between gap-3 border-b border-[#30363d] bg-[#0d1117] px-3 py-3 sm:gap-6 sm:px-6 sm:py-4">

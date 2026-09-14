@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
-import { addTechnicalMember, buildTechnicalTeamCsv, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam, technicalAreas, technicalProjects, technicalSortOptions, technicalStatuses } from './technicalTeamData';
+import { addTechnicalMember, buildTechnicalTeamCsv, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam, technicalAreas, technicalProjects, technicalSortOptions, technicalStatuses } from '../../mocks/technicalTeamData';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400';
 const pageSize = 6;

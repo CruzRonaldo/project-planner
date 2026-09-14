@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Download, Pencil, RotateCcw, Save, UserRoundCog, X } from 'lucide-react';
-import { buildPersonnelCsv, filterPersonnel, getIncidentDuration, personnelIncidentTypes, personnelStatuses, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from './humanResourcesData';
+import { buildPersonnelCsv, filterPersonnel, getIncidentDuration, personnelIncidentTypes, personnelStatuses, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../../mocks/humanResourcesData';
 
 const panelClass = 'min-w-0 overflow-hidden rounded-xl border border-[#30363d] bg-[#161b22]';
 const inputClass = 'mt-2 w-full rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400';

@@ -11,7 +11,7 @@ const mainItems = [
   { id: 'integrations', label: 'Integraciones', icon: Code, enabled: true },
 ];
 
-export default function Sidebar({ activeView, onNavigate, fontScale, onFontScaleChange }) {
+export default function Sidebar({ items = mainItems, activeView, onNavigate, fontScale, onFontScaleChange }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const decreaseFont = () => onFontScaleChange((current) => Math.max(85, current - 5));
   const increaseFont = () => onFontScaleChange((current) => Math.min(120, current + 5));
@@ -29,7 +29,7 @@ export default function Sidebar({ activeView, onNavigate, fontScale, onFontScale
           <Layers className="text-cyan-400" size={22} /> PROJECT PLANNER
         </div>
         <nav className="mt-2 flex flex-col">
-          {mainItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
 
