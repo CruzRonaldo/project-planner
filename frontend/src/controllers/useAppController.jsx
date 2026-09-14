@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   hasViewAccess,
   getSearchPlaceholder,
   getAllowedSidebarItems,
   getAllowedMobileItems,
+  NAVIGATION_ITEMS,
   USER_ROLES,
 } from '../config/navigation.config';
 
@@ -68,6 +70,9 @@ function createNameFromEmail(email) {
 }
 
 export function useAppController() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [isLoading, setIsLoading] = useState(true);
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -83,7 +88,18 @@ export function useAppController() {
     return localStorage.getItem('project_planner_user') !== null;
   });
 
-  const [activeView, setActiveViewRaw] = useState('dashboard');
+  // Ruta normalizada del navegador
+  const normalizedPath = useMemo(() => {
+    return location.pathname.replace(/\/$/, '') || '/';
+  }, [location.pathname]);
+
+  // Derivar activeView a partir de la URL real
+  const activeView = useMemo(() => {
+    if (normalizedPath === '/login') return 'login';
+    if (normalizedPath === '/' || normalizedPath === '/dashboard') return 'dashboard';
+    const matched = NAVIGATION_ITEMS.find((item) => item.path === normalizedPath);
+    return matched ? matched.id : 'dashboard';
+  }, [normalizedPath]);
 
   // Estados de datos mock (solo para vista)
   const [strategicPlanningData, setStrategicPlanningData] = useState(createStrategicPlanningData);
@@ -166,42 +182,56 @@ export function useAppController() {
   const canManage =
     isAdmin || displayedCurrentUser?.roleLabel === 'SubAdministrador';
 
-  // Navegación protegida con guardia RBAC
+  // Navegación real por URL con guardia RBAC
   const setActiveView = useCallback(
-    (viewId) => {
-      if (hasViewAccess(viewId, displayedCurrentUser)) {
-        setActiveViewRaw(viewId);
+    (target) => {
+      if (target === 'login') {
+        navigate('/login');
+        return;
+      }
+      const item = NAVIGATION_ITEMS.find(
+        (n) => n.id === target || n.path === target
+      );
+      if (item) {
+        if (hasViewAccess(item.id, displayedCurrentUser)) {
+          navigate(item.path);
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
-        setActiveViewRaw('dashboard');
+        navigate('/dashboard');
       }
     },
-    [displayedCurrentUser]
+    [displayedCurrentUser, navigate]
   );
 
-  const handleLogin = useCallback((userData) => {
-    const accountType =
-      userData?.role === USER_ROLES.ADMIN ||
-      userData?.is_superuser ||
-      userData?.accountType === USER_ROLES.ADMIN
-        ? USER_ROLES.ADMIN
-        : USER_ROLES.USER;
+  const handleLogin = useCallback(
+    (userData) => {
+      const accountType =
+        userData?.role === USER_ROLES.ADMIN ||
+        userData?.is_superuser ||
+        userData?.accountType === USER_ROLES.ADMIN
+          ? USER_ROLES.ADMIN
+          : USER_ROLES.USER;
 
-    const userToSave = {
-      ...userData,
-      accountType,
-      name:
-        userData?.username ||
-        (userData?.email ? createNameFromEmail(userData.email) : 'Usuario'),
-    };
+      const userToSave = {
+        ...userData,
+        accountType,
+        name:
+          userData?.username ||
+          (userData?.email ? createNameFromEmail(userData.email) : 'Usuario'),
+      };
 
-    try {
-      localStorage.setItem('project_planner_user', JSON.stringify(userToSave));
-    } catch {}
+      try {
+        localStorage.setItem('project_planner_user', JSON.stringify(userToSave));
+      } catch {}
 
-    setCurrentUser(userToSave);
-    setActiveViewRaw('dashboard');
-    setIsAuthenticated(true);
-  }, []);
+      setCurrentUser(userToSave);
+      setIsAuthenticated(true);
+      navigate('/dashboard');
+    },
+    [navigate]
+  );
 
   const handleToggleSubAdmin = useCallback((userId) => {
     setUsers((currentUsers) =>
@@ -216,9 +246,9 @@ export function useAppController() {
       localStorage.removeItem('project_planner_user');
     } catch {}
     setCurrentUser(null);
-    setActiveViewRaw('dashboard');
     setIsAuthenticated(false);
-  }, []);
+    navigate('/login');
+  }, [navigate]);
 
   // Efectos de inicialización y persistencia
   useEffect(() => {
@@ -239,6 +269,23 @@ export function useAppController() {
     );
     document.documentElement.style.fontSize = `${16 * (fontScale / 100)}px`;
   }, [fontScale]);
+
+  // Guardia de sincronización de rutas y sesión
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
+      if (normalizedPath !== '/login') {
+        navigate('/login', { replace: true });
+      }
+    } else {
+      if (normalizedPath === '/login' || normalizedPath === '/') {
+        navigate('/dashboard', { replace: true });
+      } else if (!hasViewAccess(activeView, displayedCurrentUser)) {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isLoading, isAuthenticated, normalizedPath, activeView, displayedCurrentUser, navigate]);
 
   // Items de navegación permitidos
   const allowedSidebarItems = useMemo(() => {

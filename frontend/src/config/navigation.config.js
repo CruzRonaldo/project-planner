@@ -16,6 +16,7 @@ export const USER_ROLES = {
 export const NAVIGATION_ITEMS = [
   {
     id: 'dashboard',
+    path: '/dashboard',
     label: 'Inicio',
     mobileLabel: 'Inicio',
     icon: LayoutDashboard,
@@ -28,6 +29,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'planning',
+    path: '/planning',
     label: 'Planificación Estratégica',
     mobileLabel: 'Planificación',
     icon: TrendingUp,
@@ -40,6 +42,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'portfolio',
+    path: '/portfolio',
     label: 'Portafolio',
     mobileLabel: 'Portafolio',
     icon: Briefcase,
@@ -52,6 +55,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'operations',
+    path: '/operations',
     label: 'Gestión Operativa',
     mobileLabel: 'Operaciones',
     icon: Zap,
@@ -64,6 +68,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'technical-team',
+    path: '/technical-team',
     label: 'Equipo Técnico',
     mobileLabel: 'Equipo',
     icon: Users,
@@ -76,6 +81,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'human-resources',
+    path: '/human-resources',
     label: 'Recursos Humanos',
     mobileLabel: 'RR. HH.',
     icon: UserCog,
@@ -88,6 +94,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'integrations',
+    path: '/integrations',
     label: 'Integraciones',
     mobileLabel: 'Integrar',
     icon: Code,
@@ -100,6 +107,7 @@ export const NAVIGATION_ITEMS = [
   },
   {
     id: 'roles',
+    path: '/roles',
     label: 'Gestión de Roles',
     mobileLabel: 'Roles',
     icon: UserCog,
@@ -143,4 +151,16 @@ export function getAllowedMobileItems(user) {
   return NAVIGATION_ITEMS.filter(
     (item) => item.showInMobile && hasViewAccess(item.id, user)
   );
+}
+
+export function getViewIdFromPath(pathname) {
+  const normalized = pathname.replace(/\/$/, '') || '/';
+  if (normalized === '/' || normalized === '/dashboard') return 'dashboard';
+  const matched = NAVIGATION_ITEMS.find((item) => item.path === normalized);
+  return matched ? matched.id : 'dashboard';
+}
+
+export function getPathFromViewId(viewId) {
+  const item = NAVIGATION_ITEMS.find((n) => n.id === viewId);
+  return item ? item.path : '/dashboard';
 }
