@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import logoEmpresa from "../assets/logoempresa1.png";
+import logoEmpresa from "../../assets/logoempresa1.png";
 import {
   ShieldCheck,
   User,
@@ -10,7 +10,7 @@ import {
   LayoutGrid,
   AlertCircle,
 } from "lucide-react";
-import api from "../services/api";
+import api from "../../services/api";
 
 export default function LoginScreen({ onLogin }) {
   const [role, setRole] = useState("admin");

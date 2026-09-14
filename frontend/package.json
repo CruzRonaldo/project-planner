@@ -8,6 +8,11 @@
     "build": "vite build",
     "lint": "oxlint",
     "test:hr": "node --test tests/humanResources.test.mjs",
+    "test:integrations": "node --test tests/integrations.test.mjs",
+    "test:team": "node --test tests/technicalTeam.test.mjs",
+    "test:portfolio": "node --test tests/portfolio.test.mjs",
+    "test:planning": "node --test tests/strategicPlanning.test.mjs",
+    "test:operations": "node --test tests/operations.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

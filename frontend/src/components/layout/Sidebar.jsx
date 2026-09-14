@@ -5,13 +5,13 @@ const mainItems = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, enabled: true },
   { id: 'planning', label: 'Planificación Estratégica', icon: TrendingUp, enabled: true },
   { id: 'portfolio', label: 'Portafolio', icon: Briefcase, enabled: true },
-  { id: 'operations', label: 'Gestión Operativa', icon: Zap },
-  { id: 'technical-team', label: 'Equipo Técnico', icon: Users, enabled: false },
+  { id: 'operations', label: 'Gestión Operativa', icon: Zap, enabled: true },
+  { id: 'technical-team', label: 'Equipo Técnico', icon: Users, enabled: true },
   { id: 'human-resources', label: 'Recursos Humanos', icon: UserCog, enabled: true },
-  { id: 'integrations', label: 'Integraciones', icon: Code },
+  { id: 'integrations', label: 'Integraciones', icon: Code, enabled: true },
 ];
 
-export default function Sidebar({ activeView, onNavigate, fontScale, onFontScaleChange }) {
+export default function Sidebar({ items = mainItems, activeView, onNavigate, fontScale, onFontScaleChange }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const decreaseFont = () => onFontScaleChange((current) => Math.max(85, current - 5));
   const increaseFont = () => onFontScaleChange((current) => Math.min(120, current + 5));
@@ -29,7 +29,7 @@ export default function Sidebar({ activeView, onNavigate, fontScale, onFontScale
           <Layers className="text-cyan-400" size={22} /> PROJECT PLANNER
         </div>
         <nav className="mt-2 flex flex-col">
-          {mainItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
 
