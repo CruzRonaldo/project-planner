@@ -1,38 +1,119 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    test_db_connection,
-    login_view,
-    TechnicalAreaViewSet,
-    RoleViewSet,
-    TeamStatusViewSet,
-    TeamMemberViewSet,
-    ProjectViewSet,
-    MilestoneViewSet,
-    TaskViewSet,
-    PerformanceMetricViewSet,
     DriveLinkViewSet,
+    MilestoneViewSet,
+    PerformanceMetricViewSet,
+    ProjectViewSet,
+    RoleViewSet,
+    TaskViewSet,
+    TeamMemberViewSet,
+    TeamStatusViewSet,
+    TechnicalAreaViewSet,
+    google_drive_callback_view,
+    google_drive_connect_view,
+    google_drive_status_view,
+    login_view,
+    test_db_connection,
 )
 
-# Creamos el enrutador REST
+
+# Enrutador de los CRUD REST
 router = DefaultRouter()
-router.register(r'technical-areas', TechnicalAreaViewSet, basename='technical-area')
-router.register(r'roles', RoleViewSet, basename='role')
-router.register(r'team-statuses', TeamStatusViewSet, basename='team-status')
-router.register(r'team-members', TeamMemberViewSet, basename='team-member')
-router.register(r'projects', ProjectViewSet, basename='project')
-router.register(r'milestones', MilestoneViewSet, basename='milestone')
-router.register(r'tasks', TaskViewSet, basename='task')
-router.register(r'performance-metrics', PerformanceMetricViewSet, basename='performance-metric')
-router.register(r'drive-links', DriveLinkViewSet, basename='drive-link')
+
+router.register(
+    r"technical-areas",
+    TechnicalAreaViewSet,
+    basename="technical-area",
+)
+
+router.register(
+    r"roles",
+    RoleViewSet,
+    basename="role",
+)
+
+router.register(
+    r"team-statuses",
+    TeamStatusViewSet,
+    basename="team-status",
+)
+
+router.register(
+    r"team-members",
+    TeamMemberViewSet,
+    basename="team-member",
+)
+
+router.register(
+    r"projects",
+    ProjectViewSet,
+    basename="project",
+)
+
+router.register(
+    r"milestones",
+    MilestoneViewSet,
+    basename="milestone",
+)
+
+router.register(
+    r"tasks",
+    TaskViewSet,
+    basename="task",
+)
+
+router.register(
+    r"performance-metrics",
+    PerformanceMetricViewSet,
+    basename="performance-metric",
+)
+
+router.register(
+    r"drive-links",
+    DriveLinkViewSet,
+    basename="drive-link",
+)
+
 
 urlpatterns = [
-    # Endpoint de autenticación (Login)
-    path('auth/login/', login_view, name='api_login'),
+    # Autenticación
+    path(
+        "auth/login/",
+        login_view,
+        name="api_login",
+    ),
 
-    # Endpoint de verificación de base de datos
-    path('test-db/', test_db_connection, name='test_db_connection'),
+    # Prueba de MySQL
+    path(
+        "test-db/",
+        test_db_connection,
+        name="test_db_connection",
+    ),
 
-    # Endpoints REST generados automáticamente por el router
-    path('', include(router.urls)),
+    # Google Drive OAuth
+    path(
+        "integrations/google-drive/connect/",
+        google_drive_connect_view,
+        name="google_drive_connect",
+    ),
+
+    path(
+        "integrations/google-drive/callback/",
+        google_drive_callback_view,
+        name="google_drive_callback",
+    ),
+
+    path(
+        "integrations/google-drive/status/",
+        google_drive_status_view,
+        name="google_drive_status",
+    ),
+
+    # CRUD del router
+    path(
+        "",
+        include(router.urls),
+    ),
 ]

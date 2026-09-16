@@ -197,3 +197,5 @@ cython_debug/
 # Archivos del sistema operativo
 Thumbs.db          # Basura de Windows
 .DS_Store          # Basura de macOS
+# Credenciales privadas
+secrets/ 
