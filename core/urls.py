@@ -1,119 +1,83 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    DriveLinkViewSet,
-    MilestoneViewSet,
-    PerformanceMetricViewSet,
-    ProjectViewSet,
-    RoleViewSet,
-    TaskViewSet,
-    TeamMemberViewSet,
-    TeamStatusViewSet,
-    TechnicalAreaViewSet,
-    google_drive_callback_view,
-    google_drive_connect_view,
-    google_drive_status_view,
-    login_view,
-    test_db_connection,
-)
+from . import views
 
 
-# Enrutador de los CRUD REST
 router = DefaultRouter()
-
 router.register(
     r"technical-areas",
-    TechnicalAreaViewSet,
+    views.TechnicalAreaViewSet,
     basename="technical-area",
 )
-
-router.register(
-    r"roles",
-    RoleViewSet,
-    basename="role",
-)
-
+router.register(r"roles", views.RoleViewSet, basename="role")
 router.register(
     r"team-statuses",
-    TeamStatusViewSet,
+    views.TeamStatusViewSet,
     basename="team-status",
 )
-
 router.register(
     r"team-members",
-    TeamMemberViewSet,
+    views.TeamMemberViewSet,
     basename="team-member",
 )
-
-router.register(
-    r"projects",
-    ProjectViewSet,
-    basename="project",
-)
-
-router.register(
-    r"milestones",
-    MilestoneViewSet,
-    basename="milestone",
-)
-
-router.register(
-    r"tasks",
-    TaskViewSet,
-    basename="task",
-)
-
+router.register(r"projects", views.ProjectViewSet, basename="project")
+router.register(r"milestones", views.MilestoneViewSet, basename="milestone")
+router.register(r"tasks", views.TaskViewSet, basename="task")
 router.register(
     r"performance-metrics",
-    PerformanceMetricViewSet,
+    views.PerformanceMetricViewSet,
     basename="performance-metric",
 )
-
 router.register(
     r"drive-links",
-    DriveLinkViewSet,
+    views.DriveLinkViewSet,
     basename="drive-link",
 )
 
 
 urlpatterns = [
-    # Autenticación
-    path(
-        "auth/login/",
-        login_view,
-        name="api_login",
-    ),
+    path("auth/login/", views.login_view, name="api_login"),
+    path("test-db/", views.test_db_connection, name="test_db_connection"),
 
-    # Prueba de MySQL
-    path(
-        "test-db/",
-        test_db_connection,
-        name="test_db_connection",
-    ),
-
-    # Google Drive OAuth
+    # Autorización y comprobación de Google Drive.
     path(
         "integrations/google-drive/connect/",
-        google_drive_connect_view,
+        views.google_drive_connect_view,
         name="google_drive_connect",
     ),
-
     path(
         "integrations/google-drive/callback/",
-        google_drive_callback_view,
+        views.google_drive_callback_view,
         name="google_drive_callback",
     ),
-
     path(
         "integrations/google-drive/status/",
-        google_drive_status_view,
+        views.google_drive_status_view,
         name="google_drive_status",
     ),
 
-    # CRUD del router
+    # CRUD real de archivos y carpetas.
     path(
-        "",
-        include(router.urls),
+        "integrations/google-drive/files/",
+        views.google_drive_files_view,
+        name="google_drive_files",
     ),
+    path(
+        "integrations/google-drive/folders/",
+        views.google_drive_create_folder_view,
+        name="google_drive_create_folder",
+    ),
+    path(
+        "integrations/google-drive/upload/",
+        views.google_drive_upload_view,
+        name="google_drive_upload",
+    ),
+    path(
+        "integrations/google-drive/files/<str:file_id>/",
+        views.google_drive_file_detail_view,
+        name="google_drive_file_detail",
+    ),
+
+    path("", include(router.urls)),
 ]
