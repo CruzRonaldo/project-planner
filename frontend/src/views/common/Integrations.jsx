@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Cloud, RotateCw, Save, Settings2, Workflow, X, Zap } from 'lucide-react';
 import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
+import { makeApi } from '../../services/makeApi';
+
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };
 const activityStyles = {
@@ -61,9 +63,10 @@ export function IntegrationEditor({ integration, onSave, onTest, onCancel }) {
       </div>
       {error && <p role="alert" className="mt-3 text-xs text-red-600 dark:text-red-400 midnight:text-red-300">{error}</p>}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <button type="button" onClick={() => onTest(integration.id)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:text-cyan-50"><RotateCw size={14} /> Probar conexión</button>
+        <button type="button" onClick={() => onTest(integration.id, draft.endpoint)} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:text-cyan-50"><RotateCw size={14} /> Probar conexión</button>
         <button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-white transition-colors duration-300 hover:bg-cyan-400 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300 midnight:bg-cyan-500 midnight:text-slate-950 midnight:hover:bg-cyan-400"><Save size={14} /> Guardar</button>
       </div>
+
     </form>
   );
 }
@@ -100,7 +103,26 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
     const updated = updateIntegration(data, integrationId, draft);
     onChange(updated); setSelectedId(null); setFeedback(updated === data ? 'No había cambios que guardar.' : 'Configuración actualizada durante esta sesión.');
   };
-  const test = (integrationId) => { onChange(testIntegration(data, integrationId)); setSelectedId(null); setFeedback('Prueba local completada. La integración se marcó como conectada.'); };
+  const test = async (integrationId, customEndpoint) => {
+    if (integrationId === 'make') {
+      try {
+        setFeedback('Verificando conexión con el servicio de Make...');
+        const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
+        const res = await makeApi.testConnection(webhookUrl);
+        onChange(testIntegration(data, integrationId));
+        setSelectedId(null);
+        setFeedback(res.data?.message || 'Conexión con Make completada con éxito.');
+      } catch (err) {
+        const errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message;
+        setFeedback(`Make: ${errorMsg}`);
+      }
+      return;
+    }
+    onChange(testIntegration(data, integrationId));
+    setSelectedId(null);
+    setFeedback('Prueba local completada. La integración se marcó como conectada.');
+  };
+
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
