@@ -63,7 +63,7 @@ def send_make_webhook(event: str, data: dict, webhook_url: str = None, timeout: 
                 'success': 200 <= status_code < 300,
                 'status_code': status_code,
                 'response': response_body,
-                'message': f'Evento enviado correctamente a Make (HTTP {status_code}).',
+                'message': 'Evento enviado correctamente a Make.',
                 'error': None
             }
 
@@ -74,7 +74,7 @@ def send_make_webhook(event: str, data: dict, webhook_url: str = None, timeout: 
             'success': False,
             'status_code': http_err.code,
             'response': err_body,
-            'message': f'Make respondió con un error HTTP {http_err.code}.',
+            'message': 'No fue posible completar la notificación a Make.',
             'error': str(http_err)
         }
 

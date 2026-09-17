@@ -1,4 +1,5 @@
 import time
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -7,6 +8,8 @@ from django.http import JsonResponse
 from django.db import connection
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import update_last_login
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     TechnicalArea,
@@ -202,8 +205,89 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     CRUD principal para Proyectos y Portafolio
     """
-    queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members').all()
+    queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
     serializer_class = ProjectSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        project = serializer.save()
+
+        # Enviar notificación automática a Make (Integromat)
+        make_result = None
+        try:
+            from .services.make_service import send_make_webhook
+            project_data = {
+                'id': project.id,
+                'code': project.code,
+                'name': project.name,
+                'description': project.description or '',
+                'start_date': str(project.start_date),
+                'end_date': str(project.end_date),
+                'duration_months': project.duration_months,
+                'budget': float(project.budget),
+                'status': project.get_status_display(),
+                'status_code': project.status,
+            }
+            make_result = send_make_webhook(event='project.created', data=project_data)
+            logger.info(f"[Make Integration] Notificación de creación de proyecto {project.code} enviada: {make_result}")
+        except Exception as exc:
+            logger.warning(f"[Make Integration] Error al despachar webhook de creación de proyecto: {exc}")
+            make_result = {'success': False, 'message': str(exc)}
+
+        response_data = self.get_serializer(project).data
+        response_data['make_notification'] = make_result
+        headers = self.get_success_headers(response_data)
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        project = serializer.save()
+
+        # Enviar notificación automática a Make (Integromat)
+        make_result = None
+        try:
+            from .services.make_service import send_make_webhook
+            project_data = {
+                'id': project.id,
+                'code': project.code,
+                'name': project.name,
+                'description': project.description or '',
+                'start_date': str(project.start_date),
+                'end_date': str(project.end_date),
+                'duration_months': project.duration_months,
+                'budget': float(project.budget),
+                'status': project.get_status_display(),
+                'status_code': project.status,
+            }
+            make_result = send_make_webhook(event='project.updated', data=project_data)
+            logger.info(f"[Make Integration] Notificación de actualización de proyecto {project.code} enviada: {make_result}")
+        except Exception as exc:
+            logger.warning(f"[Make Integration] Error al despachar webhook de actualización de proyecto: {exc}")
+            make_result = {'success': False, 'message': str(exc)}
+
+        response_data = self.get_serializer(project).data
+        response_data['make_notification'] = make_result
+        return Response(response_data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        project_data = {
+            'id': instance.id,
+            'code': instance.code,
+            'name': instance.name,
+        }
+        self.perform_destroy(instance)
+        try:
+            from .services.make_service import send_make_webhook
+            send_make_webhook(event='project.deleted', data=project_data)
+            logger.info(f"[Make Integration] Notificación de eliminación de proyecto {instance.code} enviada")
+        except Exception as exc:
+            logger.warning(f"[Make Integration] Error al despachar webhook de eliminación de proyecto: {exc}")
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get', 'post'], url_path='optimize')
     def optimize_timeline(self, request, pk=None):

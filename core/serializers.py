@@ -201,9 +201,34 @@ class PerformanceMetricSerializer(serializers.ModelSerializer):
         return 0
 
 
+STATUS_TO_BACKEND = {
+    'planning': 'PLANNING',
+    'active': 'IN_PROGRESS',
+    'paused': 'STAND_BY',
+    'completed': 'COMPLETED',
+    'risk': 'RISK',
+    'cancelled': 'CANCELLED',
+    'PLANNING': 'PLANNING',
+    'IN_PROGRESS': 'IN_PROGRESS',
+    'STAND_BY': 'STAND_BY',
+    'COMPLETED': 'COMPLETED',
+    'RISK': 'RISK',
+    'CANCELLED': 'CANCELLED',
+}
+
+STATUS_TO_FRONTEND = {
+    'PLANNING': 'planning',
+    'IN_PROGRESS': 'active',
+    'STAND_BY': 'paused',
+    'COMPLETED': 'completed',
+    'RISK': 'risk',
+    'CANCELLED': 'paused',
+}
+
+
 class ProjectSerializer(serializers.ModelSerializer):
     """
-    Serializador principal para proyectos con resumen de tareas e hitos
+    Serializador principal para proyectos con resumen de tareas, hitos y compatibilidad con Frontend
     """
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     milestones_count = serializers.IntegerField(source='milestones.count', read_only=True)
@@ -234,3 +259,75 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_drive_links_count(self, obj):
         return DriveLink.objects.filter(task__project=obj).count()
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+
+        # Mapeo de aliases desde el Frontend (camelCase a snake_case)
+        if 'startDate' in data and 'start_date' not in data:
+            data['start_date'] = data['startDate']
+        if 'endDate' in data and 'end_date' not in data:
+            data['end_date'] = data['endDate']
+        if 'totalBudget' in data and 'budget' not in data:
+            data['budget'] = data['totalBudget']
+
+        # Normalizar estado hacia las opciones de choices del modelo
+        raw_status = data.get('status')
+        if raw_status:
+            mapped_status = STATUS_TO_BACKEND.get(str(raw_status).lower(), str(raw_status).upper())
+            data['status'] = mapped_status
+
+        # Autocalcular duration_months si no fue proporcionado
+        if not data.get('duration_months'):
+            from datetime import datetime
+            s_date = data.get('start_date')
+            e_date = data.get('end_date')
+            if s_date and e_date:
+                try:
+                    s_dt = datetime.strptime(str(s_date), '%Y-%m-%d').date() if isinstance(s_date, str) else s_date
+                    e_dt = datetime.strptime(str(e_date), '%Y-%m-%d').date() if isinstance(e_date, str) else e_date
+                    diff_days = (e_dt - s_dt).days
+                    data['duration_months'] = max(1, round(diff_days / 30))
+                except Exception:
+                    data['duration_months'] = 1
+
+        return super().to_internal_value(data)
+
+    def to_representation(self, obj):
+        rep = super().to_representation(obj)
+
+        # Campos alias para consumo directo en React / Portfolio
+        rep['startDate'] = rep.get('start_date')
+        rep['endDate'] = rep.get('end_date')
+        budget_val = float(obj.budget) if obj.budget is not None else 0.0
+        rep['totalBudget'] = budget_val
+
+        # Progreso y presupuesto usado a partir de tareas
+        tasks = obj.tasks.all()
+        if tasks.exists():
+            rep['progress'] = int(round(sum(t.progress for t in tasks) / tasks.count()))
+            rep['usedBudget'] = round(budget_val * (rep['progress'] / 100), 2)
+        else:
+            rep['progress'] = 0
+            rep['usedBudget'] = 0.0
+
+        # Iniciales de miembros asignados
+        members = []
+        for member in obj.team_members.all():
+            initials = f"{member.first_name[:1]}{member.last_name[:1]}".upper()
+            if initials and initials not in members:
+                members.append(initials)
+        rep['members'] = members or ['PM']
+
+        # Área técnica asociada
+        first_member = obj.team_members.first()
+        if first_member and first_member.technical_area:
+            rep['area'] = first_member.technical_area.name
+        else:
+            rep['area'] = 'Edificaciones Comerciales'
+
+        # Formato de status para Portfolio frontend
+        rep['status_backend'] = obj.status
+        rep['status'] = STATUS_TO_FRONTEND.get(obj.status, 'planning')
+
+        return rep
