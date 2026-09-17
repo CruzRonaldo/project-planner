@@ -50,6 +50,14 @@ export const projectsApi = {
     const response = await api.delete(`/projects/${id}/`);
     return response.data;
   },
+
+  /**
+   * Obtiene la lista de miembros y líderes del equipo registrados en MySQL.
+   */
+  getTeamMembers: async () => {
+    const response = await api.get('/team-members/');
+    return response.data;
+  },
 };
 
 export default projectsApi;

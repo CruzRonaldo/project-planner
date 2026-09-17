@@ -161,7 +161,22 @@ function ProjectCard({ project, onEdit, onDelete, canManage }) {
   );
 }
 
-export function NewProjectDialog({ data, currentUserName, onSubmit, onClose }) {
+export function NewProjectDialog({
+  data,
+  currentUserName,
+  onSubmit,
+  onClose,
+  teamMembers = [],
+}) {
+  const leadersList =
+    teamMembers.length > 0
+      ? teamMembers.map((m) => ({
+          id: m.id,
+          name: m.full_name,
+          role: m.role_name,
+        }))
+      : projectLeaders;
+
   const now = new Date();
   const end = new Date(now);
   end.setMonth(end.getMonth() + 6);
@@ -173,7 +188,7 @@ export function NewProjectDialog({ data, currentUserName, onSubmit, onClose }) {
     endDate: isoDate(end),
     totalBudget: "",
     status: "planning",
-    leaderId: "carlos",
+    leaderId: leadersList[0]?.id || "carlos",
     driveFolder: "",
     description: "",
     createdBy: currentUserName,
@@ -398,7 +413,7 @@ export function NewProjectDialog({ data, currentUserName, onSubmit, onClose }) {
                 onChange={changeField("leaderId")}
                 className={inputClass}
               >
-                {projectLeaders.map((leader) => (
+                {leadersList.map((leader) => (
                   <option key={leader.id} value={leader.id}>
                     {leader.name} · {leader.role}
                   </option>
@@ -473,7 +488,21 @@ export function NewProjectDialog({ data, currentUserName, onSubmit, onClose }) {
   );
 }
 
-export function EditProjectDialog({ project, onSubmit, onClose }) {
+export function EditProjectDialog({
+  project,
+  onSubmit,
+  onClose,
+  teamMembers = [],
+}) {
+  const leadersList =
+    teamMembers.length > 0
+      ? teamMembers.map((m) => ({
+          id: m.id,
+          name: m.full_name,
+          role: m.role_name,
+        }))
+      : projectLeaders;
+
   const [draft, setDraft] = useState({
     name: project.name || "",
     area: project.area || projectAreas[0],
@@ -481,7 +510,7 @@ export function EditProjectDialog({ project, onSubmit, onClose }) {
     endDate: project.endDate || "",
     totalBudget: project.totalBudget ?? "",
     status: project.status || "planning",
-    leaderId: project.leaderId || "carlos",
+    leaderId: project.leaderId || leadersList[0]?.id || "carlos",
     driveFolder: project.driveFolder || "",
     description: project.description || "",
   });
@@ -660,7 +689,7 @@ export function EditProjectDialog({ project, onSubmit, onClose }) {
                 onChange={changeField("leaderId")}
                 className={inputClass}
               >
-                {projectLeaders.map((leader) => (
+                {leadersList.map((leader) => (
                   <option key={leader.id} value={leader.id}>
                     {leader.name} · {leader.role}
                   </option>
@@ -851,15 +880,24 @@ export default function Portfolio({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
   const { showToast } = useToast();
   const visible = filterPortfolio(data, query, activeFilter);
 
-  // Sincronizar proyectos reales de la base de datos MySQL al montar
+  // Sincronizar proyectos y colaboradores reales de la base de datos MySQL al montar
   useEffect(() => {
     let isMounted = true;
     const fetchBackendProjects = async () => {
       try {
-        const backendProjects = await projectsApi.getProjects();
+        const [backendProjects, members] = await Promise.all([
+          projectsApi.getProjects(),
+          projectsApi.getTeamMembers().catch(() => []),
+        ]);
+
+        if (isMounted && Array.isArray(members) && members.length > 0) {
+          setTeamMembers(members);
+        }
+
         if (
           isMounted &&
           Array.isArray(backendProjects) &&
@@ -876,7 +914,9 @@ export default function Portfolio({
             totalBudget: bp.totalBudget || Number(bp.budget) || 0,
             startDate: bp.startDate || bp.start_date,
             endDate: bp.endDate || bp.end_date,
-            leaderId: "carlos",
+            leaderId: bp.leaderId || "carlos",
+            leaderName: bp.leaderName || "",
+            leaderEmail: bp.leaderEmail || "",
             driveFolder: "",
             description: bp.description || "",
             members: bp.members || ["PM"],
@@ -1096,7 +1136,15 @@ export default function Portfolio({
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const backendProjects = await projectsApi.getProjects();
+      const [backendProjects, members] = await Promise.all([
+        projectsApi.getProjects(),
+        projectsApi.getTeamMembers().catch(() => []),
+      ]);
+
+      if (Array.isArray(members) && members.length > 0) {
+        setTeamMembers(members);
+      }
+
       if (Array.isArray(backendProjects) && backendProjects.length > 0) {
         const mapped = backendProjects.map((bp) => ({
           id: bp.id,
@@ -1109,7 +1157,9 @@ export default function Portfolio({
           totalBudget: bp.totalBudget || Number(bp.budget) || 0,
           startDate: bp.startDate || bp.start_date,
           endDate: bp.endDate || bp.end_date,
-          leaderId: "carlos",
+          leaderId: bp.leaderId || "carlos",
+          leaderName: bp.leaderName || "",
+          leaderEmail: bp.leaderEmail || "",
           driveFolder: "",
           description: bp.description || "",
           members: bp.members || ["PM"],
@@ -1298,6 +1348,7 @@ export default function Portfolio({
           currentUserName={currentUserName}
           onSubmit={createProject}
           onClose={() => setDialogOpen(false)}
+          teamMembers={teamMembers}
         />
       )}
       {editingProject && canManage && (
@@ -1305,6 +1356,7 @@ export default function Portfolio({
           project={editingProject}
           onSubmit={updateProject}
           onClose={() => setEditingProject(null)}
+          teamMembers={teamMembers}
         />
       )}
       {deletingProject && canManage && (

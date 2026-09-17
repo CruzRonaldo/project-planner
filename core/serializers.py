@@ -319,11 +319,17 @@ class ProjectSerializer(serializers.ModelSerializer):
                 members.append(initials)
         rep['members'] = members or ['PM']
 
-        # Área técnica asociada
+        # Área técnica y datos del líder asignado
         first_member = obj.team_members.first()
-        if first_member and first_member.technical_area:
-            rep['area'] = first_member.technical_area.name
+        if first_member:
+            rep['leaderId'] = first_member.id
+            rep['leaderName'] = f"{first_member.first_name} {first_member.last_name}"
+            rep['leaderEmail'] = first_member.email
+            rep['area'] = first_member.technical_area.name if first_member.technical_area else 'Edificaciones Comerciales'
         else:
+            rep['leaderId'] = None
+            rep['leaderName'] = None
+            rep['leaderEmail'] = None
             rep['area'] = 'Edificaciones Comerciales'
 
         # Formato de status para Portfolio frontend

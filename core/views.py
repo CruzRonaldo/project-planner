@@ -213,10 +213,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
+        # Asignar líder técnico si fue seleccionado en el frontend
+        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        if leader_val:
+            try:
+                from .models import TeamMember
+                leader = TeamMember.objects.filter(id=int(leader_val)).first()
+                if leader:
+                    leader.project = project
+                    leader.save(update_fields=['project'])
+            except (ValueError, TypeError):
+                pass
+
         # Enviar notificación automática a Make (Integromat)
         make_result = None
         try:
             from .services.make_service import send_make_webhook
+            assigned_leader = project.team_members.first()
             project_data = {
                 'id': project.id,
                 'code': project.code,
@@ -228,6 +241,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'budget': float(project.budget),
                 'status': project.get_status_display(),
                 'status_code': project.status,
+                'leader_name': f"{assigned_leader.first_name} {assigned_leader.last_name}" if assigned_leader else 'Sin Asignar',
+                'leader_email': assigned_leader.email if assigned_leader else '',
+                'leader_role': assigned_leader.role.name if assigned_leader and assigned_leader.role else '',
             }
             make_result = send_make_webhook(event='project.created', data=project_data)
             logger.info(f"[Make Integration] Notificación de creación de proyecto {project.code} enviada: {make_result}")
@@ -247,10 +263,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
+        # Actualizar asignación del líder técnico si fue modificado
+        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        if leader_val:
+            try:
+                from .models import TeamMember
+                leader = TeamMember.objects.filter(id=int(leader_val)).first()
+                if leader:
+                    leader.project = project
+                    leader.save(update_fields=['project'])
+            except (ValueError, TypeError):
+                pass
+
         # Enviar notificación automática a Make (Integromat)
         make_result = None
         try:
             from .services.make_service import send_make_webhook
+            assigned_leader = project.team_members.first()
             project_data = {
                 'id': project.id,
                 'code': project.code,
@@ -262,6 +291,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'budget': float(project.budget),
                 'status': project.get_status_display(),
                 'status_code': project.status,
+                'leader_name': f"{assigned_leader.first_name} {assigned_leader.last_name}" if assigned_leader else 'Sin Asignar',
+                'leader_email': assigned_leader.email if assigned_leader else '',
+                'leader_role': assigned_leader.role.name if assigned_leader and assigned_leader.role else '',
             }
             make_result = send_make_webhook(event='project.updated', data=project_data)
             logger.info(f"[Make Integration] Notificación de actualización de proyecto {project.code} enviada: {make_result}")
