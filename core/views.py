@@ -6,6 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.http import JsonResponse
 from django.db import connection
+from django.db.models import Q
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import update_last_login
 
@@ -144,6 +146,141 @@ def login_view(request):
             'last_login': user.last_login,
         }
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([AllowAny])
+def users_status_view(request):
+    """
+    Retorna la lista de usuarios técnicos con su estado real de conexión (isOnline)
+    calculado según su último inicio de sesión (last_login) en MySQL.
+    Permite además actualizar el rol de SubAdministrador (is_staff).
+    """
+    now = timezone.now()
+    name_mapping = {
+        'sistemas': 'Luis Gonzales (Sistemas)',
+        'civil': 'Andrea Rojas (Civil)',
+        'arquitectura': 'Carlos Mendoza (Arquitectura)',
+    }
+
+    if request.method == 'GET':
+        users_list = []
+        for u in User.objects.all().order_by('id'):
+            is_admin_user = bool(u.is_superuser)
+            is_online = False
+            if u.last_login:
+                diff_seconds = (now - u.last_login).total_seconds()
+                is_online = diff_seconds < 21600
+
+            user_id = f"usr-{u.username.lower()}"
+            if is_admin_user:
+                display_name = f"{u.first_name} {u.last_name}".strip() or u.username or "Administrador (Admin)"
+            else:
+                display_name = name_mapping.get(u.username.lower(), f"{u.first_name} {u.last_name}".strip() or u.username)
+
+            users_list.append({
+                'id': user_id,
+                'db_id': u.id,
+                'username': u.username,
+                'name': display_name,
+                'email': u.email,
+                'isAdmin': is_admin_user,
+                'isSubAdmin': bool(u.is_staff and not is_admin_user),
+                'isOnline': is_online,
+                'last_login': u.last_login.isoformat() if u.last_login else None,
+            })
+        return Response(users_list, status=status.HTTP_200_OK)
+
+    elif request.method == 'PATCH':
+        user_id = request.data.get('id', '')
+        is_sub_admin = request.data.get('isSubAdmin')
+        clean_username = str(user_id).replace('usr-', '').strip()
+        u = User.objects.filter(username__iexact=clean_username).first()
+        if not u and request.data.get('db_id'):
+            u = User.objects.filter(id=request.data.get('db_id')).first()
+
+        if u and is_sub_admin is not None:
+            u.is_staff = bool(is_sub_admin)
+            u.save(update_fields=['is_staff'])
+            return Response({'status': 'success', 'isSubAdmin': u.is_staff}, status=status.HTTP_200_OK)
+
+        return Response({'status': 'error', 'message': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def logout_view(request):
+    """
+    Registra el cierre de sesión del usuario para marcarlo desconectado en MySQL.
+    """
+    identifier = (request.data.get('username') or request.data.get('email') or '').strip()
+    if identifier:
+        u = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
+        if u:
+            u.last_login = None
+            u.save(update_fields=['last_login'])
+    return Response({'status': 'success', 'message': 'Sesión cerrada correctamente'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def notifications_view(request):
+    """
+    Retorna notificaciones personalizadas según el usuario conectado,
+    incluyendo asignaciones directas de proyectos como líder técnico.
+    """
+    username = (request.query_params.get('username') or '').strip().lower()
+    email = (request.query_params.get('email') or '').strip().lower()
+
+    user_member_map = {
+        'sistemas': 'luis.gonzales@projectplanner.com',
+        'sistemas@projectplanner.com': 'luis.gonzales@projectplanner.com',
+        'civil': 'andrea.rojas@projectplanner.com',
+        'civil@projectplanner.com': 'andrea.rojas@projectplanner.com',
+        'arquitectura': 'carlos.mendoza@projectplanner.com',
+        'arquitectura@projectplanner.com': 'carlos.mendoza@projectplanner.com',
+    }
+
+    target_email = user_member_map.get(username) or user_member_map.get(email) or email
+    notifications = []
+
+    # Buscar si el usuario actual es un miembro de equipo con un proyecto asignado
+    member = None
+    if target_email or username:
+        q_filter = Q(email__iexact=target_email) if target_email else Q()
+        if 'sistemas' in username or 'luis' in target_email or 'luis' in username:
+            q_filter = q_filter | Q(first_name__iexact='Luis')
+        member = TeamMember.objects.filter(q_filter).first()
+
+    if member and member.project:
+        p = member.project
+        notifications.append({
+            'id': f"proj-assigned-{p.id}",
+            'title': 'Proyecto Asignado',
+            'detail': f"Has sido asignado como líder técnico del proyecto «{p.name}» ({p.code}).",
+            'time': 'Reciente',
+            'type': 'project_assignment',
+            'projectId': p.id,
+            'unread': True,
+        })
+
+    # Notificaciones generales de contexto
+    notifications.append({
+        'id': 'notif-milestone-1',
+        'title': 'Hito próximo',
+        'detail': 'Revisión estructural programada para hoy.',
+        'time': 'Hace 10 min',
+        'unread': False,
+    })
+    notifications.append({
+        'id': 'notif-budget-1',
+        'title': 'Presupuesto actualizado',
+        'detail': 'Torre Reforma recibió una actualización.',
+        'time': 'Hace 1 h',
+        'unread': False,
+    })
+
+    return Response(notifications, status=status.HTTP_200_OK)
 
 
 class TechnicalAreaViewSet(viewsets.ModelViewSet):

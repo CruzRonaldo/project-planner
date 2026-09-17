@@ -58,6 +58,38 @@ export const projectsApi = {
     const response = await api.get('/team-members/');
     return response.data;
   },
+
+  /**
+   * Obtiene el estado real de conexión (isOnline) y permisos de usuarios técnicos desde MySQL.
+   */
+  getUsersStatus: async () => {
+    const response = await api.get('/auth/users-status/');
+    return response.data;
+  },
+
+  /**
+   * Actualiza el permiso de SubAdministrador para un usuario.
+   */
+  toggleSubAdmin: async (id, isSubAdmin) => {
+    const response = await api.patch('/auth/users-status/', { id, isSubAdmin });
+    return response.data;
+  },
+
+  /**
+   * Notifica al backend el cierre de sesión para marcar offline al usuario.
+   */
+  logoutUser: async (data = {}) => {
+    const response = await api.post('/auth/logout/', data);
+    return response.data;
+  },
+
+  /**
+   * Obtiene las notificaciones personalizadas del usuario autenticado.
+   */
+  getNotifications: async (params = {}) => {
+    const response = await api.get('/notifications/', { params });
+    return response.data;
+  },
 };
 
 export default projectsApi;

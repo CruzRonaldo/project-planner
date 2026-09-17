@@ -188,7 +188,7 @@ export function NewProjectDialog({
     endDate: isoDate(end),
     totalBudget: "",
     status: "planning",
-    leaderId: leadersList[0]?.id || "carlos",
+    leaderId: leadersList[0]?.id || 1,
     driveFolder: "",
     description: "",
     createdBy: currentUserName,
@@ -510,7 +510,7 @@ export function EditProjectDialog({
     endDate: project.endDate || "",
     totalBudget: project.totalBudget ?? "",
     status: project.status || "planning",
-    leaderId: project.leaderId || leadersList[0]?.id || "carlos",
+    leaderId: project.leaderId || leadersList[0]?.id || 1,
     driveFolder: project.driveFolder || "",
     description: project.description || "",
   });
