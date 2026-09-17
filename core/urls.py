@@ -96,6 +96,11 @@ urlpatterns = [
     path("integrations/make/webhook/", make_incoming_webhook_view, name="make_incoming_webhook"),
 
     # -------------------------------------------------------
+    # Autodesk Revit / BIM Data
+    # -------------------------------------------------------
+    path("integrations/revit/models/", views.revit_models_view, name="revit_models"),
+
+    # -------------------------------------------------------
     # Endpoints REST generados automáticamente por el router
     # -------------------------------------------------------
     path("", include(router.urls)),

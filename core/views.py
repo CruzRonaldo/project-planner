@@ -858,3 +858,29 @@ def google_drive_file_detail_view(request, file_id):
             error,
             "No se pudo modificar el elemento de Google Drive.",
         )
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def revit_models_view(request):
+    """Mock endpoint que devuelve modelos BIM desde Revit."""
+    import datetime
+    import locale
+    
+    # Intentamos establecer locale a espanol para la fecha, pero si falla ignoramos
+    try:
+        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+    except:
+        pass
+        
+    today = datetime.datetime.now().strftime("%d %b %Y, %H:%M").capitalize()
+    
+    models = [
+        {"id": 1, "name": "Estructura_Edificio_Principal.rvt", "size": "248 MB", "synced": today},
+        {"id": 2, "name": "Instalaciones_Electricas_v2.rvt", "size": "134 MB", "synced": today},
+        {"id": 3, "name": "Topografia_Terreno.rvt", "size": "87 MB", "synced": today},
+    ]
+    
+    return JsonResponse({
+        "status": "success",
+        "models": models
+    })
