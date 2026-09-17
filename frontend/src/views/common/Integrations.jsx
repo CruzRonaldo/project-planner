@@ -20,6 +20,8 @@ import {
 import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
 import api from '../../services/api';
 import { makeApi } from '../../services/makeApi';
+import RevitModal from './RevitModal';
+
 
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };
@@ -670,6 +672,8 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
   const [selectedId, setSelectedId] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [testingDrive, setTestingDrive] = useState(false);
+  const [isRevitModalOpen, setIsRevitModalOpen] = useState(false);
+
   const summary = summarizeIntegrations(data);
   const visible = filterIntegrations(data, query);
   const selected = selectedId && data.integrations.find((integration) => integration.id === selectedId);
@@ -766,7 +770,23 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
           <div className="min-w-0 space-y-5">
             <section className="grid min-w-0 gap-5 md:grid-cols-2" aria-label="Servicios integrados">
-              {visible.integrations.map((integration) => <IntegrationCard key={integration.id} integration={integration} onConfigure={(id) => { setSelectedId(id); setFeedback(''); }} />)}
+              {visible.integrations.map((integration) => (
+                <IntegrationCard
+                  key={integration.id}
+                  integration={integration}
+                  onConfigure={(id) => {
+                    if (id === 'revit') {
+                      // Revit tiene su propio modal dedicado
+                      setIsRevitModalOpen(true);
+                      setFeedback('');
+                    } else {
+                      // El resto de integraciones usan el editor genérico
+                      setSelectedId(id);
+                      setFeedback('');
+                    }
+                  }}
+                />
+              ))}
               {!visible.integrations.length && <div className={`p-10 text-center text-sm text-slate-500 md:col-span-2 dark:text-slate-400 midnight:text-cyan-500/70 ${cardClass}`}>No se encontraron integraciones con esa búsqueda.</div>}
             </section>
             <section className={`overflow-hidden p-4 sm:p-5 ${cardClass}`} aria-labelledby="integration-activity-title">
@@ -782,6 +802,12 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
           <StatusPanel summary={summary} />
         </div>
       </div>
+
+      {/* ── Modal de Revit — se monta solo cuando isRevitModalOpen es true ── */}
+      {isRevitModalOpen && (
+        <RevitModal onClose={() => setIsRevitModalOpen(false)} />
+      )}
     </main>
   );
+
 }
