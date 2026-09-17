@@ -20,17 +20,7 @@ const TABLE_COLUMNS = [
   { key: 'actions', label: 'Acciones',              align: 'right' },
 ];
 
-// ─── Datos mock — se mostrarán tras simular la sincronización ─────────────────
-const TODAY = new Date().toLocaleString('es-MX', {
-  day: '2-digit', month: 'short', year: 'numeric',
-  hour: '2-digit', minute: '2-digit',
-});
-
-const MOCK_MODELS = [
-  { id: 1, name: 'Estructura_Edificio_Principal.rvt', size: '248 MB', synced: TODAY },
-  { id: 2, name: 'Instalaciones_Electricas_v2.rvt',  size: '134 MB', synced: TODAY },
-  { id: 3, name: 'Topografia_Terreno.rvt',           size:  '87 MB', synced: TODAY },
-];
+import { revitApi } from '../../services/revitService';
 
 // ─── Sub-componente: Badge de estado ─────────────────────────────────────────
 function StatusBadge({ synced }) {
@@ -106,9 +96,8 @@ function ModelRow({ model, onDelete }) {
 /**
  * RevitModal
  *
- * Modal interactivo (con mock) para la integración Revit / BIM Data.
- * Simula una petición al backend con un setTimeout de 2.5 s y
- * muestra modelos de prueba al completarse.
+ * Modal interactivo para la integración Revit / BIM Data.
+ * Realiza peticiones al backend para sincronizar modelos.
  *
  * Props:
  *   onClose  () => void   — Cierra el modal desde Integrations.jsx.
@@ -118,9 +107,9 @@ export default function RevitModal({ onClose }) {
   const [isSyncing, setIsSyncing]    = useState(false);
   const [hasSynced, setHasSynced]    = useState(false);
   const [models, setModels]          = useState([]);
+  const [error, setError]            = useState('');
   // null = diálogo cerrado | objeto modelo = diálogo abierto para ese modelo
   const [modelToDelete, setModelToDelete] = useState(null);
-
 
   // ── Cierre con Escape ────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -131,19 +120,24 @@ export default function RevitModal({ onClose }) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // ── Simulación de sincronización (mock de API) ───────────────────────────────
-  const handleSync = () => {
+  // ── Petición de sincronización real ──────────────────────────────────────────
+  const handleSync = async () => {
     if (isSyncing) return;
 
     setIsSyncing(true);
+    setError('');
 
-    // Simula una llamada al backend de 2.5 segundos.
-    // TODO: reemplazar este setTimeout por la llamada real a revitApi.sync()
-    setTimeout(() => {
-      setModels(MOCK_MODELS);
+    try {
+      const response = await revitApi.syncRevitModels();
+      setModels(response.data.models || []);
       setHasSynced(true);
+    } catch (err) {
+      console.error('Error al sincronizar modelos de Revit:', err);
+      const errMsg = err.response?.data?.message || 'Error de conexión con el servidor. La ruta /api/integrations/revit/models/ probablemente no existe aún en Django.';
+      setError(errMsg);
+    } finally {
       setIsSyncing(false);
-    }, 2500);
+    }
   };
 
   // ── Eliminar: abrir diálogo, confirmar y cancelar ───────────────────────────
@@ -237,6 +231,13 @@ export default function RevitModal({ onClose }) {
               {isSyncing ? 'Sincronizando…' : 'Sincronizar con Autodesk Revit'}
             </button>
           </div>
+
+          {/* Mensaje de error de sincronización */}
+          {error && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-600/30 midnight:bg-red-500/10 midnight:text-red-300">
+              {error}
+            </div>
+          )}
 
           {/* ── Tabla de modelos BIM ── */}
           <div className="mt-5">
