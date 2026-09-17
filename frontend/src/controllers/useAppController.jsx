@@ -21,6 +21,7 @@ import {
   RolesManagement,
   Configuration,
 } from '../views';
+import projectsApi from '../services/projectsApi';
 
 // Importamos datos mock aislados para visualización (se sustituirán con endpoints de Django)
 import {
@@ -34,23 +35,42 @@ import {
 
 const initialUsers = [
   {
+    id: 'usr-admin',
+    db_id: 4,
+    username: 'Admin',
+    name: 'Admin',
+    email: 'admin@gmail.com',
+    isAdmin: true,
+    isSubAdmin: false,
+    isOnline: true,
+  },
+  {
     id: 'usr-sistemas',
+    db_id: 1,
+    username: 'sistemas',
     name: 'Luis Gonzales (Sistemas)',
     email: 'sistemas@projectplanner.com',
+    isAdmin: false,
     isSubAdmin: false,
     isOnline: false,
   },
   {
     id: 'usr-civil',
+    db_id: 2,
+    username: 'civil',
     name: 'Andrea Rojas (Civil)',
     email: 'civil@projectplanner.com',
+    isAdmin: false,
     isSubAdmin: false,
     isOnline: false,
   },
   {
     id: 'usr-arquitectura',
+    db_id: 3,
+    username: 'arquitectura',
     name: 'Carlos Mendoza (Arquitectura)',
     email: 'arquitectura@projectplanner.com',
+    isAdmin: false,
     isSubAdmin: false,
     isOnline: false,
   },
@@ -121,16 +141,16 @@ export function useAppController() {
     try {
       const savedUsers = window.localStorage.getItem('project-planner-users');
       const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
+      const validUserIds = ['usr-admin', 'usr-sistemas', 'usr-civil', 'usr-arquitectura'];
       if (
         Array.isArray(parsedUsers) &&
-        parsedUsers.some(
-          (u) => u.email?.includes('@empresa.com') || u.id === 'usr-ana'
-        )
+        parsedUsers.length === 4 &&
+        parsedUsers.every((u) => validUserIds.includes(u.id))
       ) {
-        window.localStorage.removeItem('project-planner-users');
-        return initialUsers;
+        return parsedUsers;
       }
-      return Array.isArray(parsedUsers) ? parsedUsers : initialUsers;
+      window.localStorage.removeItem('project-planner-users');
+      return initialUsers;
     } catch {
       return initialUsers;
     }
@@ -239,21 +259,34 @@ export function useAppController() {
   );
 
   const handleToggleSubAdmin = useCallback((userId) => {
-    setUsers((currentUsers) =>
-      currentUsers.map((user) =>
-        user.id === userId ? { ...user, isSubAdmin: !user.isSubAdmin } : user
-      )
-    );
+    setUsers((currentUsers) => {
+      const targetUser = currentUsers.find((u) => u.id === userId);
+      const newSubAdmin = targetUser ? !targetUser.isSubAdmin : false;
+      projectsApi.toggleSubAdmin(userId, newSubAdmin).catch((err) => {
+        console.error('Error al persistir rol de SubAdministrador:', err);
+      });
+      return currentUsers.map((user) =>
+        user.id === userId ? { ...user, isSubAdmin: newSubAdmin } : user
+      );
+    });
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     try {
+      if (currentUser?.username || currentUser?.email) {
+        await projectsApi
+          .logoutUser({
+            username: currentUser.username,
+            email: currentUser.email,
+          })
+          .catch(() => {});
+      }
       localStorage.removeItem('project_planner_user');
     } catch {}
     setCurrentUser(null);
     setIsAuthenticated(false);
     navigate('/login');
-  }, [navigate]);
+  }, [currentUser, navigate]);
 
   // Efectos de inicialización y persistencia
   useEffect(() => {
@@ -261,6 +294,31 @@ export function useAppController() {
       setIsLoading(false);
     }, 2000);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde MySQL al recargar la app
+  useEffect(() => {
+    let isMounted = true;
+    const syncUsersStatus = async () => {
+      try {
+        const remoteUsers = await projectsApi.getUsersStatus();
+        if (isMounted && Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+          setUsers(remoteUsers);
+          try {
+            window.localStorage.setItem(
+              'project-planner-users',
+              JSON.stringify(remoteUsers)
+            );
+          } catch {}
+        }
+      } catch (err) {
+        console.error('Error al sincronizar usuarios de MySQL:', err);
+      }
+    };
+    syncUsersStatus();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {

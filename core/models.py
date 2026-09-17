@@ -104,6 +104,7 @@ class Project(models.Model):
         ('IN_PROGRESS', 'En Ejecución'),
         ('STAND_BY', 'En Espera (Stand-by)'),
         ('COMPLETED', 'Completado'),
+        ('RISK', 'En Riesgo'),
         ('CANCELLED', 'Cancelado'),
     ]
 

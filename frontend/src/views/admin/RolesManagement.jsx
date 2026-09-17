@@ -83,26 +83,38 @@ export default function RolesManagement({ users, onToggleSubAdmin }) {
 
                 <div className="sm:min-w-36 sm:text-right">
                   <p className="text-[10px] uppercase tracking-wide text-slate-500 transition-colors duration-300 midnight:text-cyan-600">Rol actual</p>
-                  <p className={`mt-1 text-xs font-semibold ${user.isSubAdmin ? 'text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400' : 'text-slate-600 dark:text-slate-300 midnight:text-cyan-100'}`}>
-                    {user.isSubAdmin ? 'SubAdministrador' : 'Equipo Técnico'}
+                  <p className={`mt-1 text-xs font-semibold ${
+                    user.isAdmin
+                      ? 'text-cyan-600 dark:text-cyan-400 font-bold'
+                      : user.isSubAdmin
+                        ? 'text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400'
+                        : 'text-slate-600 dark:text-slate-300 midnight:text-cyan-100'
+                  }`}>
+                    {user.isAdmin ? 'Administrador' : user.isSubAdmin ? 'SubAdministrador' : 'Equipo Técnico'}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  role="switch"
-                  aria-label={`Rol de SubAdministrador para ${user.name}`}
-                  aria-checked={user.isSubAdmin}
-                  onClick={() => onToggleSubAdmin(user.id)}
-                  className={`flex min-w-[136px] items-center justify-between gap-3 rounded-full border px-2 py-1.5 text-[10px] font-semibold transition-colors duration-300 ${
-                    user.isSubAdmin
-                      ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300'
-                      : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-500/70'
-                  }`}
-                >
-                  <span className={`h-5 w-5 rounded-full transition-colors duration-300 ${user.isSubAdmin ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.55)]' : 'bg-slate-400 dark:bg-slate-600 midnight:bg-cyan-900'}`} />
-                  <span>{user.isSubAdmin ? 'Activado' : 'Desactivado'}</span>
-                </button>
+                {user.isAdmin ? (
+                  <span className="flex min-w-[136px] items-center justify-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-bold text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300">
+                    <ShieldCheck size={13} /> Admin Principal
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label={`Rol de SubAdministrador para ${user.name}`}
+                    aria-checked={user.isSubAdmin}
+                    onClick={() => onToggleSubAdmin(user.id)}
+                    className={`flex min-w-[136px] items-center justify-between gap-3 rounded-full border px-2 py-1.5 text-[10px] font-semibold transition-colors duration-300 ${
+                      user.isSubAdmin
+                        ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300'
+                        : 'border-slate-300 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-500/70'
+                    }`}
+                  >
+                    <span className={`h-5 w-5 rounded-full transition-colors duration-300 ${user.isSubAdmin ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.55)]' : 'bg-slate-400 dark:bg-slate-600 midnight:bg-cyan-900'}`} />
+                    <span>{user.isSubAdmin ? 'Activado' : 'Desactivado'}</span>
+                  </button>
+                )}
               </article>
             ))}
           </div>

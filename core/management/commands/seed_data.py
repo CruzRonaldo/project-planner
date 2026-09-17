@@ -215,8 +215,6 @@ class Command(BaseCommand):
             ("Carlos", "Mendoza", "carlos.mendoza@projectplanner.com", "Modelador BIM / Revit", "Arquitectura", "Active", "PRJ-2026-001"),
             ("Andrea", "Rojas", "andrea.rojas@projectplanner.com", "Calculista Estructural", "Civil", "Active", "PRJ-2026-001"),
             ("Luis", "Gonzales", "luis.gonzales@projectplanner.com", "Desarrollador Full Stack", "Sistemas", "Support", "PRJ-2026-001"),
-            ("Jorge", "Vega", "jorge.vega@projectplanner.com", "Ingeniero Residente", "Civil", "Stand-by", "PRJ-2026-002"),
-            ("Valeria", "Castro", "valeria.castro@projectplanner.com", "Diseñador Arquitectónico", "Arquitectura", "Active", "PRJ-2026-004"),
         ]
 
         members = {}

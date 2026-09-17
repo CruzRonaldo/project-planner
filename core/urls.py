@@ -3,6 +3,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     test_db_connection,
     login_view,
+    users_status_view,
+    logout_view,
+    notifications_view,
     TechnicalAreaViewSet,
     RoleViewSet,
     TeamStatusViewSet,
@@ -13,6 +16,13 @@ from .views import (
     PerformanceMetricViewSet,
     DriveLinkViewSet,
 )
+from .views_make import (
+    make_status_view,
+    test_make_connection_view,
+    trigger_make_event_view,
+    make_incoming_webhook_view,
+)
+
 
 # Creamos el enrutador REST
 router = DefaultRouter()
@@ -27,12 +37,24 @@ router.register(r'performance-metrics', PerformanceMetricViewSet, basename='perf
 router.register(r'drive-links', DriveLinkViewSet, basename='drive-link')
 
 urlpatterns = [
-    # Endpoint de autenticación (Login)
+    # Endpoint de autenticación (Login, Estado de usuarios, Logout)
     path('auth/login/', login_view, name='api_login'),
+    path('auth/users-status/', users_status_view, name='api_users_status'),
+    path('auth/logout/', logout_view, name='api_logout'),
+
+    # Endpoint de notificaciones personalizadas
+    path('notifications/', notifications_view, name='api_notifications'),
 
     # Endpoint de verificación de base de datos
     path('test-db/', test_db_connection, name='test_db_connection'),
 
+    # Endpoints de integración con Make (Integromat)
+    path('integrations/make/status/', make_status_view, name='make_status'),
+    path('integrations/make/test/', test_make_connection_view, name='make_test_connection'),
+    path('integrations/make/trigger/', trigger_make_event_view, name='make_trigger_event'),
+    path('integrations/make/webhook/', make_incoming_webhook_view, name='make_incoming_webhook'),
+
     # Endpoints REST generados automáticamente por el router
     path('', include(router.urls)),
 ]
+

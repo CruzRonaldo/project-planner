@@ -89,3 +89,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Integración con Make (Integromat)
+MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
+

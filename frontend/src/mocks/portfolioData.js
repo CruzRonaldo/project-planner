@@ -16,10 +16,9 @@ export const projectStatuses = [
 ];
 
 export const projectLeaders = [
-  { id: 'carlos', name: 'Carlos M.', role: 'Project Manager' },
-  { id: 'ana', name: 'Ana Rojas', role: 'Ingeniera Civil' },
-  { id: 'lucia', name: 'Lucía Gómez', role: 'Arquitecta BIM' },
-  { id: 'javier', name: 'Javier Vega', role: 'Ingeniero Estructural' },
+  { id: 1, name: 'Carlos Mendoza', role: 'Modelador BIM / Revit' },
+  { id: 2, name: 'Andrea Rojas', role: 'Calculista Estructural' },
+  { id: 3, name: 'Luis Gonzales', role: 'Desarrollador Full Stack' },
 ];
 
 const initialProjects = [
