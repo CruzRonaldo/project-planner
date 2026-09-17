@@ -119,3 +119,10 @@ GOOGLE_DRIVE_FRONTEND_URL = env(
 GOOGLE_DRIVE_SCOPES = [
     "https://www.googleapis.com/auth/drive.file",
 ]
+
+# ==========================================================
+# MAKE (INTEGROMAT) WEBHOOK
+# ==========================================================
+
+# URL del Webhook de Make. Configúrala en tu archivo .env local.
+MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')

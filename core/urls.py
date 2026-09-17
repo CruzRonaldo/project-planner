@@ -2,6 +2,12 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from . import views
+from .views_make import (
+    make_incoming_webhook_view,
+    make_status_view,
+    test_make_connection_view,
+    trigger_make_event_view,
+)
 
 
 router = DefaultRouter()
@@ -40,7 +46,9 @@ urlpatterns = [
     path("auth/login/", views.login_view, name="api_login"),
     path("test-db/", views.test_db_connection, name="test_db_connection"),
 
-    # Autorización y comprobación de Google Drive.
+    # -------------------------------------------------------
+    # Google Drive — Autorización OAuth 2.0
+    # -------------------------------------------------------
     path(
         "integrations/google-drive/connect/",
         views.google_drive_connect_view,
@@ -57,7 +65,7 @@ urlpatterns = [
         name="google_drive_status",
     ),
 
-    # CRUD real de archivos y carpetas.
+    # Google Drive — CRUD de archivos y carpetas
     path(
         "integrations/google-drive/files/",
         views.google_drive_files_view,
@@ -79,5 +87,16 @@ urlpatterns = [
         name="google_drive_file_detail",
     ),
 
+    # -------------------------------------------------------
+    # Make (Integromat) — Webhooks salientes y entrantes
+    # -------------------------------------------------------
+    path("integrations/make/status/", make_status_view, name="make_status"),
+    path("integrations/make/test/", test_make_connection_view, name="make_test_connection"),
+    path("integrations/make/trigger/", trigger_make_event_view, name="make_trigger_event"),
+    path("integrations/make/webhook/", make_incoming_webhook_view, name="make_incoming_webhook"),
+
+    # -------------------------------------------------------
+    # Endpoints REST generados automáticamente por el router
+    # -------------------------------------------------------
     path("", include(router.urls)),
 ]

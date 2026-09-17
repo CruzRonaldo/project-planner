@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
 import api from '../../services/api';
+import { makeApi } from '../../services/makeApi';
+
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };
 const activityStyles = {
@@ -621,7 +623,7 @@ export function IntegrationEditor({
         <button
           type="button"
           disabled={testing}
-          onClick={() => onTest(integration.id)}
+          onClick={() => onTest(integration.id, draft.endpoint)}
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:text-cyan-50"
         >
           <RotateCw size={14} className={testing ? 'animate-spin' : ''} />
@@ -635,7 +637,9 @@ export function IntegrationEditor({
             <Save size={14} /> Guardar
           </button>
         )}
+
       </div>
+
     </form>
   );
 }
@@ -711,7 +715,8 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
     onChange(updated); setSelectedId(null); setFeedback(updated === data ? 'No había cambios que guardar.' : 'Configuración actualizada durante esta sesión.');
   };
 
-  const test = async (integrationId) => {
+  const test = async (integrationId, customEndpoint) => {
+    // Prueba real de Google Drive contra el backend
     if (integrationId === 'drive') {
       setTestingDrive(true);
       await refreshGoogleDrive(true);
@@ -719,6 +724,23 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
       return;
     }
 
+    // Prueba real de Make vía webhook
+    if (integrationId === 'make') {
+      try {
+        setFeedback('Verificando conexión con el servicio de Make...');
+        const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
+        const res = await makeApi.testConnection(webhookUrl);
+        onChange(testIntegration(data, integrationId));
+        setSelectedId(null);
+        setFeedback(res.data?.message || 'Conexión con Make completada con éxito.');
+      } catch (err) {
+        const errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message;
+        setFeedback(`Make: ${errorMsg}`);
+      }
+      return;
+    }
+
+    // Prueba local genérica para el resto de integraciones
     onChange(testIntegration(data, integrationId));
     setSelectedId(null);
     setFeedback('Prueba local completada. La integración se marcó como conectada.');
@@ -731,7 +753,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
       'noopener,noreferrer,width=720,height=820',
     );
     setFeedback(
-      'Autoriza Google Drive en la nueva pestaña y luego pulsa “Probar conexión”.',
+      'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
     );
   };
 
