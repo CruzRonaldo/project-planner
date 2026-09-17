@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Cloud, RotateCw, Save, Settings2, Workflow, X, Zap } from 'lucide-react';
 import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
 import { makeApi } from '../../services/makeApi';
+import { useToast } from '../../context/ToastContext';
 
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };
@@ -95,39 +96,57 @@ function StatusPanel({ summary }) {
 
 export default function Integrations({ data, onChange, query = '', onQueryChange }) {
   const [selectedId, setSelectedId] = useState(null);
-  const [feedback, setFeedback] = useState('');
+  const { showToast } = useToast();
   const summary = summarizeIntegrations(data);
   const visible = filterIntegrations(data, query);
   const selected = selectedId && data.integrations.find((integration) => integration.id === selectedId);
+
   const save = (integrationId, draft) => {
     const updated = updateIntegration(data, integrationId, draft);
-    onChange(updated); setSelectedId(null); setFeedback(updated === data ? 'No había cambios que guardar.' : 'Configuración actualizada durante esta sesión.');
+    onChange(updated);
+    setSelectedId(null);
+    showToast({
+      title: 'Configuración Guardada',
+      message: updated === data ? 'No había cambios que guardar.' : 'Configuración de integración actualizada con éxito.',
+      type: 'info',
+    });
   };
+
   const test = async (integrationId, customEndpoint) => {
     if (integrationId === 'make') {
       try {
-        setFeedback('Verificando conexión con el servicio de Make...');
         const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
         const res = await makeApi.testConnection(webhookUrl);
         onChange(testIntegration(data, integrationId));
         setSelectedId(null);
-        setFeedback(res.data?.message || 'Conexión con Make completada con éxito.');
+        showToast({
+          title: 'Conexión con Make Exitosa',
+          message: res.data?.message || 'El webhook de Make respondió correctamente.',
+          type: 'success',
+        });
       } catch (err) {
         const errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message;
-        setFeedback(`Make: ${errorMsg}`);
+        showToast({
+          title: 'Error de Conexión con Make',
+          message: errorMsg,
+          type: 'error',
+        });
       }
       return;
     }
     onChange(testIntegration(data, integrationId));
     setSelectedId(null);
-    setFeedback('Prueba local completada. La integración se marcó como conectada.');
+    showToast({
+      title: 'Prueba Completada',
+      message: 'La integración se marcó como conectada en la sesión actual.',
+      type: 'info',
+    });
   };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-2xl font-bold tracking-tight text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 md:text-[28px]">Integraciones</h1><p className="mt-1 text-sm text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Conexiones con servicios externos y automatizaciones</p></div><span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">Datos de demostración · Sin credenciales</span></header>
-        <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
         {selected && <IntegrationEditor key={selected.id} integration={selected} onSave={save} onTest={test} onCancel={() => setSelectedId(null)} />}
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
           <div className="min-w-0 space-y-5">
