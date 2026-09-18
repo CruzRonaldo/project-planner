@@ -47,7 +47,13 @@ def test_db_connection(request):
             cursor.execute("SELECT 1;")
             cursor.fetchone()
 
-            cursor.execute("SELECT DATABASE(), VERSION();")
+            vendor = connection.vendor
+            if vendor == 'postgresql':
+                cursor.execute("SELECT current_database(), version();")
+            elif vendor == 'sqlite':
+                cursor.execute("SELECT 'sqlite', sqlite_version();")
+            else:
+                cursor.execute("SELECT DATABASE(), VERSION();")
             row = cursor.fetchone()
             db_name = row[0] if row else 'Desconocida'
             db_version = row[1] if row else 'Desconocida'
@@ -63,7 +69,7 @@ def test_db_connection(request):
                 'version': db_version,
                 'latency_ms': latency_ms,
             },
-            'message': '¡Conexión exitosa con la base de datos MySQL!'
+            'message': f'¡Conexión exitosa con la base de datos ({connection.vendor.upper()})!'
         }, status=200)
 
     except Exception as e:
