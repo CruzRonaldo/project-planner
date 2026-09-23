@@ -39,7 +39,7 @@ from .serializers import (
 
 def test_db_connection(request):
     """
-    Endpoint para probar la conectividad directa entre Backend (Django) y la Base de Datos (MySQL).
+    Endpoint para probar la conectividad directa entre Backend (Django) y la Base de Datos.
     """
     start_time = time.time()
     try:
@@ -78,7 +78,7 @@ def test_db_connection(request):
             'status': 'error',
             'connected': False,
             'database': {
-                'engine': getattr(connection, 'vendor', 'mysql'),
+                'engine': getattr(connection, 'vendor', 'postgresql'),
                 'latency_ms': latency_ms,
                 'error_detail': str(e),
             },
@@ -92,7 +92,7 @@ User = get_user_model()
 def login_view(request):
     """
     Endpoint de autenticación para verificar credenciales de usuario y rol.
-    Actualiza la fecha de último inicio de sesión (last_login) en MySQL.
+    Actualiza la fecha de último inicio de sesión (last_login) en la Base de Datos.
     """
     data = request.data
     identifier = (data.get('email') or data.get('username') or '').strip()
@@ -102,18 +102,16 @@ def login_view(request):
     if not identifier or not password:
         return Response({
             'status': 'error',
-            'message': 'Por favor ingrese correo o usuario y contraseña.'
+            'message': 'Debe ingresar su usuario/correo y contraseña.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Buscar usuario por email o por username
-    user = User.objects.filter(email__iexact=identifier).first()
-    if not user:
-        user = User.objects.filter(username__iexact=identifier).first()
+    # Autenticación tolerante (acepta username o email)
+    user = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
 
     if not user or not user.check_password(password):
         return Response({
             'status': 'error',
-            'message': 'Credenciales invalidas. Verifique su correo/usuario y contrasena.'
+            'message': 'Credenciales inválidas. Verifique su usuario y contraseña.'
         }, status=status.HTTP_401_UNAUTHORIZED)
 
     if not user.is_active:
@@ -122,16 +120,15 @@ def login_view(request):
             'message': 'Esta cuenta de usuario ha sido desactivada.'
         }, status=status.HTTP_403_FORBIDDEN)
 
-    # Validar coincidencia de rol
-    is_admin = user.is_superuser or user.is_staff
-
+    # Validar coherencia de rol seleccionado con el perfil real
+    is_admin = bool(user.is_superuser or user.is_staff)
     if selected_role == 'admin' and not is_admin:
         return Response({
             'status': 'error',
             'message': f"Acceso denegado: El usuario '{user.username}' no tiene permisos de Administrador."
         }, status=status.HTTP_403_FORBIDDEN)
 
-    # Actualizar last_login en la base de datos MySQL
+    # Actualizar last_login en la base de datos
     update_last_login(None, user)
 
     user_role = 'admin' if is_admin else 'user'
@@ -159,7 +156,7 @@ def login_view(request):
 def users_status_view(request):
     """
     Retorna la lista de usuarios técnicos con su estado real de conexión (isOnline)
-    calculado según su último inicio de sesión (last_login) en MySQL.
+    calculado según su último inicio de sesión (last_login) en la Base de Datos.
     Permite además actualizar el rol de SubAdministrador (is_staff).
     """
     now = timezone.now()
@@ -217,7 +214,7 @@ def users_status_view(request):
 @permission_classes([AllowAny])
 def logout_view(request):
     """
-    Registra el cierre de sesión del usuario para marcarlo desconectado en MySQL.
+    Registra el cierre de sesión del usuario para marcarlo desconectado en la Base de Datos.
     """
     identifier = (request.data.get('username') or request.data.get('email') or '').strip()
     if identifier:

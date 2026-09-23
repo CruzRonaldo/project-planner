@@ -19,7 +19,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Puebla la base de datos MySQL con datos semilla coherentes (áreas: Sistemas, Civil, Arquitectura, roles, miembros, proyectos, etc.)."
+    help = "Puebla la base de datos con datos semilla coherentes (áreas: Sistemas, Civil, Arquitectura, roles, miembros, proyectos, etc.)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("\nIniciando carga de datos semilla en MySQL...\n"))
+        self.stdout.write(self.style.NOTICE("\nIniciando carga de datos semilla en la Base de Datos...\n"))
 
         if options.get('clear'):
             self.stdout.write(self.style.WARNING("Limpiando datos existentes de core..."))

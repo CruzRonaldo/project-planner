@@ -8,7 +8,7 @@ SPA).
 
 ## 🛠️ Arquitectura y Tecnologías
 
-- **Backend:** Django 6.1, MySQL Server, `django-cors-headers` (para permitir la comunicación segura entre puertos), `django-environ` (para variables de entorno).
+- **Backend:** Django 6.1, PostgreSQL (motor principal para local y producción en Render, con soporte opcional para MySQL y SQLite), `psycopg2-binary`, `dj-database-url`, `django-cors-headers`, `django-environ`.
 - **Frontend:** React 19, Vite, Tailwind CSS, Axios, Lucide React.
 - **Comunicación:** REST API (JSON) entre puertos `http://127.0.0.1:8000`
   (Django) y `http://localhost:5173` (React).
@@ -19,7 +19,7 @@ SPA).
 
 - Python 3.12+ (o 3.14)
 - Node.js 18+ y npm
-- MySQL Server activo
+- PostgreSQL Server activo (o MySQL/MariaDB)
 
 ---
 
@@ -45,18 +45,24 @@ pip install -r requirements.txt
 
 # Configurar variables de entorno
 # Crear archivo .env en la raíz del proyecto basado en .env.example
-# con tus credenciales de MySQL y SECRET_KEY
+# con tus credenciales de Base de Datos y SECRET_KEY
 ```
 
-### 2.1 Crear la base de datos en MySQL
+### 2.1 Crear la base de datos (PostgreSQL / MySQL)
 
-Antes de aplicar las migraciones, crea la base de datos (Django no la crea automáticamente):
+Antes de aplicar las migraciones, crea la base de datos:
 
+**En PostgreSQL (Recomendado):**
+```sql
+CREATE DATABASE project_planner;
+```
+
+**En MySQL / MariaDB (Opcional):**
 ```sql
 CREATE DATABASE project_planner CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-Puedes hacerlo desde MySQL Workbench, la terminal de MySQL, o cualquier cliente de tu preferencia.
+Puedes hacerlo desde DBeaver, psql, pgAdmin o el cliente de tu preferencia.
 
 ### 2.2 Aplicar migraciones
 
@@ -112,11 +118,16 @@ npm run dev
 ```env
 SECRET_KEY=tu_secret_key_aqui
 DEBUG=True
+
+# Configuración de Base de Datos (PostgreSQL por defecto)
 DB_NAME=project_planner
-DB_USER=root
+DB_USER=postgres
 DB_PASSWORD=tu_password_aqui
 DB_HOST=localhost
-DB_PORT=3306
+DB_PORT=5432
+
+# (Opcional en Render) Conexión automática por URL
+# DATABASE_URL=postgresql://usuario:password@host:5432/nombre_db
 ```
 
 ### Frontend (`frontend/.env`)
@@ -135,10 +146,10 @@ Una vez ambos servidores estén corriendo, abre `http://localhost:5173` y haz cl
 en el botón **"Test BD & Backend"** (esquina inferior derecha). Este widget
 verifica en tiempo real la conexión completa:
 
-**Frontend → Django Backend → MySQL Database**
+**Frontend → Django Backend → Base de Datos (PostgreSQL / MySQL)**
 
 Si todo está bien configurado, verás el estado "Conexión Exitosa" junto con
-el nombre de la base de datos, versión de MySQL y latencia.
+el nombre de la base de datos, versión del motor y latencia.
 
 ---
 
