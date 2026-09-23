@@ -178,3 +178,30 @@ project-planner/
 ├── manage.py
 └── requirements.txt
 ```
+
+---
+
+## 📋 Definición de Terminado (Definition of Done - DoD)
+
+Para que una historia de usuario, módulo o corrección se considere **Done (Terminada)** e integrada en la rama principal (`main`), debe cumplir con los siguientes criterios de calidad:
+
+### 1. ⚙️ Backend & Base de Datos (Django + PostgreSQL)
+- [ ] Modelos relacionales y migraciones aplicados correctamente en PostgreSQL (`python manage.py migrate`).
+- [ ] Endpoints REST estructurados bajo `/api/` con respuestas y códigos HTTP semánticos (`200`, `201`, `400`, `404`).
+- [ ] **Seguridad y datos sensibles:** Contraseñas, claves de API, webhooks y credenciales de base de datos residen estrictamente en variables de entorno (`.env`), garantizando que información crítica nunca se exponga al frontend ni al repositorio público.
+
+### 2. 🎨 Frontend & Arquitectura de Interfaz (React + Tailwind CSS)
+- [ ] **Patrón modular por paneles:** Vistas estructuradas mediante componentes de diseño consistentes (Layouts, Barra lateral de navegación, Topbar y Paneles modales interactivos).
+- [ ] **Diseño Responsivo:** Interfaz adaptable a diferentes resoluciones de pantalla (móvil, tablet y escritorio).
+- [ ] **Experiencia de usuario:** Manejo visible de estados de carga (*loaders*), notificaciones de acción (*toasts*) y soporte para temas de interfaz (Claro y Oscuro).
+
+### 3. 🧪 Verificación Funcional & Conectividad
+- [ ] Verificación de enlace entre Backend y PostgreSQL mediante el widget de diagnóstico (`/api/test-db/`).
+- [ ] Validación de integraciones activas (ej. test de ping en vivo con webhooks de Make).
+- [ ] Verificación manual de permisos y roles de usuario (Administrador vs. Colaborador Técnico).
+
+### 4. 🚀 Flujo de Trabajo en Git & Despliegue en Render
+- [ ] **Trabajo organizado por ramas:** El desarrollo se realiza en ramas de características (`feature/nombre-tarea`, `refactor/...`) y solo se integran a `main` una vez probadas y validadas.
+- [ ] Commits descriptivos bajo el estándar de *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`).
+- [ ] **Despliegue verificado en Render:** Compilación exitosa y operativa en la nube tanto en el Web Service (Backend) como en el Static Site (Frontend).
+
