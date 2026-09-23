@@ -44,7 +44,12 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://project-planner-frontend.onrender.com",
 ])
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.onrender\.com$",
+]
 
 ROOT_URLCONF = 'config.urls'
 
