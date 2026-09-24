@@ -201,36 +201,42 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               </div>
 
               <div className="space-y-4 pt-4">
-                {projects.map((project) => (
-                  <div key={project.name} className="grid min-h-11 grid-cols-[220px_1fr] items-center">
-                    <div className="pr-5">
-                      <p className={`text-sm font-semibold ${headingClass}`}>{project.name}</p>
-                      <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{project.area}</p>
-                    </div>
-
-                    <div className="relative h-8 rounded-md bg-slate-50 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950/30">
-                      
-                      {/* CUADRÍCULA DE LÍNEAS NATIVAS */}
-                      <div className="absolute inset-0 grid grid-cols-12 divide-x divide-slate-200 transition-colors duration-300 dark:divide-white/5 midnight:divide-cyan-900/30">
-                        {Array.from({ length: 12 }).map((_, i) => (
-                          <div key={i} className="h-full w-full"></div>
-                        ))}
-                      </div>
-
-                      <div
-                        className="absolute top-0 flex h-8 items-center rounded-md px-3 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
-                        style={{
-                          left: `${((project.start - 1) / 12) * 100}%`,
-                          width: `${(project.duration / 12) * 100}%`,
-                          backgroundColor: project.color,
-                        }}
-                      >
-                        <span className="flex-1 truncate text-center">{project.period}</span>
-                        {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); setFeedback(''); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white"><SlidersHorizontal size={11} /></button>}
-                      </div>
-                    </div>
+                {projects.length === 0 ? (
+                  <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                    No hay proyectos registrados en el calendario anual.
                   </div>
-                ))}
+                ) : (
+                  projects.map((project) => (
+                    <div key={project.name} className="grid min-h-11 grid-cols-[220px_1fr] items-center">
+                      <div className="pr-5">
+                        <p className={`text-sm font-semibold ${headingClass}`}>{project.name}</p>
+                        <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{project.area}</p>
+                      </div>
+
+                      <div className="relative h-8 rounded-md bg-slate-50 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950/30">
+                        
+                        {/* CUADRÍCULA DE LÍNEAS NATIVAS */}
+                        <div className="absolute inset-0 grid grid-cols-12 divide-x divide-slate-200 transition-colors duration-300 dark:divide-white/5 midnight:divide-cyan-900/30">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <div key={i} className="h-full w-full"></div>
+                          ))}
+                        </div>
+
+                        <div
+                          className="absolute top-0 flex h-8 items-center rounded-md px-3 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
+                          style={{
+                            left: `${((project.start - 1) / 12) * 100}%`,
+                            width: `${(project.duration / 12) * 100}%`,
+                            backgroundColor: project.color,
+                          }}
+                        >
+                          <span className="flex-1 truncate text-center">{project.period}</span>
+                          {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); setFeedback(''); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white"><SlidersHorizontal size={11} /></button>}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -242,17 +248,23 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           <section className={`${cardClass} p-5 md:p-6 xl:col-span-3`}>
             <h2 className={`mb-5 text-base font-semibold ${headingClass}`}>Hitos Globales</h2>
             <div className="space-y-2.5">
-              {milestones.map((milestone) => {
-                const status = milestoneStatuses.find((item) => item.id === milestone.status);
-                return (
-                <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass}`} title={milestone.description}>
-                  <div>
-                    <h3 className={`text-sm font-semibold ${headingClass}`}>{milestone.title}</h3>
-                    <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{formatMilestoneDate(milestone.targetDate)}</p>
-                  </div>
-                  <div className="flex items-center gap-2"><span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${status.badge}`}>{status.label}</span><button type="button" onClick={() => setFeedback(`${milestone.title}: ${milestone.description} Responsable: ${milestone.validator}.`)} aria-label={`Ver detalles de ${milestone.title}`} className={closeBtnClass}><MoreVertical size={14} /></button></div>
-                </article>
-              ); })}
+              {milestones.length === 0 ? (
+                <div className={`p-6 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 ${nestedClass}`}>
+                  No hay hitos globales registrados.
+                </div>
+              ) : (
+                milestones.map((milestone) => {
+                  const status = milestoneStatuses.find((item) => item.id === milestone.status);
+                  return (
+                  <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass}`} title={milestone.description}>
+                    <div>
+                      <h3 className={`text-sm font-semibold ${headingClass}`}>{milestone.title}</h3>
+                      <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{formatMilestoneDate(milestone.targetDate)}</p>
+                    </div>
+                    <div className="flex items-center gap-2"><span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${status.badge}`}>{status.label}</span><button type="button" onClick={() => setFeedback(`${milestone.title}: ${milestone.description} Responsable: ${milestone.validator}.`)} aria-label={`Ver detalles de ${milestone.title}`} className={closeBtnClass}><MoreVertical size={14} /></button></div>
+                  </article>
+                ); })
+              )}
             </div>
           </section>
 

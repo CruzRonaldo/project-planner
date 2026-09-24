@@ -900,8 +900,7 @@ export default function Portfolio({
 
         if (
           isMounted &&
-          Array.isArray(backendProjects) &&
-          backendProjects.length > 0
+          Array.isArray(backendProjects)
         ) {
           const mapped = backendProjects.map((bp) => ({
             id: bp.id,
@@ -1145,7 +1144,7 @@ export default function Portfolio({
         setTeamMembers(members);
       }
 
-      if (Array.isArray(backendProjects) && backendProjects.length > 0) {
+      if (Array.isArray(backendProjects)) {
         const mapped = backendProjects.map((bp) => ({
           id: bp.id,
           code: bp.code,
