@@ -51,17 +51,21 @@ export function createHumanResourcesData() {
   };
 }
 
-export function summarizePersonnel(members) {
-  return members.reduce((summary, member) => ({ ...summary, total: summary.total + 1, [member.status]: summary[member.status] + 1 }), { total: 0, active: 0, standby: 0, support: 0 });
+export function summarizePersonnel(members = []) {
+  return (members || []).reduce((summary, member) => ({
+    ...summary,
+    total: summary.total + 1,
+    [member.status]: (summary[member.status] || 0) + 1,
+  }), { total: 0, active: 0, standby: 0, support: 0 });
 }
 
 function normalizeText(value) {
   return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-export function filterPersonnel(members, query = '', status = 'all') {
+export function filterPersonnel(members = [], query = '', status = 'all') {
   const normalizedQuery = normalizeText(query);
-  return members.filter((member) => {
+  return (members || []).filter((member) => {
     const statusLabel = personnelStatuses.find((item) => item.id === member.status)?.label ?? '';
     const matchesQuery = normalizeText(`${member.name} ${member.area} ${member.project} ${statusLabel} ${member.availability}%`).includes(normalizedQuery);
     return matchesQuery && (status === 'all' || member.status === status);
@@ -73,9 +77,9 @@ function escapeCsv(value) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export function buildPersonnelCsv(members) {
+export function buildPersonnelCsv(members = []) {
   const header = ['Nombre', 'Área técnica', 'Proyecto asignado', 'Estado', 'Disponibilidad'];
-  const rows = members.map((member) => {
+  const rows = (members || []).map((member) => {
     const status = personnelStatuses.find((item) => item.id === member.status)?.label ?? member.status;
     return [member.name, member.area, member.project, status, `${member.availability}%`].map(escapeCsv).join(',');
   });

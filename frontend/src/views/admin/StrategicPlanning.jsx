@@ -140,8 +140,26 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [feedback, setFeedback] = useState('');
-  const projects = data.projects;
-  const milestones = data.milestones ?? [];
+  const projects = data?.projects || [];
+  const milestones = data?.milestones ?? [];
+  const totalBudget = projects.reduce(
+    (acc, p) => acc + (Number(p.totalBudget) || Number(p.budget) || 0),
+    0
+  );
+  const executedBudget = projects.reduce(
+    (acc, p) => acc + (Number(p.usedBudget) || 0),
+    0
+  );
+  const availableBudget = Math.max(0, totalBudget - executedBudget);
+  const executedPct = totalBudget > 0 ? Math.min(100, Math.round((executedBudget / totalBudget) * 100)) : 0;
+  const availablePct = totalBudget > 0 ? Math.max(0, 100 - executedPct) : 0;
+
+  const formatBudget = (amount) => {
+    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+    return `$${Number(amount || 0).toLocaleString()}`;
+  };
+
   const saveSchedule = (draft) => {
     const updated = adjustProjectSchedule(data, draft);
     onChange(updated);
@@ -268,40 +286,46 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             </div>
           </section>
 
-          {/* CONTROL PRESUPUESTARIO: Aquí también devolvemos el padding de p-5 md:p-6 */}
+          {/* CONTROL PRESUPUESTARIO */}
           <section className={`${cardClass} p-5 md:p-6 xl:col-span-2`}>
             <h2 className={`text-base font-semibold ${headingClass}`}>Control Presupuestario</h2>
 
             <div className="flex justify-center py-5">
               <div
                 className="flex h-36 w-36 items-center justify-center rounded-full transition-colors duration-300"
-                style={{ background: 'conic-gradient(#3978c6 0 55%, #244d86 55% 85%, #263b59 85% 100%)' }}
+                style={{
+                  background:
+                    totalBudget > 0
+                      ? `conic-gradient(#3978c6 0 ${availablePct}%, #10b981 ${availablePct}% 100%)`
+                      : 'conic-gradient(#64748b 0% 100%, #64748b 100% 100%)',
+                }}
               >
                 <div className="flex h-[94px] w-[94px] flex-col items-center justify-center rounded-full bg-white transition-colors duration-300 dark:bg-[#161b22] midnight:bg-[#0a1120]">
-                  <strong className={`text-xl ${headingClass}`}>$4.2M</strong>
-                  <span className={`mt-1 text-[10px] ${mutedClass}`}>Presupuesto</span>
+                  <strong className={`text-xl ${headingClass}`}>{formatBudget(totalBudget)}</strong>
+                  <span className={`mt-1 text-[10px] ${mutedClass}`}>
+                    {totalBudget > 0 ? 'Presupuesto' : 'Sin asignar'}
+                  </span>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 border-b border-slate-200 pb-5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-white/10 dark:text-slate-400 midnight:border-cyan-900/30 midnight:text-cyan-600">
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#263b59]" /> Disponible (55%)</span>
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> Ejecutado (30%)</span>
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#244d86]" /> Comprometido (15%)</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> Disponible ({availablePct}%)</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-500" /> Ejecutado ({executedPct}%)</span>
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div>
                 <p className={`text-[10px] ${mutedClass}`}>Total</p>
-                <strong className={`mt-1 block text-sm ${headingClass}`}>$4.2M</strong>
+                <strong className={`mt-1 block text-sm ${headingClass}`}>{formatBudget(totalBudget)}</strong>
               </div>
               <div>
                 <p className={`text-[10px] ${mutedClass}`}>Ejecutado</p>
-                <strong className="mt-1 block text-sm text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">$1.8M</strong>
+                <strong className="mt-1 block text-sm text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">{formatBudget(executedBudget)}</strong>
               </div>
               <div>
                 <p className={`text-[10px] ${mutedClass}`}>Disponible</p>
-                <strong className="mt-1 block text-sm text-blue-600 transition-colors duration-300 dark:text-blue-400 midnight:text-blue-400">$2.4M</strong>
+                <strong className="mt-1 block text-sm text-blue-600 transition-colors duration-300 dark:text-blue-400 midnight:text-blue-400">{formatBudget(availableBudget)}</strong>
               </div>
             </div>
           </section>

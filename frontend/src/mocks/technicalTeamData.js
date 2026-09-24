@@ -82,18 +82,18 @@ export function getMemberFullName(member) {
   return `${member.firstNames} ${member.lastNames}`.trim();
 }
 
-export function summarizeTechnicalTeam(members) {
-  return members.reduce((summary, member) => {
+export function summarizeTechnicalTeam(members = []) {
+  return (members || []).reduce((summary, member) => {
     summary.total += 1;
-    summary[member.status] += 1;
-    summary.areas[member.area] += 1;
+    if (summary[member.status] !== undefined) summary[member.status] += 1;
+    if (summary.areas[member.area] !== undefined) summary.areas[member.area] += 1;
     return summary;
   }, { total: 0, active: 0, standby: 0, support: 0, offline: 0, areas: { architecture: 0, structures: 0, systems: 0 } });
 }
 
-export function filterTechnicalTeam(members, query = '', area = 'all') {
+export function filterTechnicalTeam(members = [], query = '', area = 'all') {
   const normalizedQuery = normalizeText(query);
-  return members.filter((member) => {
+  return (members || []).filter((member) => {
     const areaLabel = technicalAreas.find((item) => item.id === member.area)?.label ?? '';
     const statusLabel = technicalStatuses.find((item) => item.id === member.status)?.label ?? '';
     const matchesQuery = normalizeText(`${getMemberFullName(member)} ${member.email} ${member.specialty} ${areaLabel} ${member.project} ${statusLabel}`).includes(normalizedQuery);
@@ -101,8 +101,8 @@ export function filterTechnicalTeam(members, query = '', area = 'all') {
   });
 }
 
-export function sortTechnicalTeam(members, order = 'availability-desc') {
-  const sorted = [...members];
+export function sortTechnicalTeam(members = [], order = 'availability-desc') {
+  const sorted = [...(members || [])];
   if (order === 'availability-asc') return sorted.sort((a, b) => a.workload - b.workload || getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
   if (order === 'name') return sorted.sort((a, b) => getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
   if (order === 'recent') return sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

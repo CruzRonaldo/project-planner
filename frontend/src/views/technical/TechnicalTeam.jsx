@@ -138,7 +138,16 @@ export function ReassignProjectDialog({ member, projectOptions = technicalProjec
   );
 }
 
-export default function TechnicalTeam({ data, onChange, query = '', onQueryChange, canManage = false, projectOptions = [] }) {
+export default function TechnicalTeam({ data = {}, onChange, query = '', onQueryChange, canManage = false, projectOptions = [] }) {
+  const isProduction =
+    import.meta.env.PROD ||
+    (typeof window !== 'undefined' &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
+
+  const membersList = data?.members || [];
+  const assignmentsList = data?.assignments || [];
+
   const [areaFilter, setAreaFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('availability-desc');
   const [page, setPage] = useState(1);
@@ -147,15 +156,16 @@ export default function TechnicalTeam({ data, onChange, query = '', onQueryChang
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const summary = summarizeTechnicalTeam(data.members);
-  const members = sortTechnicalTeam(filterTechnicalTeam(data.members, query, areaFilter), sortOrder);
+  const summary = summarizeTechnicalTeam(membersList);
+  const members = sortTechnicalTeam(filterTechnicalTeam(membersList, query, areaFilter), sortOrder);
   const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const visibleMembers = members.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const recentAssignments = showAllAssignments ? (data.assignments ?? []) : (data.assignments ?? []).slice(0, 4);
-  const reassignMember = data.members.find((member) => member.id === reassignMemberId);
-  const availableProjects = Array.from(new Set([...technicalProjects, ...projectOptions]));
-  const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] }))];
+  const recentAssignments = showAllAssignments ? assignmentsList : assignmentsList.slice(0, 4);
+  const reassignMember = membersList.find((member) => member.id === reassignMemberId);
+  const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : technicalProjects;
+  const availableProjects = Array.from(new Set(baseProjects));
+  const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] || 0 }))];
   const addMember = (draft) => { const updated = addTechnicalMember(data, draft); onChange(updated); setDialogOpen(false); setAreaFilter('all'); setPage(1); setFeedback(`${getMemberFullName(updated.members[0])} fue añadido al equipo técnico.`); };
   const reassignMemberToProject = (draft) => {
     const updated = reassignTechnicalMember(data, reassignMemberId, draft);
@@ -169,7 +179,7 @@ export default function TechnicalTeam({ data, onChange, query = '', onQueryChang
     setFeedback('');
   };
   const exportReport = () => {
-    const blob = new Blob([`\uFEFF${buildTechnicalTeamCsv(data.members)}`], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([`\uFEFF${buildTechnicalTeamCsv(membersList)}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

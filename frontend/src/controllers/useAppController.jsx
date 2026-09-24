@@ -122,11 +122,12 @@ export function useAppController() {
     return matched ? matched.id : 'dashboard';
   }, [normalizedPath]);
 
-  // Detección de entorno: en Render (*.onrender.com) o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
-  const isRender =
-    typeof window !== 'undefined' &&
-    window.location.hostname.includes('onrender.com');
-  const hideMocks = isRender || import.meta.env.VITE_HIDE_MOCKS === 'true';
+  // Detección de entorno: en producción o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
+  const isProduction =
+    import.meta.env.PROD ||
+    (typeof window !== 'undefined' &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
 
   // Estados de datos (en Render se inicializan vacíos por defecto)
   const [strategicPlanningData, setStrategicPlanningData] = useState(() =>
@@ -136,13 +137,27 @@ export function useAppController() {
     hideMocks ? { projects: [], changes: [] } : createPortfolioData()
   );
   const [operationsData, setOperationsData] = useState(() =>
-    hideMocks ? { workOrders: [], areas: [], projects: [] } : createOperationsData()
+    hideMocks
+      ? {
+          metrics: { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 },
+          orders: [],
+          activities: [],
+          alerts: [],
+          qualityChecks: [],
+        }
+      : createOperationsData()
   );
   const [technicalTeamData, setTechnicalTeamData] = useState(() =>
-    hideMocks ? { members: [], areas: [], projects: [] } : createTechnicalTeamData()
+    hideMocks ? { members: [], assignments: [] } : createTechnicalTeamData()
   );
   const [humanResourcesData, setHumanResourcesData] = useState(() =>
-    hideMocks ? { personnel: [], incidents: [] } : createHumanResourcesData()
+    hideMocks
+      ? {
+          members: [],
+          history: [],
+          incidents: [],
+        }
+      : createHumanResourcesData()
   );
   const [integrationsData, setIntegrationsData] = useState(() =>
     hideMocks
@@ -197,7 +212,7 @@ export function useAppController() {
               id: 'make',
               name: 'Make (Integromat)',
               icon: 'automation',
-              status: 'partial',
+              status: 'offline',
               description: 'Automatización de procesos y conexión con servicios de terceros.',
               endpoint: 'Escenarios / Operaciones',
               frequency: 'Cada 30 min',
@@ -210,7 +225,7 @@ export function useAppController() {
             },
           ],
           activities: [],
-          uptime: 100,
+          uptime: 0,
         }
       : createIntegrationsData()
   );
@@ -523,13 +538,13 @@ export function useAppController() {
       );
     }
     if (activeView === 'operations') {
-      const projectOptions = portfolioData.projects.map(
+      const projectOptions = (portfolioData?.projects || []).map(
         (project) => `${project.name} (${project.code})`
       );
-      const responsibleOptions = technicalTeamData.members.map((member) => ({
+      const responsibleOptions = (technicalTeamData?.members || []).map((member) => ({
         id: member.id,
-        name: `${member.firstNames} ${member.lastNames}`,
-        specialty: member.specialty,
+        name: member.firstNames ? `${member.firstNames} ${member.lastNames}`.trim() : (member.name || 'Sin nombre'),
+        specialty: member.specialty || '',
       }));
       return (
         <Operations
@@ -544,7 +559,7 @@ export function useAppController() {
       );
     }
     if (activeView === 'technical-team') {
-      const projectOptions = portfolioData.projects.map(
+      const projectOptions = (portfolioData?.projects || []).map(
         (project) => `${project.name} (${project.code})`
       );
       return (

@@ -122,24 +122,39 @@ const Configuration = ({ currentUser, fontScale, setFontScale, theme, setTheme, 
               {/* === SELECTOR DE TEMAS (CLARO, OSCURO, MEDIANOCHE) === */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-4 gap-3 border-t border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30">
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">Tema de Interfaz</span>
-                <div className="flex p-1 rounded-lg border transition-colors bg-slate-100 border-slate-300 dark:bg-[#0d1117] dark:border-[#30363d] midnight:bg-cyan-950 midnight:border-cyan-800/40">
+                <div className="grid grid-cols-3 w-full sm:w-80 gap-1 p-1 rounded-lg border transition-colors bg-slate-100 border-slate-300 dark:bg-[#0d1117] dark:border-[#30363d] midnight:bg-cyan-950 midnight:border-cyan-800/40">
                   <button 
+                    type="button"
                     onClick={() => setTheme('light')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${theme === 'light' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400'}`}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                      theme === 'light' 
+                        ? 'bg-white text-slate-900 shadow-sm border-slate-200' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400 border-transparent'
+                    }`}
                   >
-                    <Sun size={14} /> Claro
+                    <Sun size={14} className="shrink-0" /> <span>Claro</span>
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setTheme('dark')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${theme === 'dark' ? 'bg-cyan-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400'}`}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                      theme === 'dark' 
+                        ? 'bg-cyan-500 text-white shadow-md border-cyan-400' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400 border-transparent'
+                    }`}
                   >
-                    <Moon size={14} /> Oscuro
+                    <Moon size={14} className="shrink-0" /> <span>Oscuro</span>
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setTheme('midnight')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${theme === 'midnight' ? 'bg-cyan-600 text-white shadow-md border border-cyan-500' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400'}`}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                      theme === 'midnight' 
+                        ? 'bg-cyan-600 text-white shadow-md border-cyan-500' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-600 midnight:hover:text-cyan-400 border-transparent'
+                    }`}
                   >
-                    <MoonStar size={14} /> Medianoche
+                    <MoonStar size={14} className="shrink-0" /> <span>Medianoche</span>
                   </button>
                 </div>
               </div>

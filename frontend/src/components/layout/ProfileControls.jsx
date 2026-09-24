@@ -2,6 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 
+const isProduction =
+  import.meta.env.PROD ||
+  (typeof window !== 'undefined' &&
+    !['localhost', '127.0.0.1'].includes(window.location.hostname));
+const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
+
 const defaultNotifications = [
   { id: 'notif-milestone-1', title: 'Hito próximo', detail: 'Revisión estructural programada para hoy.', time: 'Hace 10 min', unread: false },
   { id: 'notif-budget-1', title: 'Presupuesto actualizado', detail: 'Torre Reforma recibió una actualización.', time: 'Hace 1 h', unread: false },
@@ -21,7 +27,7 @@ function getInitials(name = '') {
 export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationsList, setNotificationsList] = useState(defaultNotifications);
+  const [notificationsList, setNotificationsList] = useState(() => (hideMocks ? [] : defaultNotifications));
   const [readIds, setReadIds] = useState(() => {
     try {
       const saved = localStorage.getItem('project_planner_read_notifs');
@@ -44,8 +50,12 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
           username: currentUser.username,
           email: currentUser.email,
         });
-        if (isMounted && Array.isArray(data) && data.length > 0) {
-          setNotificationsList(data);
+        if (isMounted && Array.isArray(data)) {
+          if (hideMocks) {
+            setNotificationsList(data);
+          } else {
+            setNotificationsList(data.length > 0 ? data : defaultNotifications);
+          }
         }
       } catch (err) {
         console.error('Error al cargar notificaciones:', err);
@@ -285,6 +295,17 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                   </article>
                 );
               })}
+              {!notificationsList.length && (
+                <div className="py-8 px-4 text-center">
+                  <Bell className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600 midnight:text-cyan-800 mb-2 opacity-50" />
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
+                    No tienes notificaciones
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
+                    Todas las novedades de proyectos aparecerán aquí
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         )}
