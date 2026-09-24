@@ -194,21 +194,6 @@ export function useAppController() {
               ],
             },
             {
-              id: 'n8n',
-              name: 'N8N',
-              icon: 'workflow',
-              status: 'offline',
-              description: 'Motor de automatización de workflows.',
-              endpoint: 'Workflows / Producción',
-              frequency: 'Cada 5 min',
-              errors: 0,
-              lastActivity: 'Sin actividad',
-              metrics: [
-                { key: 'workflows', value: 0, label: 'workflows' },
-                { key: 'paused', value: 0, label: 'en pausa' },
-              ],
-            },
-            {
               id: 'make',
               name: 'Make (Integromat)',
               icon: 'automation',

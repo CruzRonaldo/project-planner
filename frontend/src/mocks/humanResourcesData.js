@@ -22,7 +22,7 @@ const initialPersonnel = [
   { id: 'hr-carlos', name: 'Carlos Mendoza', area: 'Sistemas', project: 'Planta Tratamiento II', status: 'active', availability: 100 },
   { id: 'hr-laura', name: 'Laura Castro', area: 'Sistemas', project: 'Ninguno', status: 'standby', availability: 10 },
   { id: 'hr-andres', name: 'Andrés Silva', area: 'Estructuras', project: 'Viaducto Elevado', status: 'support', availability: 40 },
-  { id: 'hr-patricia', name: 'Patricia Luna', area: 'Sistemas', project: 'Integración N8N Backend', status: 'active', availability: 90 },
+  { id: 'hr-patricia', name: 'Patricia Luna', area: 'Sistemas', project: 'Integración Make Backend', status: 'active', availability: 90 },
   { id: 'hr-valeria', name: 'Valeria López', area: 'Arquitectura', project: 'Torre Reforma', status: 'active', availability: 85 },
   { id: 'hr-daniel', name: 'Daniel Vargas', area: 'Estructuras', project: 'Puente Industrial', status: 'active', availability: 100 },
   { id: 'hr-camila', name: 'Camila Ríos', area: 'Sistemas', project: 'Project Planner', status: 'active', availability: 75 },

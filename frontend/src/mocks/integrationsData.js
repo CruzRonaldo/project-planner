@@ -20,12 +20,6 @@ const initialIntegrations = [
     metrics: [{ key: 'models', value: 8, label: 'modelos activos' }, { key: 'sync', value: 'hace 2h', label: 'última sync' }],
   },
   {
-    id: 'n8n', name: 'N8N', icon: 'workflow', status: 'connected',
-    description: 'Motor de automatización de workflows. Gestión de flujos de datos entre módulos.',
-    endpoint: 'Workflows / Producción', frequency: 'Cada 5 min', errors: 0, lastActivity: 'Hace 25 minutos',
-    metrics: [{ key: 'workflows', value: 15, label: 'workflows activos' }, { key: 'paused', value: 3, label: 'en pausa' }],
-  },
-  {
     id: 'make', name: 'Make (Integromat)', icon: 'automation', status: 'partial',
     description: 'Automatización de procesos y conexión con servicios de terceros.',
     endpoint: 'Escenarios / Operaciones', frequency: 'Cada 30 min', errors: 2, lastActivity: 'Hace 1 hora',
@@ -35,11 +29,11 @@ const initialIntegrations = [
 
 const initialActivities = [
   { id: 'activity-1', integrationId: 'drive', title: 'Sincronización completada: Torre Reforma - Planos Fase 2', time: 'Hace 10 minutos', status: 'success' },
-  { id: 'activity-2', integrationId: 'n8n', title: 'Workflow ejecutado: Notificación de hito cumplido', time: 'Hace 25 minutos', status: 'success' },
+  { id: 'activity-2', integrationId: 'make', title: 'Escenario ejecutado: Notificación de hito cumplido', time: 'Hace 25 minutos', status: 'success' },
   { id: 'activity-3', integrationId: 'make', title: 'Error en escenario: Actualización de presupuesto', time: 'Hace 1 hora', status: 'error' },
   { id: 'activity-4', integrationId: 'revit', title: 'Procesando nuevo modelo estructural: Planta de Tratamiento', time: 'Hace 2 horas', status: 'processing' },
   { id: 'activity-5', integrationId: 'drive', title: 'Enlace de documento: Acta de Inicio - Subestación', time: 'Hace 4 horas', status: 'success' },
-  { id: 'activity-6', integrationId: 'n8n', title: 'Workflow ejecutado: Sincronización semanal de reportes', time: 'Ayer, 6:00 PM', status: 'success' },
+  { id: 'activity-6', integrationId: 'make', title: 'Escenario ejecutado: Sincronización semanal de reportes', time: 'Ayer, 6:00 PM', status: 'success' },
 ];
 
 function normalizeText(value) {

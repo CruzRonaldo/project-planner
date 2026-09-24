@@ -21,7 +21,7 @@ const operationalStatuses = technicalStatuses.filter((status) => status.id !== '
 const areaDetails = {
   architecture: { description: 'Renders, modelado Revit y recorridos 360°', valueClass: 'text-blue-600 dark:text-blue-400 midnight:text-blue-300' },
   structures: { description: 'Modelado Revit, concreto y acero de refuerzo', valueClass: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300' },
-  systems: { description: 'Backend, APIs, N8N y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
+  systems: { description: 'Backend, APIs, Make y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
 };
 
 function getInitials(member) {
