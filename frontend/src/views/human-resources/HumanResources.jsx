@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Download, Pencil, RotateCcw, Save, UserRoundCog, X } from 'lucide-react';
-import { buildPersonnelCsv, filterPersonnel, getIncidentDuration, personnelIncidentTypes, personnelStatuses, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../../mocks/humanResourcesData';
+import { personnelStatuses, personnelIncidentTypes } from '../../constants/humanResources';
+import {
+  buildPersonnelCsv,
+  filterPersonnel,
+  getIncidentDuration,
+  registerPersonnelIncident,
+  summarizePersonnel,
+  updatePersonnel,
+} from '../../utils/humanResources';
 
 const panelClass = 'min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-100 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:focus:border-cyan-500';
