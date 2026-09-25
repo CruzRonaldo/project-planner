@@ -19,7 +19,7 @@ SPA).
 
 - Python 3.12+ (o 3.14)
 - Node.js 18+ y npm
-- PostgreSQL Server activo (o MySQL/MariaDB)
+- PostgreSQL Server activo (Local o renderBD)
 
 ---
 
@@ -53,16 +53,10 @@ pip install -r requirements.txt
 Antes de aplicar las migraciones, crea la base de datos:
 
 **En PostgreSQL (Recomendado):**
+
 ```sql
 CREATE DATABASE project_planner;
 ```
-
-**En MySQL / MariaDB (Opcional):**
-```sql
-CREATE DATABASE project_planner CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Puedes hacerlo desde DBeaver, psql, pgAdmin o el cliente de tu preferencia.
 
 ### 2.2 Aplicar migraciones
 
@@ -71,11 +65,24 @@ Puedes hacerlo desde DBeaver, psql, pgAdmin o el cliente de tu preferencia.
 python manage.py migrate
 ```
 
-### 2.3 Cargar datos iniciales y usuarios
+### 2.3 Cargar datos iniciales y usuarios (`seed_data`)
+
+El comando `seed_data` gestiona la población inicial de la base de datos de manera modular:
 
 ```bash
-# Poblar áreas, roles, proyectos y usuarios de prueba (sistemas, civil, arquitectura)
+# 1. Modo Estándar / Producción (Por defecto):
+# Crea la infraestructura base (áreas técnicas, roles, estados y usuarios para login)
+# dejando la base de datos limpia con 0 proyectos.
 python manage.py seed_data
+
+# 2. Modo Demostración (Uso exclusivo en Local / Pruebas):
+# Inserta todo lo anterior MÁS 4 proyectos de prueba con sus hitos, tareas y métricas.
+python manage.py seed_data --demo-projects
+
+# 3. Limpieza y re-población completa:
+# (Opcional) Borra registros existentes de core antes de sembrar los nuevos datos.
+python manage.py seed_data --clear
+python manage.py seed_data --clear --demo-projects
 
 # Crear usuario Administrador (Project Manager)
 python manage.py createsuperuser
@@ -83,6 +90,12 @@ python manage.py createsuperuser
 # (Opcional) Listar usuarios registrados
 python manage.py list_users
 ```
+
+> [!IMPORTANT]
+> **Buenas Prácticas de Entornos: Base de Datos Local vs. Producción (Render)**
+>
+> - **Entorno Local (`localhost`):** Utiliza siempre la base de datos local para experimentación, pruebas visuales y comprobaciones con `--demo-projects`. Puedes crear, editar o purgar datos sin riesgo.
+> - **Producción (Render):** La base de datos en la nube es la **fuente de la verdad**. Debe mantenerse estrictamente limpia de datos ficticios y operar únicamente con proyectos y registros reales generados desde la aplicación.
 
 ### 2.4 Iniciar el servidor backend (Puerto 8000)
 
@@ -186,22 +199,25 @@ project-planner/
 Para que una historia de usuario, módulo o corrección se considere **Done (Terminada)** e integrada en la rama principal (`main`), debe cumplir con los siguientes criterios de calidad:
 
 ### 1. ⚙️ Backend & Base de Datos (Django + PostgreSQL)
+
 - [ ] Modelos relacionales y migraciones aplicados correctamente en PostgreSQL (`python manage.py migrate`).
 - [ ] Endpoints REST estructurados bajo `/api/` con respuestas y códigos HTTP semánticos (`200`, `201`, `400`, `404`).
 - [ ] **Seguridad y datos sensibles:** Contraseñas, claves de API, webhooks y credenciales de base de datos residen estrictamente en variables de entorno (`.env`), garantizando que información crítica nunca se exponga al frontend ni al repositorio público.
 
 ### 2. 🎨 Frontend & Arquitectura de Interfaz (React + Tailwind CSS)
+
 - [ ] **Patrón modular por paneles:** Vistas estructuradas mediante componentes de diseño consistentes (Layouts, Barra lateral de navegación, Topbar y Paneles modales interactivos).
 - [ ] **Diseño Responsivo:** Interfaz adaptable a diferentes resoluciones de pantalla (móvil, tablet y escritorio).
-- [ ] **Experiencia de usuario:** Manejo visible de estados de carga (*loaders*), notificaciones de acción (*toasts*) y soporte para temas de interfaz (Claro y Oscuro).
+- [ ] **Experiencia de usuario:** Manejo visible de estados de carga (_loaders_), notificaciones de acción (_toasts_) y soporte para temas de interfaz (Claro y Oscuro).
 
 ### 3. 🧪 Verificación Funcional & Conectividad
+
 - [ ] Verificación de enlace entre Backend y PostgreSQL mediante el widget de diagnóstico (`/api/test-db/`).
 - [ ] Validación de integraciones activas (ej. test de ping en vivo con webhooks de Make).
 - [ ] Verificación manual de permisos y roles de usuario (Administrador vs. Colaborador Técnico).
 
 ### 4. 🚀 Flujo de Trabajo en Git & Despliegue en Render
-- [ ] **Trabajo organizado por ramas:** El desarrollo se realiza en ramas de características (`feature/nombre-tarea`, `refactor/...`) y solo se integran a `main` una vez probadas y validadas.
-- [ ] Commits descriptivos bajo el estándar de *Conventional Commits* (`feat:`, `fix:`, `docs:`, `refactor:`).
-- [ ] **Despliegue verificado en Render:** Compilación exitosa y operativa en la nube tanto en el Web Service (Backend) como en el Static Site (Frontend).
 
+- [ ] **Trabajo organizado por ramas:** El desarrollo se realiza en ramas de características (`feature/nombre-tarea`, `refactor/...`) y solo se integran a `main` una vez probadas y validadas.
+- [ ] Commits descriptivos bajo el estándar de _Conventional Commits_ (`feat:`, `fix:`, `docs:`, `refactor:`).
+- [ ] **Despliegue verificado en Render:** Compilación exitosa y operativa en la nube tanto en el Web Service (Backend) como en el Static Site (Frontend).
