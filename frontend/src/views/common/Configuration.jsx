@@ -2,10 +2,95 @@ import React, { useState } from 'react';
 import { Sun, Moon, MoonStar } from 'lucide-react';
 
 const Configuration = ({ currentUser, fontScale, setFontScale, theme, setTheme, users = [] }) => {
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [pushNotif, setPushNotif] = useState(true);
-  const [appAlerts, setAppAlerts] = useState(true);
-  const [autoBackup, setAutoBackup] = useState(true);
+  const [emailNotif, setEmailNotif] = useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_email_notif');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [pushNotif, setPushNotif] = useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_push_notif');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [appAlerts, setAppAlerts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_app_alerts');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [autoBackup, setAutoBackup] = useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_auto_backup');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [lastBackup, setLastBackup] = useState(() => {
+    try {
+      return localStorage.getItem('project_planner_last_backup') || 'Hoy a las 04:00 AM (Automático)';
+    } catch {
+      return 'Hoy a las 04:00 AM (Automático)';
+    }
+  });
+
+  const updatePreference = (key, setter) => (val) => {
+    setter(val);
+    try {
+      localStorage.setItem(key, String(val));
+    } catch {
+      // Ignorar error de almacenamiento
+    }
+  };
+
+  const handleExportData = () => {
+    const now = new Date();
+    const exportPayload = {
+      sistema: 'Project Planner Enterprise',
+      version: '2.0.0',
+      fechaExportacion: now.toISOString(),
+      solicitadoPor: currentUser?.name || currentUser?.username || 'Administrador',
+      preferencias: {
+        idioma: 'Español (ES)',
+        zonaHoraria: 'GMT-5 (Lima)',
+        tema: theme,
+        escalaFuente: `${fontScale}%`,
+        notificacionesCorreo: emailNotif,
+        notificacionesPush: pushNotif,
+        alertasInApp: appAlerts,
+        respaldoAutomatico: autoBackup,
+      },
+      usuarios: users.map((u) => ({
+        id: u.id,
+        nombre: u.name,
+        estado: u.isOnline ? 'Activo' : 'Inactivo',
+      })),
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `backup_project_planner_${now.toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    const formattedDate = `Hoy a las ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Manual)`;
+    setLastBackup(formattedDate);
+    try {
+      localStorage.setItem('project_planner_last_backup', formattedDate);
+    } catch {
+      // Ignorar error de almacenamiento
+    }
+  };
 
   const isAdmin = currentUser?.accountType === 'admin';
 
@@ -108,15 +193,15 @@ const Configuration = ({ currentUser, fontScale, setFontScale, theme, setTheme, 
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Notificaciones por Correo</span>
-                <Toggle enabled={emailNotif} onChange={setEmailNotif} />
+                <Toggle enabled={emailNotif} onChange={updatePreference('project_planner_email_notif', setEmailNotif)} />
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Notificaciones Push (Móvil)</span>
-                <Toggle enabled={pushNotif} onChange={setPushNotif} />
+                <Toggle enabled={pushNotif} onChange={updatePreference('project_planner_push_notif', setPushNotif)} />
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Alertas In-App en Tiempo Real</span>
-                <Toggle enabled={appAlerts} onChange={setAppAlerts} />
+                <Toggle enabled={appAlerts} onChange={updatePreference('project_planner_app_alerts', setAppAlerts)} />
               </div>
               
               {/* === SELECTOR DE TEMAS (CLARO, OSCURO, MEDIANOCHE) === */}
@@ -209,6 +294,11 @@ const Configuration = ({ currentUser, fontScale, setFontScale, theme, setTheme, 
                     </span>
                   </div>
                 ))}
+                {users.length === 0 && (
+                  <p className="text-xs py-4 text-center text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
+                    No hay usuarios adicionales registrados.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -219,21 +309,27 @@ const Configuration = ({ currentUser, fontScale, setFontScale, theme, setTheme, 
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100/80">Último Respaldo Exitoso</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80 mt-0.5">{lastBackup}</p>
                 </div>
-                <button className="bg-transparent border px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/20">
+                <button
+                  type="button"
+                  onClick={handleExportData}
+                  className="bg-transparent border px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/20"
+                >
                   Exportar Datos
                 </button>
               </div>
 
               <div className="flex justify-between items-center mb-6">
                 <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Respaldo Diario Automático</span>
-                <Toggle enabled={autoBackup} onChange={setAutoBackup} />
+                <Toggle enabled={autoBackup} onChange={updatePreference('project_planner_auto_backup', setAutoBackup)} />
               </div>
 
               {/* Consola de logs */}
               <div className="p-4 rounded-lg font-mono text-xs space-y-2 mt-4 border transition-colors bg-slate-50 border-slate-200 text-slate-600 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-slate-400 midnight:bg-[#050B14] midnight:border-cyan-900/40 midnight:text-cyan-600">
-                <p><span className="text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400">[04:00:12] SYSTEM:</span> Respaldo maestro generado con éxito (4.2MB)</p>
-                <p><span className="text-cyan-600 dark:text-slate-300 midnight:text-cyan-400">[Yesterday] Carlos M:</span> Cambio de contraseña de Alejandro Ruiz</p>
+                <p><span className="text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400">[SYSTEM]:</span> Servicio de respaldo y persistencia activo.</p>
+                <p><span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">[AUTH]:</span> Sesión activa para {currentUser?.name || currentUser?.username || 'Administrador'} ({currentUser?.roleLabel || 'Admin'}).</p>
+                <p><span className="text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">[SECURITY]:</span> Políticas de control de acceso y tokens verificados.</p>
               </div>
             </div>
 

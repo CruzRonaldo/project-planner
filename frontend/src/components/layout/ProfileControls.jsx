@@ -152,7 +152,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
         >
           {isAdmin ? (
             <span className="h-8 w-8 overflow-hidden rounded-full bg-slate-200 dark:bg-gray-600 midnight:bg-cyan-900/40 sm:h-9 sm:w-9">
-              <img src="https://i.pravatar.cc/150?img=11" alt="Perfil de Carlos M." className="h-full w-full object-cover" />
+              <img src="https://i.pravatar.cc/150?img=11" alt={`Perfil de ${currentUser?.name || 'Administrador'}`} className="h-full w-full object-cover" />
             </span>
           ) : (
             <span className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold sm:h-9 sm:w-9 bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:bg-cyan-500/20 midnight:text-cyan-300">
