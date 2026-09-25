@@ -1,19 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
-
-const isProduction =
-  import.meta.env.PROD ||
-  (typeof window !== 'undefined' &&
-    !['localhost', '127.0.0.1'].includes(window.location.hostname));
-const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
-
-const defaultNotifications = [
-  { id: 'notif-milestone-1', title: 'Hito próximo', detail: 'Revisión estructural programada para hoy.', time: 'Hace 10 min', unread: false },
-  { id: 'notif-budget-1', title: 'Presupuesto actualizado', detail: 'Torre Reforma recibió una actualización.', time: 'Hace 1 h', unread: false },
-  { id: 'notif-team-1', title: 'Nuevo integrante', detail: 'Se añadió un usuario al equipo técnico.', time: 'Ayer', unread: false },
-];
-
 function getInitials(name = '') {
   return name
     .split(' ')
@@ -27,7 +14,7 @@ function getInitials(name = '') {
 export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationsList, setNotificationsList] = useState(() => (hideMocks ? [] : defaultNotifications));
+  const [notificationsList, setNotificationsList] = useState([]);
   const [readIds, setReadIds] = useState(() => {
     try {
       const saved = localStorage.getItem('project_planner_read_notifs');
@@ -51,11 +38,9 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
           email: currentUser.email,
         });
         if (isMounted && Array.isArray(data)) {
-          if (hideMocks) {
-            setNotificationsList(data);
-          } else {
-            setNotificationsList(data.length > 0 ? data : defaultNotifications);
-          }
+          // Descartar notificaciones de prueba/dummy con prefijo 'notif-'
+          const realNotifications = data.filter((n) => !n.id?.startsWith('notif-'));
+          setNotificationsList(realNotifications);
         }
       } catch (err) {
         console.error('Error al cargar notificaciones:', err);

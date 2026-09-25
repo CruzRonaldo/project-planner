@@ -267,21 +267,27 @@ def notifications_view(request):
             'unread': True,
         })
 
-    # Notificaciones generales de contexto
-    notifications.append({
-        'id': 'notif-milestone-1',
-        'title': 'Hito próximo',
-        'detail': 'Revisión estructural programada para hoy.',
-        'time': 'Hace 10 min',
-        'unread': False,
-    })
-    notifications.append({
-        'id': 'notif-budget-1',
-        'title': 'Presupuesto actualizado',
-        'detail': 'Torre Reforma recibió una actualización.',
-        'time': 'Hace 1 h',
-        'unread': False,
-    })
+    # Notificaciones de hitos próximos
+    try:
+        from datetime import date, timedelta
+        today = date.today()
+        upcoming_milestones = Milestone.objects.filter(
+            target_date__gte=today,
+            target_date__lte=today + timedelta(days=14),
+            status__in=['pending', 'upcoming']
+        ).select_related('project')[:5]
+        for m in upcoming_milestones:
+            notifications.append({
+                'id': f"milestone-{m.id}",
+                'title': f"Hito próximo: {m.title}",
+                'detail': f"Proyecto «{m.project.name}» ({m.project.code}) programado para {m.target_date}.",
+                'time': 'Próximamente',
+                'type': 'milestone',
+                'projectId': m.project.id,
+                'unread': True,
+            })
+    except Exception:
+        pass
 
     return Response(notifications, status=status.HTTP_200_OK)
 
