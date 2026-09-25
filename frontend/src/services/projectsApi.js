@@ -6,7 +6,7 @@ import api from './api';
  */
 export const projectsApi = {
   /**
-   * Obtiene la lista completa de proyectos registrados en la base de datos MySQL.
+   * Obtiene la lista completa de proyectos registrados en la base de datos.
    */
   getProjects: async () => {
     const response = await api.get('/projects/');
@@ -15,7 +15,7 @@ export const projectsApi = {
 
   /**
    * Registra un nuevo proyecto en el Backend.
-   * El Backend valida en MySQL y despacha automáticamente la notificación a Make.
+   * El Backend valida en la base de datos y despacha automáticamente la notificación a Make.
    * @param {Object} projectData Datos del borrador del proyecto (draft)
    * @returns {Promise<Object>} Proyecto creado y resultado de la notificación Make
    */
@@ -52,7 +52,7 @@ export const projectsApi = {
   },
 
   /**
-   * Obtiene la lista de miembros y líderes del equipo registrados en MySQL.
+   * Obtiene la lista de miembros y líderes del equipo registrados en la Base de Datos.
    */
   getTeamMembers: async () => {
     const response = await api.get('/team-members/');
@@ -60,7 +60,7 @@ export const projectsApi = {
   },
 
   /**
-   * Obtiene el estado real de conexión (isOnline) y permisos de usuarios técnicos desde MySQL.
+   * Obtiene el estado real de conexión (isOnline) y permisos de usuarios técnicos desde la Base de Datos.
    */
   getUsersStatus: async () => {
     const response = await api.get('/auth/users-status/');

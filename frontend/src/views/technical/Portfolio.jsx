@@ -882,7 +882,7 @@ export default function Portfolio({
   const { showToast } = useToast();
   const visible = filterPortfolio(data, query, activeFilter);
 
-  // Sincronizar proyectos y colaboradores reales de la base de datos MySQL al montar
+  // Sincronizar proyectos y colaboradores reales de la base de datos al montar
   useEffect(() => {
     let isMounted = true;
     const fetchBackendProjects = async () => {
