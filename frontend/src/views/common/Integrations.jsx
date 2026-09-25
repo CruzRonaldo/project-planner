@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Cloud, RotateCw, Save, Settings2, Workflow, X, Zap } from 'lucide-react';
-import { filterIntegrations, integrationStatuses, summarizeIntegrations, syncFrequencies, testIntegration, updateIntegration } from '../../mocks/integrationsData';
+import { integrationStatuses, syncFrequencies } from '../../constants/integrations';
+import {
+  filterIntegrations,
+  summarizeIntegrations,
+  testIntegration,
+  updateIntegration,
+} from '../../utils/integrations';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
 

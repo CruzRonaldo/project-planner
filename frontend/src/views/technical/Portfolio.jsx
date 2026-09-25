@@ -10,16 +10,14 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import { projectAreas, projectLeaders, projectStatuses } from "../../constants/portfolio";
 import {
   createProjectCode,
   filterPortfolio,
   formatMoney,
   formatProjectTerm,
   getProjectDuration,
-  projectAreas,
-  projectLeaders,
-  projectStatuses,
-} from "../../mocks/portfolioData";
+} from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
 
 const inputClass =

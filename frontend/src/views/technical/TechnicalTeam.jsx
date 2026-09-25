@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
-import { addTechnicalMember, buildTechnicalTeamCsv, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam, technicalAreas, technicalProjects, technicalSortOptions, technicalStatuses } from '../../mocks/technicalTeamData';
+import {
+  technicalAreas,
+  technicalProjects,
+  technicalSortOptions,
+  technicalStatuses,
+  reassignmentReasons,
+} from '../../constants/technicalTeam';
+import {
+  addTechnicalMember,
+  buildTechnicalTeamCsv,
+  filterTechnicalTeam,
+  getMemberFullName,
+  reassignTechnicalMember,
+  sortTechnicalTeam,
+  summarizeTechnicalTeam,
+} from '../../utils/technicalTeam';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
 const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120]';

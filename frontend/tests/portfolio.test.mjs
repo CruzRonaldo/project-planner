@@ -82,18 +82,19 @@ test('Los presupuestos se muestran en un formato compacto', () => {
 test('Portafolio conserva sus tarjetas y muestra el alta solo a administradores', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: Portfolio, NewProjectDialog } = await server.ssrLoadModule('/src/Portfolio.jsx');
+    const { default: Portfolio, NewProjectDialog } = await server.ssrLoadModule('/src/views/technical/Portfolio.jsx');
+    const { ToastProvider } = await server.ssrLoadModule('/src/context/ToastContext.jsx');
     const data = createPortfolioData();
     const props = { data, onChange: () => {}, onQueryChange: () => {}, canManage: true, currentUserName: 'Carlos M.' };
-    const html = renderToStaticMarkup(React.createElement(Portfolio, props));
+    const html = renderToStaticMarkup(React.createElement(ToastProvider, null, React.createElement(Portfolio, props)));
     assert.ok(html.includes('Repositorio de Proyectos'));
     assert.ok(html.includes('Crear Proyecto'));
     assert.equal((html.match(/aria-label="\d+ integrantes"/g) ?? []).length, 4);
     assert.ok(html.includes('Historial de Cambios Reciente'));
 
-    const viewer = renderToStaticMarkup(React.createElement(Portfolio, { ...props, canManage: false }));
+    const viewer = renderToStaticMarkup(React.createElement(ToastProvider, null, React.createElement(Portfolio, { ...props, canManage: false })));
     assert.ok(!viewer.includes('>Crear Proyecto</button>'));
-    const searched = renderToStaticMarkup(React.createElement(Portfolio, { ...props, query: 'Puente Industrial' }));
+    const searched = renderToStaticMarkup(React.createElement(ToastProvider, null, React.createElement(Portfolio, { ...props, query: 'Puente Industrial' })));
     assert.equal((searched.match(/aria-label="\d+ integrantes"/g) ?? []).length, 1);
 
     const dialog = renderToStaticMarkup(React.createElement(NewProjectDialog, { data, currentUserName: 'Carlos M.', onSubmit: () => {}, onClose: () => {} }));

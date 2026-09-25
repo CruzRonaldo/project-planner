@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Check, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, X } from 'lucide-react';
-import { adjustProjectSchedule, createGlobalMilestone, createStrategicPlanningData, formatMilestoneDate, formatPlanningPeriod, milestoneStatuses, milestoneValidators, planningMonths, scheduleAdjustmentReasons } from '../../mocks/strategicPlanningData';
+import {
+  planningMonths,
+  scheduleAdjustmentReasons,
+  milestoneStatuses,
+  milestoneValidators,
+} from '../../constants/strategicPlanning';
+import {
+  adjustProjectSchedule,
+  createGlobalMilestone,
+  formatMilestoneDate,
+  formatPlanningPeriod,
+} from '../../utils/strategicPlanning';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
 const cardClass = 'rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_18px_45px_rgba(0,0,0,0.12)] midnight:border-cyan-900/30 midnight:bg-[#0a1120]';

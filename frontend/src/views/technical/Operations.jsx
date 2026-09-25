@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, X, Zap } from 'lucide-react';
-import { buildWorkOrdersCsv, createWorkOrder, filterWorkOrders, getWorkOrderDuration, operationalAreas, operationalProjects, operationTypes, workOrderPriorities, workOrderStatuses } from '../../mocks/operationsData';
+import {
+  operationalAreas,
+  operationalProjects,
+  operationTypes,
+  workOrderPriorities,
+  workOrderStatuses,
+} from '../../constants/operations';
+import {
+  buildWorkOrdersCsv,
+  createWorkOrder,
+  filterWorkOrders,
+  getWorkOrderDuration,
+} from '../../utils/operations';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
 const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';

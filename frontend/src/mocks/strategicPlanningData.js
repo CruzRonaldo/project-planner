@@ -1,38 +1,20 @@
-export const planningMonths = [
-  { number: 1, short: 'Ene', label: 'Enero' },
-  { number: 2, short: 'Feb', label: 'Febrero' },
-  { number: 3, short: 'Mar', label: 'Marzo' },
-  { number: 4, short: 'Abr', label: 'Abril' },
-  { number: 5, short: 'May', label: 'Mayo' },
-  { number: 6, short: 'Jun', label: 'Junio' },
-  { number: 7, short: 'Jul', label: 'Julio' },
-  { number: 8, short: 'Ago', label: 'Agosto' },
-  { number: 9, short: 'Sep', label: 'Septiembre' },
-  { number: 10, short: 'Oct', label: 'Octubre' },
-  { number: 11, short: 'Nov', label: 'Noviembre' },
-  { number: 12, short: 'Dic', label: 'Diciembre' },
-];
+// Semillas de datos simulados (Mocks) para pruebas locales de Planificación Estratégica
+export {
+  planningMonths,
+  scheduleAdjustmentReasons,
+  milestoneStatuses,
+  milestoneValidators,
+} from '../constants/strategicPlanning.js';
 
-export const scheduleAdjustmentReasons = [
-  'Retraso por entrega de insumos estructurales',
-  'Adelanto por optimización del cronograma',
-  'Cambio de alcance solicitado por el cliente',
-  'Reprogramación por disponibilidad del equipo',
-  'Contingencia climática o normativa',
-];
+export {
+  formatPlanningPeriod,
+  formatMilestoneDate,
+  createGlobalMilestone,
+  adjustProjectSchedule,
+} from '../utils/strategicPlanning.js';
 
-export const milestoneStatuses = [
-  { id: 'pending', label: 'Pendiente', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/10 midnight:text-amber-300' },
-  { id: 'upcoming', label: 'Próximo', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300' },
-  { id: 'completed', label: 'Completado', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
-];
-
-export const milestoneValidators = [
-  'Carlos M. (Project Manager)',
-  'Ana Rojas (Ingeniera Civil)',
-  'Lucía Gómez (Arquitecta BIM)',
-  'Javier Vega (Ingeniero Estructural)',
-];
+import { milestoneValidators } from '../constants/strategicPlanning.js';
+import { formatPlanningPeriod } from '../utils/strategicPlanning.js';
 
 const initialProjects = [
   { id: 'planning-torre', code: 'PRJ-2026-001', name: 'Torre Reforma', area: 'Edificaciones Comerciales', start: 1, duration: 6, color: '#24559a' },
@@ -51,76 +33,10 @@ const initialMilestones = [
   { id: 'milestone-5', projectId: 'planning-nave', title: 'Cierre Anual', targetDate: '2026-12-15', status: 'pending', validator: milestoneValidators[0], description: 'Cierre de entregables y consolidación anual.', blocking: false },
 ];
 
-export function formatPlanningPeriod(start, duration) {
-  const startMonth = planningMonths[start - 1];
-  const endMonth = planningMonths[start + duration - 2];
-  if (!startMonth || !endMonth) return '';
-  return `${startMonth.short} - ${endMonth.short} (${duration} ${duration === 1 ? 'Mes' : 'Meses'})`;
-}
-
 export function createStrategicPlanningData() {
   return {
     projects: initialProjects.map((project) => ({ ...project })),
     milestones: initialMilestones.map((milestone) => ({ ...milestone })),
     adjustments: [],
-  };
-}
-
-export function formatMilestoneDate(targetDate) {
-  const date = new Date(`${targetDate}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return '';
-  const month = new Intl.DateTimeFormat('es-PE', { month: 'short' }).format(date).replace('.', '');
-  return `Programado para el ${String(date.getDate()).padStart(2, '0')} ${month.charAt(0).toUpperCase()}${month.slice(1)}`;
-}
-
-export function createGlobalMilestone(data, draft, date = new Date()) {
-  const project = data.projects.find((item) => item.id === draft.projectId);
-  const title = draft.title?.trim() ?? '';
-  const description = draft.description?.trim() ?? '';
-  if (!project) throw new Error('Selecciona un proyecto asociado válido.');
-  if (!milestoneStatuses.some((status) => status.id === draft.status)) throw new Error('Selecciona un estado inicial válido.');
-  if (title.length < 3) throw new Error('Ingresa el nombre del hito o entrega crítica.');
-  if (!formatMilestoneDate(draft.targetDate)) throw new Error('Selecciona una fecha límite válida.');
-  if (!milestoneValidators.includes(draft.validator)) throw new Error('Selecciona un responsable de validación válido.');
-  if (description.length < 10) throw new Error('Describe los entregables clave del hito.');
-  const milestone = {
-    id: `milestone-${date.getTime()}-${data.milestones.length}`,
-    projectId: project.id,
-    title,
-    targetDate: draft.targetDate,
-    status: draft.status,
-    validator: draft.validator,
-    description,
-    blocking: Boolean(draft.blocking),
-  };
-  return { ...data, milestones: [milestone, ...data.milestones] };
-}
-
-export function adjustProjectSchedule(data, draft, date = new Date()) {
-  const project = data.projects.find((item) => item.id === draft.projectId);
-  if (!project) throw new Error('Selecciona un proyecto válido.');
-  const start = Number(draft.start);
-  const duration = Number(draft.duration);
-  if (!Number.isInteger(start) || start < 1 || start > 12) throw new Error('Selecciona un mes de inicio válido.');
-  if (!Number.isInteger(duration) || duration < 1 || duration > 12) throw new Error('La duración debe ser un número entero entre 1 y 12 meses.');
-  if (start + duration - 1 > 12) throw new Error('El cronograma ajustado no puede superar diciembre.');
-  if (!scheduleAdjustmentReasons.includes(draft.reason)) throw new Error('Selecciona un motivo de reajuste válido.');
-  if (project.start === start && project.duration === duration) return data;
-
-  const nextPeriod = formatPlanningPeriod(start, duration);
-  const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  const adjustment = {
-    id: `schedule-adjustment-${date.getTime()}-${project.id}`,
-    date: localDate,
-    projectId: project.id,
-    projectName: project.name,
-    previousPeriod: project.period,
-    nextPeriod,
-    reason: draft.reason,
-  };
-  return {
-    ...data,
-    projects: data.projects.map((item) => item.id === project.id ? { ...item, start, duration, period: nextPeriod } : item),
-    adjustments: [adjustment, ...(data.adjustments ?? [])],
   };
 }
