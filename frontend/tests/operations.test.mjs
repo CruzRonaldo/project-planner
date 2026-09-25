@@ -71,7 +71,7 @@ test('El reporte operativo contiene todas las órdenes', () => {
 test('La vista operativa y su modal están disponibles y son responsive', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: Operations, NewWorkOrderDialog } = await server.ssrLoadModule('/src/Operations.jsx');
+    const { default: Operations, NewWorkOrderDialog } = await server.ssrLoadModule('/src/views/technical/Operations.jsx');
     const data = createOperationsData();
     const props = { data, onChange: () => {}, onQueryChange: () => {}, canManage: true, projectOptions: ['Proyecto Nuevo (PRJ-2026-005)'], responsibleOptions: [{ id: 'tech-sofia', name: 'Sofía Torres', specialty: 'Arquitecta Principal' }] };
     const html = renderToStaticMarkup(React.createElement(Operations, props));
@@ -86,7 +86,7 @@ test('La vista operativa y su modal están disponibles y son responsive', async 
     const dialog = renderToStaticMarkup(React.createElement(NewWorkOrderDialog, { projectOptions: ['Torre Reforma (PRJ-2026-001)'], responsibleOptions: props.responsibleOptions, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Nueva Orden de Trabajo', 'Proyecto asociado', 'Tipo de operación', 'Título de la tarea / orden', 'Área técnica', 'Responsable asignado', 'Fecha de inicio', 'Fecha de fin / límite', 'Nivel de prioridad', 'Parámetro de ruta crítica', 'Documento o plano vinculado', 'Descripción e instrucciones', 'Emitir Orden de Trabajo']) assert.ok(dialog.includes(field));
 
-    const { default: Sidebar } = await server.ssrLoadModule('/src/Sidebar.jsx');
+    const { default: Sidebar } = await server.ssrLoadModule('/src/components/layout/Sidebar.jsx');
     const sidebar = renderToStaticMarkup(React.createElement(Sidebar, { activeView: 'operations', onNavigate: () => {}, fontScale: 100, onFontScaleChange: () => {} }));
     const desktopOperations = sidebar.match(/<button\b[\s\S]*?<\/button>/g).find((button) => button.includes('Gestión Operativa'));
     assert.ok(!desktopOperations.includes('disabled=""'));

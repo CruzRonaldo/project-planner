@@ -1,11 +1,12 @@
 import React from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
-import MobileNavigation from './components/layout/MobileNavigation';
 import { LoadingScreen, LoginScreen } from './views';
 import { useAppController } from './controllers';
 
 export default function App() {
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
   const {
     isLoading,
     isAuthenticated,
@@ -17,7 +18,6 @@ export default function App() {
     handleLogout,
     handleToggleSubAdmin,
     allowedSidebarItems,
-    allowedMobileItems,
     searchPlaceholder,
     searchValue,
     onSearchChange,
@@ -32,8 +32,10 @@ export default function App() {
           items={allowedSidebarItems}
           activeView={activeView}
           onNavigate={setActiveView}
+          isOpenMobile={mobileMenuOpen}
+          onCloseMobile={() => setMobileMenuOpen(false)}
         />
-        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-16 lg:pb-0">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-0">
           <Topbar
             activeView={activeView}
             searchPlaceholder={searchPlaceholder}
@@ -44,14 +46,10 @@ export default function App() {
             onToggleSubAdmin={handleToggleSubAdmin}
             onLogout={handleLogout}
             onNavigate={setActiveView}
+            onOpenMobileMenu={() => setMobileMenuOpen(true)}
           />
           {renderActiveView()}
         </div>
-        <MobileNavigation
-          items={allowedMobileItems}
-          activeView={activeView}
-          onNavigate={setActiveView}
-        />
       </div>
     );
   }

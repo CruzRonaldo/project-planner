@@ -10,16 +10,14 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import { projectAreas, projectLeaders, projectStatuses } from "../../constants/portfolio";
 import {
   createProjectCode,
   filterPortfolio,
   formatMoney,
   formatProjectTerm,
   getProjectDuration,
-  projectAreas,
-  projectLeaders,
-  projectStatuses,
-} from "../../mocks/portfolioData";
+} from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
 
 const inputClass =
@@ -900,8 +898,7 @@ export default function Portfolio({
 
         if (
           isMounted &&
-          Array.isArray(backendProjects) &&
-          backendProjects.length > 0
+          Array.isArray(backendProjects)
         ) {
           const mapped = backendProjects.map((bp) => ({
             id: bp.id,
@@ -1145,7 +1142,7 @@ export default function Portfolio({
         setTeamMembers(members);
       }
 
-      if (Array.isArray(backendProjects) && backendProjects.length > 0) {
+      if (Array.isArray(backendProjects)) {
         const mapped = backendProjects.map((bp) => ({
           id: bp.id,
           code: bp.code,

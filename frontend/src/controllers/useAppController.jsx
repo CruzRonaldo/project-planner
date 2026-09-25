@@ -122,13 +122,98 @@ export function useAppController() {
     return matched ? matched.id : 'dashboard';
   }, [normalizedPath]);
 
-  // Estados de datos mock (solo para vista)
-  const [strategicPlanningData, setStrategicPlanningData] = useState(createStrategicPlanningData);
-  const [portfolioData, setPortfolioData] = useState(createPortfolioData);
-  const [operationsData, setOperationsData] = useState(createOperationsData);
-  const [technicalTeamData, setTechnicalTeamData] = useState(createTechnicalTeamData);
-  const [humanResourcesData, setHumanResourcesData] = useState(createHumanResourcesData);
-  const [integrationsData, setIntegrationsData] = useState(createIntegrationsData);
+  // Detección de entorno: en producción o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
+  const isProduction =
+    import.meta.env.PROD ||
+    (typeof window !== 'undefined' &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
+
+  // Estados de datos (en Render se inicializan vacíos por defecto)
+  const [strategicPlanningData, setStrategicPlanningData] = useState(() =>
+    hideMocks ? { projects: [], milestones: [] } : createStrategicPlanningData()
+  );
+  const [portfolioData, setPortfolioData] = useState(() =>
+    hideMocks ? { projects: [], changes: [] } : createPortfolioData()
+  );
+  const [operationsData, setOperationsData] = useState(() =>
+    hideMocks
+      ? {
+          metrics: { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 },
+          orders: [],
+          activities: [],
+          alerts: [],
+          qualityChecks: [],
+        }
+      : createOperationsData()
+  );
+  const [technicalTeamData, setTechnicalTeamData] = useState(() =>
+    hideMocks ? { members: [], assignments: [] } : createTechnicalTeamData()
+  );
+  const [humanResourcesData, setHumanResourcesData] = useState(() =>
+    hideMocks
+      ? {
+          members: [],
+          history: [],
+          incidents: [],
+        }
+      : createHumanResourcesData()
+  );
+  const [integrationsData, setIntegrationsData] = useState(() =>
+    hideMocks
+      ? {
+          integrations: [
+            {
+              id: 'drive',
+              name: 'Google Drive',
+              icon: 'cloud',
+              status: 'offline',
+              description: 'Sincronización de documentación y planos en la nube.',
+              endpoint: 'Carpeta /Project Planner',
+              frequency: 'Cada 10 min',
+              errors: 0,
+              lastActivity: 'Sin actividad',
+              metrics: [
+                { key: 'files', value: 0, label: 'archivos' },
+                { key: 'projects', value: 0, label: 'proyectos' },
+              ],
+            },
+            {
+              id: 'revit',
+              name: 'Revit / BIM Data',
+              icon: 'model',
+              status: 'offline',
+              description: 'Importación de datos de modelado 3D BIM.',
+              endpoint: 'BIM 360 / Modelos',
+              frequency: 'Cada hora',
+              errors: 0,
+              lastActivity: 'Sin actividad',
+              metrics: [
+                { key: 'models', value: 0, label: 'modelos' },
+                { key: 'sync', value: '-', label: 'última sync' },
+              ],
+            },
+            {
+              id: 'make',
+              name: 'Make (Integromat)',
+              icon: 'automation',
+              status: 'offline',
+              description: 'Automatización de procesos y conexión con servicios de terceros.',
+              endpoint: 'Escenarios / Operaciones',
+              frequency: 'Cada 30 min',
+              errors: 0,
+              lastActivity: 'Sin actividad',
+              metrics: [
+                { key: 'scenarios', value: 0, label: 'escenarios' },
+                { key: 'errors', value: 0, label: 'con error' },
+              ],
+            },
+          ],
+          activities: [],
+          uptime: 0,
+        }
+      : createIntegrationsData()
+  );
 
   // Estados de búsqueda por pestaña
   const [portfolioQuery, setPortfolioQuery] = useState('');
@@ -138,6 +223,9 @@ export function useAppController() {
   const [integrationsQuery, setIntegrationsQuery] = useState('');
 
   const [users, setUsers] = useState(() => {
+    if (hideMocks) {
+      return [];
+    }
     try {
       const savedUsers = window.localStorage.getItem('project-planner-users');
       const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
@@ -271,21 +359,26 @@ export function useAppController() {
     });
   }, []);
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(() => {
+    // 1. Notificar al backend de forma asíncrona sin bloquear la UI
+    if (currentUser?.username || currentUser?.email) {
+      projectsApi
+        .logoutUser({
+          username: currentUser.username,
+          email: currentUser.email,
+        })
+        .catch(() => {});
+    }
+
+    // 2. Limpieza inmediata del almacenamiento local y estados
     try {
-      if (currentUser?.username || currentUser?.email) {
-        await projectsApi
-          .logoutUser({
-            username: currentUser.username,
-            email: currentUser.email,
-          })
-          .catch(() => {});
-      }
       localStorage.removeItem('project_planner_user');
+      localStorage.removeItem('project-planner-users');
     } catch {}
+
     setCurrentUser(null);
     setIsAuthenticated(false);
-    navigate('/login');
+    navigate('/login', { replace: true });
   }, [currentUser, navigate]);
 
   // Efectos de inicialización y persistencia
@@ -296,13 +389,13 @@ export function useAppController() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde MySQL al recargar la app
+  // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde la Base de Datos al recargar la app
   useEffect(() => {
     let isMounted = true;
     const syncUsersStatus = async () => {
       try {
         const remoteUsers = await projectsApi.getUsersStatus();
-        if (isMounted && Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+        if (isMounted && Array.isArray(remoteUsers)) {
           setUsers(remoteUsers);
           try {
             window.localStorage.setItem(
@@ -312,7 +405,7 @@ export function useAppController() {
           } catch {}
         }
       } catch (err) {
-        console.error('Error al sincronizar usuarios de MySQL:', err);
+        console.error('Error al sincronizar usuarios de la Base de Datos:', err);
       }
     };
     syncUsersStatus();
@@ -430,13 +523,13 @@ export function useAppController() {
       );
     }
     if (activeView === 'operations') {
-      const projectOptions = portfolioData.projects.map(
+      const projectOptions = (portfolioData?.projects || []).map(
         (project) => `${project.name} (${project.code})`
       );
-      const responsibleOptions = technicalTeamData.members.map((member) => ({
+      const responsibleOptions = (technicalTeamData?.members || []).map((member) => ({
         id: member.id,
-        name: `${member.firstNames} ${member.lastNames}`,
-        specialty: member.specialty,
+        name: member.firstNames ? `${member.firstNames} ${member.lastNames}`.trim() : (member.name || 'Sin nombre'),
+        specialty: member.specialty || '',
       }));
       return (
         <Operations
@@ -451,7 +544,7 @@ export function useAppController() {
       );
     }
     if (activeView === 'technical-team') {
-      const projectOptions = portfolioData.projects.map(
+      const projectOptions = (portfolioData?.projects || []).map(
         (project) => `${project.name} (${project.code})`
       );
       return (
@@ -506,7 +599,13 @@ export function useAppController() {
         />
       );
     }
-    return <DashboardContent />;
+    return (
+      <DashboardContent
+        portfolioData={portfolioData}
+        strategicPlanningData={strategicPlanningData}
+        onNavigate={setActiveView}
+      />
+    );
   }, [
     activeView,
     strategicPlanningData,

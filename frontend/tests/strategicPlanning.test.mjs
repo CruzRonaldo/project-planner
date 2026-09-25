@@ -100,7 +100,7 @@ test('El ajuste valida proyecto, fechas, duración y motivo y evita duplicados',
 test('Planificación contiene calendario, acciones restringidas, hitos, presupuesto y formularios administrativos', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: StrategicPlanning, AdjustScheduleDialog, NewGlobalMilestoneDialog } = await server.ssrLoadModule('/src/StrategicPlanning.jsx');
+    const { default: StrategicPlanning, AdjustScheduleDialog, NewGlobalMilestoneDialog } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
     const data = createStrategicPlanningData();
     const manager = renderToStaticMarkup(React.createElement(StrategicPlanning, { data, onChange: () => {}, canManage: true }));
     for (const title of ['Calendario Maestro 2026', 'Ajustar Calendario', 'Exportar Gantt / PDF', 'Nuevo Hito Global', 'Hitos Globales', 'Control Presupuestario', 'Puente Industrial']) assert.ok(manager.includes(title));

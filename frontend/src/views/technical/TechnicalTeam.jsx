@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
-import { addTechnicalMember, buildTechnicalTeamCsv, filterTechnicalTeam, getMemberFullName, reassignTechnicalMember, reassignmentReasons, sortTechnicalTeam, summarizeTechnicalTeam, technicalAreas, technicalProjects, technicalSortOptions, technicalStatuses } from '../../mocks/technicalTeamData';
+import {
+  technicalAreas,
+  technicalProjects,
+  technicalSortOptions,
+  technicalStatuses,
+  reassignmentReasons,
+} from '../../constants/technicalTeam';
+import {
+  addTechnicalMember,
+  buildTechnicalTeamCsv,
+  filterTechnicalTeam,
+  getMemberFullName,
+  reassignTechnicalMember,
+  sortTechnicalTeam,
+  summarizeTechnicalTeam,
+} from '../../utils/technicalTeam';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
 const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
@@ -21,7 +36,7 @@ const operationalStatuses = technicalStatuses.filter((status) => status.id !== '
 const areaDetails = {
   architecture: { description: 'Renders, modelado Revit y recorridos 360°', valueClass: 'text-blue-600 dark:text-blue-400 midnight:text-blue-300' },
   structures: { description: 'Modelado Revit, concreto y acero de refuerzo', valueClass: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300' },
-  systems: { description: 'Backend, APIs, N8N y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
+  systems: { description: 'Backend, APIs, Make y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
 };
 
 function getInitials(member) {
@@ -138,7 +153,16 @@ export function ReassignProjectDialog({ member, projectOptions = technicalProjec
   );
 }
 
-export default function TechnicalTeam({ data, onChange, query = '', onQueryChange, canManage = false, projectOptions = [] }) {
+export default function TechnicalTeam({ data = {}, onChange, query = '', onQueryChange, canManage = false, projectOptions = [] }) {
+  const isProduction =
+    import.meta.env.PROD ||
+    (typeof window !== 'undefined' &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
+
+  const membersList = data?.members || [];
+  const assignmentsList = data?.assignments || [];
+
   const [areaFilter, setAreaFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('availability-desc');
   const [page, setPage] = useState(1);
@@ -147,15 +171,16 @@ export default function TechnicalTeam({ data, onChange, query = '', onQueryChang
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const summary = summarizeTechnicalTeam(data.members);
-  const members = sortTechnicalTeam(filterTechnicalTeam(data.members, query, areaFilter), sortOrder);
+  const summary = summarizeTechnicalTeam(membersList);
+  const members = sortTechnicalTeam(filterTechnicalTeam(membersList, query, areaFilter), sortOrder);
   const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const visibleMembers = members.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const recentAssignments = showAllAssignments ? (data.assignments ?? []) : (data.assignments ?? []).slice(0, 4);
-  const reassignMember = data.members.find((member) => member.id === reassignMemberId);
-  const availableProjects = Array.from(new Set([...technicalProjects, ...projectOptions]));
-  const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] }))];
+  const recentAssignments = showAllAssignments ? assignmentsList : assignmentsList.slice(0, 4);
+  const reassignMember = membersList.find((member) => member.id === reassignMemberId);
+  const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : technicalProjects;
+  const availableProjects = Array.from(new Set(baseProjects));
+  const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] || 0 }))];
   const addMember = (draft) => { const updated = addTechnicalMember(data, draft); onChange(updated); setDialogOpen(false); setAreaFilter('all'); setPage(1); setFeedback(`${getMemberFullName(updated.members[0])} fue añadido al equipo técnico.`); };
   const reassignMemberToProject = (draft) => {
     const updated = reassignTechnicalMember(data, reassignMemberId, draft);
@@ -169,7 +194,7 @@ export default function TechnicalTeam({ data, onChange, query = '', onQueryChang
     setFeedback('');
   };
   const exportReport = () => {
-    const blob = new Blob([`\uFEFF${buildTechnicalTeamCsv(data.members)}`], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([`\uFEFF${buildTechnicalTeamCsv(membersList)}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

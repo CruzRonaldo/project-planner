@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Download, Pencil, RotateCcw, Save, UserRoundCog, X } from 'lucide-react';
-import { buildPersonnelCsv, filterPersonnel, getIncidentDuration, personnelIncidentTypes, personnelStatuses, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../../mocks/humanResourcesData';
+import { personnelStatuses, personnelIncidentTypes } from '../../constants/humanResources';
+import {
+  buildPersonnelCsv,
+  filterPersonnel,
+  getIncidentDuration,
+  registerPersonnelIncident,
+  summarizePersonnel,
+  updatePersonnel,
+} from '../../utils/humanResources';
 
 const panelClass = 'min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-100 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:focus:border-cyan-500';
@@ -70,12 +78,13 @@ function formatDateInput(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function PersonnelIncidentDialog({ data, onSubmit, onClose }) {
+export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose }) {
+  const members = data?.members || [];
   const today = new Date();
   const returnDate = new Date(today);
   returnDate.setDate(returnDate.getDate() + 1);
   const [draft, setDraft] = useState({
-    memberId: data.members[0]?.id ?? '',
+    memberId: members[0]?.id ?? '',
     type: personnelIncidentTypes[0].id,
     startDate: formatDateInput(today),
     endDate: formatDateInput(returnDate),
@@ -87,7 +96,7 @@ export function PersonnelIncidentDialog({ data, onSubmit, onClose }) {
   const [error, setError] = useState('');
   const duration = getIncidentDuration(draft.startDate, draft.endDate);
   const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
-  const selectedMember = data.members.find((member) => member.id === draft.memberId);
+  const selectedMember = members.find((member) => member.id === draft.memberId);
 
   useEffect(() => {
     const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
@@ -105,7 +114,7 @@ export function PersonnelIncidentDialog({ data, onSubmit, onClose }) {
 
         <form onSubmit={(event) => { event.preventDefault(); try { onSubmit(draft); } catch (submitError) { setError(submitError.message); } }} className="p-4 sm:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Integrante del personal <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select autoFocus required value={draft.memberId} onChange={(event) => { const memberId = event.target.value; setDraft((current) => ({ ...current, memberId, backupMemberId: current.backupMemberId === memberId ? '' : current.backupMemberId })); setError(''); }} className={inputClass}>{data.members.map((member) => <option key={member.id} value={member.id}>{member.name} ({member.area})</option>)}</select></label>
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Integrante del personal <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select autoFocus required value={draft.memberId} onChange={(event) => { const memberId = event.target.value; setDraft((current) => ({ ...current, memberId, backupMemberId: current.backupMemberId === memberId ? '' : current.backupMemberId })); setError(''); }} className={inputClass}>{members.length === 0 && <option value="">Sin personal registrado</option>}{members.map((member) => <option key={member.id} value={member.id}>{member.name} ({member.area})</option>)}</select></label>
             <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Tipo de incidencia <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.type} onChange={changeField('type')} className={inputClass}>{personnelIncidentTypes.map((type) => <option key={type.id} value={type.id}>{type.label}</option>)}</select></label>
             <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Fecha de inicio / desde <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input type="date" required value={draft.startDate} onChange={changeField('startDate')} className={inputClass} /></label>
             <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Fecha de retorno / hasta <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input type="date" required min={draft.startDate} value={draft.endDate} onChange={changeField('endDate')} className={inputClass} /></label>
@@ -118,7 +127,7 @@ export function PersonnelIncidentDialog({ data, onSubmit, onClose }) {
             <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Disponibilidad en este periodo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><div className="relative"><input type="number" min="0" max="100" step="1" required value={draft.availability} onChange={changeField('availability')} className={`${inputClass} pr-9`} /><span className="absolute bottom-2.5 right-3 text-xs text-slate-500">%</span></div></label>
           </div>
 
-          <label className="mt-5 block text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Técnico de respaldo / cobertura temporal <span className="normal-case text-slate-500 midnight:text-cyan-600">(opcional inteligente)</span><select value={draft.backupMemberId} onChange={changeField('backupMemberId')} className={inputClass}><option value="">Sin técnico de respaldo</option>{data.members.filter((member) => member.id !== draft.memberId).map((member) => <option key={member.id} value={member.id}>{member.name} · {member.area} · {member.project}</option>)}</select></label>
+          <label className="mt-5 block text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Técnico de respaldo / cobertura temporal <span className="normal-case text-slate-500 midnight:text-cyan-600">(opcional inteligente)</span><select value={draft.backupMemberId} onChange={changeField('backupMemberId')} className={inputClass}><option value="">Sin técnico de respaldo</option>{members.filter((member) => member.id !== draft.memberId).map((member) => <option key={member.id} value={member.id}>{member.name} · {member.area} · {member.project}</option>)}</select></label>
 
           <label className="mt-5 block text-[10px] font-semibold uppercase tracking-wide text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">Motivo / comentario detallado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><textarea required minLength={5} maxLength={500} rows={4} value={draft.comment} onChange={changeField('comment')} placeholder="Describe el motivo, la entrega de turnos y las coordinaciones necesarias..." className={`${inputClass} resize-y leading-relaxed`} /></label>
 
@@ -132,20 +141,25 @@ export function PersonnelIncidentDialog({ data, onSubmit, onClose }) {
   );
 }
 
-export default function HumanResources({ data, onChange, query = '', onQueryChange, canManage = false }) {
+export default function HumanResources({ data = {}, onChange, query = '', onQueryChange, canManage = false }) {
+  const members = data?.members || [];
+  const history = data?.history || [];
   const [statusFilter, setStatusFilter] = useState('all');
   const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', page: 1 });
   const [editing, setEditing] = useState(null);
   const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const summary = summarizePersonnel(data.members);
-  const searchMatches = filterPersonnel(data.members, query);
-  const filteredMembers = filterPersonnel(data.members, query, statusFilter);
+  const summary = summarizePersonnel(members);
+  const searchMatches = filterPersonnel(members, query);
+  const filteredMembers = filterPersonnel(members, query, statusFilter);
   const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
   const page = pageSelection.query === query && pageSelection.status === statusFilter ? Math.min(pageSelection.page, totalPages) : 1;
   const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
-  const editingMember = editing && data.members.find((member) => member.id === editing.id);
-  const summaryCards = [{ id: 'all', label: 'Total personal', value: summary.total, dotClass: 'bg-slate-400' }, ...personnelStatuses.map((status) => ({ ...status, label: status.summaryLabel, value: summary[status.id] }))];
+  const editingMember = editing && members.find((member) => member.id === editing.id);
+  const summaryCards = [
+    { id: 'all', label: 'Total personal', value: summary.total, dotClass: 'bg-slate-400' },
+    ...personnelStatuses.map((status) => ({ ...status, label: status.summaryLabel, value: summary[status.id] || 0 })),
+  ];
 
   const openEditor = (member, mode = 'status') => {
     setFeedback('');
@@ -161,14 +175,14 @@ export default function HumanResources({ data, onChange, query = '', onQueryChan
 
   const saveIncident = (draft) => {
     const updatedData = registerPersonnelIncident(data, draft);
-    const member = updatedData.members.find((item) => item.id === draft.memberId);
+    const member = updatedData?.members?.find((item) => item.id === draft.memberId);
     onChange(updatedData);
     setIncidentDialogOpen(false);
     setEditing(null);
-    setFeedback(`Incidencia registrada para ${member.name} y disponibilidad actualizada.`);
+    setFeedback(member ? `Incidencia registrada para ${member.name} y disponibilidad actualizada.` : 'Incidencia registrada correctamente.');
   };
   const exportMatrix = () => {
-    const blob = new Blob([`\uFEFF${buildPersonnelCsv(data.members)}`], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([`\uFEFF${buildPersonnelCsv(members)}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -270,13 +284,16 @@ export default function HumanResources({ data, onChange, query = '', onQueryChan
               <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
                 {['Fecha', 'Miembro', 'Estado Anterior', 'Estado Nuevo', 'Motivo / Comentario'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0">{label}</th>)}
               </tr></thead>
-              <tbody>{data.history.map((change) => <tr key={change.id} className="border-b border-slate-200 last:border-0 transition-colors duration-300 dark:border-[#30363d]/70 midnight:border-cyan-900/30">
-                <td className="whitespace-nowrap py-3.5 pr-2 font-mono text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600"><time dateTime={change.date}>{new Date(`${change.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</time></td>
-                <td className="whitespace-nowrap px-2 py-3.5 text-[11px] font-medium text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{change.name}</td>
-                <td className="px-2 py-3.5"><StatusBadge status={change.previousStatus} /></td>
-                <td className="px-2 py-3.5"><StatusBadge status={change.nextStatus} /></td>
-                <td className="min-w-[200px] px-2 py-3.5 text-[11px] leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{change.comment}</td>
-              </tr>)}</tbody>
+              <tbody>
+                {history.map((change) => <tr key={change.id} className="border-b border-slate-200 last:border-0 transition-colors duration-300 dark:border-[#30363d]/70 midnight:border-cyan-900/30">
+                  <td className="whitespace-nowrap py-3.5 pr-2 font-mono text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600"><time dateTime={change.date}>{new Date(`${change.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</time></td>
+                  <td className="whitespace-nowrap px-2 py-3.5 text-[11px] font-medium text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{change.name}</td>
+                  <td className="px-2 py-3.5"><StatusBadge status={change.previousStatus} /></td>
+                  <td className="px-2 py-3.5"><StatusBadge status={change.nextStatus} /></td>
+                  <td className="min-w-[200px] px-2 py-3.5 text-[11px] leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{change.comment}</td>
+                </tr>)}
+                {!history.length && <tr><td colSpan={5} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay cambios de estado registrados en el historial.</td></tr>}
+              </tbody>
             </table>
           </div>
         </section>

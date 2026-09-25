@@ -114,7 +114,7 @@ test('La reasignación valida sus datos y evita registrar movimientos idénticos
 test('La página usa tarjetas y el administrador recibe el formulario de alta', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: TechnicalTeam, AddTechnicalMemberDialog, ReassignProjectDialog } = await server.ssrLoadModule('/src/TechnicalTeam.jsx');
+    const { default: TechnicalTeam, AddTechnicalMemberDialog, ReassignProjectDialog } = await server.ssrLoadModule('/src/views/technical/TechnicalTeam.jsx');
     const data = createTechnicalTeamData();
     const props = { data, onChange: () => {}, onQueryChange: () => {}, canManage: true };
     const html = renderToStaticMarkup(React.createElement(TechnicalTeam, props));
@@ -148,7 +148,7 @@ test('La página usa tarjetas y el administrador recibe el formulario de alta', 
     assert.ok(reassignmentDialog.includes('Proyecto creado en Portafolio (PRJ-2026-005)'));
     assert.ok(reassignmentDialog.includes('En Apoyo'));
 
-    const { default: MobileNavigation } = await server.ssrLoadModule('/src/MobileNavigation.jsx');
+    const { default: MobileNavigation } = await server.ssrLoadModule('/src/components/layout/MobileNavigation.jsx');
     const navigated = [];
     const mobile = MobileNavigation({ activeView: 'dashboard', onNavigate: (id) => navigated.push(id) });
     const mobileTeam = mobile.props.children.find((button) => button.key === 'technical-team');
@@ -156,7 +156,7 @@ test('La página usa tarjetas y el administrador recibe el formulario de alta', 
     mobileTeam.props.onClick();
     assert.deepEqual(navigated, ['technical-team']);
 
-    const { default: Sidebar } = await server.ssrLoadModule('/src/Sidebar.jsx');
+    const { default: Sidebar } = await server.ssrLoadModule('/src/components/layout/Sidebar.jsx');
     const sidebar = renderToStaticMarkup(React.createElement(Sidebar, { activeView: 'technical-team', onNavigate: () => {}, fontScale: 100, onFontScaleChange: () => {} }));
     const desktopTeam = sidebar.match(/<button\b[\s\S]*?<\/button>/g).find((button) => button.includes('Equipo Técnico'));
     assert.ok(!desktopTeam.includes('disabled=""'));

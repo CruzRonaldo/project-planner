@@ -132,7 +132,7 @@ test('El registro de incidencia rechaza datos inválidos', () => {
 test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: HumanResources, PersonnelIncidentDialog } = await server.ssrLoadModule('/src/HumanResources.jsx');
+    const { default: HumanResources, PersonnelIncidentDialog } = await server.ssrLoadModule('/src/views/human-resources/HumanResources.jsx');
     const props = { data: createHumanResourcesData(), onChange: () => {}, onQueryChange: () => {}, canManage: true };
     const html = renderToStaticMarkup(React.createElement(HumanResources, props));
     for (const title of ['Recursos Humanos y Estados', 'Asignación de Personal', 'Estado de Equipos', 'Historial de Cambios de Estado']) assert.ok(html.includes(title));
@@ -156,7 +156,7 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     for (const field of ['Registrar Incidencia / Licencia', 'Integrante del personal', 'Tipo de incidencia', 'Fecha de inicio / desde', 'Fecha de retorno / hasta', 'Estado operativo resultante', 'Disponibilidad en este periodo', 'Técnico de respaldo / cobertura temporal', 'Motivo / comentario detallado', 'Registrar incidencia']) assert.ok(incidentDialog.includes(field));
     assert.ok(incidentDialog.includes('Vacaciones programadas'));
 
-    const { default: MobileNavigation } = await server.ssrLoadModule('/src/MobileNavigation.jsx');
+    const { default: MobileNavigation } = await server.ssrLoadModule('/src/components/layout/MobileNavigation.jsx');
     const navigated = [];
     const mobile = MobileNavigation({ activeView: 'dashboard', onNavigate: (id) => navigated.push(id) });
     const hrButton = mobile.props.children.find((button) => button.key === 'human-resources');
@@ -167,7 +167,7 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     teamButton.props.onClick();
     assert.deepEqual(navigated, ['human-resources', 'technical-team']);
 
-    const { default: Sidebar } = await server.ssrLoadModule('/src/Sidebar.jsx');
+    const { default: Sidebar } = await server.ssrLoadModule('/src/components/layout/Sidebar.jsx');
     const sidebar = renderToStaticMarkup(React.createElement(Sidebar, { activeView: 'human-resources', onNavigate: () => {}, fontScale: 100, onFontScaleChange: () => {} }));
     const desktopHR = sidebar.match(/<button\b[\s\S]*?<\/button>/g).find((button) => button.includes('Recursos Humanos'));
     assert.ok(!desktopHR.includes('disabled=""'));

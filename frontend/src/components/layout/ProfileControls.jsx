@@ -1,13 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
-
-const defaultNotifications = [
-  { id: 'notif-milestone-1', title: 'Hito próximo', detail: 'Revisión estructural programada para hoy.', time: 'Hace 10 min', unread: false },
-  { id: 'notif-budget-1', title: 'Presupuesto actualizado', detail: 'Torre Reforma recibió una actualización.', time: 'Hace 1 h', unread: false },
-  { id: 'notif-team-1', title: 'Nuevo integrante', detail: 'Se añadió un usuario al equipo técnico.', time: 'Ayer', unread: false },
-];
-
 function getInitials(name = '') {
   return name
     .split(' ')
@@ -21,7 +14,7 @@ function getInitials(name = '') {
 export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationsList, setNotificationsList] = useState(defaultNotifications);
+  const [notificationsList, setNotificationsList] = useState([]);
   const [readIds, setReadIds] = useState(() => {
     try {
       const saved = localStorage.getItem('project_planner_read_notifs');
@@ -44,8 +37,10 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
           username: currentUser.username,
           email: currentUser.email,
         });
-        if (isMounted && Array.isArray(data) && data.length > 0) {
-          setNotificationsList(data);
+        if (isMounted && Array.isArray(data)) {
+          // Descartar notificaciones de prueba/dummy con prefijo 'notif-'
+          const realNotifications = data.filter((n) => !n.id?.startsWith('notif-'));
+          setNotificationsList(realNotifications);
         }
       } catch (err) {
         console.error('Error al cargar notificaciones:', err);
@@ -157,7 +152,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
         >
           {isAdmin ? (
             <span className="h-8 w-8 overflow-hidden rounded-full bg-slate-200 dark:bg-gray-600 midnight:bg-cyan-900/40 sm:h-9 sm:w-9">
-              <img src="https://i.pravatar.cc/150?img=11" alt="Perfil de Carlos M." className="h-full w-full object-cover" />
+              <img src="https://i.pravatar.cc/150?img=11" alt={`Perfil de ${currentUser?.name || 'Administrador'}`} className="h-full w-full object-cover" />
             </span>
           ) : (
             <span className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold sm:h-9 sm:w-9 bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:bg-cyan-500/20 midnight:text-cyan-300">
@@ -285,6 +280,17 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                   </article>
                 );
               })}
+              {!notificationsList.length && (
+                <div className="py-8 px-4 text-center">
+                  <Bell className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600 midnight:text-cyan-800 mb-2 opacity-50" />
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
+                    No tienes notificaciones
+                  </p>
+                  <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
+                    Todas las novedades de proyectos aparecerán aquí
+                  </p>
+                </div>
+              )}
             </div>
           </section>
         )}
