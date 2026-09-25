@@ -414,6 +414,46 @@ export function useAppController() {
     };
   }, []);
 
+  // Sincronizar proyectos reales de la Base de Datos globalmente desde el inicio
+  useEffect(() => {
+    let isMounted = true;
+    const syncBackendProjects = async () => {
+      try {
+        const backendProjects = await projectsApi.getProjects();
+        if (isMounted && Array.isArray(backendProjects)) {
+          const mapped = backendProjects.map((bp) => ({
+            id: bp.id,
+            code: bp.code,
+            name: bp.name,
+            area: bp.area || 'Edificaciones Comerciales',
+            status: bp.status || 'planning',
+            progress: bp.progress ?? 0,
+            usedBudget: bp.usedBudget ?? 0,
+            totalBudget: bp.totalBudget || Number(bp.budget) || 0,
+            startDate: bp.startDate || bp.start_date,
+            endDate: bp.endDate || bp.end_date,
+            leaderId: bp.leaderId || 'carlos',
+            leaderName: bp.leaderName || '',
+            leaderEmail: bp.leaderEmail || '',
+            driveFolder: '',
+            description: bp.description || '',
+            members: bp.members || ['PM'],
+          }));
+          setPortfolioData((prev) => ({
+            ...prev,
+            projects: mapped,
+          }));
+        }
+      } catch (err) {
+        console.error('Error al sincronizar proyectos de la Base de Datos:', err);
+      }
+    };
+    syncBackendProjects();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     window.localStorage.setItem('project-planner-users', JSON.stringify(users));
   }, [users]);

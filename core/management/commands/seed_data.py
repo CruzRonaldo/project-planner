@@ -27,6 +27,11 @@ class Command(BaseCommand):
             action='store_true',
             help='Limpia los datos existentes antes de insertar los nuevos.',
         )
+        parser.add_argument(
+            '--demo-projects',
+            action='store_true',
+            help='Inserta proyectos y tareas de demostración (por defecto no se insertan para mantener la BD limpia).',
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -202,14 +207,17 @@ class Command(BaseCommand):
         ]
 
         projects = {}
-        for pdata in projects_data:
-            code = pdata.pop("code")
-            proj, _ = Project.objects.get_or_create(code=code, defaults=pdata)
-            projects[code] = proj
-        self.stdout.write(self.style.SUCCESS(f"[OK] Proyectos creados ({len(projects)})."))
+        if options.get("demo_projects"):
+            for pdata in projects_data:
+                code = pdata.pop("code")
+                proj, _ = Project.objects.get_or_create(code=code, defaults=pdata)
+                projects[code] = proj
+            self.stdout.write(self.style.SUCCESS(f"[OK] Proyectos demo creados ({len(projects)})."))
+        else:
+            self.stdout.write(self.style.NOTICE("[INFO] Base de datos limpia sin proyectos demo (0 proyectos)."))
 
         # =========================================================================
-        # 6. MIEMBROS DE EQUIPO (Asignados a Roles, Áreas y Proyectos)
+        # 6. MIEMBROS DE EQUIPO (Asignados a Roles y Áreas)
         # =========================================================================
         members_data = [
             ("Carlos", "Mendoza", "carlos.mendoza@projectplanner.com", "Modelador BIM / Revit", "Arquitectura", "Active", "PRJ-2026-001"),
@@ -227,145 +235,137 @@ class Command(BaseCommand):
                     "role": roles[(area_name, role_name)],
                     "technical_area": areas[area_name],
                     "status": statuses[status_name],
-                    "project": projects[proj_code],
+                    "project": projects.get(proj_code) if options.get("demo_projects") else None,
                     "is_active": True,
                 }
             )
             members[email] = member
-        self.stdout.write(self.style.SUCCESS(f"[OK] Miembros del Equipo asignados ({len(members)})."))
+        self.stdout.write(self.style.SUCCESS(f"[OK] Miembros del Equipo registrados ({len(members)})."))
 
         # =========================================================================
-        # 7. HITOS ESTRATÉGICOS (Milestones)
+        # 7-10. HITOS, TAREAS, MÉTRICAS Y ENLACES (SOLO SI SE SOLICITAN PROYECTOS DEMO)
         # =========================================================================
-        p1 = projects["PRJ-2026-001"]
-        milestones_data = [
-            (p1, "Entrega Cimentación", "Fin de vaciado de zapatas y muros de contención.", datetime.date(2026, 3, 15), datetime.date(2026, 3, 14), "COMPLETED"),
-            (p1, "Revisión Estructural Niveles 1-10", "Aprobación de cálculos por supervisor externo.", datetime.date(2026, 5, 30), None, "IN_PROGRESS"),
-            (p1, "Inauguración y Entrega Fase 1", "Hito contractual de entrega de obra gruesa.", datetime.date(2026, 7, 15), None, "PENDING"),
-        ]
-        created_milestones = []
-        for proj, name, desc, t_date, c_date, m_status in milestones_data:
-            m, _ = Milestone.objects.get_or_create(
-                project=proj,
-                name=name,
+        if options.get("demo_projects") and "PRJ-2026-001" in projects:
+            p1 = projects["PRJ-2026-001"]
+            milestones_data = [
+                (p1, "Entrega Cimentación", "Fin de vaciado de zapatas y muros de contención.", datetime.date(2026, 3, 15), datetime.date(2026, 3, 14), "COMPLETED"),
+                (p1, "Revisión Estructural Niveles 1-10", "Aprobación de cálculos por supervisor externo.", datetime.date(2026, 5, 30), None, "IN_PROGRESS"),
+                (p1, "Inauguración y Entrega Fase 1", "Hito contractual de entrega de obra gruesa.", datetime.date(2026, 7, 15), None, "PENDING"),
+            ]
+            created_milestones = []
+            for proj, name, desc, t_date, c_date, m_status in milestones_data:
+                m, _ = Milestone.objects.get_or_create(
+                    project=proj,
+                    name=name,
+                    defaults={
+                        "description": desc,
+                        "target_date": t_date,
+                        "completed_date": c_date,
+                        "status": m_status,
+                    }
+                )
+                created_milestones.append(m)
+            self.stdout.write(self.style.SUCCESS(f"[OK] Hitos estrategicos registrados ({len(created_milestones)})."))
+
+            t1, _ = Task.objects.get_or_create(
+                project=p1,
+                title="Excavación y Cimentación Profunda",
                 defaults={
-                    "description": desc,
-                    "target_date": t_date,
-                    "completed_date": c_date,
-                    "status": m_status,
+                    "category": areas["Civil"],
+                    "assigned_to": members["andrea.rojas@projectplanner.com"],
+                    "milestone": created_milestones[0],
+                    "description": "Vaciado de concreto ciclópeo y colocación de armaduras.",
+                    "start_date": datetime.date(2026, 1, 20),
+                    "end_date": datetime.date(2026, 3, 10),
+                    "duration_days": 50,
+                    "progress": 100,
+                    "is_critical_path": True,
+                    "tolerance_days": 7,
+                    "status": "DONE",
                 }
             )
-            created_milestones.append(m)
-        self.stdout.write(self.style.SUCCESS(f"[OK] Hitos estrategicos registrados ({len(created_milestones)})."))
 
-        # =========================================================================
-        # 8. TAREAS Y RUTA CRÍTICA (Tasks)
-        # =========================================================================
-        t1, _ = Task.objects.get_or_create(
-            project=p1,
-            title="Excavación y Cimentación Profunda",
-            defaults={
-                "category": areas["Civil"],
-                "assigned_to": members["andrea.rojas@projectplanner.com"],
-                "milestone": created_milestones[0],
-                "description": "Vaciado de concreto ciclópeo y colocación de armaduras.",
-                "start_date": datetime.date(2026, 1, 20),
-                "end_date": datetime.date(2026, 3, 10),
-                "duration_days": 50,
-                "progress": 100,
-                "is_critical_path": True,
-                "tolerance_days": 7,
-                "status": "DONE",
-            }
-        )
-
-        t2, _ = Task.objects.get_or_create(
-            project=p1,
-            title="Montaje de Estructura Metálica Niveles 1-5",
-            defaults={
-                "category": areas["Civil"],
-                "assigned_to": members["andrea.rojas@projectplanner.com"],
-                "milestone": created_milestones[1],
-                "description": "Montaje de vigas principales y perfiles estructurales de acero.",
-                "start_date": datetime.date(2026, 3, 12),
-                "end_date": datetime.date(2026, 4, 30),
-                "duration_days": 49,
-                "progress": 70,
-                "is_critical_path": True,
-                "tolerance_days": 7,
-                "status": "IN_PROGRESS",
-            }
-        )
-        t2.predecessors.add(t1)
-
-        t3, _ = Task.objects.get_or_create(
-            project=p1,
-            title="Implementación de Infraestructura Digital y Red Troncal",
-            defaults={
-                "category": areas["Sistemas"],
-                "assigned_to": members["luis.gonzales@projectplanner.com"],
-                "milestone": created_milestones[1],
-                "description": "Instalación de servidores locales, centro de telecomunicaciones y switches de red.",
-                "start_date": datetime.date(2026, 3, 15),
-                "end_date": datetime.date(2026, 4, 20),
-                "duration_days": 36,
-                "progress": 45,
-                "is_critical_path": False,
-                "tolerance_days": 0,
-                "status": "IN_PROGRESS",
-            }
-        )
-
-        t4, _ = Task.objects.get_or_create(
-            project=p1,
-            title="Diseño de Muros Cortina y Fachada Vidriada",
-            defaults={
-                "category": areas["Arquitectura"],
-                "assigned_to": members["carlos.mendoza@projectplanner.com"],
-                "milestone": created_milestones[2],
-                "description": "Especificaciones técnicas de perfiles de aluminio y vidrios dobles insulados.",
-                "start_date": datetime.date(2026, 5, 1),
-                "end_date": datetime.date(2026, 6, 20),
-                "duration_days": 50,
-                "progress": 15,
-                "is_critical_path": True,
-                "tolerance_days": 7,
-                "status": "TODO",
-            }
-        )
-        t4.predecessors.add(t2)
-        self.stdout.write(self.style.SUCCESS("[OK] Tareas con dependencias y Ruta Critica configuradas."))
-
-        # =========================================================================
-        # 9. MÉTRICAS DE RENDIMIENTO (PerformanceMetric para el Optimizador)
-        # =========================================================================
-        pm, _ = PerformanceMetric.objects.get_or_create(
-            project=p1,
-            unit="M2 de Encofrado y Vaciado",
-            defaults={
-                "task": t2,
-                "quantity": 2500.00,
-                "rate_per_day": 65.00,
-                "divisor": 5,
-            }
-        )
-        self.stdout.write(self.style.SUCCESS("[OK] Metrica de rendimiento para optimizador vinculada."))
-
-        # =========================================================================
-        # 10. ENLACES DE GOOGLE DRIVE (DriveLinks)
-        # =========================================================================
-        links_data = [
-            (t2, "Modelo Estructural Revit 2026", "https://drive.google.com/file/d/1A2B3C4D5E6F7G8H9-RevitStructure/view", "1A2B3C4D5E6F7G8H9", "BIM_MODEL"),
-            (t3, "Carpeta de Planos de Redes y Telecomunicaciones", "https://drive.google.com/drive/folders/1X9Y8Z7W6V5U4T3-ITFolder", "1X9Y8Z7W6V5U4T3", "FOLDER"),
-            (t4, "Render 360 Fachada Exterior", "https://drive.google.com/file/d/1R2E3N4D5E6R7-Fachada360/view", "1R2E3N4D5E6R7", "RENDER_360"),
-        ]
-        for task, title, url, fid, ftype in links_data:
-            DriveLink.objects.get_or_create(
-                task=task,
-                title=title,
-                defaults={"drive_url": url, "file_id": fid, "file_type": ftype}
+            t2, _ = Task.objects.get_or_create(
+                project=p1,
+                title="Montaje de Estructura Metálica Niveles 1-5",
+                defaults={
+                    "category": areas["Civil"],
+                    "assigned_to": members["andrea.rojas@projectplanner.com"],
+                    "milestone": created_milestones[1],
+                    "description": "Montaje de vigas principales y perfiles estructurales de acero.",
+                    "start_date": datetime.date(2026, 3, 12),
+                    "end_date": datetime.date(2026, 4, 30),
+                    "duration_days": 49,
+                    "progress": 70,
+                    "is_critical_path": True,
+                    "tolerance_days": 7,
+                    "status": "IN_PROGRESS",
+                }
             )
-        self.stdout.write(self.style.SUCCESS(f"[OK] Enlaces documentales de Drive asociados ({len(links_data)})."))
+            t2.predecessors.add(t1)
+
+            t3, _ = Task.objects.get_or_create(
+                project=p1,
+                title="Implementación de Infraestructura Digital y Red Troncal",
+                defaults={
+                    "category": areas["Sistemas"],
+                    "assigned_to": members["luis.gonzales@projectplanner.com"],
+                    "milestone": created_milestones[1],
+                    "description": "Instalación de servidores locales, centro de telecomunicaciones y switches de red.",
+                    "start_date": datetime.date(2026, 3, 15),
+                    "end_date": datetime.date(2026, 4, 20),
+                    "duration_days": 36,
+                    "progress": 45,
+                    "is_critical_path": False,
+                    "tolerance_days": 0,
+                    "status": "IN_PROGRESS",
+                }
+            )
+
+            t4, _ = Task.objects.get_or_create(
+                project=p1,
+                title="Diseño de Muros Cortina y Fachada Vidriada",
+                defaults={
+                    "category": areas["Arquitectura"],
+                    "assigned_to": members["carlos.mendoza@projectplanner.com"],
+                    "milestone": created_milestones[2],
+                    "description": "Especificaciones técnicas de perfiles de aluminio y vidrios dobles insulados.",
+                    "start_date": datetime.date(2026, 5, 1),
+                    "end_date": datetime.date(2026, 6, 20),
+                    "duration_days": 50,
+                    "progress": 15,
+                    "is_critical_path": True,
+                    "tolerance_days": 7,
+                    "status": "TODO",
+                }
+            )
+            t4.predecessors.add(t2)
+            self.stdout.write(self.style.SUCCESS("[OK] Tareas con dependencias y Ruta Critica configuradas."))
+
+            pm, _ = PerformanceMetric.objects.get_or_create(
+                project=p1,
+                unit="M2 de Encofrado y Vaciado",
+                defaults={
+                    "task": t2,
+                    "quantity": 2500.00,
+                    "rate_per_day": 65.00,
+                    "divisor": 5,
+                }
+            )
+            self.stdout.write(self.style.SUCCESS("[OK] Metrica de rendimiento para optimizador vinculada."))
+
+            links_data = [
+                (t2, "Modelo Estructural Revit 2026", "https://drive.google.com/file/d/1A2B3C4D5E6F7G8H9-RevitStructure/view", "1A2B3C4D5E6F7G8H9", "BIM_MODEL"),
+                (t3, "Carpeta de Planos de Redes y Telecomunicaciones", "https://drive.google.com/drive/folders/1X9Y8Z7W6V5U4T3-ITFolder", "1X9Y8Z7W6V5U4T3", "FOLDER"),
+                (t4, "Render 360 Fachada Exterior", "https://drive.google.com/file/d/1R2E3N4D5E6R7-Fachada360/view", "1R2E3N4D5E6R7", "RENDER_360"),
+            ]
+            for task, title, url, fid, ftype in links_data:
+                DriveLink.objects.get_or_create(
+                    task=task,
+                    title=title,
+                    defaults={"drive_url": url, "file_id": fid, "file_type": ftype}
+                )
+            self.stdout.write(self.style.SUCCESS(f"[OK] Enlaces documentales de Drive asociados ({len(links_data)})."))
 
         self.stdout.write(self.style.SUCCESS("\n========================================================"))
         self.stdout.write(self.style.SUCCESS("  BASE DE DATOS POBLADA EXITOSAMENTE CON DATOS SEMILLA"))

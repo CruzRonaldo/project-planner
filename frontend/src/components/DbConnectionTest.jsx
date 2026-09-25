@@ -64,7 +64,7 @@ export default function DbConnectionTest() {
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-base">Diagnóstico de Conexión</h3>
-                  <p className="text-xs text-slate-400">Frontend ⟷ Django Backend ⟷ MySQL Database</p>
+                  <p className="text-xs text-slate-400">Frontend ⟷ Django Backend ⟷ Base de Datos</p>
                 </div>
               </div>
               <button
@@ -80,7 +80,7 @@ export default function DbConnectionTest() {
               {loading && (
                 <div className="flex flex-col items-center justify-center py-8 gap-3">
                   <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-                  <p className="text-sm text-slate-300">Comprobando conexión con Django y MySQL...</p>
+                  <p className="text-sm text-slate-300">Comprobando conexión con Django y la Base de Datos...</p>
                 </div>
               )}
 
@@ -122,7 +122,7 @@ export default function DbConnectionTest() {
                         <div className="font-semibold text-white">
                           {result.error?.message?.includes('Django no está corriendo') ? 'Desconectado 🔴' : 'Online 🟢'}
                         </div>
-                        <div className="text-[10px] text-slate-500 truncate">http://127.0.0.1:8000</div>
+                        <div className="text-[10px] text-slate-500 truncate">{result.data?.database?.endpoint || 'API Online'}</div>
                       </div>
 
                       <div className="bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
@@ -131,7 +131,7 @@ export default function DbConnectionTest() {
                           <span>Motor de BD</span>
                         </div>
                         <div className="font-semibold text-white">
-                          {result.success ? `MySQL (${result.data.database.name})` : 'MySQL'}
+                          {result.success ? `${result.data.database.engine?.toUpperCase() || 'POSTGRESQL'} (${result.data.database.name})` : 'Base de Datos'}
                         </div>
                         <div className="text-[10px] text-slate-500">
                           {result.success ? `Latencia: ${result.data.database.latency_ms} ms` : 'Sin enlace'}
@@ -141,7 +141,7 @@ export default function DbConnectionTest() {
 
                     {result.success && (
                       <div className="text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60">
-                        <span className="text-cyan-400 font-mono">Versión Servidor MySQL:</span> {result.data.database.version}
+                        <span className="text-cyan-400 font-mono">Motor de Base de Datos:</span> {result.data.database.version}
                       </div>
                     )}
 
