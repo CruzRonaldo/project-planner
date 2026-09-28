@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Eye, RotateCw, Trash2, X } from 'lucide-react';
+import ForgeViewer from '../../components/ForgeViewer';
 
 // ─── Clases de diseño compartidas con Integrations.jsx ───────────────────────
 const cardClass =
@@ -41,7 +42,7 @@ function StatusBadge({ synced }) {
 }
 
 // ─── Sub-componente: Fila de la tabla ─────────────────────────────────────────
-function ModelRow({ model, onDelete }) {
+function ModelRow({ model, onDelete, onView }) {
   return (
     <tr className="text-slate-700 transition-colors duration-150 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.03] midnight:text-cyan-100 midnight:hover:bg-cyan-950/40">
       {/* Nombre del modelo */}
@@ -65,11 +66,12 @@ function ModelRow({ model, onDelete }) {
       {/* Acciones */}
       <td className="px-3 py-3">
         <div className="flex items-center justify-end gap-1">
-          {/* Ver modelo */}
+          {/* Ver modelo — abre el Viewer 3D de APS */}
           <button
             type="button"
-            title="Ver modelo"
-            aria-label={`Ver modelo ${model.name}`}
+            title="Ver modelo en 3D"
+            aria-label={`Ver modelo ${model.name} en el visor 3D`}
+            onClick={() => onView(model)}
             className="rounded-md p-2 text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:text-cyan-600 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
           >
             <Eye size={14} />
@@ -92,6 +94,7 @@ function ModelRow({ model, onDelete }) {
   );
 }
 
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 /**
  * RevitModal
@@ -110,6 +113,13 @@ export default function RevitModal({ onClose }) {
   const [error, setError]            = useState('');
   // null = diálogo cerrado | objeto modelo = diálogo abierto para ese modelo
   const [modelToDelete, setModelToDelete] = useState(null);
+  // null = visor cerrado  | objeto modelo = visor abierto mostrando ese URN
+  const [viewingModel, setViewingModel]   = useState(null);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+
 
   // ── Cierre con Escape ────────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -137,6 +147,41 @@ export default function RevitModal({ onClose }) {
       setError(errMsg);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  // ── Lógica de Subida ────────────────────────────────────────────────────────
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/integrations/revit/models/', {
+        method: 'POST',
+        body: formData,
+        // No setear Content-Type, el navegador lo calcula automáticamente junto con el boundary
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Error en la subida: ${res.status}`);
+      }
+      
+      // Limpiar el input para permitir subir el mismo archivo si es necesario
+      event.target.value = null;
+      
+      // Recargar automáticamente la lista de modelos
+      await handleSync();
+    } catch (err) {
+      console.error('Error al subir modelo:', err);
+      setError(err.message || 'Error al subir el modelo.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -221,14 +266,21 @@ export default function RevitModal({ onClose }) {
             </div>
 
             {/* ── Botón de acción principal ── */}
+            <input 
+              type="file" 
+              accept=".rvt" 
+              style={{ display: 'none' }} 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
             <button
               type="button"
-              disabled={isSyncing}
-              onClick={handleSync}
+              disabled={isSyncing || isUploading}
+              onClick={() => fileInputRef.current.click()}
               className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors duration-300 hover:bg-orange-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-orange-500 dark:hover:bg-orange-400 midnight:bg-orange-600 midnight:hover:bg-orange-500"
             >
-              <RotateCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-              {isSyncing ? 'Sincronizando…' : 'Sincronizar con Autodesk Revit'}
+              <RotateCw size={14} className={isSyncing || isUploading ? 'animate-spin' : ''} />
+              {isUploading ? 'Subiendo y traduciendo...' : (isSyncing ? 'Sincronizando…' : 'Sincronizar con Autodesk Revit')}
             </button>
           </div>
 
@@ -308,12 +360,13 @@ export default function RevitModal({ onClose }) {
                     </tr>
                   )}
 
-                  {/* Estado C: datos mock disponibles */}
+                  {/* Estado C: datos disponibles */}
                   {!isSyncing && models.map((model) => (
                     <ModelRow
                       key={model.id}
                       model={model}
                       onDelete={handleDelete}
+                      onView={setViewingModel}
                     />
                   ))}
 
@@ -408,6 +461,44 @@ export default function RevitModal({ onClose }) {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════════ OVERLAY DEL VIEWER 3D ════════
+            Se monta encima de todo el modal cuando viewingModel tiene valor.
+            z-[110] queda sobre el diálogo de confirmación (z-[100]). */}
+        {viewingModel && (
+          <div
+            className="absolute inset-0 z-[110] flex flex-col overflow-hidden rounded-2xl bg-slate-950"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Visor 3D — ${viewingModel.name}`}
+          >
+            {/* Barra superior con nombre del modelo y botón de regreso */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Box size={14} className="text-orange-400" />
+                <span className="max-w-[400px] truncate text-xs font-medium text-slate-200">
+                  {viewingModel.name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingModel(null)}
+                aria-label="Cerrar visor y volver a la lista"
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              >
+                ← Volver a la lista
+              </button>
+            </div>
+
+            {/* El visor ocupa el resto del espacio disponible */}
+            <div className="flex-1 overflow-hidden">
+              <ForgeViewer
+                urn={viewingModel.urn}
+                onClose={() => setViewingModel(null)}
+              />
             </div>
           </div>
         )}

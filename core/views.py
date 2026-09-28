@@ -22,6 +22,8 @@ from rest_framework.decorators import (
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
 
 from .models import (
     DriveLink,
@@ -859,28 +861,114 @@ def google_drive_file_detail_view(request, file_id):
             "No se pudo modificar el elemento de Google Drive.",
         )
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def revit_models_view(request):
-    """Mock endpoint que devuelve modelos BIM desde Revit."""
-    import datetime
-    import locale
+import base64
+
+class APSModelsView(APIView):
+    """
+    Vista para manejar modelos BIM de Autodesk Platform Services.
+    GET: Lista los archivos en el bucket.
+    POST: Sube un archivo .rvt y comienza su traducción.
+    """
+    permission_classes = [AllowAny]
     
-    # Intentamos establecer locale a espanol para la fecha, pero si falla ignoramos
-    try:
-        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-    except:
-        pass
-        
-    today = datetime.datetime.now().strftime("%d %b %Y, %H:%M").capitalize()
-    
-    models = [
-        {"id": 1, "name": "Estructura_Edificio_Principal.rvt", "size": "248 MB", "synced": today},
-        {"id": 2, "name": "Instalaciones_Electricas_v2.rvt", "size": "134 MB", "synced": today},
-        {"id": 3, "name": "Topografia_Terreno.rvt", "size": "87 MB", "synced": today},
-    ]
-    
-    return JsonResponse({
-        "status": "success",
-        "models": models
-    })
+    # IMPORTANTE: Si vas a recibir archivos multipart/form-data, se pueden definir parsers, 
+    # pero DRF lo hace por defecto. Se puede añadir parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        try:
+            objects_data = APSService.get_bucket_objects()
+            items = objects_data.get("items", [])
+            
+            models = []
+            for idx, item in enumerate(items):
+                object_id = item["objectId"]
+                # Codificar URN en base64 sin padding (URL safe)
+                urn_bytes = base64.urlsafe_b64encode(object_id.encode("utf-8"))
+                urn = urn_bytes.decode("utf-8").rstrip("=")
+                
+                size_mb = item.get("size", 0) / (1024 * 1024)
+                
+                models.append({
+                    "id": idx + 1,
+                    "name": item["objectKey"],
+                    "size": f"{size_mb:.1f} MB",
+                    "synced": "N/A",
+                    "urn": urn,
+                })
+                
+            return Response({"status": "success", "models": models})
+        except Exception as error:
+            logger.exception("Error al listar modelos")
+            return Response({"message": str(error)}, status=500)
+
+    def post(self, request):
+        try:
+            file_obj = request.FILES.get("file")
+            if not file_obj:
+                return Response({"message": "Archivo no proporcionado"}, status=400)
+                
+            filename = file_obj.name
+            
+            # Subir archivo al bucket de APS
+            upload_res = APSService.upload_file(file_obj, filename)
+            object_id = upload_res["objectId"]
+            
+            # Codificar URN en base64 sin padding (URL safe)
+            urn_bytes = base64.urlsafe_b64encode(object_id.encode("utf-8"))
+            urn = urn_bytes.decode("utf-8").rstrip("=")
+            
+            # Iniciar traducción
+            APSService.translate_model(urn)
+            
+            return Response({
+                "status": "success",
+                "message": "Archivo subido y traducción iniciada",
+                "urn": urn
+            })
+        except Exception as error:
+            logger.exception("Error al subir/traducir modelo")
+            return Response({"message": str(error)}, status=500)
+
+
+
+# =============================================================
+# AUTODESK PLATFORM SERVICES (APS) — Viewer 3D / BIM
+# =============================================================
+
+from core.services.aps_service import APSService  # noqa: E402 — import local al final
+
+
+class APSTokenView(APIView):
+    """
+    GET /api/integrations/aps/token/
+
+    Genera un token de acceso de solo lectura para el Autodesk Viewer 3D.
+    El scope 'viewables:read' es el mínimo necesario para que el Viewer
+    pueda cargar modelos ya traducidos.
+
+    El Client Secret NUNCA sale de este endpoint — el frontend solo
+    recibe el access_token temporal (válido por 3600 s normalmente).
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            token_data = APSService.get_auth_token(scopes="viewables:read")
+            return Response(
+                {
+                    "access_token": token_data["access_token"],
+                    "expires_in":   token_data["expires_in"],
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as error:
+            logger.exception("Error al generar token de APS")
+            return Response(
+                {
+                    "message": "No se pudo generar el token de Autodesk Platform Services.",
+                    "detail":  str(error),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

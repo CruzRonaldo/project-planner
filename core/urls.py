@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from . import views
+from .views import APSTokenView
 from .views_make import (
     make_incoming_webhook_view,
     make_status_view,
@@ -96,9 +97,10 @@ urlpatterns = [
     path("integrations/make/webhook/", make_incoming_webhook_view, name="make_incoming_webhook"),
 
     # -------------------------------------------------------
-    # Autodesk Revit / BIM Data
+    # Autodesk Platform Services (APS) — Viewer 3D / BIM
     # -------------------------------------------------------
-    path("integrations/revit/models/", views.revit_models_view, name="revit_models"),
+    path("integrations/revit/models/", views.APSModelsView.as_view(), name="revit_models"),
+    path("integrations/aps/token/",    APSTokenView.as_view(),  name="aps-token"),
 
     # -------------------------------------------------------
     # Endpoints REST generados automáticamente por el router

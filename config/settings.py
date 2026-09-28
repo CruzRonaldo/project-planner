@@ -126,3 +126,14 @@ GOOGLE_DRIVE_SCOPES = [
 
 # URL del Webhook de Make. Configúrala en tu archivo .env local.
 MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
+
+# ==========================================================
+# AUTODESK PLATFORM SERVICES (APS) — Viewer 3D / BIM
+# ==========================================================
+# Agrega tus credenciales reales en el archivo .env local.
+# Nunca subas el Client Secret al repositorio.
+
+APS_CLIENT_ID     = env('APS_CLIENT_ID', default='')
+APS_CLIENT_SECRET = env('APS_CLIENT_SECRET', default='')
+APS_BUCKET_KEY    = env('APS_BUCKET_KEY', default='projectplanner_models_bucket')
+
