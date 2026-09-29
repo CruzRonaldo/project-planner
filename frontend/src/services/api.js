@@ -18,6 +18,9 @@ if (!configuredUrl) {
 const cleanUrl = configuredUrl.replace(/\/+$/, '');
 const baseURL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 
+// Axios seleccionará automáticamente:
+// application/json para datos normales
+// multipart/form-data para archivos (cuando se pase FormData)
 const api = axios.create({
   baseURL,
   headers: {

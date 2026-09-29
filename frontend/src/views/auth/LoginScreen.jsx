@@ -7,7 +7,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  LayoutGrid,
   AlertCircle,
 } from "lucide-react";
 import api from "../../services/api";
@@ -68,9 +67,11 @@ export default function LoginScreen({ onLogin }) {
     <>
       {/* Header: Logo superior */}
       <header className="relative z-10 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-700">
-        <div className="bg-cyan-500 p-2 rounded-lg text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-          <LayoutGrid className="w-5 h-5" />
-        </div>
+        <img
+          src="/logoempresa1.png"
+          alt="Logo empresa"
+          className="w-9 h-9 object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]"
+        />
         <span className="font-extrabold tracking-wider text-white text-sm sm:text-base">
           PROJECT PLANNER
         </span>

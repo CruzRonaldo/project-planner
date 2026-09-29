@@ -144,7 +144,51 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+# ==========================================================
+# GOOGLE DRIVE OAUTH 2.0
+# ==========================================================
 
-# Integración con Make (Integromat)
+GOOGLE_DRIVE_OAUTH_CLIENT_FILE = BASE_DIR / env(
+    "GOOGLE_DRIVE_OAUTH_CLIENT_FILE",
+    default="secrets/google-drive-oauth-client.json",
+)
+
+GOOGLE_DRIVE_TOKEN_FILE = BASE_DIR / env(
+    "GOOGLE_DRIVE_TOKEN_FILE",
+    default="secrets/google-drive-token.json",
+)
+
+GOOGLE_DRIVE_REDIRECT_URI = env(
+    "GOOGLE_DRIVE_REDIRECT_URI",
+    default=(
+        "http://127.0.0.1:8000/"
+        "api/integrations/google-drive/callback/"
+    ),
+)
+
+GOOGLE_DRIVE_FRONTEND_URL = env(
+    "GOOGLE_DRIVE_FRONTEND_URL",
+    default="http://localhost:5173",
+)
+
+GOOGLE_DRIVE_SCOPES = [
+    "https://www.googleapis.com/auth/drive.file",
+]
+
+# ==========================================================
+# MAKE (INTEGROMAT) WEBHOOK
+# ==========================================================
+
+# URL del Webhook de Make. Configúrala en tu archivo .env local.
 MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
+
+# ==========================================================
+# AUTODESK PLATFORM SERVICES (APS) — Viewer 3D / BIM
+# ==========================================================
+# Agrega tus credenciales reales en el archivo .env local.
+# Nunca subas el Client Secret al repositorio.
+
+APS_CLIENT_ID     = env('APS_CLIENT_ID', default='').strip()
+APS_CLIENT_SECRET = env('APS_CLIENT_SECRET', default='').strip()
+APS_BUCKET_KEY    = env('APS_BUCKET_KEY', default='projectplanner_models_bucket').strip()
 
