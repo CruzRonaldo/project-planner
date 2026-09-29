@@ -19,8 +19,22 @@ export const revitApi = {
   uploadModel: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Extraer datos del usuario (actúa como "token" en este proyecto)
+    const userStr = localStorage.getItem('project_planner_user');
+    let userId = '';
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        userId = user.id;
+      } catch (e) {}
+    }
+
     return await api.post('/integrations/aps/upload/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${userId}`
+        }
     });
   }
 };

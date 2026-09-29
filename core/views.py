@@ -23,7 +23,7 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -38,6 +38,24 @@ from .models import (
     TeamStatus,
     TechnicalArea,
 )
+
+from rest_framework.authentication import BaseAuthentication
+from rest_framework.exceptions import AuthenticationFailed
+
+class SimpleUserAuthentication(BaseAuthentication):
+    """Autenticación simple que asume que el token Bearer es el ID del usuario."""
+    def authenticate(self, request):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return None
+            
+        user_id = auth_header.split(' ')[1]
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+            return (user, None)
+        except (User.DoesNotExist, ValueError):
+            raise AuthenticationFailed('Usuario no encontrado o token inválido')
 from .serializers import (
     DriveLinkSerializer,
     MilestoneSerializer,
@@ -1214,7 +1232,8 @@ class APSUploadView(APIView):
     POST /api/integrations/aps/upload/
     Sube un archivo a Autodesk OSS, inicia traducción y guarda en Bóveda.
     """
-    permission_classes = [AllowAny]
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
@@ -1237,13 +1256,12 @@ class APSUploadView(APIView):
             APSService.translate_model(urn)
 
             # Guardar en base de datos local
-            uploader = request.user if request.user.is_authenticated else None
             BIMModel.objects.create(
                 name=filename,
                 urn=urn,
                 object_id=object_id,
                 size_bytes=size_bytes,
-                uploaded_by=uploader
+                uploaded_by=request.user
             )
 
             return Response({
