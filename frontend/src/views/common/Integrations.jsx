@@ -24,7 +24,7 @@ import {
   testIntegration,
   updateIntegration,
 } from '../../utils/integrations';
-import api from '../../services/api';
+import api, { baseURL as apiBaseUrl } from '../../services/api';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
 import RevitModal from './RevitModal';
@@ -40,12 +40,12 @@ const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3
 const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_14px_32px_rgba(0,0,0,0.12)] midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:shadow-none';
 const nestedClass = 'rounded-lg border border-slate-200 bg-slate-50 transition-colors duration-300 dark:border-blue-400/25 dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14]';
 
-let envUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
-if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-  envUrl = 'https://project-planner-to9j.onrender.com/api';
-}
-const cleanUrl = envUrl.replace(/\/+$/, '');
-const apiBaseUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+//let envUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+//if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+//  envUrl = 'https://project-planner-to9j.onrender.com/api';
+//}
+//const cleanUrl = envUrl.replace(/\/+$/, '');
+//const apiBaseUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 
 const googleDriveConnectUrl = `${apiBaseUrl}/integrations/google-drive/connect/`;
 
