@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 
 // URL del endpoint Django que genera el token de solo lectura.
 // El Client Secret nunca llega al navegador — Django lo gestiona internamente.
-const TOKEN_ENDPOINT = 'http://127.0.0.1:8000/api/integrations/aps/token/';
+import { baseURL } from '../services/api'; // Ajusta la ruta relativa si es necesario (ej. '../services/api' o '../../services/api')
+const TOKEN_ENDPOINT = `${baseURL}/integrations/aps/token/`;
 
 /**
  * ForgeViewer
