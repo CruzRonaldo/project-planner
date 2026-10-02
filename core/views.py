@@ -1184,7 +1184,7 @@ class BIMModelListView(APIView):
                     "id": model.id,
                     "name": model.name,
                     "size": f"{size_mb:.1f} MB",
-                    "synced": model.created_at.strftime("%Y-%m-%d %H:%M") if model.created_at else "N/A",
+                    "synced": timezone.localtime(model.created_at).strftime("%Y-%m-%d %H:%M") if model.created_at else "N/A",
                     "urn": model.urn,
                     "object_id": model.object_id,
                     "uploaded_by_name": uploader_name,
@@ -1307,3 +1307,26 @@ class APSTokenView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+class APSDownloadView(APIView):
+    """
+    GET /api/integrations/aps/models/<id>/download/
+    
+    Devuelve una URL firmada de S3 para descargar el archivo original.
+    """
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            model = BIMModel.objects.get(pk=pk)
+            download_url = APSService.get_download_url(model.object_id, model.name)
+            return Response({
+                "status": "success",
+                "download_url": download_url
+            })
+        except BIMModel.DoesNotExist:
+            return Response({"status": "error", "message": "Modelo no encontrado."}, status=404)
+        except Exception as error:
+            logger.exception("Error obteniendo URL de descarga")
+            return Response({"status": "error", "message": str(error)}, status=500)

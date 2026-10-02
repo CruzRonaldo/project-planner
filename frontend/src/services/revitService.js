@@ -16,6 +16,21 @@ export const revitApi = {
   deleteModel: async (id) => {
     return await api.delete(`/integrations/aps/models/${id}/`);
   },
+  getDownloadUrl: async (id) => {
+    const userStr = localStorage.getItem('project_planner_user');
+    let userId = '';
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        userId = user.id;
+      } catch (e) {}
+    }
+    return await api.get(`/integrations/aps/models/${id}/download/`, {
+        headers: { 
+            'Authorization': `Bearer ${userId}`
+        }
+    });
+  },
   uploadModel: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
