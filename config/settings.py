@@ -148,15 +148,27 @@ MAILERS = {
 # GOOGLE DRIVE OAUTH 2.0
 # ==========================================================
 
-GOOGLE_DRIVE_OAUTH_CLIENT_FILE = BASE_DIR / env(
-    "GOOGLE_DRIVE_OAUTH_CLIENT_FILE",
-    default="secrets/google-drive-oauth-client.json",
-)
+import os
 
-GOOGLE_DRIVE_TOKEN_FILE = BASE_DIR / env(
-    "GOOGLE_DRIVE_TOKEN_FILE",
-    default="secrets/google-drive-token.json",
-)
+# Buscamos primero en la raíz (para compatibilidad con Render)
+client_file_path = BASE_DIR / "google-drive-oauth-client.json"
+if not client_file_path.exists():
+    # Si no existe en la raíz, usamos la carpeta local secrets/
+    client_file_path = BASE_DIR / env(
+        "GOOGLE_DRIVE_OAUTH_CLIENT_FILE",
+        default="secrets/google-drive-oauth-client.json",
+    )
+GOOGLE_DRIVE_OAUTH_CLIENT_FILE = client_file_path
+
+# Repetimos la lógica para el token
+token_file_path = BASE_DIR / "google-drive-token.json"
+if not token_file_path.exists():
+    token_file_path = BASE_DIR / env(
+        "GOOGLE_DRIVE_TOKEN_FILE",
+        default="secrets/google-drive-token.json",
+    )
+GOOGLE_DRIVE_TOKEN_FILE = token_file_path
+
 
 GOOGLE_DRIVE_REDIRECT_URI = env(
     "GOOGLE_DRIVE_REDIRECT_URI",
