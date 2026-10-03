@@ -6,6 +6,7 @@ from .views import (
     logout_view,
     users_status_view,
     notifications_view,
+
     TechnicalAreaViewSet,
     RoleViewSet,
     TeamStatusViewSet,
@@ -29,6 +30,7 @@ from .views import (
     BIMModelDetailView,
     APSUploadView,
     APSTokenView,
+    CreateTechnicianView,
 )
 from .views_make import (
     make_incoming_webhook_view,
@@ -84,10 +86,11 @@ urlpatterns = [
     path('integrations/aps/upload/', APSUploadView.as_view(), name='aps_upload'),
     path('integrations/aps/token/', APSTokenView.as_view(), name='aps_token'),
 
+    # Alta conjunta del técnico y su cuenta de acceso
+    path('technicians/create/', CreateTechnicianView.as_view(), name='create-technician'),
+
     # -------------------------------------------------------
     # Endpoints REST generados automáticamente por el router
     # -------------------------------------------------------
     path("", include(router.urls)),
 ]
-
- 

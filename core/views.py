@@ -23,7 +23,7 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -57,6 +57,7 @@ class SimpleUserAuthentication(BaseAuthentication):
         except (User.DoesNotExist, ValueError):
             raise AuthenticationFailed('Usuario no encontrado o token inválido')
 from .serializers import (
+    CreateTechnicianSerializer,
     DriveLinkSerializer,
     MilestoneSerializer,
     PerformanceMetricSerializer,
@@ -1307,3 +1308,20 @@ class APSTokenView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+class CreateTechnicianView(APIView):
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = CreateTechnicianSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        technician = serializer.save()
+
+        return Response(
+            {
+                "message": "Técnico y cuenta de acceso creados exitosamente.",
+                "member": TeamMemberSerializer(technician).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
