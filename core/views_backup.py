@@ -55,7 +55,7 @@ User = get_user_model()
 
 def test_db_connection(request):
     """
-    Prueba la conexión entre Django y MySQL.
+    Prueba la conexión entre Django y la base de datos (PostgreSQL).
     """
 
     start_time = time.time()
@@ -87,7 +87,7 @@ def test_db_connection(request):
                     "latency_ms": latency_ms,
                 },
                 "message": (
-                    "¡Conexión exitosa con la base de datos MySQL!"
+                    "¡Conexión exitosa con la base de datos!"
                 ),
             },
             status=200,
@@ -107,7 +107,7 @@ def test_db_connection(request):
                     "engine": getattr(
                         connection,
                         "vendor",
-                        "mysql",
+                        "postgresql",
                     ),
                     "latency_ms": latency_ms,
                     "error_detail": str(error),

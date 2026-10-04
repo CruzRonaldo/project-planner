@@ -85,7 +85,7 @@ urlpatterns = [
         name="api_login",
     ),
 
-    # Prueba de MySQL
+    # Prueba de Base de Datos
     path(
         "test-db/",
         test_db_connection,

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'drf_spectacular',
     'core',
 ]
 
@@ -73,10 +74,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Base de datos (PostgreSQL como motor principal):
 # 1. Si existe DATABASE_URL (Render PostgreSQL o cualquier cloud Postgres): conexión automática.
 # 2. Si se activa USE_SQLITE o no hay base de datos configurada: usa SQLite.
-# 3. Si se define DB_ENGINE=mysql: permite compatibilidad con MySQL local.
-# 4. Por defecto: PostgreSQL usando credenciales individuales.
+# 3. Por defecto: PostgreSQL usando credenciales individuales.
 database_url = env('DATABASE_URL', default=None)
-db_engine = env('DB_ENGINE', default='postgresql').lower()
 
 if database_url:
     DATABASES = {
@@ -91,17 +90,6 @@ elif env.bool('USE_SQLITE', default=False) or not env('DB_NAME', default=''):
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-elif db_engine == 'mysql':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': env('DB_NAME', default='project_planner'),
-            'USER': env('DB_USER', default='root'),
-            'PASSWORD': env('DB_PASSWORD', default=''),
-            'HOST': env('DB_HOST', default='localhost'),
-            'PORT': env('DB_PORT', default='3306'),
         }
     }
 else:
@@ -203,4 +191,29 @@ MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
 APS_CLIENT_ID     = env('APS_CLIENT_ID', default='').strip()
 APS_CLIENT_SECRET = env('APS_CLIENT_SECRET', default='').strip()
 APS_BUCKET_KEY    = env('APS_BUCKET_KEY', default='projectplanner_models_bucket').strip()
+
+# ==========================================================
+# OPENAPI 3.0 / DRF-SPECTACULAR (DOCUMENTACIÓN DE APIS)
+# ==========================================================
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Project Planner API',
+    'DESCRIPTION': (
+        'Documentación interactiva de la API REST para el sistema Project Planner.\n\n'
+        'Módulos incluidos:\n'
+        '- Portafolio de Proyectos e Hitos Globales\n'
+        '- Gestión Operativa y Tareas de Campo\n'
+        '- Equipo Técnico, Áreas Especializadas y Roles\n'
+        '- Autenticación y Monitoreo de Usuarios en Vivo\n'
+        '- Integraciones: Make (Webhooks), Google Drive y Modelos 3D BIM (Autodesk APS)'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+}
+
 
