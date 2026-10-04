@@ -196,6 +196,14 @@ cython_debug/
 
 # Archivos del sistema operativo
 Thumbs.db          # Basura de Windows
-.DS_Store          # Basura de macOS
 # Credenciales privadas
-secrets/ 
+secrets/
+
+# --- OBSIDIAN VAULT ---
+# Ignora el estado local de ventanas y caché de Obsidian (conserva configuración, grafos y plugins)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/cache/
