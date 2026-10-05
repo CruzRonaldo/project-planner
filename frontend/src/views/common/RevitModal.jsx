@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Eye, RotateCw, Trash2, X, UploadCloud, Edit2, Check, XCircle } from 'lucide-react';
+import { Box, Eye, RotateCw, Trash2, X, UploadCloud, Edit2, Check, XCircle, Download } from 'lucide-react';
 import ForgeViewer from '../../components/ForgeViewer';
 import { revitApi } from '../../services/revitService';
 import { useToast } from '../../context/ToastContext';
@@ -15,11 +15,11 @@ const nestedClass =
   'midnight:border-cyan-800/40 midnight:bg-[#050B14]';
 
 const TABLE_COLUMNS = [
-  { key: 'name',     label: 'Nombre del Modelo',     align: 'left'  },
-  { key: 'uploader', label: 'Subido por',            align: 'left'  },
-  { key: 'size',     label: 'Tamaño',                align: 'left'  },
-  { key: 'synced',   label: 'Última Sincronización', align: 'left'  },
-  { key: 'actions',  label: 'Acciones',              align: 'right' },
+  { key: 'name', label: 'Nombre del Modelo', align: 'left' },
+  { key: 'uploader', label: 'Subido por', align: 'left' },
+  { key: 'size', label: 'Tamaño', align: 'left' },
+  { key: 'synced', label: 'Última Sincronización', align: 'left' },
+  { key: 'actions', label: 'Acciones', align: 'right' },
 ];
 
 function StatusBadge({ connected }) {
@@ -39,7 +39,7 @@ function StatusBadge({ connected }) {
   );
 }
 
-function ModelRow({ model, onDelete, onView, onRename }) {
+function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(model.name);
 
@@ -97,6 +97,14 @@ function ModelRow({ model, onDelete, onView, onRename }) {
           )}
           <button
             type="button"
+            title="Descargar modelo"
+            onClick={() => onDownload(model)}
+            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30"
+          >
+            <Download size={14} />
+          </button>
+          <button
+            type="button"
             title="Ver modelo en 3D"
             onClick={() => onView(model)}
             className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30"
@@ -124,7 +132,7 @@ export default function RevitModal({ onClose }) {
   const [models, setModels] = useState([]);
   const [modelToDelete, setModelToDelete] = useState(null);
   const [viewingModel, setViewingModel] = useState(null);
-  
+
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const { showToast } = useToast();
@@ -231,6 +239,22 @@ export default function RevitModal({ onClose }) {
     }
   };
 
+  const handleDownload = async (model) => {
+    try {
+      showToast({ title: 'Preparando descarga', message: 'Generando enlace seguro...', type: 'info' });
+      const response = await revitApi.getDownloadUrl(model.id);
+
+      if (response.data?.status === 'success' && response.data.download_url) {
+        // Reemplazamos la creación del elemento <a> por una redirección directa
+        window.location.href = response.data.download_url;
+      } else {
+        throw new Error('No se recibió la URL de descarga.');
+      }
+    } catch (err) {
+      showToast({ title: 'Error', message: 'No se pudo descargar el modelo.', type: 'error' });
+    }
+  };
+
   return (
     <div
       role="presentation"
@@ -294,10 +318,10 @@ export default function RevitModal({ onClose }) {
           {isConnected && (
             <>
               <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center transition-colors dark:border-slate-700 dark:bg-[#0d1117] midnight:border-cyan-900/50 midnight:bg-cyan-950/10">
-                <input 
-                  type="file" 
-                  accept=".rvt" 
-                  style={{ display: 'none' }} 
+                <input
+                  type="file"
+                  accept=".rvt"
+                  style={{ display: 'none' }}
                   ref={fileInputRef}
                   onChange={handleFileUpload}
                 />
@@ -322,7 +346,7 @@ export default function RevitModal({ onClose }) {
                 <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
                   Modelos Compartidos ({models.length})
                 </h3>
-                
+
                 <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40">
                   <table className="w-full min-w-[580px] text-left text-xs">
                     <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400 midnight:bg-cyan-950/30 midnight:text-cyan-600">
@@ -347,6 +371,7 @@ export default function RevitModal({ onClose }) {
                             onDelete={(m) => setModelToDelete(m)}
                             onView={setViewingModel}
                             onRename={handleRename}
+                            onDownload={handleDownload}
                           />
                         ))
                       )}

@@ -27,5 +27,5 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
+export { baseURL };
 export default api;

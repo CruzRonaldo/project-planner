@@ -218,6 +218,15 @@ def ensure_app_folder():
         )
         .execute()
     )
+
+    service.permissions().create(
+        fileId=folder.get("id"),
+        body={
+            "type": "anyone",
+            "role": "writer"
+        }
+    ).execute()
+
     return _normalize_file(folder)
 
 
@@ -291,6 +300,15 @@ def create_folder(name, parent_id=None):
         )
         .execute()
     )
+
+    service.permissions().create(
+        fileId=folder.get("id"),
+        body={
+            "type": "anyone",
+            "role": "writer"
+        }
+    ).execute()
+
     return _normalize_file(folder)
 
 

@@ -30,6 +30,7 @@ from .views import (
     BIMModelDetailView,
     APSUploadView,
     APSTokenView,
+    APSDownloadView,
     CreateTechnicianView,
 )
 from .views_make import (
@@ -83,6 +84,7 @@ urlpatterns = [
     path('integrations/aps/status/', APSStatusView.as_view(), name='aps_status'),
     path('integrations/aps/models/', BIMModelListView.as_view(), name='aps_models'),
     path('integrations/aps/models/<int:pk>/', BIMModelDetailView.as_view(), name='aps_model_detail'),
+    path('integrations/aps/models/<int:pk>/download/', APSDownloadView.as_view(), name='aps_model_download'),
     path('integrations/aps/upload/', APSUploadView.as_view(), name='aps_upload'),
     path('integrations/aps/token/', APSTokenView.as_view(), name='aps_token'),
 

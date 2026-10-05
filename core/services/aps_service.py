@@ -157,3 +157,30 @@ class APSService:
         res = requests.get(url, headers=headers)
         res.raise_for_status()
         return res.json()
+
+    @staticmethod
+    def get_download_url(object_id, model_name):
+        token_data = APSService.get_internal_token()
+        token = token_data["access_token"]
+        bucket_key = settings.APS_BUCKET_KEY
+
+        object_name = object_id.split('/')[-1]
+        
+        # Codificamos el nombre para soportar espacios o caracteres especiales
+        import urllib.parse
+        encoded_name = urllib.parse.quote(model_name)
+
+        # Inyectamos el parámetro 'response-content-disposition' para forzar el nuevo nombre
+        url = (
+            f"https://developer.api.autodesk.com/oss/v2/buckets/{bucket_key}/objects/{object_name}/signeds3download"
+            f"?response-content-disposition=attachment; filename=\"{encoded_name}\""
+        )
+        
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        res = requests.get(url, headers=headers)
+        if res.status_code != 200:
+            raise Exception(f"Error obteniendo URL de descarga: {res.text}")
+            
+        data = res.json()
+        return data.get("url")
