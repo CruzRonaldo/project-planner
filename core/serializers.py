@@ -1,4 +1,11 @@
+import re
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
+
 from .models import (
     TechnicalArea,
     Role,
@@ -337,3 +344,141 @@ class ProjectSerializer(serializers.ModelSerializer):
         rep['status'] = STATUS_TO_FRONTEND.get(obj.status, 'planning')
 
         return rep
+class CreateTechnicianSerializer(serializers.Serializer):
+    """Crea en una sola operación la cuenta de acceso y su ficha técnica."""
+
+    AREA_NAMES = {
+        'architecture': ('Arquitectura',),
+        'structures': ('Estructuras', 'Civil'),
+        'systems': ('Sistemas',),
+    }
+    STATUS_DATA = {
+        'active': ('Active', '#10B981'),
+        'standby': ('Stand-by', '#F59E0B'),
+        'support': ('Support', '#3B82F6'),
+        'offline': ('No disponible', '#64748B'),
+    }
+
+    first_name = serializers.CharField(max_length=100)
+    last_name = serializers.CharField(max_length=100)
+    email = serializers.EmailField(max_length=120)
+    password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        style={'input_type': 'password'},
+    )
+    specialty = serializers.CharField(max_length=100)
+    area = serializers.ChoiceField(choices=tuple(AREA_NAMES))
+    status = serializers.ChoiceField(choices=tuple(STATUS_DATA))
+    project = serializers.CharField(required=False, allow_blank=True, max_length=250)
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        user_model = get_user_model()
+
+        if user_model.objects.filter(username__iexact=email).exists() or user_model.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError('Ya existe una cuenta de usuario con este correo.')
+        if TeamMember.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError('Ya existe un técnico registrado con este correo.')
+
+        return email
+
+    def validate(self, attrs):
+        user_model = get_user_model()
+        pending_user = user_model(
+            username=attrs['email'],
+            email=attrs['email'],
+            first_name=attrs['first_name'].strip(),
+            last_name=attrs['last_name'].strip(),
+        )
+        try:
+            validate_password(attrs['password'], user=pending_user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'password': list(error.messages)}) from error
+        return attrs
+
+    def _resolve_area(self, area_code):
+        possible_names = self.AREA_NAMES[area_code]
+        for name in possible_names:
+            area = TechnicalArea.objects.filter(name__iexact=name).first()
+            if area:
+                return area
+
+        return TechnicalArea.objects.create(
+            name=possible_names[0],
+            description='Área técnica registrada desde Gestión del Equipo Técnico.',
+        )
+
+    def _resolve_status(self, status_code):
+        name, color_code = self.STATUS_DATA[status_code]
+        team_status = TeamStatus.objects.filter(name__iexact=name).first()
+        if team_status:
+            return team_status
+
+        return TeamStatus.objects.create(
+            name=name,
+            description='Estado registrado desde Gestión del Equipo Técnico.',
+            color_code=color_code,
+        )
+
+    @staticmethod
+    def _resolve_project(project_label):
+        clean_label = (project_label or '').strip()
+        if not clean_label or clean_label.lower().startswith('sin proyecto'):
+            return None
+
+        code_match = re.search(r'(PRJ-\d{4}-\d+)', clean_label, flags=re.IGNORECASE)
+        if code_match:
+            project = Project.objects.filter(code__iexact=code_match.group(1)).first()
+            if project:
+                return project
+
+        project_name = clean_label.split('(')[0].strip()
+        return Project.objects.filter(name__iexact=project_name).first()
+
+    @transaction.atomic
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        specialty = validated_data.pop('specialty').strip()
+        area_code = validated_data.pop('area')
+        status_code = validated_data.pop('status')
+        project_label = validated_data.pop('project', '')
+
+        first_name = validated_data['first_name'].strip()
+        last_name = validated_data['last_name'].strip()
+        email = validated_data['email']
+
+        technical_area = self._resolve_area(area_code)
+        team_status = self._resolve_status(status_code)
+        role, _ = Role.objects.get_or_create(
+            technical_area=technical_area,
+            name=specialty,
+            defaults={
+                'description': 'Rol registrado desde Gestión del Equipo Técnico.',
+            },
+        )
+        project = self._resolve_project(project_label)
+
+        user_model = get_user_model()
+        user = user_model(
+            username=email,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            is_active=True,
+            is_staff=False,
+            is_superuser=False,
+        )
+        user.set_password(password)
+        user.save()
+
+        return TeamMember.objects.create(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            role=role,
+            technical_area=technical_area,
+            status=team_status,
+            project=project,
+            is_active=True,
+        )

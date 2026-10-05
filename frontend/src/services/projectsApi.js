@@ -60,6 +60,31 @@ export const projectsApi = {
   },
 
   /**
+   * Crea la ficha del técnico y su cuenta de acceso en una sola operación.
+   */
+  createTechnician: async (technicianData) => {
+    let actorId = null;
+    try {
+      const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
+      actorId = savedUser?.db_id ?? savedUser?.id ?? null;
+    } catch {}
+
+    const response = await api.post('/technicians/create/', {
+      first_name: technicianData.firstNames?.trim(),
+      last_name: technicianData.lastNames?.trim(),
+      email: technicianData.email?.trim().toLowerCase(),
+      password: technicianData.password,
+      specialty: technicianData.specialty?.trim(),
+      area: technicianData.area,
+      project: technicianData.project || '',
+      status: technicianData.status,
+    }, {
+      headers: actorId ? { Authorization: `Bearer ${actorId}` } : {},
+    });
+    return response.data;
+  },
+
+  /**
    * Obtiene el estado real de conexión (isOnline) y permisos de usuarios técnicos desde la Base de Datos.
    */
   getUsersStatus: async () => {

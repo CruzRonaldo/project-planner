@@ -1888,8 +1888,125 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/technicians/create/:
+    post:
+      operationId: technicians_create_create
+      tags:
+      - technicians
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTechnician'
+          description: ''
 components:
   schemas:
+    AreaEnum:
+      enum:
+      - architecture
+      - structures
+      - systems
+      type: string
+      description: |-
+        * `architecture` - architecture
+        * `structures` - structures
+        * `systems` - systems
+    CreateTechnician:
+      type: object
+      description: Crea en una sola operación la cuenta de acceso y su ficha técnica.
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 120
+        specialty:
+          type: string
+          maxLength: 100
+        area:
+          $ref: '#/components/schemas/AreaEnum'
+        status:
+          $ref: '#/components/schemas/CreateTechnicianStatusEnum'
+        project:
+          type: string
+          maxLength: 250
+      required:
+      - area
+      - email
+      - first_name
+      - last_name
+      - specialty
+      - status
+    CreateTechnicianRequest:
+      type: object
+      description: Crea en una sola operación la cuenta de acceso y su ficha técnica.
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 120
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        specialty:
+          type: string
+          minLength: 1
+          maxLength: 100
+        area:
+          $ref: '#/components/schemas/AreaEnum'
+        status:
+          $ref: '#/components/schemas/CreateTechnicianStatusEnum'
+        project:
+          type: string
+          maxLength: 250
+      required:
+      - area
+      - email
+      - first_name
+      - last_name
+      - password
+      - specialty
+      - status
+    CreateTechnicianStatusEnum:
+      enum:
+      - active
+      - standby
+      - support
+      - offline
+      type: string
+      description: |-
+        * `active` - active
+        * `standby` - standby
+        * `support` - support
+        * `offline` - offline
     DriveLink:
       type: object
       description: Serializador para los enlaces y archivos asociados en Google Drive
