@@ -1,0 +1,3205 @@
+openapi: 3.0.3
+info:
+  title: Project Planner API
+  version: 1.0.0
+  description: |-
+    Documentación interactiva de la API REST para el sistema Project Planner.
+
+    Módulos incluidos:
+    - Portafolio de Proyectos e Hitos Globales
+    - Gestión Operativa y Tareas de Campo
+    - Equipo Técnico, Áreas Especializadas y Roles
+    - Autenticación y Monitoreo de Usuarios en Vivo
+    - Integraciones: Make (Webhooks), Google Drive y Modelos 3D BIM (Autodesk APS)
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Endpoint de autenticación para verificar credenciales de usuario y rol.
+        Actualiza la fecha de último inicio de sesión (last_login) en la Base de Datos.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Registra el cierre de sesión del usuario para marcarlo desconectado
+        en la Base de Datos.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/users-status/:
+    get:
+      operationId: auth_users_status_retrieve
+      description: |-
+        Retorna la lista de usuarios técnicos con su estado real de conexión (isOnline)
+        calculado según su último inicio de sesión (last_login) en la Base de Datos.
+        Permite además actualizar el rol de SubAdministrador (is_staff).
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: auth_users_status_partial_update
+      description: |-
+        Retorna la lista de usuarios técnicos con su estado real de conexión (isOnline)
+        calculado según su último inicio de sesión (last_login) en la Base de Datos.
+        Permite además actualizar el rol de SubAdministrador (is_staff).
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/drive-links/:
+    get:
+      operationId: drive_links_list
+      description: CRUD para enlaces de Google Drive.
+      tags:
+      - drive-links
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DriveLink'
+          description: ''
+    post:
+      operationId: drive_links_create
+      description: CRUD para enlaces de Google Drive.
+      tags:
+      - drive-links
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveLink'
+          description: ''
+  /api/drive-links/{id}/:
+    get:
+      operationId: drive_links_retrieve
+      description: CRUD para enlaces de Google Drive.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Enlace de Drive.
+        required: true
+      tags:
+      - drive-links
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveLink'
+          description: ''
+    put:
+      operationId: drive_links_update
+      description: CRUD para enlaces de Google Drive.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Enlace de Drive.
+        required: true
+      tags:
+      - drive-links
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DriveLinkRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveLink'
+          description: ''
+    patch:
+      operationId: drive_links_partial_update
+      description: CRUD para enlaces de Google Drive.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Enlace de Drive.
+        required: true
+      tags:
+      - drive-links
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDriveLinkRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDriveLinkRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDriveLinkRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveLink'
+          description: ''
+    delete:
+      operationId: drive_links_destroy
+      description: CRUD para enlaces de Google Drive.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Enlace de Drive.
+        required: true
+      tags:
+      - drive-links
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/integrations/aps/models/:
+    get:
+      operationId: integrations_aps_models_retrieve
+      description: |-
+        GET /api/integrations/aps/models/
+        Lista los modelos BIM almacenados en la base de datos (Bóveda colaborativa).
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/aps/models/{id}/:
+    patch:
+      operationId: integrations_aps_models_partial_update
+      description: |-
+        PATCH /api/integrations/aps/models/<id>/
+        Renombrar un modelo.
+        DELETE /api/integrations/aps/models/<id>/
+        Eliminar un modelo de la BD.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: integrations_aps_models_destroy
+      description: |-
+        PATCH /api/integrations/aps/models/<id>/
+        Renombrar un modelo.
+        DELETE /api/integrations/aps/models/<id>/
+        Eliminar un modelo de la BD.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/integrations/aps/models/{id}/download/:
+    get:
+      operationId: integrations_aps_models_download_retrieve
+      description: |-
+        GET /api/integrations/aps/models/<id>/download/
+
+        Devuelve una URL firmada de S3 para descargar el archivo original.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - integrations
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/aps/status/:
+    get:
+      operationId: integrations_aps_status_retrieve
+      description: |-
+        GET /api/integrations/aps/status/
+        Verifica silenciosamente si la conexión APS está activa probando el token.
+        Retorna métricas para el dashboard.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/aps/token/:
+    get:
+      operationId: integrations_aps_token_retrieve
+      description: |-
+        GET /api/integrations/aps/token/
+
+        Genera un token de acceso de solo lectura para el Autodesk Viewer 3D.
+        El scope 'viewables:read' es el mínimo necesario para que el Viewer
+        pueda cargar modelos ya traducidos.
+
+        El Client Secret NUNCA sale de este endpoint — el frontend solo
+        recibe el access_token temporal (válido por 3600 s normalmente).
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/aps/upload/:
+    post:
+      operationId: integrations_aps_upload_create
+      description: |-
+        POST /api/integrations/aps/upload/
+        Sube un archivo a Autodesk OSS, inicia traducción y guarda en Bóveda.
+      tags:
+      - integrations
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/callback/:
+    get:
+      operationId: integrations_google_drive_callback_retrieve
+      description: Recibe la autorización enviada por Google.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/connect/:
+    get:
+      operationId: integrations_google_drive_connect_retrieve
+      description: Redirige al usuario hacia Google para autorizar Drive.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/files/:
+    get:
+      operationId: integrations_google_drive_files_retrieve
+      description: Lista carpetas y archivos creados mediante Project Planner.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/files/{file_id}/:
+    patch:
+      operationId: integrations_google_drive_files_partial_update
+      description: Renombra o envía a papelera un elemento de Google Drive.
+      parameters:
+      - in: path
+        name: file_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: integrations_google_drive_files_destroy
+      description: Renombra o envía a papelera un elemento de Google Drive.
+      parameters:
+      - in: path
+        name: file_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/integrations/google-drive/folders/:
+    post:
+      operationId: integrations_google_drive_folders_create
+      description: Crea una carpeta dentro de la ubicación seleccionada.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/status/:
+    get:
+      operationId: integrations_google_drive_status_retrieve
+      description: Devuelve el estado actual de Google Drive.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/google-drive/upload/:
+    post:
+      operationId: integrations_google_drive_upload_create
+      description: Sube un archivo a la carpeta seleccionada de Google Drive.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/make/status/:
+    get:
+      operationId: integrations_make_status_retrieve
+      description: Retorna el estado de configuración de la integración con Make.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/make/test/:
+    post:
+      operationId: integrations_make_test_create
+      description: |-
+        Endpoint para probar la conectividad con Make.
+        Puede recibir opcionalmente {"webhook_url": "https://hook.make.com/..."} en el body.
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/make/trigger/:
+    post:
+      operationId: integrations_make_trigger_create
+      description: |-
+        Dispara un evento arbitrario hacia Make.
+        Body esperado:
+        {
+            "event": "project.alert",
+            "data": { ... },
+            "webhook_url": "opcional"
+        }
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/integrations/make/webhook/:
+    post:
+      operationId: integrations_make_webhook_create
+      description: |-
+        Endpoint receptor para llamadas entrantes desde Make hacia Project Planner.
+        Permite que un escenario de Make envíe actualizaciones o confirmaciones.
+        Ejemplo de payload recibido desde Make:
+        {
+            "action": "update_budget",
+            "project_id": 1,
+            "new_budget": 150000.0,
+            "notes": "Ajuste automático desde escenario de Make"
+        }
+      tags:
+      - integrations
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/milestones/:
+    get:
+      operationId: milestones_list
+      description: CRUD para hitos estratégicos.
+      tags:
+      - milestones
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Milestone'
+          description: ''
+    post:
+      operationId: milestones_create
+      description: CRUD para hitos estratégicos.
+      tags:
+      - milestones
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Milestone'
+          description: ''
+  /api/milestones/{id}/:
+    get:
+      operationId: milestones_retrieve
+      description: CRUD para hitos estratégicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Hito.
+        required: true
+      tags:
+      - milestones
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Milestone'
+          description: ''
+    put:
+      operationId: milestones_update
+      description: CRUD para hitos estratégicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Hito.
+        required: true
+      tags:
+      - milestones
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Milestone'
+          description: ''
+    patch:
+      operationId: milestones_partial_update
+      description: CRUD para hitos estratégicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Hito.
+        required: true
+      tags:
+      - milestones
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMilestoneRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMilestoneRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMilestoneRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Milestone'
+          description: ''
+    delete:
+      operationId: milestones_destroy
+      description: CRUD para hitos estratégicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Hito.
+        required: true
+      tags:
+      - milestones
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/:
+    get:
+      operationId: notifications_retrieve
+      description: |-
+        Retorna notificaciones personalizadas según el usuario conectado,
+        incluyendo asignaciones directas de proyectos como líder técnico.
+      tags:
+      - notifications
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/performance-metrics/:
+    get:
+      operationId: performance_metrics_list
+      description: CRUD para métricas de rendimiento.
+      tags:
+      - performance-metrics
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PerformanceMetric'
+          description: ''
+    post:
+      operationId: performance_metrics_create
+      description: CRUD para métricas de rendimiento.
+      tags:
+      - performance-metrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceMetric'
+          description: ''
+  /api/performance-metrics/{id}/:
+    get:
+      operationId: performance_metrics_retrieve
+      description: CRUD para métricas de rendimiento.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this MÃ©trica de Rendimiento.
+        required: true
+      tags:
+      - performance-metrics
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceMetric'
+          description: ''
+    put:
+      operationId: performance_metrics_update
+      description: CRUD para métricas de rendimiento.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this MÃ©trica de Rendimiento.
+        required: true
+      tags:
+      - performance-metrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PerformanceMetricRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceMetric'
+          description: ''
+    patch:
+      operationId: performance_metrics_partial_update
+      description: CRUD para métricas de rendimiento.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this MÃ©trica de Rendimiento.
+        required: true
+      tags:
+      - performance-metrics
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPerformanceMetricRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPerformanceMetricRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPerformanceMetricRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceMetric'
+          description: ''
+    delete:
+      operationId: performance_metrics_destroy
+      description: CRUD para métricas de rendimiento.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this MÃ©trica de Rendimiento.
+        required: true
+      tags:
+      - performance-metrics
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/projects/:
+    get:
+      operationId: projects_list
+      description: CRUD principal para Proyectos y Portafolio
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+          description: ''
+    post:
+      operationId: projects_create
+      description: CRUD principal para Proyectos y Portafolio
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/projects/{id}/:
+    get:
+      operationId: projects_retrieve
+      description: CRUD principal para Proyectos y Portafolio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    put:
+      operationId: projects_update
+      description: CRUD principal para Proyectos y Portafolio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    patch:
+      operationId: projects_partial_update
+      description: CRUD principal para Proyectos y Portafolio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    delete:
+      operationId: projects_destroy
+      description: CRUD principal para Proyectos y Portafolio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/projects/{id}/optimize/:
+    get:
+      operationId: projects_optimize_retrieve
+      description: Calcula una posible optimización del proyecto.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+    post:
+      operationId: projects_optimize_create
+      description: Calcula una posible optimización del proyecto.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Proyecto.
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/roles/:
+    get:
+      operationId: roles_list
+      description: CRUD para roles y cargos técnicos.
+      tags:
+      - roles
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+          description: ''
+    post:
+      operationId: roles_create
+      description: CRUD para roles y cargos técnicos.
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+  /api/roles/{id}/:
+    get:
+      operationId: roles_retrieve
+      description: CRUD para roles y cargos técnicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rol / Cargo TÃ©cnico.
+        required: true
+      tags:
+      - roles
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    put:
+      operationId: roles_update
+      description: CRUD para roles y cargos técnicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rol / Cargo TÃ©cnico.
+        required: true
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    patch:
+      operationId: roles_partial_update
+      description: CRUD para roles y cargos técnicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rol / Cargo TÃ©cnico.
+        required: true
+      tags:
+      - roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRoleRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+          description: ''
+    delete:
+      operationId: roles_destroy
+      description: CRUD para roles y cargos técnicos.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Rol / Cargo TÃ©cnico.
+        required: true
+      tags:
+      - roles
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: CRUD para tareas operativas.
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: CRUD para tareas operativas.
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: tasks_retrieve
+      description: CRUD para tareas operativas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Tarea.
+        required: true
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    put:
+      operationId: tasks_update
+      description: CRUD para tareas operativas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Tarea.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: tasks_partial_update
+      description: CRUD para tareas operativas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Tarea.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: tasks_destroy
+      description: CRUD para tareas operativas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Tarea.
+        required: true
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/team-members/:
+    get:
+      operationId: team_members_list
+      description: CRUD para miembros del equipo técnico.
+      tags:
+      - team-members
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamMember'
+          description: ''
+    post:
+      operationId: team_members_create
+      description: CRUD para miembros del equipo técnico.
+      tags:
+      - team-members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          description: ''
+  /api/team-members/{id}/:
+    get:
+      operationId: team_members_retrieve
+      description: CRUD para miembros del equipo técnico.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Miembro del Equipo.
+        required: true
+      tags:
+      - team-members
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          description: ''
+    put:
+      operationId: team_members_update
+      description: CRUD para miembros del equipo técnico.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Miembro del Equipo.
+        required: true
+      tags:
+      - team-members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeamMemberRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          description: ''
+    patch:
+      operationId: team_members_partial_update
+      description: CRUD para miembros del equipo técnico.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Miembro del Equipo.
+        required: true
+      tags:
+      - team-members
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamMemberRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamMemberRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamMemberRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          description: ''
+    delete:
+      operationId: team_members_destroy
+      description: CRUD para miembros del equipo técnico.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Miembro del Equipo.
+        required: true
+      tags:
+      - team-members
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/team-statuses/:
+    get:
+      operationId: team_statuses_list
+      description: CRUD para estados del equipo.
+      tags:
+      - team-statuses
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamStatus'
+          description: ''
+    post:
+      operationId: team_statuses_create
+      description: CRUD para estados del equipo.
+      tags:
+      - team-statuses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamStatus'
+          description: ''
+  /api/team-statuses/{id}/:
+    get:
+      operationId: team_statuses_retrieve
+      description: CRUD para estados del equipo.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Estado del Equipo.
+        required: true
+      tags:
+      - team-statuses
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamStatus'
+          description: ''
+    put:
+      operationId: team_statuses_update
+      description: CRUD para estados del equipo.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Estado del Equipo.
+        required: true
+      tags:
+      - team-statuses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeamStatusRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamStatus'
+          description: ''
+    patch:
+      operationId: team_statuses_partial_update
+      description: CRUD para estados del equipo.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Estado del Equipo.
+        required: true
+      tags:
+      - team-statuses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTeamStatusRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamStatus'
+          description: ''
+    delete:
+      operationId: team_statuses_destroy
+      description: CRUD para estados del equipo.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Estado del Equipo.
+        required: true
+      tags:
+      - team-statuses
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/technical-areas/:
+    get:
+      operationId: technical_areas_list
+      description: CRUD para áreas técnicas.
+      tags:
+      - technical-areas
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TechnicalArea'
+          description: ''
+    post:
+      operationId: technical_areas_create
+      description: CRUD para áreas técnicas.
+      tags:
+      - technical-areas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalArea'
+          description: ''
+  /api/technical-areas/{id}/:
+    get:
+      operationId: technical_areas_retrieve
+      description: CRUD para áreas técnicas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: "A unique integer value identifying this Ã\x81rea TÃ©cnica."
+        required: true
+      tags:
+      - technical-areas
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalArea'
+          description: ''
+    put:
+      operationId: technical_areas_update
+      description: CRUD para áreas técnicas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: "A unique integer value identifying this Ã\x81rea TÃ©cnica."
+        required: true
+      tags:
+      - technical-areas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TechnicalAreaRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalArea'
+          description: ''
+    patch:
+      operationId: technical_areas_partial_update
+      description: CRUD para áreas técnicas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: "A unique integer value identifying this Ã\x81rea TÃ©cnica."
+        required: true
+      tags:
+      - technical-areas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTechnicalAreaRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTechnicalAreaRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTechnicalAreaRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalArea'
+          description: ''
+    delete:
+      operationId: technical_areas_destroy
+      description: CRUD para áreas técnicas.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: "A unique integer value identifying this Ã\x81rea TÃ©cnica."
+        required: true
+      tags:
+      - technical-areas
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/technicians/create/:
+    post:
+      operationId: technicians_create_create
+      tags:
+      - technicians
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateTechnicianRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTechnician'
+          description: ''
+components:
+  schemas:
+    AreaEnum:
+      enum:
+      - architecture
+      - structures
+      - systems
+      type: string
+      description: |-
+        * `architecture` - architecture
+        * `structures` - structures
+        * `systems` - systems
+    CreateTechnician:
+      type: object
+      description: Crea en una sola operación la cuenta de acceso y su ficha técnica.
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 120
+        specialty:
+          type: string
+          maxLength: 100
+        area:
+          $ref: '#/components/schemas/AreaEnum'
+        status:
+          $ref: '#/components/schemas/CreateTechnicianStatusEnum'
+        project:
+          type: string
+          maxLength: 250
+      required:
+      - area
+      - email
+      - first_name
+      - last_name
+      - specialty
+      - status
+    CreateTechnicianRequest:
+      type: object
+      description: Crea en una sola operación la cuenta de acceso y su ficha técnica.
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 120
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        specialty:
+          type: string
+          minLength: 1
+          maxLength: 100
+        area:
+          $ref: '#/components/schemas/AreaEnum'
+        status:
+          $ref: '#/components/schemas/CreateTechnicianStatusEnum'
+        project:
+          type: string
+          maxLength: 250
+      required:
+      - area
+      - email
+      - first_name
+      - last_name
+      - password
+      - specialty
+      - status
+    CreateTechnicianStatusEnum:
+      enum:
+      - active
+      - standby
+      - support
+      - offline
+      type: string
+      description: |-
+        * `active` - active
+        * `standby` - standby
+        * `support` - support
+        * `offline` - offline
+    DriveLink:
+      type: object
+      description: Serializador para los enlaces y archivos asociados en Google Drive
+        vinculados a tareas
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        task:
+          type: integer
+          title: Tarea
+        task_title:
+          type: string
+          title: TÃ­tulo de la Tarea
+          readOnly: true
+        project_id:
+          type: integer
+          title: Proyecto
+          readOnly: true
+        project_code:
+          type: string
+          title: CÃ³digo del Proyecto
+          description: Ej. PRJ-2026-001
+          readOnly: true
+        title:
+          type: string
+          title: TÃ­tulo del Enlace
+          maxLength: 200
+        drive_url:
+          type: string
+          format: uri
+          title: URL de Google Drive
+          maxLength: 500
+        file_id:
+          type: string
+          nullable: true
+          title: Google Drive File/Folder ID
+          maxLength: 150
+        file_type:
+          allOf:
+          - $ref: '#/components/schemas/FileTypeEnum'
+          title: Tipo de Archivo
+        file_type_display:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - drive_url
+      - file_type_display
+      - id
+      - project_code
+      - project_id
+      - task
+      - task_title
+      - title
+    DriveLinkRequest:
+      type: object
+      description: Serializador para los enlaces y archivos asociados en Google Drive
+        vinculados a tareas
+      properties:
+        task:
+          type: integer
+          title: Tarea
+        title:
+          type: string
+          minLength: 1
+          title: TÃ­tulo del Enlace
+          maxLength: 200
+        drive_url:
+          type: string
+          format: uri
+          minLength: 1
+          title: URL de Google Drive
+          maxLength: 500
+        file_id:
+          type: string
+          nullable: true
+          title: Google Drive File/Folder ID
+          maxLength: 150
+        file_type:
+          allOf:
+          - $ref: '#/components/schemas/FileTypeEnum'
+          title: Tipo de Archivo
+      required:
+      - drive_url
+      - task
+      - title
+    FileTypeEnum:
+      enum:
+      - FOLDER
+      - DOCUMENT
+      - BIM_MODEL
+      - RENDER_360
+      - SPREADSHEET
+      - OTHER
+      type: string
+      description: |-
+        * `FOLDER` - Carpeta de Tarea / Entregable
+        * `DOCUMENT` - Documento / EspecificaciÃ³n TÃ©cnica
+        * `BIM_MODEL` - Modelo BIM / Revit
+        * `RENDER_360` - Render / Recorrido Virtual 360Â°
+        * `SPREADSHEET` - Hoja de CÃ¡lculo / Presupuesto
+        * `OTHER` - Otro
+    Milestone:
+      type: object
+      description: Serializador para los hitos del proyecto (Módulo Estratégico)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          title: Proyecto
+        name:
+          type: string
+          title: Nombre del Hito
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+        target_date:
+          type: string
+          format: date
+          title: Fecha Objetivo
+        completed_date:
+          type: string
+          format: date
+          nullable: true
+          title: Fecha Real de Cumplimiento
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MilestoneStatusEnum'
+          title: Estado
+      required:
+      - id
+      - name
+      - project
+      - target_date
+    MilestoneRequest:
+      type: object
+      description: Serializador para los hitos del proyecto (Módulo Estratégico)
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Hito
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+        target_date:
+          type: string
+          format: date
+          title: Fecha Objetivo
+        completed_date:
+          type: string
+          format: date
+          nullable: true
+          title: Fecha Real de Cumplimiento
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MilestoneStatusEnum'
+          title: Estado
+      required:
+      - name
+      - project
+      - target_date
+    MilestoneStatusEnum:
+      enum:
+      - PENDING
+      - IN_PROGRESS
+      - COMPLETED
+      - DELAYED
+      type: string
+      description: |-
+        * `PENDING` - Pendiente
+        * `IN_PROGRESS` - En Proceso
+        * `COMPLETED` - Cumplido
+        * `DELAYED` - Atrasado
+    PatchedDriveLinkRequest:
+      type: object
+      description: Serializador para los enlaces y archivos asociados en Google Drive
+        vinculados a tareas
+      properties:
+        task:
+          type: integer
+          title: Tarea
+        title:
+          type: string
+          minLength: 1
+          title: TÃ­tulo del Enlace
+          maxLength: 200
+        drive_url:
+          type: string
+          format: uri
+          minLength: 1
+          title: URL de Google Drive
+          maxLength: 500
+        file_id:
+          type: string
+          nullable: true
+          title: Google Drive File/Folder ID
+          maxLength: 150
+        file_type:
+          allOf:
+          - $ref: '#/components/schemas/FileTypeEnum'
+          title: Tipo de Archivo
+    PatchedMilestoneRequest:
+      type: object
+      description: Serializador para los hitos del proyecto (Módulo Estratégico)
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Hito
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+        target_date:
+          type: string
+          format: date
+          title: Fecha Objetivo
+        completed_date:
+          type: string
+          format: date
+          nullable: true
+          title: Fecha Real de Cumplimiento
+        status:
+          allOf:
+          - $ref: '#/components/schemas/MilestoneStatusEnum'
+          title: Estado
+    PatchedPerformanceMetricRequest:
+      type: object
+      description: Serializador para métricas de rendimiento diario utilizadas en
+        la optimización
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        task:
+          type: integer
+          nullable: true
+          title: Tarea EspecÃ­fica
+        unit:
+          type: string
+          minLength: 1
+          title: Unidad de Medida
+          description: Ej. M2 de encofrado, M3 de concreto, Renders
+          maxLength: 50
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Cantidad Total
+        rate_per_day:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Rendimiento Diario Estimado
+          description: Ej. M2 por dÃ­a
+        divisor:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Factor Divisor / Reductor
+          description: Factor de aceleraciÃ³n para cÃ¡lculo de reducciÃ³n
+    PatchedProjectRequest:
+      type: object
+      description: Serializador principal para proyectos con resumen de tareas, hitos
+        y compatibilidad con Frontend
+      properties:
+        code:
+          type: string
+          minLength: 1
+          title: CÃ³digo del Proyecto
+          description: Ej. PRJ-2026-001
+          maxLength: 50
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Proyecto
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Alcance
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de FinalizaciÃ³n Estimada
+        duration_months:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (Meses)
+        budget:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Presupuesto Estimado
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProjectStatusEnum'
+          title: Estado
+    PatchedRoleRequest:
+      type: object
+      description: Serializador para roles y cargos técnicos por área con funciones
+        y capacidades
+      properties:
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Rol / Cargo
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Funciones del Puesto
+        can_manage_projects:
+          type: boolean
+          title: Â¿Puede gestionar proyectos?
+        can_manage_tasks:
+          type: boolean
+          title: Â¿Puede gestionar tareas?
+        can_view_metrics:
+          type: boolean
+          title: Â¿Puede ver mÃ©tricas?
+    PatchedTaskRequest:
+      type: object
+      description: Serializador para las tareas operativas, ruta crítica y dependencias
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        milestone:
+          type: integer
+          nullable: true
+          title: Hito Asociado
+        category:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        assigned_to:
+          type: integer
+          nullable: true
+          title: Responsable Asignado
+        title:
+          type: string
+          minLength: 1
+          title: TÃ­tulo de la Tarea
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n Detallada
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de Fin
+        duration_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (DÃ­as)
+        progress:
+          type: integer
+          maximum: 100
+          minimum: 0
+          title: Progreso (%)
+        is_critical_path:
+          type: boolean
+          title: Â¿Es Ruta CrÃ­tica?
+          description: Calculado por el motor de optimizaciÃ³n
+        tolerance_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Tolerancia / Holgura (DÃ­as)
+          description: 'Margen de seguridad por defecto: 7 dÃ­as'
+        predecessors:
+          type: array
+          items:
+            type: integer
+            title: Tareas Predecesoras
+          title: Tareas Predecesoras
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          title: Estado
+    PatchedTeamMemberRequest:
+      type: object
+      description: Serializador para el personal técnico, incluyendo nombres legibles
+        de área, rol y estado
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          title: Nombres
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          title: Apellidos
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          title: Correo ElectrÃ³nico
+          maxLength: 254
+        role:
+          type: integer
+          nullable: true
+          title: Rol / Cargo Asignado
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        status:
+          type: integer
+          nullable: true
+          title: Estado Actual
+        project:
+          type: integer
+          nullable: true
+          title: Proyecto Asignado
+        is_active:
+          type: boolean
+          title: Â¿EstÃ¡ activo en la empresa?
+    PatchedTeamStatusRequest:
+      type: object
+      description: Serializador para los estados del personal (Active, Stand-by, Support)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Estado
+          maxLength: 50
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+          maxLength: 255
+        color_code:
+          type: string
+          minLength: 1
+          title: CÃ³digo de Color (HEX)
+          maxLength: 20
+    PatchedTechnicalAreaRequest:
+      type: object
+      description: Serializador para las áreas técnicas (Arquitectura, Estructuras,
+        Sistemas)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: "Nombre del Ã\x81rea"
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+    PerformanceMetric:
+      type: object
+      description: Serializador para métricas de rendimiento diario utilizadas en
+        la optimización
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          title: Proyecto
+        task:
+          type: integer
+          nullable: true
+          title: Tarea EspecÃ­fica
+        unit:
+          type: string
+          title: Unidad de Medida
+          description: Ej. M2 de encofrado, M3 de concreto, Renders
+          maxLength: 50
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Cantidad Total
+        rate_per_day:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Rendimiento Diario Estimado
+          description: Ej. M2 por dÃ­a
+        divisor:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Factor Divisor / Reductor
+          description: Factor de aceleraciÃ³n para cÃ¡lculo de reducciÃ³n
+        calculated_days:
+          type: string
+          readOnly: true
+      required:
+      - calculated_days
+      - id
+      - project
+      - rate_per_day
+      - unit
+    PerformanceMetricRequest:
+      type: object
+      description: Serializador para métricas de rendimiento diario utilizadas en
+        la optimización
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        task:
+          type: integer
+          nullable: true
+          title: Tarea EspecÃ­fica
+        unit:
+          type: string
+          minLength: 1
+          title: Unidad de Medida
+          description: Ej. M2 de encofrado, M3 de concreto, Renders
+          maxLength: 50
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Cantidad Total
+        rate_per_day:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          title: Rendimiento Diario Estimado
+          description: Ej. M2 por dÃ­a
+        divisor:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Factor Divisor / Reductor
+          description: Factor de aceleraciÃ³n para cÃ¡lculo de reducciÃ³n
+      required:
+      - project
+      - rate_per_day
+      - unit
+    Project:
+      type: object
+      description: Serializador principal para proyectos con resumen de tareas, hitos
+        y compatibilidad con Frontend
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          title: CÃ³digo del Proyecto
+          description: Ej. PRJ-2026-001
+          maxLength: 50
+        name:
+          type: string
+          title: Nombre del Proyecto
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Alcance
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de FinalizaciÃ³n Estimada
+        duration_months:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (Meses)
+        budget:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Presupuesto Estimado
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProjectStatusEnum'
+          title: Estado
+        status_display:
+          type: string
+          readOnly: true
+        milestones_count:
+          type: integer
+          readOnly: true
+        tasks_count:
+          type: integer
+          readOnly: true
+        team_members_count:
+          type: integer
+          readOnly: true
+        drive_links_count:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - code
+      - created_at
+      - drive_links_count
+      - end_date
+      - id
+      - milestones_count
+      - name
+      - start_date
+      - status_display
+      - tasks_count
+      - team_members_count
+      - updated_at
+    ProjectRequest:
+      type: object
+      description: Serializador principal para proyectos con resumen de tareas, hitos
+        y compatibilidad con Frontend
+      properties:
+        code:
+          type: string
+          minLength: 1
+          title: CÃ³digo del Proyecto
+          description: Ej. PRJ-2026-001
+          maxLength: 50
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Proyecto
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Alcance
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de FinalizaciÃ³n Estimada
+        duration_months:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (Meses)
+        budget:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: Presupuesto Estimado
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProjectStatusEnum'
+          title: Estado
+      required:
+      - code
+      - end_date
+      - name
+      - start_date
+    ProjectStatusEnum:
+      enum:
+      - PLANNING
+      - IN_PROGRESS
+      - STAND_BY
+      - COMPLETED
+      - RISK
+      - CANCELLED
+      type: string
+      description: |-
+        * `PLANNING` - En PlanificaciÃ³n
+        * `IN_PROGRESS` - En EjecuciÃ³n
+        * `STAND_BY` - En Espera (Stand-by)
+        * `COMPLETED` - Completado
+        * `RISK` - En Riesgo
+        * `CANCELLED` - Cancelado
+    Role:
+      type: object
+      description: Serializador para roles y cargos técnicos por área con funciones
+        y capacidades
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        technical_area_name:
+          type: string
+          title: "Nombre del Ã\x81rea"
+          readOnly: true
+        name:
+          type: string
+          title: Nombre del Rol / Cargo
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Funciones del Puesto
+        can_manage_projects:
+          type: boolean
+          title: Â¿Puede gestionar proyectos?
+        can_manage_tasks:
+          type: boolean
+          title: Â¿Puede gestionar tareas?
+        can_view_metrics:
+          type: boolean
+          title: Â¿Puede ver mÃ©tricas?
+        members_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - members_count
+      - name
+      - technical_area
+      - technical_area_name
+    RoleRequest:
+      type: object
+      description: Serializador para roles y cargos técnicos por área con funciones
+        y capacidades
+      properties:
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        name:
+          type: string
+          minLength: 1
+          title: Nombre del Rol / Cargo
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n / Funciones del Puesto
+        can_manage_projects:
+          type: boolean
+          title: Â¿Puede gestionar proyectos?
+        can_manage_tasks:
+          type: boolean
+          title: Â¿Puede gestionar tareas?
+        can_view_metrics:
+          type: boolean
+          title: Â¿Puede ver mÃ©tricas?
+      required:
+      - name
+      - technical_area
+    Task:
+      type: object
+      description: Serializador para las tareas operativas, ruta crítica y dependencias
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: integer
+          title: Proyecto
+        milestone:
+          type: integer
+          nullable: true
+          title: Hito Asociado
+        category:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        category_name:
+          type: string
+          title: "Nombre del Ã\x81rea"
+          readOnly: true
+        assigned_to:
+          type: integer
+          nullable: true
+          title: Responsable Asignado
+        assigned_to_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          title: TÃ­tulo de la Tarea
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n Detallada
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de Fin
+        duration_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (DÃ­as)
+        progress:
+          type: integer
+          maximum: 100
+          minimum: 0
+          title: Progreso (%)
+        is_critical_path:
+          type: boolean
+          title: Â¿Es Ruta CrÃ­tica?
+          description: Calculado por el motor de optimizaciÃ³n
+        tolerance_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Tolerancia / Holgura (DÃ­as)
+          description: 'Margen de seguridad por defecto: 7 dÃ­as'
+        predecessors:
+          type: array
+          items:
+            type: integer
+            title: Tareas Predecesoras
+          title: Tareas Predecesoras
+        drive_links_count:
+          type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          title: Estado
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_to_name
+      - category
+      - category_name
+      - created_at
+      - drive_links_count
+      - end_date
+      - id
+      - project
+      - start_date
+      - title
+      - updated_at
+    TaskRequest:
+      type: object
+      description: Serializador para las tareas operativas, ruta crítica y dependencias
+      properties:
+        project:
+          type: integer
+          title: Proyecto
+        milestone:
+          type: integer
+          nullable: true
+          title: Hito Asociado
+        category:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        assigned_to:
+          type: integer
+          nullable: true
+          title: Responsable Asignado
+        title:
+          type: string
+          minLength: 1
+          title: TÃ­tulo de la Tarea
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n Detallada
+        start_date:
+          type: string
+          format: date
+          title: Fecha de Inicio
+        end_date:
+          type: string
+          format: date
+          title: Fecha de Fin
+        duration_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: DuraciÃ³n (DÃ­as)
+        progress:
+          type: integer
+          maximum: 100
+          minimum: 0
+          title: Progreso (%)
+        is_critical_path:
+          type: boolean
+          title: Â¿Es Ruta CrÃ­tica?
+          description: Calculado por el motor de optimizaciÃ³n
+        tolerance_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          title: Tolerancia / Holgura (DÃ­as)
+          description: 'Margen de seguridad por defecto: 7 dÃ­as'
+        predecessors:
+          type: array
+          items:
+            type: integer
+            title: Tareas Predecesoras
+          title: Tareas Predecesoras
+        status:
+          allOf:
+          - $ref: '#/components/schemas/TaskStatusEnum'
+          title: Estado
+      required:
+      - category
+      - end_date
+      - project
+      - start_date
+      - title
+    TaskStatusEnum:
+      enum:
+      - TODO
+      - IN_PROGRESS
+      - REVIEW
+      - DONE
+      type: string
+      description: |-
+        * `TODO` - Por Hacer
+        * `IN_PROGRESS` - En Curso
+        * `REVIEW` - En RevisiÃ³n
+        * `DONE` - Finalizada
+    TeamMember:
+      type: object
+      description: Serializador para el personal técnico, incluyendo nombres legibles
+        de área, rol y estado
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          title: Nombres
+          maxLength: 100
+        last_name:
+          type: string
+          title: Apellidos
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Correo ElectrÃ³nico
+          maxLength: 254
+        role:
+          type: integer
+          nullable: true
+          title: Rol / Cargo Asignado
+        role_name:
+          type: string
+          title: Nombre del Rol / Cargo
+          readOnly: true
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        technical_area_name:
+          type: string
+          title: "Nombre del Ã\x81rea"
+          readOnly: true
+        status:
+          type: integer
+          nullable: true
+          title: Estado Actual
+        status_name:
+          type: string
+          title: Estado
+          readOnly: true
+        status_color:
+          type: string
+          title: CÃ³digo de Color (HEX)
+          readOnly: true
+        project:
+          type: integer
+          nullable: true
+          title: Proyecto Asignado
+        project_code:
+          type: string
+          title: CÃ³digo del Proyecto
+          description: Ej. PRJ-2026-001
+          readOnly: true
+        project_name:
+          type: string
+          title: Nombre del Proyecto
+          readOnly: true
+        is_active:
+          type: boolean
+          title: Â¿EstÃ¡ activo en la empresa?
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - first_name
+      - full_name
+      - id
+      - last_name
+      - project_code
+      - project_name
+      - role_name
+      - status_color
+      - status_name
+      - technical_area
+      - technical_area_name
+    TeamMemberRequest:
+      type: object
+      description: Serializador para el personal técnico, incluyendo nombres legibles
+        de área, rol y estado
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          title: Nombres
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          title: Apellidos
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          title: Correo ElectrÃ³nico
+          maxLength: 254
+        role:
+          type: integer
+          nullable: true
+          title: Rol / Cargo Asignado
+        technical_area:
+          type: integer
+          title: "Ã\x81rea TÃ©cnica"
+        status:
+          type: integer
+          nullable: true
+          title: Estado Actual
+        project:
+          type: integer
+          nullable: true
+          title: Proyecto Asignado
+        is_active:
+          type: boolean
+          title: Â¿EstÃ¡ activo en la empresa?
+      required:
+      - email
+      - first_name
+      - last_name
+      - technical_area
+    TeamStatus:
+      type: object
+      description: Serializador para los estados del personal (Active, Stand-by, Support)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: Estado
+          maxLength: 50
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+          maxLength: 255
+        color_code:
+          type: string
+          title: CÃ³digo de Color (HEX)
+          maxLength: 20
+      required:
+      - id
+      - name
+    TeamStatusRequest:
+      type: object
+      description: Serializador para los estados del personal (Active, Stand-by, Support)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Estado
+          maxLength: 50
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+          maxLength: 255
+        color_code:
+          type: string
+          minLength: 1
+          title: CÃ³digo de Color (HEX)
+          maxLength: 20
+      required:
+      - name
+    TechnicalArea:
+      type: object
+      description: Serializador para las áreas técnicas (Arquitectura, Estructuras,
+        Sistemas)
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          title: "Nombre del Ã\x81rea"
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+        members_count:
+          type: integer
+          readOnly: true
+        roles_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - members_count
+      - name
+      - roles_count
+    TechnicalAreaRequest:
+      type: object
+      description: Serializador para las áreas técnicas (Arquitectura, Estructuras,
+        Sistemas)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: "Nombre del Ã\x81rea"
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          title: DescripciÃ³n
+      required:
+      - name
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

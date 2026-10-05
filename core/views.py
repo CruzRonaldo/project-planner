@@ -1336,6 +1336,7 @@ class APSDownloadView(APIView):
 class CreateTechnicianView(APIView):
     authentication_classes = [SimpleUserAuthentication]
     permission_classes = [IsAdminUser]
+    serializer_class = CreateTechnicianSerializer
 
     def post(self, request):
         serializer = CreateTechnicianSerializer(data=request.data)
