@@ -642,8 +642,11 @@ export function EditProjectDialog({
                   <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
                 </span>
                 {!isAdmin && (
-                  <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 midnight:bg-amber-900/30 midnight:text-amber-200">
-                    <Lock size={10} /> Blindado
+                  <span
+                    title="Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
+                    className="cursor-help text-slate-400 transition-colors hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400"
+                  >
+                    <Lock size={13} />
                   </span>
                 )}
               </span>
@@ -653,22 +656,21 @@ export function EditProjectDialog({
                 step="any"
                 required
                 disabled={!isAdmin}
+                title={
+                  !isAdmin
+                    ? "Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
+                    : undefined
+                }
                 value={draft.totalBudget}
                 onKeyDown={handleKeyDownBudget}
                 onChange={handleBudgetChange}
                 placeholder="Ej. 1500000"
                 className={`${inputClass} ${
                   !isAdmin
-                    ? "cursor-not-allowed border-amber-300/40 bg-slate-100 text-slate-500 dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
                     : ""
                 }`}
               />
-              {!isAdmin && (
-                <p className="mt-1 flex items-center gap-1 text-[10px] leading-tight text-amber-600 dark:text-amber-400 midnight:text-amber-300">
-                  <Lock size={10} className="shrink-0" />
-                  <span>Presupuesto blindado: Para modificar el monto establecido, debes solicitar autorización al Administrador.</span>
-                </p>
-              )}
             </label>
 
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
@@ -718,19 +720,27 @@ export function EditProjectDialog({
                   <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
                 </span>
                 {!isAdmin && (
-                  <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-600 dark:bg-[#21262d] dark:text-slate-400">
-                    <Lock size={10} /> Asignado
+                  <span
+                    title="La reasignación de jefatura es gestionada exclusivamente por el Administrador."
+                    className="cursor-help text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                  >
+                    <Lock size={13} />
                   </span>
                 )}
               </span>
               <select
                 required
                 disabled={!isAdmin}
+                title={
+                  !isAdmin
+                    ? "La reasignación de jefatura es gestionada exclusivamente por el Administrador."
+                    : undefined
+                }
                 value={draft.leaderId}
                 onChange={changeField("leaderId")}
                 className={`${inputClass} ${
                   !isAdmin
-                    ? "cursor-not-allowed bg-slate-100 text-slate-500 dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
                     : ""
                 }`}
               >
@@ -740,11 +750,6 @@ export function EditProjectDialog({
                   </option>
                 ))}
               </select>
-              {!isAdmin && (
-                <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
-                  La reasignación de jefatura es gestionada exclusivamente por el Administrador.
-                </p>
-              )}
             </label>
 
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
