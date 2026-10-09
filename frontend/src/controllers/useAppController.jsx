@@ -558,6 +558,8 @@ export function useAppController() {
           query={portfolioQuery}
           onQueryChange={setPortfolioQuery}
           canManage={canManage}
+          isAdmin={isAdmin}
+          currentUser={displayedCurrentUser}
           currentUserName={displayedCurrentUser?.name}
         />
       );

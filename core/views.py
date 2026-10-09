@@ -477,21 +477,39 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
+        user = getattr(request, 'user', None)
+        is_admin_user = bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+        request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        if user and user.is_authenticated and not is_admin_user:
+            # Preservar presupuesto original
+            if 'budget' in request_data:
+                request_data['budget'] = instance.budget
+            if 'totalBudget' in request_data:
+                request_data['totalBudget'] = instance.budget
+            # Preservar líder original si ya tiene uno
+            first_m = instance.team_members.first()
+            if first_m:
+                request_data['leaderId'] = first_m.id
+
+        serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
-        # Actualizar asignación del líder técnico si fue modificado
-        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
-        if leader_val:
-            try:
-                from .models import TeamMember
-                leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                if leader:
-                    leader.project = project
-                    leader.save(update_fields=['project'])
-            except (ValueError, TypeError):
-                pass
+        # Actualizar asignación del líder técnico solo si el usuario es administrador (o cliente no autenticado de prueba)
+        if is_admin_user or not (user and user.is_authenticated):
+            leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+            if leader_val:
+                try:
+                    from .models import TeamMember
+                    leader = TeamMember.objects.filter(id=int(leader_val)).first()
+                    if leader:
+                        leader.project = project
+                        leader.save(update_fields=['project'])
+                except (ValueError, TypeError):
+                    pass
 
         # Enviar notificación automática a Make (Integromat)
         make_result = None
@@ -524,6 +542,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return Response(response_data)
 
     def destroy(self, request, *args, **kwargs):
+        # Regla de Gobernanza: Solo administradores pueden eliminar proyectos
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated and not (user.is_staff or user.is_superuser):
+            return Response(
+                {"message": "Solo el Administrador (Project Manager) puede eliminar proyectos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
         instance = self.get_object()
         project_data = {
             'id': instance.id,

@@ -162,6 +162,39 @@ class ProjectModelAndWorkflowTests(TestCase):
         self.assertEqual(call_kwargs.get("event"), "project.created")
         self.assertEqual(call_kwargs.get("data", {}).get("code"), "PRJ-2026-002")
 
+    def test_non_admin_cannot_delete_project_and_budget_is_protected(self):
+        project = Project.objects.create(
+            code="PRJ-2026-099",
+            name="Proyecto Protegido",
+            start_date="2026-01-01",
+            end_date="2026-06-01",
+            budget=500000.00,
+        )
+        non_admin_user = User.objects.create_user(
+            username="tecnico_user",
+            email="tecnico@empresa.com",
+            password="Password123!",
+            is_staff=False,
+            is_superuser=False,
+        )
+        self.client.force_authenticate(user=non_admin_user)
+
+        # 1. Intento de borrado por no-admin debe ser 403 Forbidden
+        delete_response = self.client.delete(f"/api/projects/{project.id}/")
+        self.assertEqual(delete_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Project.objects.filter(id=project.id).exists())
+
+        # 2. Intento de alterar presupuesto por no-admin: se preserva el monto original
+        patch_response = self.client.patch(
+            f"/api/projects/{project.id}/",
+            {"budget": 9999999.00, "name": "Nombre Modificado por Líder"},
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, status.HTTP_200_OK)
+        project.refresh_from_db()
+        self.assertEqual(project.name, "Nombre Modificado por Líder")
+        self.assertEqual(float(project.budget), 500000.00)
+
 
 class ProjectTimelineOptimizationTests(TestCase):
     """Pruebas del Motor de Tiempos y Optimización (Ruta Crítica, Divisor y Holgura 7d)."""
