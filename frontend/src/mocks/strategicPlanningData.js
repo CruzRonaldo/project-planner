@@ -11,6 +11,7 @@ export {
   formatMilestoneDate,
   createGlobalMilestone,
   adjustProjectSchedule,
+  mapToGanttProject,
 } from '../utils/strategicPlanning.js';
 
 import { milestoneValidators } from '../constants/strategicPlanning.js';

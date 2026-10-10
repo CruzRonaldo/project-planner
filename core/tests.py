@@ -338,3 +338,99 @@ class MakeServiceUnitTests(TestCase):
         )
         self.assertTrue(result["success"])
         self.assertEqual(result["status_code"], 200)
+
+
+class MilestoneStrategicPlanningTests(TestCase):
+    """Pruebas del Módulo de Planificación Estratégica e Hitos Globales (/api/milestones/)."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.project = Project.objects.create(
+            code="PRJ-2026-001",
+            name="Torre Reforma",
+            start_date="2026-01-01",
+            end_date="2026-06-30",
+            duration_months=6,
+            budget=1500000.00,
+        )
+        self.other_project = Project.objects.create(
+            code="PRJ-2026-002",
+            name="Puente Industrial",
+            start_date="2026-02-01",
+            end_date="2026-08-31",
+            duration_months=7,
+            budget=85000.00,
+        )
+
+    def test_create_milestone_with_frontend_aliases(self):
+        payload = {
+            "projectId": self.project.id,
+            "title": "Entrega Cimentación y Pilotes",
+            "targetDate": "2026-03-15",
+            "status": "pending",
+            "description": "Entrega y validación de la cimentación principal.",
+        }
+        response = self.client.post("/api/milestones/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.json()
+        self.assertEqual(data["title"], "Entrega Cimentación y Pilotes")
+        self.assertEqual(data["name"], "Entrega Cimentación y Pilotes")
+        self.assertEqual(data["projectId"], self.project.id)
+        self.assertEqual(data["targetDate"], "2026-03-15")
+        self.assertEqual(data["status"], "pending")
+        self.assertEqual(data["status_backend"], "PENDING")
+
+        milestone = Milestone.objects.get(id=data["id"])
+        self.assertEqual(milestone.name, "Entrega Cimentación y Pilotes")
+        self.assertEqual(milestone.status, "PENDING")
+
+    def test_filter_milestones_by_project(self):
+        Milestone.objects.create(
+            project=self.project,
+            name="Hito Proyecto 1",
+            target_date="2026-03-15",
+            status="PENDING",
+        )
+        Milestone.objects.create(
+            project=self.other_project,
+            name="Hito Proyecto 2",
+            target_date="2026-05-30",
+            status="IN_PROGRESS",
+        )
+
+        # Filtrar por project
+        response = self.client.get(f"/api/milestones/?project={self.project.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.json()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Hito Proyecto 1")
+        self.assertEqual(results[0]["project_code"], "PRJ-2026-001")
+
+    def test_update_milestone_status(self):
+        m = Milestone.objects.create(
+            project=self.project,
+            name="Hito Pendiente",
+            target_date="2026-06-15",
+            status="PENDING",
+        )
+        response = self.client.patch(
+            f"/api/milestones/{m.id}/",
+            {"status": "completed"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        m.refresh_from_db()
+        self.assertEqual(m.status, "COMPLETED")
+
+    def test_delete_milestone(self):
+        m = Milestone.objects.create(
+            project=self.project,
+            name="Hito Temporal",
+            target_date="2026-07-20",
+            status="PENDING",
+        )
+        response = self.client.delete(f"/api/milestones/{m.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Milestone.objects.filter(id=m.id).exists())
+
+
