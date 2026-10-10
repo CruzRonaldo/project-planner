@@ -22,6 +22,7 @@ import {
   Configuration,
 } from '../views';
 import projectsApi from '../services/projectsApi';
+import { mapToGanttProject } from '../utils/strategicPlanning';
 
 // Importamos datos mock aislados para visualización (se sustituirán con endpoints de Django)
 import {
@@ -99,14 +100,23 @@ export function useAppController() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('project_planner_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved || saved === 'null' || saved === 'undefined') return null;
+      const parsed = JSON.parse(saved);
+      return parsed && typeof parsed === 'object' ? parsed : null;
     } catch {
       return null;
     }
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('project_planner_user') !== null;
+    try {
+      const saved = localStorage.getItem('project_planner_user');
+      if (!saved || saved === 'null' || saved === 'undefined') return false;
+      const parsed = JSON.parse(saved);
+      return Boolean(parsed && typeof parsed === 'object');
+    } catch {
+      return false;
+    }
   });
 
   // Ruta normalizada del navegador
@@ -414,13 +424,25 @@ export function useAppController() {
     };
   }, []);
 
-  // Sincronizar proyectos reales de la Base de Datos globalmente desde el inicio
+  // Sincronizar proyectos reales e hitos de la Base de Datos globalmente desde el inicio
   useEffect(() => {
     let isMounted = true;
-    const syncBackendProjects = async () => {
+    const syncBackendData = async () => {
       try {
-        const backendProjects = await projectsApi.getProjects();
-        if (isMounted && Array.isArray(backendProjects)) {
+        const [backendProjects, backendMilestones] = await Promise.all([
+          projectsApi.getProjects().catch((err) => {
+            console.error('Error al sincronizar proyectos de la Base de Datos:', err);
+            return null;
+          }),
+          projectsApi.getMilestones().catch((err) => {
+            console.warn('Error al sincronizar hitos de la Base de Datos:', err);
+            return null;
+          }),
+        ]);
+
+        if (!isMounted) return;
+
+        if (Array.isArray(backendProjects) && backendProjects.length > 0) {
           const mapped = backendProjects.map((bp) => ({
             id: bp.id,
             code: bp.code,
@@ -439,20 +461,59 @@ export function useAppController() {
             description: bp.description || '',
             members: bp.members || ['PM'],
           }));
+
           setPortfolioData((prev) => ({
             ...prev,
             projects: mapped,
           }));
+
+          // Sincronizar Calendario Maestro (Gantt)
+          const mappedGanttProjects = mapped.map((p) => mapToGanttProject(p));
+
+          const mappedMilestones = Array.isArray(backendMilestones) && backendMilestones.length > 0
+            ? backendMilestones.map((bm) => ({
+                id: bm.id,
+                projectId: bm.project ?? bm.projectId,
+                title: bm.name ?? bm.title,
+                targetDate: bm.target_date ?? bm.targetDate,
+                status: (bm.status || 'pending').toLowerCase(),
+                validator: bm.validator || 'Carlos M. (Project Manager)',
+                description: bm.description || '',
+                blocking: bm.blocking !== undefined ? bm.blocking : true,
+              }))
+            : [];
+
+          setStrategicPlanningData((prev) => ({
+            ...prev,
+            projects: mappedGanttProjects,
+            milestones: mappedMilestones.length > 0 ? mappedMilestones : prev.milestones,
+          }));
         }
       } catch (err) {
-        console.error('Error al sincronizar proyectos de la Base de Datos:', err);
+        console.error('Error al sincronizar datos de la Base de Datos:', err);
       }
     };
-    syncBackendProjects();
+    syncBackendData();
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Mantener el Calendario Maestro sincronizado si se añade o actualiza un proyecto en Portafolio
+  useEffect(() => {
+    if (portfolioData?.projects && portfolioData.projects.length > 0) {
+      setStrategicPlanningData((prev) => {
+        const updatedGantt = portfolioData.projects.map((p) => {
+          const existing = prev.projects?.find((ep) => String(ep.id) === String(p.id) || ep.code === p.code);
+          return mapToGanttProject(p, existing);
+        });
+        return {
+          ...prev,
+          projects: updatedGantt,
+        };
+      });
+    }
+  }, [portfolioData.projects]);
 
   useEffect(() => {
     window.localStorage.setItem('project-planner-users', JSON.stringify(users));
@@ -558,6 +619,8 @@ export function useAppController() {
           query={portfolioQuery}
           onQueryChange={setPortfolioQuery}
           canManage={canManage}
+          isAdmin={isAdmin}
+          currentUser={displayedCurrentUser}
           currentUserName={displayedCurrentUser?.name}
         />
       );

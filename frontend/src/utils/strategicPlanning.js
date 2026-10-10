@@ -20,10 +20,78 @@ export function formatMilestoneDate(targetDate) {
   return `Programado para el ${String(date.getDate()).padStart(2, '0')} ${month.charAt(0).toUpperCase()}${month.slice(1)}`;
 }
 
+export function mapToGanttProject(p, existing = null) {
+  const areaColors = {
+    'Arquitectura': '#24559a',
+    'Edificaciones Comerciales': '#24559a',
+    'Estructuras': '#2bc55f',
+    'Infraestructura Vial': '#2bc55f',
+    'Civil': '#2bc55f',
+    'Sistemas': '#a679ed',
+    'Retail & Ocio': '#a679ed',
+    'Vivienda Multifamiliar': '#568fdf',
+    'Equipamiento Social': '#ff9800',
+    'Logística & Producción': '#2bc55f',
+  };
+
+  const sDateStr = p.startDate || p.start_date;
+  const eDateStr = p.endDate || p.end_date;
+
+  let start = existing?.start ?? 1;
+  let duration = existing?.duration ?? 3;
+
+  if (!existing?.start && sDateStr) {
+    const parsedStart = new Date(`${sDateStr.slice(0, 10)}T00:00:00`);
+    if (!isNaN(parsedStart.getTime())) {
+      start = parsedStart.getMonth() + 1;
+    }
+  }
+
+  if (!existing?.duration && eDateStr) {
+    const parsedEnd = new Date(`${eDateStr.slice(0, 10)}T00:00:00`);
+    if (!isNaN(parsedEnd.getTime())) {
+      const endMonth = parsedEnd.getMonth() + 1;
+      if (parsedEnd.getFullYear() === 2026) {
+        duration = Math.max(1, endMonth - start + 1);
+      } else if (parsedEnd.getFullYear() > 2026) {
+        duration = Math.max(1, 13 - start);
+      }
+    }
+  } else if (!existing?.duration && p.duration_months) {
+    duration = Number(p.duration_months);
+  }
+
+  start = Math.max(1, Math.min(12, start));
+  duration = Math.max(1, Math.min(13 - start, duration));
+
+  const totalBudget = Number(p.totalBudget ?? p.budget ?? 0);
+  const usedBudget = Number(p.usedBudget ?? 0);
+  const isAbove100k = totalBudget > 100000;
+
+  return {
+    id: p.id,
+    code: p.code || 'PRJ-2026',
+    name: p.name,
+    area: p.area || 'Edificaciones Comerciales',
+    start,
+    duration,
+    period: formatPlanningPeriod(start, duration),
+    color: existing?.color || areaColors[p.area] || '#24559a',
+    totalBudget,
+    budget: totalBudget,
+    usedBudget,
+    status: p.status || 'planning',
+    startDate: sDateStr,
+    endDate: eDateStr,
+    isAbove100k,
+    approvalType: isAbove100k ? 'Revisión por Comité Directivo' : 'Aprobación Líder Técnico',
+  };
+}
+
 export function createGlobalMilestone(data, draft, date = new Date()) {
   const projects = data?.projects || [];
   const milestones = data?.milestones || [];
-  const project = projects.find((item) => item.id === draft.projectId);
+  const project = projects.find((item) => String(item.id) === String(draft.projectId));
   const title = draft.title?.trim() ?? '';
   const description = draft.description?.trim() ?? '';
   if (!project) throw new Error('Selecciona un proyecto asociado válido.');
@@ -33,7 +101,7 @@ export function createGlobalMilestone(data, draft, date = new Date()) {
   if (!milestoneValidators.includes(draft.validator)) throw new Error('Selecciona un responsable de validación válido.');
   if (description.length < 10) throw new Error('Describe los entregables clave del hito.');
   const milestone = {
-    id: `milestone-${date.getTime()}-${milestones.length}`,
+    id: draft.id || `milestone-${date.getTime()}-${milestones.length}`,
     projectId: project.id,
     title,
     targetDate: draft.targetDate,
@@ -48,7 +116,7 @@ export function createGlobalMilestone(data, draft, date = new Date()) {
 export function adjustProjectSchedule(data, draft, date = new Date()) {
   const projects = data?.projects || [];
   const adjustments = data?.adjustments || [];
-  const project = projects.find((item) => item.id === draft.projectId);
+  const project = projects.find((item) => String(item.id) === String(draft.projectId));
   if (!project) throw new Error('Selecciona un proyecto válido.');
   const start = Number(draft.start);
   const duration = Number(draft.duration);
@@ -71,7 +139,8 @@ export function adjustProjectSchedule(data, draft, date = new Date()) {
   };
   return {
     ...data,
-    projects: projects.map((item) => item.id === project.id ? { ...item, start, duration, period: nextPeriod } : item),
+    projects: projects.map((item) => String(item.id) === String(project.id) ? { ...item, start, duration, period: nextPeriod } : item),
     adjustments: [adjustment, ...adjustments],
   };
 }
+

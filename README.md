@@ -209,8 +209,9 @@ El proyecto incluye especificaciones completas de negocio, flujos y arquitectura
 1. **[`01. Flujo de Negocio y Procesos (Mermaid).md`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/01.%20Flujo%20de%20Negocio%20y%20Procesos%20%28Mermaid%29.md):** Modelado visual del ciclo de vida, regla de aprobación ($100k) y disparadores de Make.
 2. **[`02. Documentación API y Endpoints.md`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/02.%20Documentaci%C3%B3n%20API%20y%20Endpoints.md):** Catálogo integral de endpoints REST, métodos HTTP y parámetros.
 3. **[`03. Documentación Frontend.md`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/03.%20Documentaci%C3%B3n%20Frontend.md):** Arquitectura por capas, modelo RBAC y suites de pruebas unitarias.
-4. **[`docs/assets/Diagrama Entidad.png`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/assets/Diagrama%20Entidad.png):** Diagrama físico entidad-relación de la base de datos PostgreSQL.
-5. **[`/docs/pdf/`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/pdf):** Documentación técnica y diagramas originales listos para impresión.
+4. **[`04. Matriz de Historias de Usuario (HU).md`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/04.%20Matriz%20de%20Historias%20de%20Usuario%20%28HU%29.md):** Matriz de Historias de Usuario (HU-01 a HU-12), criterios Gherkin y trazabilidad DoD.
+5. **[`docs/assets/Diagrama Entidad.png`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/assets/Diagrama%20Entidad.png):** Diagrama físico entidad-relación de la base de datos PostgreSQL.
+6. **[`/docs/pdf/`](file:///home/ronaldo/Documentos/GitHub/PROJECT%20PLANNER/project-planner/docs/pdf):** Documentación técnica y diagramas originales listos para impresión.
 
 ### 🔮 ¿Cómo abrir la documentación en Obsidian?
 Si utilizas **Obsidian**, puedes abrir y navegar esta documentación de forma nativa:

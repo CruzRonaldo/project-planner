@@ -4,6 +4,7 @@ import {
   Cloud,
   ExternalLink,
   FolderPlus,
+  Lock,
   Pencil,
   Save,
   Trash2,
@@ -47,15 +48,22 @@ function isoDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function ProjectCard({ project, onEdit, onDelete, canManage }) {
+function ProjectCard({ project, onEdit, onDelete, canManage, isProjectLeader }) {
   const status = statusDetails(project.status);
   return (
     <article className={`${cardClass} p-5`}>
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-blue-400 midnight:text-cyan-400">
-            {project.code}
-          </p>
+          <div className="mb-1 flex items-center gap-2">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-blue-400 midnight:text-cyan-400">
+              {project.code}
+            </p>
+            {isProjectLeader && (
+              <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300 midnight:bg-cyan-900/50 midnight:text-cyan-200">
+                Tu Liderazgo
+              </span>
+            )}
+          </div>
           <h2 className="truncate text-base font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
             {project.name}
           </h2>
@@ -69,7 +77,7 @@ function ProjectCard({ project, onEdit, onDelete, canManage }) {
           >
             {status.label}
           </span>
-          {canManage && onEdit && (
+          {onEdit && (
             <button
               type="button"
               onClick={() => onEdit(project)}
@@ -80,13 +88,13 @@ function ProjectCard({ project, onEdit, onDelete, canManage }) {
               <Pencil size={13} />
             </button>
           )}
-          {canManage && onDelete && (
+          {onDelete && (
             <button
               type="button"
               onClick={() => onDelete(project)}
               aria-label={`Eliminar ${project.name}`}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-red-400/50 hover:bg-red-50 hover:text-red-600 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-red-900/30 midnight:hover:text-red-300"
-              title="Eliminar proyecto"
+              title="Eliminar proyecto (Solo Administrador)"
             >
               <Trash2 size={13} />
             </button>
@@ -491,6 +499,7 @@ export function EditProjectDialog({
   onSubmit,
   onClose,
   teamMembers = [],
+  isAdmin = false,
 }) {
   const leadersList =
     teamMembers.length > 0
@@ -536,8 +545,11 @@ export function EditProjectDialog({
   const submit = async (event) => {
     event.preventDefault();
     setError("");
-    const numericBudget = Number(draft.totalBudget);
-    if (!draft.totalBudget || isNaN(numericBudget) || numericBudget <= 0) {
+    const numericBudget = !isAdmin
+      ? Number(project.totalBudget ?? 0)
+      : Number(draft.totalBudget);
+
+    if (isAdmin && (!draft.totalBudget || isNaN(numericBudget) || numericBudget <= 0)) {
       setError("El presupuesto total debe ser un monto mayor a 0.");
       return;
     }
@@ -550,6 +562,7 @@ export function EditProjectDialog({
     try {
       await onSubmit(project.id, {
         ...draft,
+        leaderId: !isAdmin ? (project.leaderId || draft.leaderId) : draft.leaderId,
         totalBudget: numericBudget,
       });
     } catch (submitError) {
@@ -623,18 +636,40 @@ export function EditProjectDialog({
             </label>
 
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Presupuesto total (S/){" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+              <span className="flex items-center justify-between">
+                <span>
+                  Presupuesto total (S/){" "}
+                  <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+                </span>
+                {!isAdmin && (
+                  <span
+                    title="Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
+                    className="cursor-help text-slate-400 transition-colors hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400"
+                  >
+                    <Lock size={13} />
+                  </span>
+                )}
+              </span>
               <input
                 type="number"
                 min="0"
                 step="any"
                 required
+                disabled={!isAdmin}
+                title={
+                  !isAdmin
+                    ? "Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
+                    : undefined
+                }
                 value={draft.totalBudget}
                 onKeyDown={handleKeyDownBudget}
                 onChange={handleBudgetChange}
                 placeholder="Ej. 1500000"
-                className={inputClass}
+                className={`${inputClass} ${
+                  !isAdmin
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
+                    : ""
+                }`}
               />
             </label>
 
@@ -679,13 +714,35 @@ export function EditProjectDialog({
             </label>
 
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Líder de obra{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+              <span className="flex items-center justify-between">
+                <span>
+                  Líder de obra{" "}
+                  <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+                </span>
+                {!isAdmin && (
+                  <span
+                    title="La reasignación de jefatura es gestionada exclusivamente por el Administrador."
+                    className="cursor-help text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                  >
+                    <Lock size={13} />
+                  </span>
+                )}
+              </span>
               <select
                 required
+                disabled={!isAdmin}
+                title={
+                  !isAdmin
+                    ? "La reasignación de jefatura es gestionada exclusivamente por el Administrador."
+                    : undefined
+                }
                 value={draft.leaderId}
                 onChange={changeField("leaderId")}
-                className={inputClass}
+                className={`${inputClass} ${
+                  !isAdmin
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
+                    : ""
+                }`}
               >
                 {leadersList.map((leader) => (
                   <option key={leader.id} value={leader.id}>
@@ -871,6 +928,8 @@ export default function Portfolio({
   query = "",
   onQueryChange,
   canManage = false,
+  isAdmin = false,
+  currentUser = null,
   currentUserName = "",
 }) {
   const [activeFilter, setActiveFilter] = useState("all");
@@ -1264,15 +1323,29 @@ export default function Portfolio({
         <section aria-live="polite">
           {visible.projects.length ? (
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              {visible.projects.map((project) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  onEdit={setEditingProject}
-                  onDelete={setDeletingProject}
-                  canManage={canManage}
-                />
-              ))}
+              {visible.projects.map((project) => {
+                const isProjectLeader = Boolean(
+                  currentUser && (
+                    (project.leaderEmail && currentUser.email && project.leaderEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+                    (project.leaderId && (String(project.leaderId) === String(currentUser.id) || String(project.leaderId) === String(currentUser.db_id))) ||
+                    (project.leaderName && currentUser.name && project.leaderName.toLowerCase() === currentUser.name.toLowerCase())
+                  )
+                );
+                const canEditProject = isAdmin || canManage || isProjectLeader;
+                const canDeleteProject = isAdmin;
+
+                return (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onEdit={canEditProject ? () => setEditingProject(project) : undefined}
+                    onDelete={canDeleteProject ? () => setDeletingProject(project) : undefined}
+                    canManage={canEditProject}
+                    isAdmin={isAdmin}
+                    isProjectLeader={isProjectLeader}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div
@@ -1348,15 +1421,16 @@ export default function Portfolio({
           teamMembers={teamMembers}
         />
       )}
-      {editingProject && canManage && (
+      {editingProject && (
         <EditProjectDialog
           project={editingProject}
           onSubmit={updateProject}
           onClose={() => setEditingProject(null)}
           teamMembers={teamMembers}
+          isAdmin={isAdmin}
         />
       )}
-      {deletingProject && canManage && (
+      {deletingProject && isAdmin && (
         <ConfirmDeleteDialog
           project={deletingProject}
           onConfirm={deleteProject}

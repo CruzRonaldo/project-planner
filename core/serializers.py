@@ -101,6 +101,26 @@ class TeamMemberSerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}"
 
 
+STATUS_TO_BACKEND_MILESTONE = {
+    'pending': 'PENDING',
+    'upcoming': 'IN_PROGRESS',
+    'in_progress': 'IN_PROGRESS',
+    'completed': 'COMPLETED',
+    'delayed': 'DELAYED',
+    'PENDING': 'PENDING',
+    'IN_PROGRESS': 'IN_PROGRESS',
+    'COMPLETED': 'COMPLETED',
+    'DELAYED': 'DELAYED',
+}
+
+STATUS_TO_FRONTEND_MILESTONE = {
+    'PENDING': 'pending',
+    'IN_PROGRESS': 'upcoming',
+    'COMPLETED': 'completed',
+    'DELAYED': 'delayed',
+}
+
+
 class MilestoneSerializer(serializers.ModelSerializer):
     """
     Serializador para los hitos del proyecto (Módulo Estratégico)
@@ -116,6 +136,33 @@ class MilestoneSerializer(serializers.ModelSerializer):
             'completed_date',
             'status',
         ]
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'title' in data and 'name' not in data:
+            data['name'] = data['title']
+        if 'projectId' in data and 'project' not in data:
+            data['project'] = data['projectId']
+        if 'targetDate' in data and 'target_date' not in data:
+            data['target_date'] = data['targetDate']
+        raw_status = data.get('status')
+        if raw_status:
+            data['status'] = STATUS_TO_BACKEND_MILESTONE.get(str(raw_status).lower(), str(raw_status).upper())
+        return super().to_internal_value(data)
+
+    def to_representation(self, obj):
+        rep = super().to_representation(obj)
+        rep['title'] = obj.name
+        rep['projectId'] = obj.project_id
+        rep['targetDate'] = str(obj.target_date) if obj.target_date else None
+        rep['status_backend'] = obj.status
+        rep['status'] = STATUS_TO_FRONTEND_MILESTONE.get(obj.status, 'pending')
+        rep['project_code'] = obj.project.code if obj.project else ''
+        rep['project_name'] = obj.project.name if obj.project else ''
+        rep['validator'] = 'Carlos M. (Project Manager)'
+        rep['blocking'] = True
+        return rep
+
 
 
 class TaskSerializer(serializers.ModelSerializer):

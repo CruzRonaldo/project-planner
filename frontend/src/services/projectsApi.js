@@ -52,6 +52,41 @@ export const projectsApi = {
   },
 
   /**
+   * Obtiene la lista de hitos estratégicos registrados en la base de datos.
+   * Permite filtrar por ID de proyecto opcional.
+   */
+  getMilestones: async (projectId = null) => {
+    const params = projectId ? { project: projectId } : {};
+    const response = await api.get('/milestones/', { params });
+    return response.data;
+  },
+
+  /**
+   * Registra un nuevo hito global/estratégico en el Backend.
+   */
+  createMilestone: async (milestoneData) => {
+    const response = await api.post('/milestones/', milestoneData);
+    return response.data;
+  },
+
+  /**
+   * Actualiza parcialmente un hito estratégico existente (PATCH).
+   */
+  updateMilestone: async (id, milestoneData) => {
+    const response = await api.patch(`/milestones/${id}/`, milestoneData);
+    return response.data;
+  },
+
+  /**
+   * Elimina un hito estratégico por ID (DELETE).
+   */
+  deleteMilestone: async (id) => {
+    const response = await api.delete(`/milestones/${id}/`);
+    return response.data;
+  },
+
+
+  /**
    * Obtiene la lista de miembros y líderes del equipo registrados en la Base de Datos.
    */
   getTeamMembers: async () => {

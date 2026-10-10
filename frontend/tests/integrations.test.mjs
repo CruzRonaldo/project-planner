@@ -79,7 +79,7 @@ test('La vista conserva el fondo oscuro, se adapta a búsqueda y no usa modal de
     for (const title of ['Integraciones', 'Registro de Actividad de Integraciones', 'Estado General', 'Actividad de Peticiones (API)', 'SLA y Mantenimiento']) assert.ok(html.includes(title));
     assert.match(html, /<main class="[^"]*bg-\[#0d1117\]/);
     assert.equal((html.match(/aria-label="Configurar /g) ?? []).length, 3);
-    assert.ok(html.includes('Datos de demostración'));
+    assert.ok(html.includes('Google Drive real · Otras integraciones en demostración'));
 
     const searched = renderToStaticMarkup(React.createElement(ToastProvider, null, React.createElement(Integrations, { ...props, query: 'Make' })));
     assert.equal((searched.match(/aria-label="Configurar /g) ?? []).length, 1);

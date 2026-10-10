@@ -58,3 +58,61 @@ html, body, #root {
     font-size: 1.75rem !important;
   }
 }
+
+/* ==========================================================
+   ESTILOS DE EXPORTACIÓN Y VISTA DE IMPRESIÓN (PDF)
+   ========================================================== */
+@media print {
+  @page {
+    size: landscape;
+    margin: 8mm 10mm;
+  }
+
+  html, body, #root {
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar elementos de navegación general y botones de acción en impresión */
+  aside,
+  header:not(.print-header),
+  nav,
+  .no-print,
+  button:not(.print-include),
+  [role="alert"] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+  }
+
+  /* Evitar recortes por desbordamiento en contenedores con scroll */
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+  }
+
+  /* Preservar colores y fondos exactos en Gantt y Badges */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+

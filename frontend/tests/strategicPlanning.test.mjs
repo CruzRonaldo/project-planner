@@ -122,3 +122,71 @@ test('Planificación contiene calendario, acciones restringidas, hitos, presupue
     await server.close();
   }
 });
+
+test('El Gantt renderiza marcadores visuales de hitos y la regla de gobernanza $100k', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: StrategicPlanning } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
+    const { mapToGanttProject } = await server.ssrLoadModule('/src/utils/strategicPlanning.js');
+
+    const dbProjectHigh = {
+      id: 1,
+      code: 'PRJ-2026-LOC',
+      name: 'Edificio Central Miraflores',
+      area: 'Arquitectura',
+      totalBudget: 450000,
+      startDate: '2026-10-01',
+      endDate: '2027-04-01',
+    };
+    const mappedHigh = mapToGanttProject(dbProjectHigh);
+    assert.equal(mappedHigh.start, 10);
+    assert.equal(mappedHigh.duration, 3);
+    assert.equal(mappedHigh.isAbove100k, true);
+    assert.equal(mappedHigh.approvalType, 'Revisión por Comité Directivo');
+
+    const dbProjectLow = {
+      id: 2,
+      code: 'PRJ-2026-MIN',
+      name: 'Remodelación Oficinas',
+      area: 'Sistemas',
+      totalBudget: 45000,
+      startDate: '2026-03-01',
+      endDate: '2026-06-30',
+    };
+    const mappedLow = mapToGanttProject(dbProjectLow);
+    assert.equal(mappedLow.start, 3);
+    assert.equal(mappedLow.duration, 4);
+    assert.equal(mappedLow.isAbove100k, false);
+    assert.equal(mappedLow.approvalType, 'Aprobación Líder Técnico');
+
+    const testData = {
+      projects: [mappedHigh, mappedLow],
+      milestones: [
+        {
+          id: 1,
+          projectId: 1,
+          title: 'Entrega Expediente BIM',
+          targetDate: '2026-10-25',
+          status: 'completed',
+        },
+        {
+          id: 2,
+          projectId: 1,
+          title: 'Vaciado Estructural',
+          targetDate: '2026-12-15',
+          status: 'upcoming',
+        },
+      ],
+      adjustments: [],
+    };
+
+    const html = renderToStaticMarkup(React.createElement(StrategicPlanning, { data: testData, canManage: true }));
+    assert.ok(html.includes('Comité (&gt;$100k)'));
+    assert.ok(html.includes('Líder (≤$100k)'));
+    assert.ok(html.includes('aria-label="Hito: Entrega Expediente BIM"'));
+    assert.ok(html.includes('aria-label="Hito: Vaciado Estructural"'));
+  } finally {
+    await server.close();
+  }
+});
+

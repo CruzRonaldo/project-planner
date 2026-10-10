@@ -27,7 +27,7 @@ export default function App() {
   // Si está autenticado: Mostramos el Dashboard completo
   if (isAuthenticated) {
     return (
-      <div className="flex h-screen font-sans overflow-hidden animate-in fade-in duration-1000 transition-colors bg-slate-50 text-slate-900 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50">
+      <div className="flex h-screen font-sans overflow-hidden animate-in fade-in duration-1000 transition-colors bg-slate-50 text-slate-900 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 print:h-auto print:overflow-visible print:bg-white print:text-slate-900">
         <Sidebar
           items={allowedSidebarItems}
           activeView={activeView}
@@ -35,7 +35,7 @@ export default function App() {
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
-        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-0">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-0 print:h-auto print:overflow-visible">
           <Topbar
             activeView={activeView}
             searchPlaceholder={searchPlaceholder}
