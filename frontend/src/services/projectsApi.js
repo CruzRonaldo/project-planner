@@ -150,6 +150,57 @@ export const projectsApi = {
     const response = await api.get('/notifications/', { params });
     return response.data;
   },
+
+  /**
+   * Cambia la contraseña del usuario validando su clave actual en la Base de Datos.
+   */
+  changePassword: async ({ identifier, userId, currentPassword, newPassword, confirmPassword }) => {
+    const response = await api.post('/auth/change-password/', {
+      identifier,
+      user_id: userId,
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
+    return response.data;
+  },
+
+  /**
+   * Actualiza la foto de perfil, correo electrónico y datos de contacto en la Base de Datos.
+   */
+  updateProfile: async ({ userId, identifier, name, email, photo, phone }) => {
+    const response = await api.patch('/auth/profile/', {
+      userId,
+      identifier,
+      name,
+      email,
+      photo,
+      avatar: photo,
+      phone,
+    });
+    return response.data;
+  },
+
+  /**
+   * Obtiene la bitácora de auditoría de seguridad para supervisión del Administrador.
+   */
+  getAuditLogs: async () => {
+    const response = await api.get('/auth/audit-logs/');
+    return response.data;
+  },
+
+  /**
+   * Obtiene el perfil (foto, teléfono, nombre) desde la Base de Datos.
+   */
+  getProfile: async ({ userId, identifier }) => {
+    const response = await api.get('/auth/profile/', {
+      params: {
+        userId,
+        identifier,
+      },
+    });
+    return response.data;
+  },
 };
 
 export default projectsApi;

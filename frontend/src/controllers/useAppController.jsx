@@ -32,50 +32,8 @@ import {
   createTechnicalTeamData,
   createHumanResourcesData,
   createIntegrationsData,
+  initialUsers,
 } from '../mocks';
-
-const initialUsers = [
-  {
-    id: 'usr-admin',
-    db_id: 4,
-    username: 'Admin',
-    name: 'Admin',
-    email: 'admin@gmail.com',
-    isAdmin: true,
-    isSubAdmin: false,
-    isOnline: true,
-  },
-  {
-    id: 'usr-sistemas',
-    db_id: 1,
-    username: 'sistemas',
-    name: 'Luis Gonzales (Sistemas)',
-    email: 'sistemas@projectplanner.com',
-    isAdmin: false,
-    isSubAdmin: false,
-    isOnline: false,
-  },
-  {
-    id: 'usr-civil',
-    db_id: 2,
-    username: 'civil',
-    name: 'Andrea Rojas (Civil)',
-    email: 'civil@projectplanner.com',
-    isAdmin: false,
-    isSubAdmin: false,
-    isOnline: false,
-  },
-  {
-    id: 'usr-arquitectura',
-    db_id: 3,
-    username: 'arquitectura',
-    name: 'Carlos Mendoza (Arquitectura)',
-    email: 'arquitectura@projectplanner.com',
-    isAdmin: false,
-    isSubAdmin: false,
-    isOnline: false,
-  },
-];
 
 function createNameFromEmail(email) {
   const baseName = email
@@ -237,17 +195,16 @@ export function useAppController() {
       return [];
     }
     try {
-      const savedUsers = window.localStorage.getItem('project-planner-users');
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
+      const savedUsers = storage ? storage.getItem('project-planner-users') : null;
       const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
-      const validUserIds = ['usr-admin', 'usr-sistemas', 'usr-civil', 'usr-arquitectura'];
       if (
         Array.isArray(parsedUsers) &&
-        parsedUsers.length === 4 &&
-        parsedUsers.every((u) => validUserIds.includes(u.id))
+        parsedUsers.length >= 4 &&
+        parsedUsers.every((u) => u && typeof u === 'object' && u.name)
       ) {
         return parsedUsers;
       }
-      window.localStorage.removeItem('project-planner-users');
       return initialUsers;
     } catch {
       return initialUsers;
@@ -255,14 +212,22 @@ export function useAppController() {
   });
 
   const [fontScale, setFontScale] = useState(() => {
-    const savedScale = Number(
-      window.localStorage.getItem('project-planner-font-scale')
-    );
-    return savedScale >= 85 && savedScale <= 120 ? savedScale : 100;
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
+      const savedScale = Number(storage ? storage.getItem('project-planner-font-scale') : 100);
+      return savedScale >= 85 && savedScale <= 120 ? savedScale : 100;
+    } catch {
+      return 100;
+    }
   });
 
   const [theme, setTheme] = useState(() => {
-    return window.localStorage.getItem('project-planner-theme') || 'dark';
+    try {
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
+      return (storage && storage.getItem('project-planner-theme')) || 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   const registeredCurrentUser = useMemo(() => {
@@ -280,12 +245,20 @@ export function useAppController() {
     if (!currentUser) return null;
     return {
       ...currentUser,
-      name: currentUser.first_name
-        ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
-        : currentUser.username ||
-          registeredCurrentUser?.name ||
-          currentUser.name ||
-          'Usuario',
+      photo:
+        currentUser.photo ||
+        currentUser.avatar ||
+        registeredCurrentUser?.avatar ||
+        registeredCurrentUser?.photo ||
+        null,
+      phone: currentUser.phone || registeredCurrentUser?.phone || '',
+      name:
+        currentUser.name ||
+        (currentUser.first_name
+          ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
+          : currentUser.username ||
+            registeredCurrentUser?.name ||
+            'Usuario'),
       roleLabel:
         currentUser.role === USER_ROLES.ADMIN ||
         currentUser.is_superuser ||
@@ -337,16 +310,49 @@ export function useAppController() {
           ? USER_ROLES.ADMIN
           : USER_ROLES.USER;
 
+      const identifier = (userData?.email || userData?.username || '').toLowerCase();
+      let cachedProfile = null;
+      try {
+        const raw = localStorage.getItem(`project_planner_profile_${identifier}`);
+        if (raw) cachedProfile = JSON.parse(raw);
+      } catch {}
+
+      const userPhoto =
+        userData?.photo ||
+        userData?.avatar ||
+        cachedProfile?.photo ||
+        cachedProfile?.avatar ||
+        null;
+      const userPhone = userData?.phone || cachedProfile?.phone || '';
+
       const userToSave = {
         ...userData,
         accountType,
+        photo: userPhoto,
+        avatar: userPhoto,
+        phone: userPhone,
         name:
-          userData?.username ||
-          (userData?.email ? createNameFromEmail(userData.email) : 'Usuario'),
+          userData?.name ||
+          cachedProfile?.name ||
+          (userData?.first_name
+            ? `${userData.first_name} ${userData.last_name || ''}`.trim()
+            : userData?.username ||
+              (userData?.email ? createNameFromEmail(userData.email) : 'Usuario')),
       };
 
       try {
         localStorage.setItem('project_planner_user', JSON.stringify(userToSave));
+        if (identifier) {
+          localStorage.setItem(
+            `project_planner_profile_${identifier}`,
+            JSON.stringify({
+              photo: userPhoto,
+              avatar: userPhoto,
+              phone: userPhone,
+              name: userToSave.name,
+            })
+          );
+        }
       } catch {}
 
       setCurrentUser(userToSave);
@@ -368,6 +374,89 @@ export function useAppController() {
       );
     });
   }, []);
+
+  const handleAddMember = useCallback((newMember) => {
+    setUsers((currentUsers) => [newMember, ...currentUsers]);
+  }, []);
+
+  const handleUpdateCurrentUser = useCallback((updatedData) => {
+    setCurrentUser((prev) => {
+      const merged = { ...prev, ...updatedData };
+      try {
+        localStorage.setItem('project_planner_user', JSON.stringify(merged));
+        const identifier = (merged.email || merged.username || '').toLowerCase();
+        if (identifier) {
+          localStorage.setItem(
+            `project_planner_profile_${identifier}`,
+            JSON.stringify({
+              photo: merged.photo,
+              avatar: merged.avatar,
+              phone: merged.phone,
+              name: merged.name,
+            })
+          );
+        }
+      } catch (err) {
+        console.error('Error saving user to localStorage:', err);
+      }
+      return merged;
+    });
+
+    // Guardar en la Base de Datos mediante API de Django
+    if (currentUser) {
+      const activeId = currentUser.db_id || currentUser.id;
+      const activeIdentifier = currentUser.email || currentUser.username;
+      projectsApi
+        .updateProfile({
+          userId: activeId,
+          identifier: activeIdentifier,
+          name: updatedData.name,
+          email: updatedData.email,
+          photo: updatedData.photo !== undefined ? updatedData.photo : currentUser.photo,
+          phone: updatedData.phone !== undefined ? updatedData.phone : currentUser.phone,
+        })
+        .catch((err) => {
+          console.warn('Sincronización de perfil en BD:', err);
+        });
+    }
+
+    if (
+      updatedData.name ||
+      updatedData.email ||
+      updatedData.photo !== undefined ||
+      updatedData.avatar !== undefined ||
+      updatedData.phone !== undefined
+    ) {
+      setUsers((prevUsers) => {
+        const nextUsers = prevUsers.map((u) => {
+          if (
+            (currentUser?.id && u.id === currentUser.id) ||
+            (currentUser?.email &&
+              u.email &&
+              u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+            (currentUser?.username &&
+              u.username &&
+              u.username.toLowerCase() === currentUser.username.toLowerCase())
+          ) {
+            return {
+              ...u,
+              ...(updatedData.name ? { name: updatedData.name } : {}),
+              ...(updatedData.email ? { email: updatedData.email } : {}),
+              ...(updatedData.photo !== undefined
+                ? { avatar: updatedData.photo, photo: updatedData.photo }
+                : {}),
+              ...(updatedData.phone !== undefined ? { phone: updatedData.phone } : {}),
+            };
+          }
+          return u;
+        });
+        try {
+          localStorage.setItem('project-planner-users', JSON.stringify(nextUsers));
+        } catch {}
+        return nextUsers;
+      });
+    }
+  }, [currentUser]);
 
   const handleLogout = useCallback(() => {
     // 1. Notificar al backend de forma asíncrona sin bloquear la UI
@@ -398,6 +487,38 @@ export function useAppController() {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Sincronización de sesión en tiempo real entre múltiples pestañas (Cross-Tab Session Sync)
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key !== 'project_planner_user' && event.key !== null) return;
+
+      if (!event.newValue) {
+        // Sesión cerrada o removida en otra pestaña: desalojar memoria y volver a login de inmediato
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+        navigate('/login', { replace: true });
+      } else {
+        // Sesión cambiada/iniciada en otra pestaña: sincronizar usuario activo en tiempo real
+        try {
+          const updatedUser = JSON.parse(event.newValue);
+          if (updatedUser && typeof updatedUser === 'object') {
+            setCurrentUser(updatedUser);
+            setIsAuthenticated(true);
+          }
+        } catch {
+          setCurrentUser(null);
+          setIsAuthenticated(false);
+          navigate('/login', { replace: true });
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [navigate]);
 
   // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde la Base de Datos al recargar la app
   useEffect(() => {
@@ -686,9 +807,11 @@ export function useAppController() {
       return (
         <Configuration
           currentUser={displayedCurrentUser}
+          onUpdateCurrentUser={handleUpdateCurrentUser}
           fontScale={fontScale}
           setFontScale={setFontScale}
           users={users}
+          onAddMember={handleAddMember}
           theme={theme}
           setTheme={setTheme}
         />
@@ -727,6 +850,8 @@ export function useAppController() {
     isAdmin,
     displayedCurrentUser,
     handleToggleSubAdmin,
+    handleAddMember,
+    handleUpdateCurrentUser,
     fontScale,
     theme,
   ]);

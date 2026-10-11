@@ -71,7 +71,7 @@ export default function Sidebar({ items = mainItems, activeView, onNavigate, isO
                   disabled={item.enabled === false}
                   onClick={() => handleNavigation(item)}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`flex w-full items-center gap-4 border-l-[3px] px-6 py-3.5 text-left text-sm transition-colors duration-200 ${
+                  className={`flex w-full items-center gap-4 border-l-[3px] px-6 py-3.5 text-left text-sm transition-colors duration-200 cursor-pointer ${
                     isActive
                       ? 'border-cyan-400 bg-cyan-400/10 text-white dark:border-cyan-400 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/20 midnight:text-cyan-300'
                       : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-white dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/50 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-100'
@@ -86,20 +86,22 @@ export default function Sidebar({ items = mainItems, activeView, onNavigate, isO
         </div>
 
         {/* BOTÓN DE CONFIGURACIÓN */}
-        <div className="p-6 border-t transition-colors duration-300 border-slate-700/50 dark:border-[#30363d] midnight:border-cyan-900/30">
+        <div className="p-3 border-t transition-colors duration-300 border-slate-700/50 dark:border-[#30363d] midnight:border-cyan-900/30">
           <button
             type="button"
             onClick={() => {
               onNavigate('configuracion');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`flex w-full items-center gap-4 text-sm transition-colors duration-200 ${
+            aria-current={activeView === 'configuracion' ? 'page' : undefined}
+            className={`flex w-full items-center gap-3.5 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer select-none ${
               activeView === 'configuracion'
-                ? 'text-cyan-400 dark:text-cyan-400 midnight:text-cyan-400'
-                : 'text-slate-400 hover:text-white dark:text-slate-400 dark:hover:text-white midnight:text-cyan-100/50 midnight:hover:text-cyan-100'
+                ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
+                : 'text-slate-400 hover:bg-white/10 hover:text-white dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/60 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-100 border border-transparent'
             }`}
           >
-            <Settings size={18} /> Configuración
+            <Settings size={19} className="shrink-0" />
+            <span className="truncate">Configuración</span>
           </button>
         </div>
       </aside>

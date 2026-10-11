@@ -8,6 +8,12 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  X,
+  KeyRound,
+  CheckCircle2,
+  Phone,
+  Clock,
+  Headphones,
 } from "lucide-react";
 import api from "../../services/api";
 
@@ -19,6 +25,33 @@ export default function LoginScreen({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Estados para modales interactivos
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
+
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
+  const handleForgotSubmit = (e) => {
+    e.preventDefault();
+    setForgotError("");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!forgotEmail.trim() || !emailRegex.test(forgotEmail.trim())) {
+      setForgotError("Por favor, introduce un correo electrónico corporativo válido.");
+      return;
+    }
+
+    setIsSubmittingForgot(true);
+    // Simular envío de enlace de restablecimiento seguro
+    setTimeout(() => {
+      setIsSubmittingForgot(false);
+      setForgotSubmitted(true);
+    }, 600);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -68,7 +101,7 @@ export default function LoginScreen({ onLogin }) {
       {/* Header: Logo superior */}
       <header className="relative z-10 flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-700">
         <img
-          src="/logoempresa1.png"
+          src={logoEmpresa}
           alt="Logo empresa"
           className="w-9 h-9 object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]"
         />
@@ -226,7 +259,8 @@ export default function LoginScreen({ onLogin }) {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -248,12 +282,18 @@ export default function LoginScreen({ onLogin }) {
                   />
                   <span>Recordarme</span>
                 </label>
-                <a
-                  href="#"
-                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(email || "");
+                    setForgotSubmitted(false);
+                    setForgotError("");
+                    setIsForgotModalOpen(true);
+                  }}
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline bg-transparent border-none p-0 cursor-pointer text-xs"
                 >
                   ¿Olvidaste tu contraseña?
-                </a>
+                </button>
               </div>
 
               {/* Mensaje de Error si las credenciales o rol fallan */}
@@ -291,12 +331,204 @@ export default function LoginScreen({ onLogin }) {
         <div>v2.0 — Sistema Integral de Planificación</div>
         <div>
           ¿Necesitas acceso?{" "}
-          <a href="#" className="text-cyan-400 hover:underline">
+          <button
+            type="button"
+            onClick={() => setIsContactModalOpen(true)}
+            className="text-cyan-400 hover:underline bg-transparent border-none p-0 cursor-pointer inline text-[11px]"
+          >
             Contacta al administrador del sistema
-          </a>
+          </button>
         </div>
         <div>© 2026</div>
       </footer>
+
+      {/* MODAL: RECUPERACIÓN DE CONTRASEÑA */}
+      {isForgotModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-md bg-[#0D1527] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forgot-password-title"
+          >
+            <button
+              type="button"
+              onClick={() => setIsForgotModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800/60 cursor-pointer"
+              aria-label="Cerrar modal de recuperación"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {forgotSubmitted ? (
+              <div className="text-center py-4 space-y-4">
+                <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                  <CheckCircle2 className="w-7 h-7" />
+                </div>
+                <h3 id="forgot-password-title" className="text-xl font-bold text-white">
+                  Instrucciones Enviadas
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Hemos enviado las instrucciones para restablecer el acceso a{" "}
+                  <strong className="text-cyan-400">{forgotEmail}</strong>. Revisa tu bandeja de entrada o spam.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsForgotModalOpen(false)}
+                  className="w-full mt-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-sm cursor-pointer"
+                >
+                  Regresar al inicio de sesión
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} className="space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 id="forgot-password-title" className="text-lg font-bold text-white">
+                      Recuperar Contraseña
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Restablecimiento de credenciales de usuario
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Ingresa tu correo corporativo. Te enviaremos un enlace seguro para generar una nueva clave de acceso.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="forgot-email" className="text-xs font-medium text-slate-300">
+                    Correo electrónico corporativo
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="forgot-email"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="nombre@empresa.com"
+                      required
+                      className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {forgotError && (
+                  <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-xs flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{forgotError}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotModalOpen(false)}
+                    className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingForgot}
+                    className="flex-1 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-2.5 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isSubmittingForgot ? (
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      "Enviar enlace"
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONTACTO CON EL ADMINISTRADOR */}
+      {isContactModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-lg bg-[#0D1527] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative animate-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contact-admin-title"
+          >
+            <button
+              type="button"
+              onClick={() => setIsContactModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800/60 cursor-pointer"
+              aria-label="Cerrar modal de contacto"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                <Headphones className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 id="contact-admin-title" className="text-lg font-bold text-white">
+                  Soporte y Administración
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Canales de atención para gestión de cuentas y accesos
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed mb-5">
+              Si requieres acceso al sistema, asignación de proyectos o desbloqueo de perfil, comunícate con la administración general de Project Planner:
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
+                <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Soporte</div>
+                  <div className="text-xs font-medium text-slate-200">soporte.ti.empresa@gmail.com</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
+                <Phone className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Central Telefónica TI</div>
+                  <div className="text-xs font-medium text-slate-200">+51 XXX XXX XXX</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
+                <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Horario de Operaciones</div>
+                  <div className="text-xs font-medium text-slate-200">Lunes a Viernes</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-[11px] text-cyan-300 mb-6 leading-relaxed">
+              <strong>Nota de Seguridad:</strong> Todo nuevo usuario requiere aprobación del administrador antes de ser dado de alta en los módulos operativos.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsContactModalOpen(false)}
+              className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-xs cursor-pointer"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

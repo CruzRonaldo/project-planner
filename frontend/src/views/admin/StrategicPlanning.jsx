@@ -12,6 +12,7 @@ import {
   formatMilestoneDate,
   formatPlanningPeriod,
 } from '../../utils/strategicPlanning';
+import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
 import projectsApi from '../../services/projectsApi';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
@@ -543,35 +544,17 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </p>
               </div>
 
-              {/* FILTRO DE PROYECTO PARA HITOS */}
-              <div className="relative inline-flex items-center no-print print:hidden">
-                <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Proyecto</span>
-                  <select
-                    id="milestone-project-filter"
-                    value={selectedProjectFilter}
-                    onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                    aria-label="Filtrar hitos por proyecto"
-                    className="cursor-pointer appearance-none bg-transparent pr-5 text-xs font-semibold outline-none text-slate-900 dark:text-white midnight:text-cyan-100 max-w-[190px] truncate"
-                  >
-                    <option className="bg-white text-slate-900 dark:bg-[#111f36] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50" value="ALL">
-                      Todos ({milestones.length})
-                    </option>
-                    {projects.map((project) => {
-                      const count = milestones.filter(
-                        (m) =>
-                          String(m.projectId) === String(project.id) ||
-                          String(m.project) === String(project.id)
-                      ).length;
-                      return (
-                        <option key={project.id} className="bg-white text-slate-900 dark:bg-[#111f36] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50" value={project.id}>
-                          {project.code ? `${project.code} · ` : ''}{project.name} ({count})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </label>
-                <ChevronDown size={13} className="pointer-events-none absolute right-2.5 text-slate-400 dark:text-slate-500 midnight:text-cyan-500/70" />
+              {/* INDICADOR DE PROYECTO ACTIVO (SINCRONIZADO CON EL CRONOGRAMA SUPERIOR) */}
+              <div className="no-print print:hidden">
+                {activeProject ? (
+                  <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
+                    {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
+                  </span>
+                ) : (
+                  <span className={`text-xs ${mutedClass}`}>
+                    {milestones.length} {milestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
+                  </span>
+                )}
               </div>
             </div>
 

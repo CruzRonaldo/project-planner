@@ -26,11 +26,17 @@ export default function LoadingScreen() {
           Inicializando Entorno...
         </span>
         
-        {/* Barra de progreso estilo Cyber/Tech */}
-        <div className="w-56 h-1 bg-slate-800/80 rounded-full overflow-hidden relative backdrop-blur-sm">
+        {/* Barra de progreso estilo Cyber/Tech con movimiento horizontal activo */}
+        <div className="w-56 sm:w-64 h-1.5 bg-slate-800/80 rounded-full overflow-hidden relative backdrop-blur-sm border border-cyan-900/40 shadow-inner">
+          <style>{`
+            @keyframes loadingTrack {
+              0% { transform: translateX(0%); }
+              100% { transform: translateX(100%); }
+            }
+          `}</style>
           <div 
-            className="absolute top-0 left-0 h-full w-1/2 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee] animate-[bounce_1.5s_infinite_ease-in-out]" 
-            style={{ animationDirection: 'alternate' }} 
+            className="h-full w-1/2 bg-gradient-to-r from-cyan-500 via-cyan-300 to-cyan-400 rounded-full shadow-[0_0_12px_#22d3ee] animate-loading-bar" 
+            style={{ animation: 'loadingTrack 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate' }} 
           />
         </div>
       </div>
