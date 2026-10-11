@@ -12,6 +12,37 @@ info:
     - Autenticación y Monitoreo de Usuarios en Vivo
     - Integraciones: Make (Webhooks), Google Drive y Modelos 3D BIM (Autodesk APS)
 paths:
+  /api/auth/audit-logs/:
+    get:
+      operationId: auth_audit_logs_retrieve
+      description: |-
+        Retorna la bitácora de auditoría de seguridad para supervisión del Administrador.
+        Muestra modificaciones de correo, claves y eventos de cuentas.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/change-password/:
+    post:
+      operationId: auth_change_password_create
+      description: |-
+        Endpoint para cambiar la contraseña de un usuario validando su contraseña actual.
+        Garantiza que la clave anterior coincida y que la nueva contraseña se almacene
+        encriptada en la Base de Datos.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
   /api/auth/login/:
     post:
       operationId: auth_login_create
@@ -32,6 +63,52 @@ paths:
       operationId: auth_logout_create
       description: Registra el cierre de sesión del usuario para marcarlo desconectado
         en la Base de Datos.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/profile/:
+    get:
+      operationId: auth_profile_retrieve
+      description: |-
+        Obtiene o actualiza la foto de perfil (avatar), datos personales y correo electrónico del usuario.
+        Permite el cambio flexible a correos personales/corporativos (Gmail, Outlook, etc.),
+        validando unicidad y registrando cada cambio en la bitácora de auditoría.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: auth_profile_create
+      description: |-
+        Obtiene o actualiza la foto de perfil (avatar), datos personales y correo electrónico del usuario.
+        Permite el cambio flexible a correos personales/corporativos (Gmail, Outlook, etc.),
+        validando unicidad y registrando cada cambio en la bitácora de auditoría.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: auth_profile_partial_update
+      description: |-
+        Obtiene o actualiza la foto de perfil (avatar), datos personales y correo electrónico del usuario.
+        Permite el cambio flexible a correos personales/corporativos (Gmail, Outlook, etc.),
+        validando unicidad y registrando cada cambio en la bitácora de auditoría.
       tags:
       - auth
       security:
@@ -706,7 +783,8 @@ paths:
       operationId: notifications_retrieve
       description: |-
         Retorna notificaciones personalizadas según el usuario conectado,
-        incluyendo asignaciones directas de proyectos como líder técnico.
+        incluyendo asignaciones directas de proyectos como líder técnico
+        y alertas de auditoría de seguridad para el Administrador.
       tags:
       - notifications
       security:
