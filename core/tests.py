@@ -11,6 +11,7 @@ from core.models import (
     PerformanceMetric,
     Project,
     Role,
+    SecurityAuditLog,
     Task,
     TeamMember,
     TeamStatus,
@@ -432,5 +433,209 @@ class MilestoneStrategicPlanningTests(TestCase):
         response = self.client.delete(f"/api/milestones/{m.id}/")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Milestone.objects.filter(id=m.id).exists())
+
+
+class ChangePasswordTests(APITestCase):
+    def setUp(self):
+        self.username = "sistemas"
+        self.email = "sistemas@projectplanner.com"
+        self.old_password = "User123*"
+        self.user = User.objects.create_user(
+            username=self.username,
+            email=self.email,
+            password=self.old_password,
+            first_name="Luis",
+            last_name="Gonzales",
+        )
+        self.url = "/api/auth/change-password/"
+
+    def test_change_password_success(self):
+        new_password = "NuevoPassword456*"
+        payload = {
+            "identifier": self.email,
+            "current_password": self.old_password,
+            "new_password": new_password,
+            "confirm_password": new_password,
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+
+        # Verificar que el usuario en BD tiene la nueva contraseña
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(new_password))
+        self.assertFalse(self.user.check_password(self.old_password))
+
+        # Verificar que login funciona con la nueva contraseña
+        login_resp = self.client.post(
+            "/api/auth/login/",
+            {"email": self.email, "password": new_password, "role": "user"},
+            format="json",
+        )
+        self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(login_resp.data["status"], "success")
+
+        # Verificar que login falla con la contraseña anterior
+        login_fail_resp = self.client.post(
+            "/api/auth/login/",
+            {"email": self.email, "password": self.old_password, "role": "user"},
+            format="json",
+        )
+        self.assertEqual(login_fail_resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_change_password_invalid_current_password(self):
+        payload = {
+            "identifier": self.email,
+            "current_password": "WrongPassword!",
+            "new_password": "NuevoPassword456*",
+            "confirm_password": "NuevoPassword456*",
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("La contraseña actual no es correcta", response.data["message"])
+
+        # La clave original se mantiene
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+
+    def test_change_password_identical_password(self):
+        payload = {
+            "identifier": self.email,
+            "current_password": self.old_password,
+            "new_password": self.old_password,
+            "confirm_password": self.old_password,
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("no puede ser idéntica", response.data["message"])
+
+    def test_change_password_mismatched_confirmation(self):
+        payload = {
+            "identifier": self.email,
+            "current_password": self.old_password,
+            "new_password": "NuevoPassword456*",
+            "confirm_password": "DifferentPassword789*",
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("no coinciden", response.data["message"])
+
+    def test_change_password_too_short(self):
+        payload = {
+            "identifier": self.email,
+            "current_password": self.old_password,
+            "new_password": "123",
+            "confirm_password": "123",
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("al menos 6 caracteres", response.data["message"])
+
+    def test_change_password_user_not_found(self):
+        payload = {
+            "identifier": "nonexistent@user.com",
+            "current_password": "AnyPassword123*",
+            "new_password": "NuevoPassword456*",
+            "confirm_password": "NuevoPassword456*",
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class UserProfileAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.username = "admin"
+        self.email = "admin@gmail.com"
+        self.password = "Admin123*"
+        self.user = User.objects.create_superuser(
+            username=self.username,
+            email=self.email,
+            password=self.password,
+            first_name="Admin",
+            last_name="Master",
+        )
+        self.profile_url = "/api/auth/profile/"
+
+    def test_update_and_persist_profile_photo_and_phone(self):
+        mock_photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        payload = {
+            "identifier": self.email,
+            "photo": mock_photo,
+            "phone": "+51 987 654 321",
+            "name": "Administrador Principal",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(response.data["profile"]["photo"], mock_photo)
+        self.assertEqual(response.data["profile"]["phone"], "+51 987 654 321")
+
+        # Verificar que el login posterior devuelve la foto y teléfono de la base de datos
+        login_resp = self.client.post(
+            "/api/auth/login/",
+            {"email": self.email, "password": self.password, "role": "admin"},
+            format="json",
+        )
+        self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(login_resp.data["user"]["photo"], mock_photo)
+        self.assertEqual(login_resp.data["user"]["phone"], "+51 987 654 321")
+
+    def test_remove_profile_photo(self):
+        # Primero guardar foto
+        self.client.patch(self.profile_url, {"identifier": self.email, "photo": "data:image/png;base64,mock"}, format="json")
+        # Luego remover foto
+        remove_resp = self.client.patch(self.profile_url, {"identifier": self.email, "photo": None}, format="json")
+        self.assertEqual(remove_resp.status_code, status.HTTP_200_OK)
+        self.assertIsNone(remove_resp.data["profile"]["photo"])
+
+    def test_update_email_success_and_creates_audit_log(self):
+        new_email = "nuevo.admin@gmail.com"
+        payload = {
+            "identifier": self.email,
+            "email": new_email,
+            "name": "Administrador Renovado",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "success")
+        self.assertEqual(response.data["profile"]["email"], new_email)
+
+        # Verificar actualización en Base de Datos
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, new_email)
+
+        # Verificar registro en Bitácora de Auditoría
+        audit_log = SecurityAuditLog.objects.filter(user=self.user, action="email_change").first()
+        self.assertIsNotNone(audit_log)
+        self.assertEqual(audit_log.old_value, self.email)
+        self.assertEqual(audit_log.new_value, new_email)
+
+        # Verificar que endpoint de auditoría retorna el registro
+        audit_resp = self.client.get("/api/auth/audit-logs/")
+        self.assertEqual(audit_resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(log["newValue"] == new_email for log in audit_resp.data["logs"]))
+
+    def test_update_email_rejects_invalid_format(self):
+        payload = {
+            "identifier": self.email,
+            "email": "correo-invalido-sin-arroba",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("no es válido", response.data["message"])
+
+    def test_update_email_rejects_duplicate(self):
+        other_email = "otro.usuario@gmail.com"
+        User.objects.create_user(username="otro", email=other_email, password="Password123*")
+
+        payload = {
+            "identifier": self.email,
+            "email": other_email,
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("ya está registrado", response.data["message"])
+
 
 

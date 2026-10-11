@@ -33,10 +33,12 @@ from .models import (
     PerformanceMetric,
     Project,
     Role,
+    SecurityAuditLog,
     Task,
     TeamMember,
     TeamStatus,
     TechnicalArea,
+    UserProfile,
 )
 
 from rest_framework.authentication import BaseAuthentication
@@ -196,6 +198,15 @@ def login_view(request):
     user_role = "admin" if is_admin else "user"
     role_display = "Project Manager (Admin)" if is_admin else "Equipo Técnico"
 
+    user_photo = None
+    user_phone = ""
+    try:
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        user_photo = profile.avatar
+        user_phone = profile.phone or ""
+    except Exception:
+        pass
+
     return Response(
         {
             "status": "success",
@@ -210,6 +221,9 @@ def login_view(request):
                 "role_display": role_display,
                 "is_superuser": user.is_superuser,
                 "last_login": user.last_login,
+                "photo": user_photo,
+                "avatar": user_photo,
+                "phone": user_phone,
             },
         },
         status=status.HTTP_200_OK,
@@ -290,42 +304,329 @@ def logout_view(request):
     return Response({'status': 'success', 'message': 'Sesión cerrada correctamente'}, status=status.HTTP_200_OK)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def change_password_view(request):
+    """
+    Endpoint para cambiar la contraseña de un usuario validando su contraseña actual.
+    Garantiza que la clave anterior coincida y que la nueva contraseña se almacene
+    encriptada en la Base de Datos.
+    """
+    data = request.data
+    user_id = data.get('user_id') or data.get('userId') or data.get('id')
+    identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
+    current_password = data.get('current_password') or data.get('currentPassword') or ''
+    new_password = data.get('new_password') or data.get('newPassword') or ''
+    confirm_password = data.get('confirm_password') or data.get('confirmPassword') or ''
+
+    # 1. Localizar usuario por ID, email o username
+    user = None
+    if user_id:
+        user = User.objects.filter(id=user_id).first()
+    if not user and identifier:
+        user = User.objects.filter(
+            Q(username__iexact=identifier) |
+            Q(email__iexact=identifier) |
+            Q(email__istartswith=identifier)
+        ).first()
+    if not user and request.user and request.user.is_authenticated:
+        user = request.user
+
+    if not user:
+        return Response({
+            'status': 'error',
+            'message': 'No se encontró la cuenta de usuario para actualizar la contraseña.'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    # 2. Validar contraseña actual obligatoria y correcta
+    if not current_password:
+        return Response({
+            'status': 'error',
+            'message': 'Debe ingresar su contraseña actual.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(current_password):
+        return Response({
+            'status': 'error',
+            'message': 'La contraseña actual no es correcta. Verifique e intente nuevamente.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 3. Validar nueva contraseña
+    if not new_password:
+        return Response({
+            'status': 'error',
+            'message': 'Debe ingresar una nueva contraseña.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_password) < 6:
+        return Response({
+            'status': 'error',
+            'message': 'La nueva contraseña debe contener al menos 6 caracteres.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if current_password == new_password:
+        return Response({
+            'status': 'error',
+            'message': 'La nueva contraseña no puede ser idéntica a la contraseña actual.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if confirm_password and new_password != confirm_password:
+        return Response({
+            'status': 'error',
+            'message': 'La nueva contraseña y su confirmación no coinciden.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 4. Actualizar contraseña cifrada en la base de datos
+    user.set_password(new_password)
+    user.save()
+
+    # Registrar en bitácora de auditoría
+    try:
+        actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        ip_addr = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR')
+        if ip_addr and ',' in ip_addr:
+            ip_addr = ip_addr.split(',')[0].strip()
+        SecurityAuditLog.objects.create(
+            user=user,
+            action='password_change',
+            description=f"El usuario **{actor_name}** ({user.email or user.username}) actualizó su contraseña de acceso.",
+            ip_address=ip_addr if ip_addr and len(ip_addr) <= 45 else None
+        )
+    except Exception:
+        pass
+
+    return Response({
+        'status': 'success',
+        'message': 'Contraseña modificada correctamente.'
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'PATCH', 'POST'])
+@permission_classes([AllowAny])
+def user_profile_view(request):
+    """
+    Obtiene o actualiza la foto de perfil (avatar), datos personales y correo electrónico del usuario.
+    Permite el cambio flexible a correos personales/corporativos (Gmail, Outlook, etc.),
+    validando unicidad y registrando cada cambio en la bitácora de auditoría.
+    """
+    data = request.data if request.method in ['POST', 'PATCH'] else request.query_params
+    identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
+    user_id = data.get('user_id') or data.get('userId') or data.get('id')
+
+    user = None
+    if user_id:
+        user = User.objects.filter(id=user_id).first()
+    if not user and identifier:
+        user = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
+
+    if not user:
+        return Response({
+            'status': 'error',
+            'message': 'Usuario no encontrado.'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    if request.method in ['POST', 'PATCH']:
+        # 1. Actualizar foto / avatar
+        if 'photo' in data or 'avatar' in data:
+            photo_val = data.get('photo') if 'photo' in data else data.get('avatar')
+            profile.avatar = photo_val or None
+
+        # 2. Actualizar teléfono
+        if 'phone' in data:
+            profile.phone = (data.get('phone') or '').strip()
+
+        profile.save()
+
+        user_update_fields = []
+
+        # 3. Actualizar nombre si se envía
+        if 'name' in data and data.get('name'):
+            full_name = data.get('name').strip()
+            parts = full_name.split(' ')
+            user.first_name = parts[0]
+            user.last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+            user_update_fields.extend(['first_name', 'last_name'])
+
+        # 4. Actualizar correo electrónico (Gmail, Outlook u otro dominio)
+        if 'email' in data and data.get('email'):
+            new_email = data.get('email').strip().lower()
+            old_email = (user.email or '').strip().lower()
+
+            if new_email != old_email:
+                from django.core.validators import validate_email
+                from django.core.exceptions import ValidationError
+                try:
+                    validate_email(new_email)
+                except ValidationError:
+                    return Response({
+                        'status': 'error',
+                        'message': 'El formato del correo electrónico ingresado no es válido.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar unicidad en usuarios existentes
+                if User.objects.filter(Q(email__iexact=new_email) | Q(username__iexact=new_email)).exclude(id=user.id).exists():
+                    return Response({
+                        'status': 'error',
+                        'message': 'El correo electrónico ya está registrado por otra cuenta en el sistema.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar unicidad en técnicos
+                if TeamMember.objects.filter(email__iexact=new_email).exclude(email__iexact=old_email).exists():
+                    return Response({
+                        'status': 'error',
+                        'message': 'El correo electrónico ya se encuentra registrado en el equipo técnico.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Si el username coincidía con el email antiguo o contenía un correo, mantener sincronía
+                user.email = new_email
+                user_update_fields.append('email')
+                if not user.username or user.username.strip().lower() == old_email or '@' in user.username:
+                    user.username = new_email
+                    user_update_fields.append('username')
+
+                # Sincronizar en ficha de TeamMember (vinculada a sus proyectos y asignaciones)
+                if old_email:
+                    TeamMember.objects.filter(email__iexact=old_email).update(email=new_email)
+
+                # Registrar evento en la bitácora de auditoría
+                try:
+                    actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
+                    ip_addr = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR')
+                    if ip_addr and ',' in ip_addr:
+                        ip_addr = ip_addr.split(',')[0].strip()
+                    SecurityAuditLog.objects.create(
+                        user=user,
+                        action='email_change',
+                        description=f"El usuario **{actor_name}** modificó su correo de acceso de **{old_email or 'sin correo'}** a **{new_email}**.",
+                        old_value=old_email,
+                        new_value=new_email,
+                        ip_address=ip_addr if ip_addr and len(ip_addr) <= 45 else None
+                    )
+                except Exception:
+                    pass
+
+        if user_update_fields:
+            user.save(update_fields=list(set(user_update_fields)))
+
+        return Response({
+            'status': 'success',
+            'message': 'Perfil actualizado correctamente.',
+            'profile': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                'photo': profile.avatar,
+                'avatar': profile.avatar,
+                'phone': profile.phone,
+            }
+        }, status=status.HTTP_200_OK)
+
+    # GET
+    return Response({
+        'status': 'success',
+        'profile': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'name': f"{user.first_name} {user.last_name}".strip() or user.username,
+            'photo': profile.avatar,
+            'avatar': profile.avatar,
+            'phone': profile.phone,
+        }
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def audit_logs_view(request):
+    """
+    Retorna la bitácora de auditoría de seguridad para supervisión del Administrador.
+    Muestra modificaciones de correo, claves y eventos de cuentas.
+    """
+    logs = SecurityAuditLog.objects.select_related('user').order_by('-created_at')[:50]
+    result = []
+    for log in logs:
+        result.append({
+            'id': log.id,
+            'userId': log.user.id,
+            'userName': f"{log.user.first_name} {log.user.last_name}".strip() or log.user.username,
+            'userEmail': log.user.email,
+            'action': log.action,
+            'actionDisplay': log.get_action_display(),
+            'description': log.description,
+            'oldValue': log.old_value,
+            'newValue': log.new_value,
+            'ipAddress': log.ip_address,
+            'createdAt': log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'dateFormatted': log.created_at.strftime('%d/%m/%Y %H:%M'),
+        })
+    return Response({'status': 'success', 'logs': result}, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def notifications_view(request):
     """
     Retorna notificaciones personalizadas según el usuario conectado,
-    incluyendo asignaciones directas de proyectos como líder técnico.
+    incluyendo asignaciones directas de proyectos como líder técnico
+    y alertas de auditoría de seguridad para el Administrador.
     """
     username = (request.query_params.get('username') or '').strip().lower()
     email = (request.query_params.get('email') or '').strip().lower()
-
-    user_member_map = {
-        'sistemas': 'luis.gonzales@projectplanner.com',
-        'sistemas@projectplanner.com': 'luis.gonzales@projectplanner.com',
-        'civil': 'andrea.rojas@projectplanner.com',
-        'civil@projectplanner.com': 'andrea.rojas@projectplanner.com',
-        'arquitectura': 'carlos.mendoza@projectplanner.com',
-        'arquitectura@projectplanner.com': 'carlos.mendoza@projectplanner.com',
-    }
-
-    target_email = user_member_map.get(username) or user_member_map.get(email) or email
     notifications = []
+
+    # Verificar si el usuario es administrador para inyectar alertas de auditoría
+    user = None
+    target_ident = email or username
+    if target_ident:
+        user = User.objects.filter(
+            Q(email__iexact=target_ident) |
+            Q(username__iexact=target_ident)
+        ).first()
+
+    is_admin = bool(
+        (user and (user.is_superuser or user.is_staff)) or
+        ('admin' in username) or
+        ('admin' in email)
+    )
+
+    if is_admin:
+        try:
+            from datetime import timedelta
+            from django.utils import timezone
+            recent_audits = SecurityAuditLog.objects.select_related('user').filter(
+                created_at__gte=timezone.now() - timedelta(days=14)
+            ).order_by('-created_at')[:8]
+            for log in recent_audits:
+                notifications.append({
+                    'id': f"audit-{log.id}",
+                    'title': f"Auditoría: {log.get_action_display()}",
+                    'detail': log.description,
+                    'time': log.created_at.strftime('%d/%m %H:%M'),
+                    'type': 'security_audit',
+                    'unread': True,
+                })
+        except Exception:
+            pass
 
     # Buscar si el usuario actual es un miembro de equipo con un proyecto asignado
     member = None
-    if target_email or username:
-        q_filter = Q(email__iexact=target_email) if target_email else Q()
-        if 'sistemas' in username or 'luis' in target_email or 'luis' in username:
-            q_filter = q_filter | Q(first_name__iexact='Luis')
-        member = TeamMember.objects.filter(q_filter).first()
+    if target_ident:
+        member = TeamMember.objects.filter(
+            Q(email__iexact=target_ident) |
+            Q(first_name__iexact=target_ident) |
+            Q(last_name__iexact=target_ident)
+        ).first()
 
     if member and member.project:
         p = member.project
         notifications.append({
             'id': f"proj-assigned-{p.id}",
             'title': 'Proyecto Asignado',
-            'detail': f"Has sido asignado como líder técnico del proyecto «{p.name}» ({p.code}).",
+            'detail': f"Has sido asignado como líder técnico del proyecto **{p.name}** ({p.code}).",
             'time': 'Reciente',
             'type': 'project_assignment',
             'projectId': p.id,
@@ -345,7 +646,7 @@ def notifications_view(request):
             notifications.append({
                 'id': f"milestone-{m.id}",
                 'title': f"Hito próximo: {m.title}",
-                'detail': f"Proyecto «{m.project.name}» ({m.project.code}) programado para {m.target_date}.",
+                'detail': f"Proyecto **{m.project.name}** ({m.project.code}) programado para {m.target_date}.",
                 'time': 'Próximamente',
                 'type': 'milestone',
                 'projectId': m.project.id,
