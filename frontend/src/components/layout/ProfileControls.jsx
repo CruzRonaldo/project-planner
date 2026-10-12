@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, ShieldCheck, Settings } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
+import FormattedAuditText from '../common/FormattedAuditText';
+
 function getInitials(name = '') {
   return name
     .split(' ')
@@ -150,12 +152,16 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
           aria-label="Abrir menú de usuario"
           className="flex items-center gap-2 rounded-xl p-1.5 text-left transition-colors duration-200 hover:bg-slate-100 dark:hover:bg-white/5 midnight:hover:bg-cyan-900/20 sm:gap-3"
         >
-          {isAdmin ? (
-            <span className="h-8 w-8 overflow-hidden rounded-full bg-slate-200 dark:bg-gray-600 midnight:bg-cyan-900/40 sm:h-9 sm:w-9">
-              <img src="https://i.pravatar.cc/150?img=11" alt={`Perfil de ${currentUser?.name || 'Administrador'}`} className="h-full w-full object-cover" />
+          {currentUser?.photo || currentUser?.avatar ? (
+            <span className="h-8 w-8 overflow-hidden rounded-full border border-cyan-500/30 sm:h-9 sm:w-9 shrink-0 shadow-sm">
+              <img
+                src={currentUser.photo || currentUser.avatar}
+                alt={`Perfil de ${currentUser?.name || 'Usuario'}`}
+                className="h-full w-full object-cover"
+              />
             </span>
           ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold sm:h-9 sm:w-9 bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:bg-cyan-500/20 midnight:text-cyan-300">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold sm:h-9 sm:w-9 bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:bg-cyan-500/20 midnight:text-cyan-300 shrink-0">
               {getInitials(currentUser?.name)}
             </span>
           )}
@@ -174,14 +180,42 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
         {menuOpen && (
           <div className="absolute right-0 top-[calc(100%+10px)] z-[70] w-64 overflow-hidden rounded-xl border shadow-[0_18px_50px_rgba(0,0,0,0.5)] transition-colors duration-300 bg-white border-slate-200 dark:bg-[#111a29] dark:border-slate-700 midnight:bg-[#0a1120] midnight:border-cyan-900/50">
             <div className="border-b px-3 py-3 border-slate-100 dark:border-slate-800 midnight:border-cyan-900/30">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">{currentUser?.name}</p>
-              <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-500 midnight:text-cyan-500/70">{currentUser?.email}</p>
-              <span className="mt-2 inline-flex rounded px-2 py-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 midnight:bg-cyan-500/20 midnight:text-cyan-300">
+              <div className="flex items-center gap-2.5 mb-2">
+                {currentUser?.photo || currentUser?.avatar ? (
+                  <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-cyan-500/30">
+                    <img
+                      src={currentUser.photo || currentUser.avatar}
+                      alt={`Perfil de ${currentUser?.name || 'Usuario'}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </span>
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:bg-cyan-500/20 midnight:text-cyan-300">
+                    {getInitials(currentUser?.name)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate text-slate-900 dark:text-white midnight:text-cyan-50">{currentUser?.name}</p>
+                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">{currentUser?.email}</p>
+                </div>
+              </div>
+              <span className="inline-flex rounded px-2 py-1 text-[10px] font-semibold bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 midnight:bg-cyan-500/20 midnight:text-cyan-300">
                 {currentUser?.roleLabel}
               </span>
             </div>
 
-            <button type="button" onClick={openNotifications} className="mt-2 flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onNavigate('configuracion');
+              }}
+              className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+            >
+              <Settings size={17} /> Configuración de perfil
+            </button>
+
+            <button type="button" onClick={openNotifications} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">
               <span className="flex items-center gap-3"><Bell size={17} /> Notificaciones</span>
               {unreadCount > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">{unreadCount}</span>
@@ -226,7 +260,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                       className="text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400/80 transition-colors"
                       title="Marcar todas como leídas"
                     >
-                      (Leídas)
+                      Marcar leídas
                     </button>
                   </>
                 ) : (
@@ -267,7 +301,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                           )}
                         </div>
                         <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                          {notification.detail}
+                          <FormattedAuditText text={notification.detail} />
                         </p>
                         <div className="mt-1.5 flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-600 midnight:text-cyan-500/50">
                           <span>{notification.time}</span>

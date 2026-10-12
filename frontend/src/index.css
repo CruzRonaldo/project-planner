@@ -116,3 +116,19 @@ html, body, #root {
   }
 }
 
+/* ==========================================================
+   ANIMACIÓN DE BARRA DE CARGA HORIZONTAL (LoadingScreen)
+   ========================================================== */
+@keyframes loadingTrack {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-loading-bar {
+  animation: loadingTrack 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+}
+

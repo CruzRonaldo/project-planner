@@ -10,3 +10,4 @@ export * from './operationsData';
 export * from './technicalTeamData';
 export * from './humanResourcesData';
 export * from './integrationsData';
+export * from './usersData';

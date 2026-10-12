@@ -259,3 +259,60 @@ class BIMModel(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class UserProfile(models.Model):
+    """
+    Perfil extendido para usuarios del sistema (foto/avatar y datos de contacto)
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        verbose_name="Usuario"
+    )
+    avatar = models.TextField(blank=True, null=True, verbose_name="Avatar / Foto (Base64)")
+    phone = models.CharField(max_length=30, blank=True, null=True, verbose_name="Teléfono de Contacto")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Perfil de Usuario"
+        verbose_name_plural = "Perfiles de Usuario"
+
+    def __str__(self):
+        return f"Perfil de {self.user.username}"
+
+
+class SecurityAuditLog(models.Model):
+    """
+    Bitácora de auditoría de seguridad para registrar eventos críticos:
+    cambios de correo electrónico, cambios de contraseña y accesos.
+    Permite al Administrador auditar cualquier modificación de credenciales.
+    """
+    ACTION_CHOICES = (
+        ('email_change', 'Cambio de Correo Electrónico'),
+        ('password_change', 'Cambio de Contraseña'),
+        ('profile_update', 'Actualización de Perfil'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        verbose_name="Usuario"
+    )
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES, default='email_change', verbose_name="Acción")
+    description = models.TextField(verbose_name="Descripción del evento")
+    old_value = models.CharField(max_length=255, blank=True, null=True, verbose_name="Valor anterior")
+    new_value = models.CharField(max_length=255, blank=True, null=True, verbose_name="Valor nuevo")
+    ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name="Dirección IP")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y Hora")
+
+    class Meta:
+        verbose_name = "Registro de Auditoría"
+        verbose_name_plural = "Bitácora de Auditoría"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.get_action_display()}"
