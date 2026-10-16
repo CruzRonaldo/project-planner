@@ -21,28 +21,7 @@ import {
 } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 import FormattedAuditText from '../../components/common/FormattedAuditText';
-
-// Toggle independiente adaptado a los 3 temas y accesible
-const Toggle = ({ enabled, onChange, label = 'Alternar ajuste' }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={enabled}
-    aria-label={label}
-    onClick={() => onChange(!enabled)}
-    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
-      enabled
-        ? 'bg-emerald-500'
-        : 'bg-slate-300 dark:bg-slate-600 midnight:bg-cyan-900/80'
-    }`}
-  >
-    <div
-      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-        enabled ? 'translate-x-5' : 'translate-x-0'
-      }`}
-    />
-  </button>
-);
+import BackupExportButton from '../../components/common/BackupExportButton';
 
 const Configuration = ({
   currentUser,
@@ -105,30 +84,9 @@ const Configuration = ({
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
 
-  const [autoBackup, setAutoBackup] = useState(() => {
-    try {
-      const saved = localStorage.getItem('project_planner_auto_backup');
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
-  const [lastBackup, setLastBackup] = useState(() => {
-    try {
-      return localStorage.getItem('project_planner_last_backup') || 'Hoy a las 04:00 AM (Automático)';
-    } catch {
-      return 'Hoy a las 04:00 AM (Automático)';
-    }
-  });
-
-  const updatePreference = (key, setter) => (val) => {
-    setter(val);
-    try {
-      localStorage.setItem(key, String(val));
-    } catch {
-      // Ignorar error de almacenamiento
-    }
-  };
+  const [lastBackup, setLastBackup] = useState(
+    'Aún no se ha generado un respaldo desde esta pantalla.',
+  );
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
@@ -317,45 +275,6 @@ const Configuration = ({
       setProfileError(msg);
     } finally {
       setIsSubmittingProfile(false);
-    }
-  };
-
-  const handleExportData = () => {
-    const now = new Date();
-    const exportPayload = {
-      sistema: 'Project Planner Enterprise',
-      version: '2.0.0',
-      fechaExportacion: now.toISOString(),
-      solicitadoPor: currentUser?.name || currentUser?.username || 'Administrador',
-      preferencias: {
-        idioma: 'Español (ES)',
-        zonaHoraria: 'GMT-5 (Lima)',
-        tema: theme,
-        escalaFuente: `${fontScale}%`,
-        respaldoAutomatico: autoBackup,
-      },
-      usuarios: localUsers.map((u) => ({
-        id: u.id,
-        nombre: u.name,
-        email: u.email,
-        estado: u.isOnline ? 'Activo' : 'Inactivo',
-      })),
-    };
-
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `backup_project_planner_${now.toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    const formattedDate = `Hoy a las ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Manual)`;
-    setLastBackup(formattedDate);
-    try {
-      localStorage.setItem('project_planner_last_backup', formattedDate);
-    } catch {
-      // Ignorar error de almacenamiento
     }
   };
 
@@ -743,28 +662,22 @@ const Configuration = ({
               
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100/80">Último Respaldo Exitoso</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100/80">Último respaldo generado en esta pantalla</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80 mt-0.5">{lastBackup}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleExportData}
-                  className="bg-transparent border px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/20 cursor-pointer"
-                >
-                  Exportar Datos
-                </button>
+                <BackupExportButton onCreated={setLastBackup} />
               </div>
 
               <div className="flex justify-between items-center mb-6">
-                <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Respaldo Diario Automático</span>
-                <Toggle enabled={autoBackup} onChange={updatePreference('project_planner_auto_backup', setAutoBackup)} />
+                <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Respaldo diario automático</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">Programación en Windows; consulta el historial</span>
               </div>
 
               {/* Consola de estado del sistema */}
               <div className="p-4 rounded-lg font-mono text-xs space-y-2 mt-4 border transition-colors bg-slate-50 border-slate-200 text-slate-600 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-slate-400 midnight:bg-[#050B14] midnight:border-cyan-900/40 midnight:text-cyan-600">
-                <p><span className="font-bold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400">SISTEMA ·</span> Servicio de respaldo y persistencia activo.</p>
+                <p><span className="font-bold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400">SISTEMA ·</span> Exportación manual de la base de datos en formato .dump.</p>
                 <p><span className="font-bold text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">SESIÓN ·</span> Conexión activa para <strong className="font-bold text-slate-900 dark:text-white midnight:text-cyan-100">{currentUser?.name || currentUser?.username || 'Administrador'}</strong> ({currentUser?.roleLabel || 'Admin'}).</p>
-                <p><span className="font-bold text-slate-600 dark:text-slate-300 midnight:text-cyan-400">SEGURIDAD ·</span> Políticas de control de acceso y tokens verificados.</p>
+                <p><span className="font-bold text-slate-600 dark:text-slate-300 midnight:text-cyan-400">SEGURIDAD ·</span> La exportación requiere las credenciales de un superusuario de Django.</p>
               </div>
             </div>
           )}

@@ -287,3 +287,24 @@ Para que una historia de usuario, módulo o corrección se considere **Done (Ter
 - [ ] **Trabajo organizado por ramas:** El desarrollo se realiza en ramas de características (`feature/nombre-tarea`, `refactor/...`) y solo se integran a `main` una vez probadas y validadas.
 - [ ] Commits descriptivos bajo el estándar de _Conventional Commits_ (`feat:`, `fix:`, `docs:`, `refactor:`).
 - [ ] **Despliegue verificado en Render:** Compilación exitosa y operativa en la nube tanto en el Web Service (Backend) como en el Static Site (Frontend).
+## Actualización: respaldos de PostgreSQL
+
+- Respaldo real en formato `.dump`, con creación y descarga desde la aplicación.
+- Historial persistente de copias manuales, automáticas y previas a una restauración.
+- Restauración con confirmación y copia de seguridad previa.
+- Acceso restringido a superusuarios de Django.
+- Validación SHA-256 para copias nuevas y bloqueo de operaciones simultáneas.
+- Tarea diaria de Windows programada a las 20:00.
+
+### Validación y DoD
+
+- [x] `manage.py check` sin errores.
+- [x] `npm run build` exitoso, con advertencias CSS y de tamaño pendientes.
+- [x] Creación, descarga e historial comprobados localmente.
+- [x] Restauración ejecutada y copia previa visible después de volver a iniciar sesión.
+- [x] Tarea programada probada: resultado `0` y copia Automático en el historial.
+- [ ] Documentar comparación de un dato antes y después de restaurarlo.
+- [ ] Ejecutar suites completas y pruebas negativas de permisos.
+- [ ] Validar despliegue en Render y completar revisión e integración en Git.
+
+La programación local requiere equipo encendido, sesión de Windows iniciada y PostgreSQL activo. 
