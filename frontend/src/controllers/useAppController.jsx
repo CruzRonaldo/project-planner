@@ -23,14 +23,27 @@ import {
 } from '../views';
 import projectsApi from '../services/projectsApi';
 import { mapToGanttProject } from '../utils/strategicPlanning';
+import {
+  normalizePersonnelIncidents,
+  normalizeTeamMemberHistory,
+} from '../utils/humanResources';
+import {
+  mapTeamMemberToHumanResources,
+  mapTeamMemberToTechnical,
+  normalizeTeamStatus,
+} from '../utils/teamMembers';
+import {
+  normalizeTeamMemberRecords,
+  readCachedTeamMembers,
+  upsertCachedTeamMember,
+  writeCachedTeamMembers,
+} from '../utils/teamMemberCache';
 
 // Importamos datos mock aislados para visualización (se sustituirán con endpoints de Django)
 import {
   createStrategicPlanningData,
   createPortfolioData,
   createOperationsData,
-  createTechnicalTeamData,
-  createHumanResourcesData,
   createIntegrationsData,
   initialUsers,
 } from '../mocks';
@@ -47,6 +60,19 @@ function createNameFromEmail(email) {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ') || 'Usuario Técnico'
   );
+}
+
+function getApiErrorMessage(error, fallback) {
+  const responseData = error?.response?.data;
+  if (typeof responseData?.detail === 'string') return responseData.detail;
+  if (typeof responseData?.message === 'string') return responseData.message;
+  if (responseData && typeof responseData === 'object') {
+    const messages = Object.values(responseData).flatMap((value) =>
+      Array.isArray(value) ? value : [value]
+    );
+    if (messages.length) return messages.join(' ');
+  }
+  return error?.message || fallback;
 }
 
 export function useAppController() {
@@ -115,18 +141,22 @@ export function useAppController() {
         }
       : createOperationsData()
   );
-  const [technicalTeamData, setTechnicalTeamData] = useState(() =>
-    hideMocks ? { members: [], assignments: [] } : createTechnicalTeamData()
-  );
-  const [humanResourcesData, setHumanResourcesData] = useState(() =>
-    hideMocks
-      ? {
-          members: [],
-          history: [],
-          incidents: [],
-        }
-      : createHumanResourcesData()
-  );
+  // Equipo Técnico y Recursos Humanos comparten una única fuente real: TeamMember en Django.
+  const [technicalTeamData, setTechnicalTeamData] = useState(() => ({
+    members: readCachedTeamMembers().map(mapTeamMemberToTechnical),
+    assignments: [],
+  }));
+  const [humanResourcesData, setHumanResourcesData] = useState(() => ({
+    members: readCachedTeamMembers().map(mapTeamMemberToHumanResources),
+    history: [],
+    incidents: [],
+  }));
+  const [teamStatusRecords, setTeamStatusRecords] = useState([]);
+  const [teamMembersLoading, setTeamMembersLoading] = useState(false);
+  const [teamMembersError, setTeamMembersError] = useState('');
+  const [teamMembersSyncedAt, setTeamMembersSyncedAt] = useState(null);
+  const [humanResourcesRecordsLoading, setHumanResourcesRecordsLoading] = useState(false);
+  const [humanResourcesRecordsError, setHumanResourcesRecordsError] = useState('');
   const [integrationsData, setIntegrationsData] = useState(() =>
     hideMocks
       ? {
@@ -480,6 +510,219 @@ export function useAppController() {
     navigate('/login', { replace: true });
   }, [currentUser, navigate]);
 
+  const refreshTeamMembers = useCallback(async () => {
+    setTeamMembersLoading(true);
+    setTeamMembersError('');
+    try {
+      const [membersResult, statusesResult] = await Promise.allSettled([
+        projectsApi.getTeamMembers(),
+        projectsApi.getTeamStatuses(),
+      ]);
+
+      if (membersResult.status === 'rejected') throw membersResult.reason;
+      const safeMembers = normalizeTeamMemberRecords(membersResult.value);
+      if (!safeMembers) throw new Error('El servidor devolvió un formato de personal no reconocido.');
+      const safeStatuses = statusesResult.status === 'fulfilled'
+        ? normalizeTeamMemberRecords(statusesResult.value)
+        : null;
+
+      if (safeStatuses) setTeamStatusRecords(safeStatuses);
+      writeCachedTeamMembers(safeMembers);
+      setTechnicalTeamData((previous) => ({
+        ...previous,
+        members: safeMembers.map(mapTeamMemberToTechnical),
+      }));
+      setHumanResourcesData((previous) => ({
+        ...previous,
+        members: safeMembers.map(mapTeamMemberToHumanResources),
+      }));
+      setTeamMembersSyncedAt(new Date());
+      if (statusesResult.status === 'rejected' || !safeStatuses) {
+        setTeamMembersError('El personal se cargó correctamente, pero no se pudo actualizar el catálogo de estados.');
+      }
+      return safeMembers;
+    } catch (error) {
+      const hasCachedMembers = readCachedTeamMembers().length > 0;
+      const message = getApiErrorMessage(
+        error,
+        'No se pudo cargar el personal desde PostgreSQL.'
+      );
+      setTeamMembersError(hasCachedMembers
+        ? `${message} Se mantiene la última copia disponible.`
+        : message);
+      throw error;
+    } finally {
+      setTeamMembersLoading(false);
+    }
+  }, []);
+
+  const refreshHumanResourcesRecords = useCallback(async () => {
+    setHumanResourcesRecordsLoading(true);
+    setHumanResourcesRecordsError('');
+    try {
+      const [incidentsResult, historyResult] = await Promise.allSettled([
+        projectsApi.getPersonnelIncidents(),
+        projectsApi.getTeamMemberHistory(),
+      ]);
+
+      if (incidentsResult.status === 'rejected' && historyResult.status === 'rejected') {
+        throw incidentsResult.reason;
+      }
+
+      setHumanResourcesData((previous) => ({
+        ...previous,
+        incidents: incidentsResult.status === 'fulfilled'
+          ? normalizePersonnelIncidents(incidentsResult.value)
+          : previous.incidents,
+        history: historyResult.status === 'fulfilled'
+          ? normalizeTeamMemberHistory(historyResult.value)
+          : previous.history,
+      }));
+
+      if (incidentsResult.status === 'rejected' || historyResult.status === 'rejected') {
+        setHumanResourcesRecordsError(
+          incidentsResult.status === 'rejected'
+            ? 'No se pudieron actualizar las incidencias; se mantiene la última información disponible.'
+            : 'No se pudo actualizar el historial; se mantiene la última información disponible.'
+        );
+      }
+    } catch (error) {
+      setHumanResourcesRecordsError(getApiErrorMessage(
+        error,
+        'No se pudo cargar el historial de Recursos Humanos desde PostgreSQL.'
+      ));
+      throw error;
+    } finally {
+      setHumanResourcesRecordsLoading(false);
+    }
+  }, []);
+
+  const registerPersistedTeamMember = useCallback((memberRecord) => {
+    if (!memberRecord || typeof memberRecord !== 'object') return;
+
+    upsertCachedTeamMember(memberRecord);
+    const technicalMember = mapTeamMemberToTechnical(memberRecord);
+    const humanResourcesMember = mapTeamMemberToHumanResources(memberRecord);
+    const isDifferentMember = (item, nextMember) =>
+      String(item?.dbId ?? '') !== String(nextMember.dbId ?? '')
+      && String(item?.email ?? '').toLowerCase() !== String(nextMember.email ?? '').toLowerCase();
+
+    setTechnicalTeamData((previous) => ({
+      ...previous,
+      members: [technicalMember, ...(previous.members || []).filter((item) => isDifferentMember(item, technicalMember))],
+    }));
+    setHumanResourcesData((previous) => ({
+      ...previous,
+      members: [humanResourcesMember, ...(previous.members || []).filter((item) => isDifferentMember(item, humanResourcesMember))],
+    }));
+    setTeamMembersSyncedAt(new Date());
+  }, []);
+
+  const findStatusId = useCallback((statusCode, fallbackId) => {
+    const match = teamStatusRecords.find(
+      (statusRecord) => normalizeTeamStatus(statusRecord.name) === statusCode
+    );
+    if (match) return match.id;
+    if (fallbackId !== undefined && fallbackId !== null) return fallbackId;
+    throw new Error('No se encontró el estado seleccionado en la base de datos.');
+  }, [teamStatusRecords]);
+
+  const findProjectId = useCallback((projectLabel, fallbackId) => {
+    const cleanLabel = String(projectLabel ?? '').trim();
+    const normalized = cleanLabel.toLocaleLowerCase('es');
+    if (
+      !cleanLabel ||
+      normalized === 'ninguno' ||
+      normalized.startsWith('sin proyecto') ||
+      normalized === 'en espera'
+    ) {
+      return null;
+    }
+
+    const match = (portfolioData?.projects || []).find((project) =>
+      cleanLabel.includes(project.code) ||
+      cleanLabel === project.name ||
+      cleanLabel === `${project.name} (${project.code})`
+    );
+    if (match) return match.id;
+    if (fallbackId !== undefined && fallbackId !== null) return fallbackId;
+    throw new Error('Selecciona un proyecto registrado en Portafolio.');
+  }, [portfolioData.projects]);
+
+  const persistTechnicalMember = useCallback(async (memberId, draft) => {
+    const member = (technicalTeamData?.members || []).find((item) => item.id === memberId);
+    if (!member?.dbId) throw new Error('Este técnico todavía no está registrado en la base de datos.');
+
+    await projectsApi.updateTeamMember(member.dbId, {
+      status: findStatusId(draft.status, draft.status === member.status ? member.statusId : null),
+      project: findProjectId(draft.project, draft.project === member.project ? member.projectId : null),
+      allocation_percentage: Number(draft.workload),
+    });
+    try {
+      await refreshTeamMembers();
+    } catch (refreshError) {
+      console.warn('El cambio se guardó, pero no se pudo refrescar el directorio:', refreshError);
+    }
+  }, [technicalTeamData.members, findProjectId, findStatusId, refreshTeamMembers]);
+
+  const persistHumanResourcesMember = useCallback(async (memberId, draft) => {
+    const member = (humanResourcesData?.members || []).find((item) => item.id === memberId);
+    if (!member?.dbId) throw new Error('Este integrante todavía no está registrado en la base de datos.');
+
+    await projectsApi.updateTeamMember(member.dbId, {
+      status: findStatusId(draft.status, draft.status === member.status ? member.statusId : null),
+      project: findProjectId(draft.project, draft.project === member.project ? member.projectId : null),
+      availability: Number(draft.availability),
+      change_comment: String(draft.comment ?? '').trim(),
+    });
+    const refreshResults = await Promise.allSettled([
+      refreshTeamMembers(),
+      refreshHumanResourcesRecords(),
+    ]);
+    if (refreshResults.some((result) => result.status === 'rejected')) {
+      console.warn('El cambio se guardó, pero no se pudo refrescar toda la información de Recursos Humanos.');
+    }
+  }, [humanResourcesData.members, findProjectId, findStatusId, refreshHumanResourcesRecords, refreshTeamMembers]);
+
+  const createPersonnelIncident = useCallback(async (draft) => {
+    const member = (humanResourcesData?.members || []).find((item) => item.id === draft.memberId);
+    if (!member?.dbId) throw new Error('Selecciona un integrante registrado en la base de datos.');
+    const backupMember = draft.backupMemberId
+      ? (humanResourcesData?.members || []).find((item) => item.id === draft.backupMemberId)
+      : null;
+    if (draft.backupMemberId && !backupMember?.dbId) {
+      throw new Error('Selecciona un técnico de respaldo registrado en la base de datos.');
+    }
+
+    await projectsApi.createPersonnelIncident({
+      member: member.dbId,
+      incident_type: draft.type,
+      start_date: draft.startDate,
+      end_date: draft.endDate,
+      // El serializador de incidencias acepta tanto el PK como el código visual;
+      // así el alta sigue disponible aunque el catálogo tarde en sincronizar.
+      resulting_status: findStatusId(
+        draft.status,
+        draft.status === member.status && member.statusId ? member.statusId : draft.status
+      ),
+      availability: Number(draft.availability),
+      backup_member: backupMember?.dbId ?? null,
+      reason: String(draft.comment ?? '').trim(),
+    });
+    await refreshHumanResourcesRecords();
+  }, [findStatusId, humanResourcesData.members, refreshHumanResourcesRecords]);
+
+  const transitionPersonnelIncident = useCallback(async (incidentId, action, comment = '') => {
+    await projectsApi.transitionPersonnelIncident(incidentId, action, comment);
+    const refreshResults = await Promise.allSettled([
+      refreshHumanResourcesRecords(),
+      refreshTeamMembers(),
+    ]);
+    if (refreshResults.some((result) => result.status === 'rejected')) {
+      console.warn('La incidencia cambió de estado, pero no se pudo refrescar toda la vista.');
+    }
+  }, [refreshHumanResourcesRecords, refreshTeamMembers]);
+
   // Efectos de inicialización y persistencia
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -544,6 +787,22 @@ export function useAppController() {
       isMounted = false;
     };
   }, []);
+
+  // Cargar una sola colección de TeamMember para las vistas de Equipo Técnico y RR. HH.
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const timer = window.setTimeout(() => {
+      refreshTeamMembers().catch((error) => {
+        console.error('Error al sincronizar el personal desde la Base de Datos:', error);
+      });
+      if (canManage) {
+        refreshHumanResourcesRecords().catch((error) => {
+          console.error('Error al sincronizar incidencias e historial:', error);
+        });
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [canManage, isAuthenticated, refreshHumanResourcesRecords, refreshTeamMembers]);
 
   // Sincronizar proyectos reales e hitos de la Base de Datos globalmente desde el inicio
   useEffect(() => {
@@ -775,21 +1034,37 @@ export function useAppController() {
         <TechnicalTeam
           data={technicalTeamData}
           onChange={setTechnicalTeamData}
+          onMemberCreated={registerPersistedTeamMember}
+          onRefreshMembers={refreshTeamMembers}
+          onPersistMember={persistTechnicalMember}
           query={technicalTeamQuery}
           onQueryChange={setTechnicalTeamQuery}
           canManage={canManage}
           projectOptions={projectOptions}
+          syncLoading={teamMembersLoading}
+          syncError={teamMembersError}
         />
       );
     }
     if (activeView === 'human-resources') {
+      const projectOptions = (portfolioData?.projects || []).map(
+        (project) => `${project.name} (${project.code})`
+      );
       return (
         <HumanResources
           data={humanResourcesData}
           onChange={setHumanResourcesData}
+          onPersistMember={persistHumanResourcesMember}
+          onCreateIncident={canManage ? createPersonnelIncident : undefined}
+          onTransitionIncident={canManage ? transitionPersonnelIncident : undefined}
+          onRefreshRecords={canManage ? refreshHumanResourcesRecords : undefined}
           query={humanResourcesQuery}
           onQueryChange={setHumanResourcesQuery}
           canManage={canManage}
+          projectOptions={projectOptions}
+          syncLoading={teamMembersLoading || (canManage && humanResourcesRecordsLoading)}
+          syncError={[teamMembersError, canManage ? humanResourcesRecordsError : ''].filter(Boolean).join(' ')}
+          syncedAt={teamMembersSyncedAt}
         />
       );
     }
@@ -852,6 +1127,18 @@ export function useAppController() {
     handleToggleSubAdmin,
     handleAddMember,
     handleUpdateCurrentUser,
+    createPersonnelIncident,
+    transitionPersonnelIncident,
+    refreshHumanResourcesRecords,
+    persistHumanResourcesMember,
+    persistTechnicalMember,
+    registerPersistedTeamMember,
+    refreshTeamMembers,
+    teamMembersError,
+    teamMembersLoading,
+    teamMembersSyncedAt,
+    humanResourcesRecordsError,
+    humanResourcesRecordsLoading,
     fontScale,
     theme,
   ]);

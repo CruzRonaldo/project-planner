@@ -54,7 +54,7 @@ function getRequestErrorMessage(error) {
     );
     if (messages.length) return messages.join(' ');
   }
-  return error?.message || 'No se pudo registrar el técnico en la base de datos.';
+  return error?.message || 'No se pudo guardar el cambio en la base de datos.';
 }
 
 function StatusBadge({ status }) {
@@ -194,7 +194,21 @@ export function ReassignProjectDialog({ member, projectOptions = technicalProjec
     reason: reassignmentReasons[0],
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
+
+  const submitDraft = async (event) => {
+    event.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await onSubmit(draft);
+    } catch (submitError) {
+      setError(getRequestErrorMessage(submitError));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
@@ -209,7 +223,7 @@ export function ReassignProjectDialog({ member, projectOptions = technicalProjec
           <div className="flex gap-3"><span className={iconBoxClass}><ArrowLeftRight size={20} /></span><div><h2 id="reassign-project-title" className={`text-lg font-bold ${headingClass}`}>Reasignar Proyecto</h2><p className={`mt-1 text-xs ${mutedClass}`}>Actualiza la obra o la disponibilidad operativa del técnico.</p></div></div>
           <button type="button" onClick={onClose} aria-label="Cerrar reasignación" className={closeBtnClass}><X size={19} /></button>
         </header>
-        <form onSubmit={(event) => { event.preventDefault(); try { onSubmit(draft); } catch (submitError) { setError(submitError.message); } }} className="p-4 sm:p-6">
+        <form onSubmit={submitDraft} className="p-4 sm:p-6">
           <div className={`flex items-center gap-3 p-3 ${nestedClass}`}>
             <MemberAvatar member={member} sizeClass="h-12 w-12" />
             <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className={`font-semibold ${headingClass}`}>{member.area === 'architecture' ? 'Arq.' : 'Ing.'} {getMemberFullName(member)}</p><span className="rounded bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 transition-colors duration-300 dark:bg-blue-500/15 dark:text-blue-300 midnight:bg-blue-500/15 midnight:text-blue-300">{member.specialty}</span></div><p className={`mt-1 truncate text-[10px] ${mutedClass}`}>Actual: {member.project}</p></div>
@@ -224,20 +238,26 @@ export function ReassignProjectDialog({ member, projectOptions = technicalProjec
           <label className={`mt-5 block ${labelClass}`}>Motivo de la reasignación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.reason} onChange={changeField('reason')} className={inputClass}>{reassignmentReasons.map((reason) => <option key={reason}>{reason}</option>)}</select></label>
 
           {error && <p role="alert" className={errorClass}>{error}</p>}
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between"><p className={`text-[10px] ${mutedClass}`}>La modificación se registrará en Asignaciones Recientes.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className={secondaryButtonClass}>Cancelar</button><button type="submit" className={primaryBtnClass}><Check size={15} /> Guardar reasignación</button></div></footer>
+          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between"><p className={`text-[10px] ${mutedClass}`}>La modificación se guardará en PostgreSQL y en Asignaciones Recientes.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} disabled={isSubmitting} className={secondaryButtonClass}>Cancelar</button><button type="submit" disabled={isSubmitting} className={`${primaryBtnClass} disabled:cursor-wait disabled:opacity-60`}><Check size={15} /> {isSubmitting ? 'Guardando...' : 'Guardar reasignación'}</button></div></footer>
         </form>
       </section>
     </div>
   );
 }
 
-export default function TechnicalTeam({ data = {}, onChange, query = '', onQueryChange, canManage = false, projectOptions = [] }) {
-  const isProduction =
-    import.meta.env.PROD ||
-    (typeof window !== 'undefined' &&
-      !['localhost', '127.0.0.1'].includes(window.location.hostname));
-  const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
-
+export default function TechnicalTeam({
+  data = {},
+  onChange,
+  onMemberCreated,
+  onRefreshMembers,
+  onPersistMember,
+  query = '',
+  onQueryChange,
+  canManage = false,
+  projectOptions = [],
+  syncLoading = false,
+  syncError = '',
+}) {
   const membersList = data?.members || [];
   const assignmentsList = data?.assignments || [];
 
@@ -256,8 +276,7 @@ export default function TechnicalTeam({ data = {}, onChange, query = '', onQuery
   const visibleMembers = members.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const recentAssignments = showAllAssignments ? assignmentsList : assignmentsList.slice(0, 4);
   const reassignMember = membersList.find((member) => member.id === reassignMemberId);
-  const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : technicalProjects;
-  const availableProjects = Array.from(new Set(baseProjects));
+  const availableProjects = Array.from(new Set(['Sin proyecto inicial', ...projectOptions]));
   const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] || 0 }))];
   const addMember = async (draft) => {
     if (draft.password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
@@ -277,16 +296,36 @@ export default function TechnicalTeam({ data = {}, onChange, query = '', onQuery
       : updated;
 
     onChange(persistedData);
+    if (result?.member && onMemberCreated) onMemberCreated(result.member);
+    if (onRefreshMembers) {
+      try {
+        await onRefreshMembers();
+      } catch (refreshError) {
+        console.warn('El técnico fue creado, pero no se pudo refrescar el directorio:', refreshError);
+      }
+    }
     setDialogOpen(false);
     setAreaFilter('all');
     setPage(1);
     setFeedback(`${getMemberFullName(persistedData.members[0])} fue añadido al equipo técnico y ya puede iniciar sesión.`);
   };
-  const reassignMemberToProject = (draft) => {
+  const reassignMemberToProject = async (draft) => {
+    const previousData = data;
     const updated = reassignTechnicalMember(data, reassignMemberId, draft);
+    if (updated === data) {
+      setReassignMemberId(null);
+      setFeedback(`No había cambios operativos para ${getMemberFullName(reassignMember)}.`);
+      return;
+    }
     onChange(updated);
-    setReassignMemberId(null);
-    setFeedback(updated === data ? `No había cambios operativos para ${getMemberFullName(reassignMember)}.` : `${getMemberFullName(reassignMember)} fue reasignado correctamente.`);
+    try {
+      if (onPersistMember) await onPersistMember(reassignMemberId, draft);
+      setReassignMemberId(null);
+      setFeedback(`${getMemberFullName(reassignMember)} fue reasignado y guardado en PostgreSQL.`);
+    } catch (error) {
+      onChange(previousData);
+      throw error;
+    }
   };
   const openReassignment = (memberId) => {
     setReassignMemberId(memberId);
@@ -309,6 +348,8 @@ export default function TechnicalTeam({ data = {}, onChange, query = '', onQuery
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Gestión del Equipo Técnico</h1><p className={`mt-1 text-sm ${mutedClass}`}>Coordinación de equipos especializados por área técnica</p></div><div className="flex flex-wrap items-center gap-2">{canManage ? <><button type="button" onClick={exportReport} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 transition-colors duration-300 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:border-cyan-500/50 midnight:hover:text-cyan-50"><Download size={15} /> Exportar Nómina / Reporte</button><button type="button" onClick={() => { setDialogOpen(true); setFeedback(''); }} className={primaryBtnClass}><UserPlus size={16} /> Añadir Técnico</button></> : <span className="w-fit rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]">Vista de consulta</span>}</div></header>
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
+        {syncLoading && <p className={`text-xs ${mutedClass}`}>Sincronizando técnicos con PostgreSQL...</p>}
+        {syncError && <p role="alert" className={errorClass}>{syncError}</p>}
         <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between"><div className="flex max-w-full gap-2 overflow-x-auto pb-1">{filters.map((filter) => <button key={filter.id} type="button" onClick={() => { setAreaFilter(filter.id); setPage(1); }} aria-pressed={areaFilter === filter.id} className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-300 ${areaFilter === filter.id ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300' : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'}`}>{filter.label}<span className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors duration-300 ${filter.id === 'architecture' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-blue-500/15 midnight:text-blue-300' : filter.id === 'structures' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/15 midnight:text-emerald-300' : filter.id === 'systems' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/15 midnight:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300'}`}>{filter.count}</span></button>)}</div><div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]"><span>Ordenar por:</span><select value={sortOrder} onChange={(event) => { setSortOrder(event.target.value); setPage(1); }} aria-label="Ordenar equipo técnico" className="cursor-pointer bg-transparent text-xs font-medium text-slate-900 outline-none transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{technicalSortOptions.map((option) => <option key={option.id} value={option.id} className="bg-white dark:bg-[#161b22] midnight:bg-[#0a1120]">{option.label}</option>)}</select></label>{(query || areaFilter !== 'all') && <button type="button" onClick={() => { setAreaFilter('all'); setPage(1); onQueryChange(''); }} className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300">Limpiar filtros</button>}</div></section>
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.3fr)_minmax(260px,0.8fr)]">
           <section className="min-w-0" aria-labelledby="technical-directory-title">

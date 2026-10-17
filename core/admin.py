@@ -4,6 +4,8 @@ from .models import (
     Role,
     TeamStatus,
     TeamMember,
+    TeamMemberChangeLog,
+    PersonnelIncident,
     Project,
     Milestone,
     Task,
@@ -63,6 +65,38 @@ class TeamMemberAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'role', 'technical_area', 'status', 'project', 'is_active')
     list_filter = ('project', 'technical_area', 'role', 'status', 'is_active')
     search_fields = ('first_name', 'last_name', 'email', 'role__name', 'project__name', 'project__code')
+
+
+@admin.register(PersonnelIncident)
+class PersonnelIncidentAdmin(admin.ModelAdmin):
+    list_display = (
+        'member', 'incident_type', 'start_date', 'end_date',
+        'workflow_status', 'availability', 'backup_member',
+    )
+    list_filter = ('workflow_status', 'incident_type', 'start_date', 'end_date')
+    search_fields = ('member__first_name', 'member__last_name', 'member__email', 'reason')
+    readonly_fields = (
+        'previous_status', 'previous_status_name', 'previous_availability',
+        'applied_at', 'restored_at', 'restoration_skipped', 'restoration_note',
+        'created_by', 'reviewed_by', 'reviewed_at', 'created_at', 'updated_at',
+    )
+
+
+@admin.register(TeamMemberChangeLog)
+class TeamMemberChangeLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'member_name', 'action', 'source', 'changed_by')
+    list_filter = ('action', 'source', 'created_at')
+    search_fields = ('member_name', 'member_email', 'comment')
+    readonly_fields = [field.name for field in TeamMemberChangeLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Project)

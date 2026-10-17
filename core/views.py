@@ -2,11 +2,12 @@ import base64
 import logging
 import os
 import time
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import update_last_login
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -32,10 +33,12 @@ from .models import (
     Milestone,
     PerformanceMetric,
     Project,
+    PersonnelIncident,
     Role,
     SecurityAuditLog,
     Task,
     TeamMember,
+    TeamMemberChangeLog,
     TeamStatus,
     TechnicalArea,
     UserProfile,
@@ -43,6 +46,7 @@ from .models import (
 
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import ValidationError
 
 class SimpleUserAuthentication(BaseAuthentication):
     """Autenticación simple que asume que el token Bearer es el ID del usuario."""
@@ -64,9 +68,11 @@ from .serializers import (
     MilestoneSerializer,
     PerformanceMetricSerializer,
     ProjectSerializer,
+    PersonnelIncidentSerializer,
     RoleSerializer,
     TaskSerializer,
     TeamMemberSerializer,
+    TeamMemberChangeLogSerializer,
     TeamStatusSerializer,
     TechnicalAreaSerializer,
 )
@@ -574,11 +580,14 @@ def notifications_view(request):
     incluyendo asignaciones directas de proyectos como líder técnico
     y alertas de auditoría de seguridad para el Administrador.
     """
+    from .services.personnel_incidents import process_incident_lifecycle
+
+    process_incident_lifecycle()
     username = (request.query_params.get('username') or '').strip().lower()
     email = (request.query_params.get('email') or '').strip().lower()
     notifications = []
 
-    # Verificar si el usuario es administrador para inyectar alertas de auditoría
+    # Mantiene compatibilidad con el contrato existente basado en parámetros.
     user = None
     target_ident = email or username
     if target_ident:
@@ -595,8 +604,6 @@ def notifications_view(request):
 
     if is_admin:
         try:
-            from datetime import timedelta
-            from django.utils import timezone
             recent_audits = SecurityAuditLog.objects.select_related('user').filter(
                 created_at__gte=timezone.now() - timedelta(days=14)
             ).order_by('-created_at')[:8]
@@ -633,9 +640,44 @@ def notifications_view(request):
             'unread': True,
         })
 
+    # Alertas de reincorporación. Los administradores observan a todo el equipo;
+    # cada técnico solo recibe alertas de sus propias incidencias.
+    today = timezone.localdate()
+    upcoming_returns = PersonnelIncident.objects.filter(
+        workflow_status='approved',
+    ).select_related('member')
+    if not is_admin:
+        if member:
+            upcoming_returns = upcoming_returns.filter(member=member)
+        else:
+            upcoming_returns = upcoming_returns.none()
+    from .services.personnel_incidents import incident_return_date
+    upcoming_returns = [
+        incident for incident in upcoming_returns.order_by('end_date', 'id')
+        if today <= incident_return_date(incident.start_date, incident.end_date)
+        <= today + timedelta(days=7)
+    ][:8]
+    for incident in upcoming_returns:
+        member_name = f"{incident.member.first_name} {incident.member.last_name}".strip()
+        return_date = incident_return_date(incident.start_date, incident.end_date)
+        days = (return_date - today).days
+        when = 'Hoy' if days == 0 else f'En {days} día(s)'
+        notifications.append({
+            'id': f'incident-return-{incident.id}',
+            'title': 'Reincorporación próxima',
+            'detail': (
+                f"{member_name} retorna el {return_date:%d/%m/%Y} "
+                f"tras {incident.get_incident_type_display().lower()}."
+            ),
+            'time': when,
+            'type': 'personnel_return',
+            'incidentId': incident.id,
+            'memberId': incident.member_id,
+            'unread': True,
+        })
+
     # Notificaciones de hitos próximos
     try:
-        from datetime import date, timedelta
         today = date.today()
         upcoming_milestones = Milestone.objects.filter(
             target_date__gte=today,
@@ -694,6 +736,7 @@ class TeamStatusViewSet(viewsets.ModelViewSet):
 class TeamMemberViewSet(viewsets.ModelViewSet):
     """CRUD para miembros del equipo técnico."""
 
+    authentication_classes = [SimpleUserAuthentication]
     queryset = TeamMember.objects.select_related(
         "role",
         "technical_area",
@@ -702,7 +745,16 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = TeamMemberSerializer
 
+    def get_permissions(self):
+        """Permite consultar el directorio y restringe sus cambios a gestores."""
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+        return [IsAdminUser()]
+
     def get_queryset(self):
+        from .services.personnel_incidents import process_incident_lifecycle
+
+        process_incident_lifecycle()
         queryset = super().get_queryset()
         area = self.request.query_params.get("area")
         status_id = self.request.query_params.get("status")
@@ -717,6 +769,204 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         if project_id:
             queryset = queryset.filter(project_id=project_id)
 
+        return queryset
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        from .services.personnel_incidents import process_incident_lifecycle
+
+        process_incident_lifecycle()
+        instance = self.get_object()
+        protected_fields = {'status', 'availability'}.intersection(request.data.keys())
+        today = timezone.localdate()
+        from .services.personnel_incidents import incident_return_date
+        active_incident = any(
+            incident.start_date <= today < incident_return_date(
+                incident.start_date, incident.end_date
+            )
+            for incident in PersonnelIncident.objects.filter(
+            member=instance,
+            workflow_status='approved',
+            applied_at__isnull=False,
+            start_date__lte=today,
+            ).only('start_date', 'end_date')
+        )
+        if protected_fields and active_incident:
+            raise ValidationError({
+                'detail': (
+                    'No se puede cambiar directamente el estado o la disponibilidad '
+                    'mientras exista una incidencia aprobada vigente.'
+                )
+            })
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        from .services.personnel_incidents import (
+            build_field_changes,
+            capture_member_state,
+            create_change_log,
+        )
+
+        previous = capture_member_state(serializer.instance)
+        member = serializer.save()
+        current = capture_member_state(member)
+        if build_field_changes(previous, current):
+            create_change_log(
+                member=member,
+                action='manual_update',
+                source='manual',
+                previous=previous,
+                current=current,
+                comment=(
+                    self.request.data.get('change_comment')
+                    or self.request.data.get('comment')
+                    or 'Actualización manual desde Recursos Humanos.'
+                ),
+                actor=self.request.user,
+            )
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        from .services.personnel_incidents import capture_member_state, create_change_log
+
+        state = capture_member_state(instance)
+        create_change_log(
+            member=instance,
+            action='member_deleted',
+            source='manual',
+            previous=state,
+            current=state,
+            comment='Integrante eliminado del directorio técnico.',
+            actor=self.request.user,
+        )
+        instance.delete()
+
+
+class PersonnelIncidentViewSet(viewsets.ModelViewSet):
+    """Flujo persistente de incidencias/licencias para Administradores."""
+
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAdminUser]
+    serializer_class = PersonnelIncidentSerializer
+    queryset = PersonnelIncident.objects.select_related(
+        'member', 'member__technical_area', 'resulting_status', 'backup_member',
+        'previous_status', 'created_by', 'reviewed_by',
+    ).all()
+
+    def get_queryset(self):
+        from .services.personnel_incidents import process_incident_lifecycle
+
+        process_incident_lifecycle()
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        if params.get('member'):
+            queryset = queryset.filter(member_id=params['member'])
+        if params.get('type'):
+            queryset = queryset.filter(incident_type=params['type'])
+        if params.get('status'):
+            queryset = queryset.filter(workflow_status=params['status'])
+        if params.get('start_date'):
+            queryset = queryset.filter(end_date__gt=params['start_date'])
+        if params.get('end_date'):
+            queryset = queryset.filter(start_date__lt=params['end_date'])
+        if str(params.get('active', '')).lower() in {'1', 'true', 'yes'}:
+            from .services.personnel_incidents import incident_return_date
+
+            today = timezone.localdate()
+            active_ids = [
+                incident.id for incident in queryset.filter(
+                    workflow_status='approved', start_date__lte=today
+                ).only('id', 'start_date', 'end_date')
+                if today < incident_return_date(incident.start_date, incident.end_date)
+            ]
+            queryset = queryset.filter(id__in=active_ids)
+        if params.get('upcoming_return_days'):
+            from .services.personnel_incidents import incident_return_date
+
+            try:
+                days = max(0, min(365, int(params['upcoming_return_days'])))
+            except (TypeError, ValueError):
+                raise ValidationError({'upcoming_return_days': 'Debe ser un número entero.'})
+            today = timezone.localdate()
+            upcoming_ids = [
+                incident.id for incident in queryset.filter(
+                    workflow_status='approved'
+                ).only('id', 'start_date', 'end_date')
+                if today <= incident_return_date(incident.start_date, incident.end_date)
+                <= today + timedelta(days=days)
+            ]
+            queryset = queryset.filter(id__in=upcoming_ids)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        incident = self.get_object()
+        if incident.workflow_status == 'approved':
+            raise ValidationError(
+                'Finaliza la incidencia aprobada antes de eliminarla.'
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        from .services.personnel_incidents import approve_incident
+
+        incident = approve_incident(
+            self.get_object(),
+            actor=request.user,
+            comment=request.data.get('comment', ''),
+        )
+        return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        from .services.personnel_incidents import reject_incident
+
+        incident = reject_incident(
+            self.get_object(),
+            actor=request.user,
+            comment=request.data.get('comment', ''),
+        )
+        return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def finalize(self, request, pk=None):
+        from .services.personnel_incidents import finalize_incident
+
+        incident = finalize_incident(
+            self.get_object(),
+            actor=request.user,
+            comment=request.data.get('comment', ''),
+        )
+        return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
+
+
+class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consulta del historial permanente de cambios de Recursos Humanos."""
+
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAdminUser]
+    serializer_class = TeamMemberChangeLogSerializer
+    queryset = TeamMemberChangeLog.objects.select_related(
+        'member', 'incident', 'previous_status', 'new_status',
+        'previous_project', 'new_project', 'changed_by',
+    ).all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        params = self.request.query_params
+        if params.get('member'):
+            queryset = queryset.filter(member_id=params['member'])
+        if params.get('source'):
+            queryset = queryset.filter(source=params['source'])
+        if params.get('action'):
+            queryset = queryset.filter(action=params['action'])
+        if params.get('date_from'):
+            queryset = queryset.filter(created_at__date__gte=params['date_from'])
+        if params.get('date_to'):
+            queryset = queryset.filter(created_at__date__lte=params['date_to'])
         return queryset
 
 

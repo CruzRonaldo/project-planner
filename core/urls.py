@@ -14,6 +14,8 @@ from .views import (
     RoleViewSet,
     TeamStatusViewSet,
     TeamMemberViewSet,
+    PersonnelIncidentViewSet,
+    TeamMemberChangeLogViewSet,
     ProjectViewSet,
     MilestoneViewSet,
     TaskViewSet,
@@ -49,6 +51,8 @@ router.register(r"technical-areas", TechnicalAreaViewSet, basename="technical-ar
 router.register(r"roles", RoleViewSet, basename="role")
 router.register(r"team-statuses", TeamStatusViewSet, basename="team-status")
 router.register(r"team-members", TeamMemberViewSet, basename="team-member")
+router.register(r"personnel-incidents", PersonnelIncidentViewSet, basename="personnel-incident")
+router.register(r"team-member-change-logs", TeamMemberChangeLogViewSet, basename="team-member-change-log")
 router.register(r"projects", ProjectViewSet, basename="project")
 router.register(r"milestones", MilestoneViewSet, basename="milestone")
 router.register(r"tasks", TaskViewSet, basename="task")
