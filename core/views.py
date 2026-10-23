@@ -1689,14 +1689,15 @@ class PasswordResetRequestView(APIView):
     Body: { "email": "usuario@empresa.com" }
 
     Genera un codigo OTP numerico de 6 digitos, lo guarda (o actualiza si ya
-    existia uno previo) en PasswordResetCode y envia el correo al usuario.
+    existia uno previo) en PasswordResetCode y envia una peticion POST
+    al webhook configurado en settings.RECOVERY_WEBHOOK_URL.
     Siempre responde con 200 OK para no revelar si el email existe en la BD.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
         import random
-        from django.core.mail import send_mail
+        import requests
         from .models import PasswordResetCode
 
         email = (request.data.get('email') or '').strip().lower()
@@ -1724,29 +1725,22 @@ class PasswordResetRequestView(APIView):
             defaults={'code': code},
         )
 
-        # Enviar correo
+        # Enviar peticion POST al webhook de recuperacion
+        webhook_url = getattr(settings, 'RECOVERY_WEBHOOK_URL', '')
+        payload = {
+            'email': user.email,
+            'code': code,
+        }
+
         try:
-            send_mail(
-                subject='Codigo de recuperacion de contrasena - Project Planner',
-                message=(
-                    f'Hola {user.first_name or user.username},\n\n'
-                    f'Tu codigo de verificacion es:\n\n'
-                    f'  {code}\n\n'
-                    f'Este codigo es valido por 15 minutos. No lo compartas con nadie.\n\n'
-                    f'Si no solicitaste este cambio, ignora este mensaje.\n\n'
-                    f'- Equipo Project Planner'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else None,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
-        except Exception:
-            logger.exception('Error al enviar correo de recuperacion de contrasena')
-            # No revelamos el error al cliente
-            return generic_ok
+            if webhook_url:
+                requests.post(webhook_url, json=payload, timeout=5)
+            else:
+                print("Aviso: settings.RECOVERY_WEBHOOK_URL no esta configurado.")
+        except requests.RequestException as error:
+            print(f"Error al enviar webhook de recuperacion de contrasena: {error}")
 
         return generic_ok
-
 
 
 class PasswordResetVerifyCodeView(APIView):
