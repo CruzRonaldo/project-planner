@@ -9,6 +9,9 @@ from .views import (
     users_status_view,
     notifications_view,
     audit_logs_view,
+    PasswordResetRequestView,
+    PasswordResetVerifyCodeView,
+    PasswordResetConfirmView,
 
     TechnicalAreaViewSet,
     RoleViewSet,
@@ -65,6 +68,19 @@ urlpatterns = [
     path('auth/users-status/', users_status_view, name='api_users_status'),
     path('auth/audit-logs/', audit_logs_view, name='api_audit_logs'),
     path('notifications/', notifications_view, name='api_notifications'),
+
+
+
+    # -------------------------------------------------------
+
+    # Recuperacion de contrasena por OTP de 6 digitos
+
+    # -------------------------------------------------------
+
+    path('auth/password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('auth/password-reset/verify-code/', PasswordResetVerifyCodeView.as_view(), name='password_reset_verify_code'),
+
+    path('auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     # Integración con Google Drive
     path('integrations/google-drive/status/', google_drive_status_view, name='drive_status'),

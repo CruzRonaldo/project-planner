@@ -316,3 +316,37 @@ class SecurityAuditLog(models.Model):
 
     def __str__(self):
         return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.get_action_display()}"
+
+
+class PasswordResetCode(models.Model):
+    """
+    Almacena temporalmente un codigo OTP de 6 digitos para la recuperacion
+    de contrasena. OneToOne garantiza un unico codigo activo por usuario.
+    auto_now=True refresca created_at en cada save(), renovando el TTL de 15 min.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='password_reset_code',
+        verbose_name="Usuario"
+    )
+    code = models.CharField(
+        max_length=6,
+        verbose_name="Codigo OTP de 6 digitos"
+    )
+    created_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Ultima actualizacion"
+    )
+
+    class Meta:
+        verbose_name = "Codigo de Recuperacion de Contrasena"
+        verbose_name_plural = "Codigos de Recuperacion de Contrasena"
+
+    def __str__(self):
+        return f"OTP para {self.user.email}"
+
+    def is_expired(self, minutes: int = 15) -> bool:
+        from django.utils import timezone
+        from datetime import timedelta
+        return timezone.now() > self.created_at + timedelta(minutes=minutes)
