@@ -201,7 +201,7 @@ GOOGLE_DRIVE_SCOPES = [
 # ==========================================================
 
 # URL del Webhook de Make. Configúrala en tu archivo .env local.
-MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
+RECOVERY_WEBHOOK_URL = env('RECOVERY_WEBHOOK_URL', default='')
 
 # ==========================================================
 # AUTODESK PLATFORM SERVICES (APS) — Viewer 3D / BIM
