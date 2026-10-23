@@ -142,7 +142,8 @@ STORAGES = {
 _email_host = env('EMAIL_HOST', default='')
 
 if _email_host:
-    EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+    # Prioriza la variable de entorno. Si no existe, usa SMTP por defecto.
+    EMAIL_BACKEND       = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
     EMAIL_HOST          = _email_host
     EMAIL_PORT          = env.int('EMAIL_PORT', default=587)
     EMAIL_USE_TLS       = env.bool('EMAIL_USE_TLS', default=True)
@@ -150,7 +151,7 @@ if _email_host:
     EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
     DEFAULT_FROM_EMAIL  = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
 
 # ==========================================================
 # GOOGLE DRIVE OAUTH 2.0
