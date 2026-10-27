@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import uuid
 from contextlib import contextmanager
@@ -42,11 +43,45 @@ def backup_directory():
 
 
 def executable(name):
-    directory = os.environ.get("POSTGRES_BIN", "C:/Program Files/PostgreSQL/17/bin")
-    path = Path(directory) / (name + ".exe" if os.name == "nt" else name)
-    if not path.is_file():
-        raise BackupError(f"No se encontró {name}. Revisa POSTGRES_BIN.", 500)
-    return str(path)
+    # 1. Priorizar si el usuario configuró una ruta explícita en POSTGRES_BIN
+    custom_dir = os.environ.get("POSTGRES_BIN", "").strip()
+    if custom_dir:
+        exe_name = name + ".exe" if os.name == "nt" and not name.endswith(".exe") else name
+        candidate = Path(custom_dir) / exe_name
+        if candidate.is_file():
+            return str(candidate)
+
+    # 2. Buscar en el PATH del sistema operativo (Linux, macOS, Windows)
+    found_in_path = shutil.which(name)
+    if found_in_path:
+        return str(found_in_path)
+
+    if os.name == "nt" and not name.endswith(".exe"):
+        found_in_path_exe = shutil.which(name + ".exe")
+        if found_in_path_exe:
+            return str(found_in_path_exe)
+
+    # 3. Detección automática en Windows si no está en PATH
+    if os.name == "nt":
+        base_windows_path = Path("C:/Program Files/PostgreSQL")
+        if base_windows_path.is_dir():
+            for version_dir in sorted(base_windows_path.iterdir(), reverse=True):
+                candidate = version_dir / "bin" / (name + ".exe")
+                if candidate.is_file():
+                    return str(candidate)
+
+    # 4. Rutas comunes en Linux / Unix
+    common_unix_dirs = [Path("/usr/bin"), Path("/usr/local/bin"), Path("/usr/lib/postgresql")]
+    for udir in common_unix_dirs:
+        if udir.is_dir():
+            candidate = udir / name
+            if candidate.is_file():
+                return str(candidate)
+
+    raise BackupError(
+        f"No se encontró {name}. Asegúrate de que PostgreSQL esté instalado o configura POSTGRES_BIN.",
+        500,
+    )
 
 
 def pg_environment():
@@ -81,7 +116,7 @@ def run_pg(command, timeout=600, restoring=False):
     except subprocess.CalledProcessError as error:
         logger.error("Falló %s: %s", Path(command[0]).name, error.stderr)
         raise BackupError(
-            "PostgreSQL rechazó la operación. Revisa la terminal de Django.", 500,
+            "PostgreSQL rechazó la operación. Revisa la terminal del servidor.", 500,
         ) from error
     except subprocess.TimeoutExpired as error:
         raise BackupError("La operación superó el tiempo permitido.", 504) from error

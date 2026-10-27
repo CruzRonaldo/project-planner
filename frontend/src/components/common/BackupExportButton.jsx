@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
 import api from '../../services/api';
+import PasswordInput from './PasswordInput';
 
 const sourceLabels = {
   manual: 'Manual', automatic: 'Automático',
   before_restore: 'Antes de restaurar', legacy: 'Anterior',
 };
 
-export default function BackupExportButton({ onCreated }) {
+export default function BackupExportButton({ onCreated, currentUser }) {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,8 +23,26 @@ export default function BackupExportButton({ onCreated }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  const activeAdmin = currentUser || (() => {
+    try {
+      return JSON.parse(localStorage.getItem('project_planner_user') || 'null');
+    } catch {
+      return null;
+    }
+  })();
+
+  const activeIdentifier = activeAdmin?.username || activeAdmin?.email || activeAdmin?.id || '';
+
   const options = (extra = {}) => ({
     auth: { username: username.trim(), password },
+    headers: {
+      ...(activeIdentifier ? { 'X-Current-User': String(activeIdentifier) } : {}),
+      ...(extra?.headers || {}),
+    },
+    params: {
+      ...(activeIdentifier ? { active_user: String(activeIdentifier) } : {}),
+      ...(extra?.params || {}),
+    },
     timeout: 1500000,
     ...extra,
   });
@@ -33,6 +52,7 @@ export default function BackupExportButton({ onCreated }) {
     setOpen(false);
     setUsername('');
     setPassword('');
+    setShowPassword(false);
     setConnected(false);
     setBackups([]);
     setDatabase('');
@@ -42,6 +62,19 @@ export default function BackupExportButton({ onCreated }) {
     setError('');
     setMessage('');
     setRestored(false);
+  };
+
+  const validateSessionAdmin = () => {
+    if (!activeAdmin) return true;
+    const currentUsername = activeAdmin.username?.trim().toLowerCase();
+    const currentEmail = activeAdmin.email?.trim().toLowerCase();
+    const entered = username.trim().toLowerCase();
+
+    if ((currentUsername || currentEmail) && entered !== currentUsername && entered !== currentEmail) {
+      setError('Debes ingresar las credenciales de tu cuenta activa.');
+      return false;
+    }
+    return true;
   };
 
   const perform = async (action) => {
@@ -58,12 +91,21 @@ export default function BackupExportButton({ onCreated }) {
         try { data = JSON.parse(await data.text()); } catch { data = null; }
       }
       let detail = data?.detail;
-      if (err.response?.status === 401) detail = 'Usuario o contraseña de Django incorrectos.';
-      if (err.response?.status === 403) detail ||= 'Se requiere una cuenta de superusuario.';
-      if (err.response?.status === 401 || err.response?.status === 403) setConnected(false);
+
       if (!err.response) {
-        detail = 'No se pudo confirmar el resultado. Comprueba Django y actualiza el historial antes de repetir.';
+        detail = 'No se pudo completar. No se logró conectar con la base de datos o el servidor.';
+      } else if (err.response.status === 401) {
+        detail = 'Credenciales incorrectas.';
+      } else if (err.response.status === 403) {
+        detail = data?.detail || 'No tienes permisos para realizar esta acción.';
+      } else if (err.response.status >= 500) {
+        detail = data?.detail || 'No se pudo completar la operación en la base de datos.';
       }
+
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setConnected(false);
+      }
+
       setError((detail || 'No se pudo completar la operación.') +
         (data?.safety_backup ? ` Copia previa disponible: ${data.safety_backup}` : ''));
     } finally {
@@ -140,15 +182,42 @@ export default function BackupExportButton({ onCreated }) {
               <button type="button" onClick={close} disabled={busy} className={button}>Cerrar</button>
             </div>
             {!connected && !restored && (
-              <form onSubmit={(event) => { event.preventDefault(); perform(refresh); }} className="space-y-3">
-                <p className="text-sm">Ingresa las credenciales de un superusuario de Django para consultar y administrar las copias.</p>
-                <label className="block text-sm">Usuario
-                  <input autoFocus autoComplete="username" value={username} disabled={busy} required
-                    onChange={(event) => setUsername(event.target.value)} className={input} />
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!validateSessionAdmin()) return;
+                  perform(refresh);
+                }}
+                className="space-y-3"
+              >
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Ingresa las credenciales de la sesión actual
+                </p>
+                <label className="block text-sm">
+                  Nombre o correo
+                  <input
+                    autoFocus
+                    autoComplete="username"
+                    value={username}
+                    disabled={busy}
+                    required
+                    placeholder={activeAdmin?.email || activeAdmin?.username || 'ej. admin@empresa.com'}
+                    onChange={(event) => setUsername(event.target.value)}
+                    className={input}
+                  />
                 </label>
-                <label className="block text-sm">Contraseña
-                  <input type="password" autoComplete="current-password" value={password} disabled={busy} required
-                    onChange={(event) => setPassword(event.target.value)} className={input} />
+                <label className="block text-sm">
+                  Contraseña
+                  <div className="mt-1">
+                    <PasswordInput
+                      autoComplete="current-password"
+                      value={password}
+                      disabled={busy}
+                      required
+                      onChange={(event) => setPassword(event.target.value)}
+                      className={input}
+                    />
+                  </div>
                 </label>
                 <button type="submit" disabled={busy} className={button}>Consultar respaldos</button>
               </form>
@@ -162,7 +231,7 @@ export default function BackupExportButton({ onCreated }) {
                   <button type="button" disabled={busy} onClick={create} className={button}>Crear y descargar respaldo</button>
                   <button type="button" disabled={busy} onClick={() => perform(refresh)} className={button}>Actualizar historial</button>
                 </div>
-                <p className="mb-3 text-xs">Las copias automáticas se programan en Windows. El historial muestra las copias que realmente se han generado.</p>
+                <p className="mb-3 text-xs">Las copias automáticas se ejecutan según la programación del servidor. El historial muestra las copias que realmente se han generado.</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead><tr className="border-b border-slate-400">
@@ -193,8 +262,14 @@ export default function BackupExportButton({ onCreated }) {
                     <p className="text-sm">Se reemplazarán los datos y objetos incluidos en la copia. Los usuarios y contraseñas también volverán a ese momento. Primero se guardará un respaldo del estado actual.</p>
                     <p className="text-sm">Pausa el trabajo de los demás usuarios y no cierres esta ventana durante el proceso.</p>
                     <label className="block text-sm">Para confirmar, escribe: <strong>{database}</strong>
-                      <input value={confirmation} disabled={busy} autoComplete="off"
-                        onChange={(event) => setConfirmation(event.target.value)} className={input} />
+                      <input
+                        value={confirmation}
+                        disabled={busy}
+                        autoComplete="off"
+                        placeholder={database}
+                        onChange={(event) => setConfirmation(event.target.value)}
+                        className={input}
+                      />
                     </label>
                     <label className="flex items-start gap-2 text-sm">
                       <input type="checkbox" checked={acknowledged} disabled={busy}

@@ -53,6 +53,14 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https:\/\/.*\.onrender\.com$",
 ]
 
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-current-user',
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
