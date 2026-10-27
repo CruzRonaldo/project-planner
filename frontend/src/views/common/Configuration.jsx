@@ -22,6 +22,7 @@ import {
 import projectsApi from '../../services/projectsApi';
 import FormattedAuditText from '../../components/common/FormattedAuditText';
 import BackupExportButton from '../../components/common/BackupExportButton';
+import PasswordInput from '../../components/common/PasswordInput';
 
 const Configuration = ({
   currentUser,
@@ -77,9 +78,6 @@ const Configuration = ({
     newPassword: '',
     confirmPassword: '',
   });
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
@@ -665,19 +663,19 @@ const Configuration = ({
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100/80">Último respaldo generado en esta pantalla</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80 mt-0.5">{lastBackup}</p>
                 </div>
-                <BackupExportButton onCreated={setLastBackup} />
+                <BackupExportButton onCreated={setLastBackup} currentUser={currentUser} />
               </div>
 
               <div className="flex justify-between items-center mb-6">
                 <span className="text-sm text-slate-600 dark:text-slate-300 midnight:text-cyan-100/70">Respaldo diario automático</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">Programación en Windows; consulta el historial</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">Programado a las 8:00 AM</span>
               </div>
 
               {/* Consola de estado del sistema */}
               <div className="p-4 rounded-lg font-mono text-xs space-y-2 mt-4 border transition-colors bg-slate-50 border-slate-200 text-slate-600 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-slate-400 midnight:bg-[#050B14] midnight:border-cyan-900/40 midnight:text-cyan-600">
                 <p><span className="font-bold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-400">SISTEMA ·</span> Exportación manual de la base de datos en formato .dump.</p>
                 <p><span className="font-bold text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">SESIÓN ·</span> Conexión activa para <strong className="font-bold text-slate-900 dark:text-white midnight:text-cyan-100">{currentUser?.name || currentUser?.username || 'Administrador'}</strong> ({currentUser?.roleLabel || 'Admin'}).</p>
-                <p><span className="font-bold text-slate-600 dark:text-slate-300 midnight:text-cyan-400">SEGURIDAD ·</span> La exportación requiere las credenciales de un superusuario de Django.</p>
+                <p><span className="font-bold text-slate-600 dark:text-slate-300 midnight:text-cyan-400">SEGURIDAD ·</span> La exportación requiere validar las credenciales del administrador con la sesión activa.</p>
               </div>
             </div>
           )}
@@ -801,72 +799,41 @@ const Configuration = ({
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
                     Contraseña actual
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                      required
-                      placeholder="••••••••"
-                      className="w-full rounded-lg border px-3 py-2 text-xs transition-colors pr-10 bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      aria-label={showCurrentPassword ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 midnight:hover:text-cyan-300 cursor-pointer"
-                    >
-                      {showCurrentPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                    required
+                    placeholder="••••••••"
+                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
                     Nueva contraseña
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                      required
-                      placeholder="Mínimo 6 caracteres"
-                      className="w-full rounded-lg border px-3 py-2 text-xs transition-colors pr-10 bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      aria-label={showNewPassword ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 midnight:hover:text-cyan-300 cursor-pointer"
-                    >
-                      {showNewPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                    required
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
                     Confirmar nueva contraseña
                   </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                      required
-                      placeholder="Repita la nueva contraseña"
-                      className="w-full rounded-lg border px-3 py-2 text-xs transition-colors pr-10 bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      aria-label={showConfirmPassword ? 'Ocultar confirmación de contraseña' : 'Mostrar confirmación de contraseña'}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 midnight:hover:text-cyan-300 cursor-pointer"
-                    >
-                      {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    required
+                    placeholder="Repita la nueva contraseña"
+                    autoComplete="new-password"
+                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                  />
                 </div>
 
                 {passwordError && (
