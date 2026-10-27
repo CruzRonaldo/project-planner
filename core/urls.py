@@ -10,6 +10,9 @@ from .views import (
     users_status_view,
     notifications_view,
     audit_logs_view,
+    PasswordResetRequestView,
+    PasswordResetVerifyCodeView,
+    PasswordResetConfirmView,
 
     TechnicalAreaViewSet,
     RoleViewSet,
@@ -131,6 +134,23 @@ urlpatterns = [
         'notifications/',
         notifications_view,
         name='api_notifications',
+    ),
+
+    # Recuperación de contraseña por OTP de 6 dígitos
+    path(
+        'auth/password-reset/request/',
+        PasswordResetRequestView.as_view(),
+        name='password_reset_request',
+    ),
+    path(
+        'auth/password-reset/verify-code/',
+        PasswordResetVerifyCodeView.as_view(),
+        name='password_reset_verify_code',
+    ),
+    path(
+        'auth/password-reset/confirm/',
+        PasswordResetConfirmView.as_view(),
+        name='password_reset_confirm',
     ),
 
     # Historial, exportación, descarga y restauración

@@ -25,37 +25,152 @@ export default function LoginScreen({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  // Estados para modales interactivos
+  // Estados para modal de recuperación de contraseña
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: Solicitud de código, 2: Validación y cambio
   const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
-  const handleForgotSubmit = (e) => {
+  const resetForgotState = () => {
+    setForgotStep(1);
+    setForgotEmail("");
+    setForgotCode("");
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
+    setShowForgotNewPassword(false);
+    setShowForgotConfirmPassword(false);
+    setForgotError("");
+    setIsSubmittingForgot(false);
+  };
+
+  const handleCloseForgotModal = () => {
+    setIsForgotModalOpen(false);
+    resetForgotState();
+  };
+
+  const handleForgotSubmit = async (e) => {
     e.preventDefault();
     setForgotError("");
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!forgotEmail.trim() || !emailRegex.test(forgotEmail.trim())) {
-      setForgotError("Por favor, introduce un correo electrónico corporativo válido.");
-      return;
-    }
+    if (forgotStep === 1) {
+      // --- PASO 1: Solicitar código OTP por correo ---
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const cleanEmail = forgotEmail.trim();
+      if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+        setForgotError("Por favor, introduce un correo electrónico corporativo válido.");
+        return;
+      }
 
-    setIsSubmittingForgot(true);
-    // Simular envío de enlace de restablecimiento seguro
-    setTimeout(() => {
-      setIsSubmittingForgot(false);
-      setForgotSubmitted(true);
-    }, 600);
+      setIsSubmittingForgot(true);
+      try {
+        const response = await api.post("/auth/password-reset/request/", {
+          email: cleanEmail.toLowerCase(),
+        });
+
+        if (response.data?.status === "success" || response.status === 200) {
+          setForgotStep(2);
+        } else {
+          setForgotError(response.data?.message || "No se pudo procesar la solicitud.");
+        }
+      } catch (err) {
+        console.error("Error al solicitar código de recuperación:", err);
+        const msg =
+          err.response?.data?.message ||
+          "No se pudo enviar el código de recuperación. Inténtalo de nuevo.";
+        setForgotError(msg);
+      } finally {
+        setIsSubmittingForgot(false);
+      }
+    } else if (forgotStep === 2) {
+      // --- PASO 2: Verificar código de 6 dígitos ---
+      const cleanCode = forgotCode.trim();
+      if (!cleanCode || cleanCode.length !== 6) {
+        setForgotError("El código de verificación debe contener exactamente 6 dígitos.");
+        return;
+      }
+
+      setIsSubmittingForgot(true);
+      try {
+        const response = await api.post("/auth/password-reset/verify-code/", {
+          email: forgotEmail.trim().toLowerCase(),
+          code: cleanCode,
+        });
+
+        if (response.data?.status === "success" || response.status === 200) {
+          setForgotStep(3);
+        } else {
+          setForgotError(response.data?.message || "Código inválido o expirado.");
+        }
+      } catch (err) {
+        console.error("Error al verificar código:", err);
+        const msg =
+          err.response?.data?.message ||
+          "El código ingresado es incorrecto o ha expirado.";
+        setForgotError(msg);
+      } finally {
+        setIsSubmittingForgot(false);
+      }
+    } else if (forgotStep === 3) {
+      // --- PASO 3: Restablecer contraseña con código ya verificado ---
+      if (!forgotNewPassword) {
+        setForgotError("Por favor, ingresa una nueva contraseña.");
+        return;
+      }
+      if (forgotNewPassword.length < 8) {
+        setForgotError("La nueva contraseña debe tener al menos 8 caracteres.");
+        return;
+      }
+      if (forgotNewPassword !== forgotConfirmPassword) {
+        setForgotError("Las contraseñas no coinciden. Verifícalas e inténtalo nuevamente.");
+        return;
+      }
+
+      setIsSubmittingForgot(true);
+      try {
+        const response = await api.post("/auth/password-reset/confirm/", {
+          email: forgotEmail.trim().toLowerCase(),
+          code: forgotCode.trim(),
+          new_password: forgotNewPassword,
+          confirm_password: forgotConfirmPassword,
+        });
+
+        if (response.data?.status === "success" || response.status === 200) {
+          setIsForgotModalOpen(false);
+          resetForgotState();
+          setErrorMessage("");
+          setSuccessMessage(
+            response.data?.message ||
+              "Tu contraseña ha sido actualizada exitosamente. Ya puedes iniciar sesión con tu nueva clave."
+          );
+        } else {
+          setForgotError(response.data?.message || "No se pudo restablecer la contraseña.");
+        }
+      } catch (err) {
+        console.error("Error al confirmar nueva contraseña:", err);
+        const msg =
+          err.response?.data?.message ||
+          "No se pudo actualizar la contraseña. El código puede haber expirado.";
+        setForgotError(msg);
+      } finally {
+        setIsSubmittingForgot(false);
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setSuccessMessage("");
     setIsLoading(true);
 
     try {
@@ -268,9 +383,12 @@ export default function LoginScreen({ onLogin }) {
                 <button
                   type="button"
                   onClick={() => {
+                    resetForgotState();
                     setForgotEmail(email || "");
-                    setForgotSubmitted(false);
-                    setForgotError("");
+                    setForgotCode("");
+                    setForgotNewPassword("");
+                    setForgotConfirmPassword("");
+                    setSuccessMessage("");
                     setIsForgotModalOpen(true);
                   }}
                   className="text-cyan-400 hover:text-cyan-300 hover:underline bg-transparent border-none p-0 cursor-pointer text-xs"
@@ -278,6 +396,14 @@ export default function LoginScreen({ onLogin }) {
                   ¿Olvidaste tu contraseña?
                 </button>
               </div>
+
+              {/* Mensaje de Éxito al restablecer contraseña */}
+              {successMessage && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs flex items-start gap-2.5 animate-in fade-in duration-300">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
 
               {/* Mensaje de Error si las credenciales o rol fallan */}
               {errorMessage && (
@@ -336,102 +462,240 @@ export default function LoginScreen({ onLogin }) {
           >
             <button
               type="button"
-              onClick={() => setIsForgotModalOpen(false)}
+              onClick={handleCloseForgotModal}
               className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800/60 cursor-pointer"
               aria-label="Cerrar modal de recuperación"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {forgotSubmitted ? (
-              <div className="text-center py-4 space-y-4">
-                <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                  <CheckCircle2 className="w-7 h-7" />
+            <form onSubmit={handleForgotSubmit} className="space-y-5">
+              {/* Cabecera del modal */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
                 </div>
-                <h3 id="forgot-password-title" className="text-xl font-bold text-white">
-                  Instrucciones Enviadas
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  Hemos enviado las instrucciones para restablecer el acceso a{" "}
-                  <strong className="text-cyan-400">{forgotEmail}</strong>. Revisa tu bandeja de entrada o spam.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsForgotModalOpen(false)}
-                  className="w-full mt-4 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-sm cursor-pointer"
-                >
-                  Regresar al inicio de sesión
-                </button>
+                <div>
+                  <h3 id="forgot-password-title" className="text-lg font-bold text-white">
+                    {forgotStep === 1
+                      ? "Recuperar Contraseña"
+                      : forgotStep === 2
+                      ? "Verificar Código"
+                      : "Nueva Contraseña"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {forgotStep === 1
+                      ? "Paso 1 de 3: Solicitar código de verificación"
+                      : forgotStep === 2
+                      ? "Paso 2 de 3: Ingresar código de 6 dígitos"
+                      : "Paso 3 de 3: Establecer nueva clave de acceso"}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <form onSubmit={handleForgotSubmit} className="space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                    <KeyRound className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 id="forgot-password-title" className="text-lg font-bold text-white">
-                      Recuperar Contraseña
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Restablecimiento de credenciales de usuario
-                    </p>
-                  </div>
-                </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Ingresa tu correo corporativo. Te enviaremos un enlace seguro para generar una nueva clave de acceso.
-                </p>
+              {/* PASO 1: Ingreso de correo corporativo */}
+              {forgotStep === 1 && (
+                <>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Ingresa tu correo corporativo. Te enviaremos un código numérico de 6 dígitos para restablecer tu contraseña.
+                  </p>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="forgot-email" className="text-xs font-medium text-slate-300">
-                    Correo electrónico corporativo
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Mail className="w-4 h-4" />
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-email" className="text-xs font-medium text-slate-300">
+                      Correo electrónico corporativo
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="nombre@empresa.com"
+                        required
+                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                      />
                     </div>
-                    <input
-                      id="forgot-email"
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="nombre@empresa.com"
-                      required
-                      className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
-                    />
                   </div>
+                </>
+              )}
+
+              {/* PASO 2: Solo Código de 6 dígitos */}
+              {forgotStep === 2 && (
+                <>
+                  <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-xs text-slate-300 leading-relaxed">
+                    Hemos enviado un código a <strong className="text-cyan-400">{forgotEmail}</strong>. Válido por 15 minutos.
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-code" className="text-xs font-medium text-slate-300">
+                      Código de verificación (6 dígitos)
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <KeyRound className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="forgot-code"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoComplete="off"
+                        value={forgotCode}
+                        onChange={(e) =>
+                          setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                        }
+                        placeholder="123456"
+                        required
+                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors tracking-widest font-mono"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* PASO 3: Solo Nueva Contraseña y Confirmación */}
+              {forgotStep === 3 && (
+                <>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Código verificado. Ingresa y confirma tu nueva clave de acceso corporativa.
+                  </p>
+
+                  {/* Input Nueva Contraseña */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-new-password" className="text-xs font-medium text-slate-300">
+                      Nueva Contraseña
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="forgot-new-password"
+                        type={showForgotNewPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        placeholder="Mínimo 8 caracteres"
+                        required
+                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                        aria-label={showForgotNewPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showForgotNewPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input Confirmar Contraseña */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-confirm-password" className="text-xs font-medium text-slate-300">
+                      Confirmar Nueva Contraseña
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="forgot-confirm-password"
+                        type={showForgotConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={forgotConfirmPassword}
+                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        placeholder="Repite la nueva contraseña"
+                        required
+                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                        aria-label={showForgotConfirmPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {showForgotConfirmPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Mensaje de error capturado del backend */}
+              {forgotError && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-xs flex items-start gap-2 animate-in fade-in duration-200">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{forgotError}</span>
                 </div>
+              )}
 
-                {forgotError && (
-                  <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-xs flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{forgotError}</span>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
+              {/* Botones de acción */}
+              <div className="flex gap-3 pt-2">
+                {forgotStep === 1 && (
                   <button
                     type="button"
-                    onClick={() => setIsForgotModalOpen(false)}
+                    onClick={handleCloseForgotModal}
                     className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
                   >
                     Cancelar
                   </button>
+                )}
+                {forgotStep === 2 && (
                   <button
-                    type="submit"
-                    disabled={isSubmittingForgot}
-                    className="flex-1 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-2.5 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-xs flex items-center justify-center gap-2 cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      setForgotStep(1);
+                      setForgotCode("");
+                      setForgotError("");
+                    }}
+                    className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
                   >
-                    {isSubmittingForgot ? (
-                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      "Enviar enlace"
-                    )}
+                    Volver
                   </button>
-                </div>
-              </form>
-            )}
+                )}
+                {forgotStep === 3 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotStep(2);
+                      setForgotNewPassword("");
+                      setForgotConfirmPassword("");
+                      setForgotError("");
+                    }}
+                    className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
+                  >
+                    Volver
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={isSubmittingForgot}
+                  className="flex-1 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-2.5 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingForgot ? (
+                    <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  ) : forgotStep === 1 ? (
+                    "Enviar código"
+                  ) : forgotStep === 2 ? (
+                    "Verificar código"
+                  ) : (
+                    "Restablecer Contraseña"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
