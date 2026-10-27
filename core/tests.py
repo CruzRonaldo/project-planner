@@ -638,4 +638,94 @@ class UserProfileAPITests(TestCase):
         self.assertIn("ya está registrado", response.data["message"])
 
 
+class BackupAuthenticationAndSecurityTests(TestCase):
+    """Pruebas de seguridad y autenticación para la gestión de respaldos."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin_user = User.objects.create_superuser(
+            username="admin_activo",
+            email="admin.activo@empresa.com",
+            password="SecureAdminPass123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.other_admin = User.objects.create_superuser(
+            username="otro_admin",
+            email="otro.admin@empresa.com",
+            password="OtherSecurePass123!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.regular_user = User.objects.create_user(
+            username="usuario_comun",
+            email="comun@empresa.com",
+            password="RegularPass123!",
+            is_staff=False,
+            is_superuser=False,
+        )
+        self.url = "/api/backups/"
+
+    def _basic_auth(self, username, password):
+        import base64
+        token = base64.b64encode(f"{username}:{password}".encode()).decode("utf-8")
+        return f"Basic {token}"
+
+    def test_accepts_username_of_active_admin(self):
+        auth_header = self._basic_auth("admin_activo", "SecureAdminPass123!")
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=auth_header,
+            HTTP_X_CURRENT_USER="admin_activo",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("database", response.data)
+        self.assertIn("backups", response.data)
+
+    def test_accepts_email_of_active_admin(self):
+        auth_header = self._basic_auth("admin.activo@empresa.com", "SecureAdminPass123!")
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=auth_header,
+            HTTP_X_CURRENT_USER="admin.activo@empresa.com",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_rejects_credentials_of_different_admin(self):
+        # Sesión activa es 'admin_activo', pero se envían credenciales de 'otro_admin'
+        # Mitigación OWASP: responde 401 Credenciales incorrectas sin delatar si la clave era válida
+        auth_header = self._basic_auth("otro_admin", "OtherSecurePass123!")
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=auth_header,
+            HTTP_X_CURRENT_USER="admin_activo",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("Credenciales incorrectas", str(response.data))
+
+    def test_rejects_regular_non_admin_user(self):
+        auth_header = self._basic_auth("usuario_comun", "RegularPass123!")
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=auth_header,
+            HTTP_X_CURRENT_USER="usuario_comun",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_rejects_invalid_password(self):
+        auth_header = self._basic_auth("admin_activo", "ClaveIncorrecta!")
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=auth_header,
+            HTTP_X_CURRENT_USER="admin_activo",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+
 
