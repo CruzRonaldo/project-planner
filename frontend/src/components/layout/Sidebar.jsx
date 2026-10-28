@@ -73,7 +73,7 @@ export default function Sidebar({
             : '-translate-x-full md:translate-x-0'
         } ${
           isOpenDesktop ? 'md:w-[210px]' : 'md:w-[60px]'
-        } md:static md:shadow-none md:overflow-visible select-none`}
+        } md:relative md:z-30 md:shadow-none md:overflow-visible select-none`}
       >
         <div className="flex flex-col flex-1 py-3 md:overflow-visible">
           {/* HEADER: LOGO, MARCA Y BOTÓN DE COLAPSO */}
@@ -90,6 +90,7 @@ export default function Sidebar({
                 type="button"
                 onClick={!isOpenDesktop ? onToggleDesktop : undefined}
                 aria-label={!isOpenDesktop ? 'Expandir barra lateral' : 'Project Planner'}
+                title={!isOpenDesktop ? `Expandir barra lateral (${formatShortcut('Shift + 0')})` : 'Project Planner'}
                 className={`flex items-center gap-2.5 text-left transition-colors ${
                   !isOpenDesktop ? 'cursor-pointer hover:opacity-85' : 'cursor-default'
                 }`}
@@ -110,7 +111,10 @@ export default function Sidebar({
 
               {/* Tooltip flotante sobre el logo al estar colapsado */}
               {!isOpenDesktop && !isMobile && (
-                <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden md:group-hover:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-[60] animate-in fade-in zoom-in-95 duration-150">
+                <div
+                  role="tooltip"
+                  className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                >
                   <span>Expandir barra lateral</span>
                   <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
                     ({formatShortcut('Shift + 0')})
@@ -131,15 +135,28 @@ export default function Sidebar({
 
             {/* Botón colapsar en escritorio */}
             {isOpenDesktop && (
-              <button
-                type="button"
-                onClick={onToggleDesktop}
-                aria-label="Colapsar barra lateral"
-                title="Colapsar barra lateral"
-                className="hidden md:flex rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              >
-                <PanelLeftClose size={16} />
-              </button>
+              <div className="relative group flex items-center">
+                <button
+                  type="button"
+                  onClick={onToggleDesktop}
+                  aria-label="Colapsar barra lateral"
+                  title={`Colapsar barra lateral (${formatShortcut('Shift + 0')})`}
+                  className="hidden md:flex rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+                {!isMobile && (
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                  >
+                    <span>Colapsar barra lateral</span>
+                    <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
+                      ({formatShortcut('Shift + 0')})
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -158,6 +175,7 @@ export default function Sidebar({
                     disabled={item.enabled === false}
                     onClick={() => handleNavigation(item.id)}
                     aria-label={item.label}
+                    title={formattedShortcut ? `${item.label} (${formattedShortcut})` : item.label}
                     aria-current={isActive ? 'page' : undefined}
                     className={`relative flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                       isOpenDesktop
@@ -184,9 +202,12 @@ export default function Sidebar({
                     </span>
                   </button>
 
-                  {/* Tooltip flotante al hacer hover en modo compacto */}
-                  {!isOpenDesktop && !isMobile && (
-                    <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden md:group-hover:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-[60] animate-in fade-in zoom-in-95 duration-150">
+                  {/* Tooltip flotante al pasar el cursor */}
+                  {!isMobile && (
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                    >
                       <span>{item.label}</span>
                       {formattedShortcut && (
                         <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
@@ -210,6 +231,7 @@ export default function Sidebar({
               type="button"
               onClick={() => handleNavigation('configuracion')}
               aria-label="Configuración"
+              title={`Configuración (${formatShortcut('Shift + 9')})`}
               aria-current={activeView === 'configuracion' ? 'page' : undefined}
               className={`flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                 isOpenDesktop
@@ -230,9 +252,12 @@ export default function Sidebar({
                 Configuración
               </span>
             </button>
-            {/* Tooltip flotante en modo compacto */}
-            {!isOpenDesktop && !isMobile && (
-              <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 hidden md:group-hover:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-[60] animate-in fade-in zoom-in-95 duration-150">
+            {/* Tooltip flotante al pasar el cursor */}
+            {!isMobile && (
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+              >
                 <span>Configuración</span>
                 <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
                   ({formatShortcut('Shift + 9')})
