@@ -16,6 +16,7 @@ from .models import (
     Task,
     PerformanceMetric,
     DriveLink,
+    ProjectMeeting,
 )
 
 
@@ -529,3 +530,22 @@ class CreateTechnicianSerializer(serializers.Serializer):
             project=project,
             is_active=True,
         )
+
+
+class ProjectMeetingSerializer(serializers.ModelSerializer):
+    """
+    Serializador para el modelo ProjectMeeting (Reuniones / Videoconferencias Jitsi).
+    """
+    created_by_name = serializers.SerializerMethodField(read_only=True)
+    project_name = serializers.ReadOnlyField(source='project.name')
+
+    class Meta:
+        model = ProjectMeeting
+        fields = '__all__'
+        read_only_fields = ('room_name', 'meeting_url', 'created_at')
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            name = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return name or obj.created_by.username
+        return None

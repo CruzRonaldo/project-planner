@@ -23,6 +23,7 @@ from .views import (
     TaskViewSet,
     PerformanceMetricViewSet,
     DriveLinkViewSet,
+    ProjectMeetingViewSet,
 
     google_drive_connect_view,
     google_drive_callback_view,
@@ -95,6 +96,11 @@ router.register(
     r"drive-links",
     DriveLinkViewSet,
     basename="drive-link",
+)
+router.register(
+    r"meetings",
+    ProjectMeetingViewSet,
+    basename="meetings",
 )
 
 

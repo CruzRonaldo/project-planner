@@ -350,3 +350,76 @@ class PasswordResetCode(models.Model):
         from django.utils import timezone
         from datetime import timedelta
         return timezone.now() > self.created_at + timedelta(minutes=minutes)
+
+
+import uuid
+import re
+class ProjectMeeting(models.Model):
+    """
+    Reunión de Proyecto / Videoconferencia con Jitsi Meet.
+    Genera salas y URLs dinámicas para el seguimiento y coordinación de proyectos.
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name="ID Único"
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='meetings',
+        verbose_name="Proyecto"
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name="Título de la Reunión"
+    )
+    room_name = models.CharField(
+        max_length=255,
+        unique=True,
+        blank=True,
+        verbose_name="Nombre de la Sala"
+    )
+    meeting_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name="URL de la Reunión"
+    )
+    scheduled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha y Hora Programada"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_meetings',
+        verbose_name="Creado por"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Creación"
+    )
+
+    class Meta:
+        verbose_name = "Reunión de Proyecto"
+        verbose_name_plural = "Reuniones de Proyectos"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.room_name})"
+
+    def save(self, *args, **kwargs):
+        if not self.room_name:
+            clean_title = re.sub(r'[^a-zA-Z0-9]', '', self.title or '') or 'Meeting'
+            short_uuid = uuid.uuid4().hex[:8]
+            project_id = self.project_id if self.project_id else (self.project.id if self.project else '0')
+            self.room_name = f"ProjectPlanner-{project_id}-{clean_title}-{short_uuid}"
+
+        if not self.meeting_url:
+            self.meeting_url = f"https://meet.jit.si/{self.room_name}"
+
+        super().save(*args, **kwargs)

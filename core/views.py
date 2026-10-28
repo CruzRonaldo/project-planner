@@ -39,6 +39,7 @@ from .models import (
     TeamStatus,
     TechnicalArea,
     UserProfile,
+    ProjectMeeting,
 )
 
 from rest_framework.authentication import BaseAuthentication
@@ -69,6 +70,7 @@ from .serializers import (
     TeamMemberSerializer,
     TeamStatusSerializer,
     TechnicalAreaSerializer,
+    ProjectMeetingSerializer,
 )
 from .services.google_drive import (
     GoogleDriveConfigurationError,
@@ -1879,3 +1881,23 @@ class PasswordResetConfirmView(APIView):
             'status': 'success',
             'message': 'Tu contrasena ha sido actualizada correctamente. Ya puedes iniciar sesion.',
         })
+
+
+class ProjectMeetingViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para reuniones virtuales y videoconferencias Jitsi Meet de proyectos.
+    """
+    queryset = ProjectMeeting.objects.select_related('project', 'created_by').all().order_by('-created_at')
+    serializer_class = ProjectMeetingSerializer
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

@@ -201,6 +201,26 @@ export const projectsApi = {
     });
     return response.data;
   },
+  /**
+   * Obtiene la lista de videoconferencias / salas Jitsi Meet registradas.
+   * Permite filtrar por ID de proyecto.
+   * @param {string|number} projectId ID del proyecto
+   */
+  getMeetings: async (projectId = null) => {
+    const params = projectId ? { project: projectId } : {};
+    const response = await api.get('/meetings/', { params });
+    return response.data;
+  },
+
+  /**
+   * Registra una nueva reunión / sala de videoconferencia en Jitsi Meet.
+   * El backend autogenera un room_name único y la meeting_url.
+   * @param {Object} meetingData { project: id, title: string, scheduled_at?: string }
+   */
+  createMeeting: async (meetingData) => {
+    const response = await api.post('/meetings/', meetingData);
+    return response.data;
+  },
 };
 
 export default projectsApi;
