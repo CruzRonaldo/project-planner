@@ -6,6 +6,24 @@ import { useAppController } from './controllers';
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_sidebar_open');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleDesktopSidebar = React.useCallback(() => {
+    setIsDesktopSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('project_planner_sidebar_open', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   const {
     isLoading,
@@ -24,6 +42,108 @@ export default function App() {
     renderActiveView,
   } = useAppController();
 
+  // Atajos de teclado para accesibilidad (A11y):
+  // - Escape: cerrar menú móvil
+  // - Shift + 0: alternar barra lateral en escritorio (expandir / colapsar)
+  // - Shift + 1 .. 8: cambiar de vista directamente
+  React.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+        return;
+      }
+
+      const target = event.target;
+      const tagName = target?.tagName;
+      const isTyping =
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        target?.isContentEditable;
+
+      if (isTyping) return;
+
+      if (event.shiftKey) {
+        const code = event.code;
+        const key = event.key;
+
+        if (
+          code === 'Digit0' ||
+          code === 'Numpad0' ||
+          key === '0' ||
+          key === '='
+        ) {
+          event.preventDefault();
+          toggleDesktopSidebar();
+          return;
+        }
+
+        const shortcutToView = {
+          Digit1: 'dashboard',
+          Numpad1: 'dashboard',
+          Digit2: 'planning',
+          Numpad2: 'planning',
+          Digit3: 'portfolio',
+          Numpad3: 'portfolio',
+          Digit4: 'operations',
+          Numpad4: 'operations',
+          Digit5: 'technical-team',
+          Numpad5: 'technical-team',
+          Digit6: 'human-resources',
+          Numpad6: 'human-resources',
+          Digit7: 'integrations',
+          Numpad7: 'integrations',
+          // Shift + 8 queda libre para un futuro panel
+          Digit9: 'configuracion',
+          Numpad9: 'configuracion',
+        };
+
+        const keyFallbackMap = {
+          '!': 'dashboard',
+          '1': 'dashboard',
+          '"': 'planning',
+          '@': 'planning',
+          '2': 'planning',
+          '·': 'portfolio',
+          '#': 'portfolio',
+          '3': 'portfolio',
+          '$': 'operations',
+          '4': 'operations',
+          '%': 'technical-team',
+          '5': 'technical-team',
+          '&': 'human-resources',
+          '^': 'human-resources',
+          '6': 'human-resources',
+          '/': 'integrations',
+          '7': 'integrations',
+          // Shift + 9 para Configuración (en teclado ES genera ')', en US genera '(')
+          ')': 'configuracion',
+          '9': 'configuracion',
+        };
+
+        const targetView = shortcutToView[code] || keyFallbackMap[key];
+        if (targetView) {
+          event.preventDefault();
+          setActiveView(targetView);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setActiveView, toggleDesktopSidebar]);
+
+  // Cerrar automáticamente el menú móvil cuando la ventana escala a vista de escritorio (>= 768px)
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Si está autenticado: Mostramos el Dashboard completo
   if (isAuthenticated) {
     return (
@@ -34,6 +154,8 @@ export default function App() {
           onNavigate={setActiveView}
           isOpenMobile={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
+          isOpenDesktop={isDesktopSidebarOpen}
+          onToggleDesktop={toggleDesktopSidebar}
         />
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden pb-0 print:h-auto print:overflow-visible">
           <Topbar
