@@ -207,5 +207,8 @@ secrets/
 docs/.obsidian/workspace.json
 docs/.obsidian/workspace-mobile.json
 docs/.obsidian/cache/
-/backups/
+# Respaldos de base de datos y archivos de bloqueo
+*.dump
+*.lock
 *.bak
+/backups/

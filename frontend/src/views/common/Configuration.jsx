@@ -663,7 +663,9 @@ const Configuration = ({
                   <p className="text-sm font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100/80">Último respaldo generado en esta pantalla</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80 mt-0.5">{lastBackup}</p>
                 </div>
-                <BackupExportButton onCreated={setLastBackup} currentUser={currentUser} />
+                <div title="Exportar Datos">
+                  <BackupExportButton onCreated={setLastBackup} currentUser={currentUser} />
+                </div>
               </div>
 
               <div className="flex justify-between items-center mb-6">
@@ -702,7 +704,7 @@ const Configuration = ({
                   onClick={fetchAuditLogs}
                   disabled={loadingAuditLogs}
                   title="Actualizar bitácora"
-                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-[#30363d] dark:hover:bg-white/5 midnight:border-cyan-800 midnight:hover:bg-cyan-900/20 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400 transition-colors cursor-pointer"
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-[#30363d] dark:hover:bg-white/5 midnight:border-cyan-800 midnight:hover:bg-cyan-900/20 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400 midnight:hover:text-cyan-200 transition-colors cursor-pointer"
                 >
                   <RotateCw size={14} className={loadingAuditLogs ? 'animate-spin' : ''} />
                 </button>
@@ -744,7 +746,7 @@ const Configuration = ({
 
       {/* MODAL: CAMBIAR CONTRASEÑA */}
       {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-colors duration-300 dark:bg-black/70 midnight:bg-black/80 animate-in fade-in duration-200">
           <div
             className="w-full max-w-md rounded-2xl border p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 transition-colors bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/50"
             role="dialog"
@@ -847,7 +849,7 @@ const Configuration = ({
                   <button
                     type="button"
                     onClick={() => setIsPasswordModalOpen(false)}
-                    className="flex-1 bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800 midnight:text-cyan-400 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+                    className="flex-1 bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors"
                   >
                     Cancelar
                   </button>
@@ -870,7 +872,7 @@ const Configuration = ({
         <div
           role="presentation"
           onMouseDown={() => setIsProfileModalOpen(false)}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-colors duration-300 dark:bg-black/70 midnight:bg-black/80 animate-in fade-in duration-200"
         >
           <div
             role="dialog"
@@ -974,7 +976,7 @@ const Configuration = ({
                   <button
                     type="button"
                     onClick={() => setIsProfileModalOpen(false)}
-                    className="flex-1 bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800 midnight:text-cyan-400 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+                    className="flex-1 bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors"
                   >
                     Cancelar
                   </button>

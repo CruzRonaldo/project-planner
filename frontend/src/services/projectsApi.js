@@ -1,5 +1,15 @@
 import api from './api';
 
+function getActorHeaders() {
+  try {
+    const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
+    const actorId = savedUser?.db_id ?? savedUser?.id ?? null;
+    return actorId ? { Authorization: `Bearer ${actorId}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Cliente de servicios para el módulo de Proyectos (Portfolio)
  * Conectado con los endpoints REST de Django: /api/projects/
@@ -94,15 +104,76 @@ export const projectsApi = {
     return response.data;
   },
 
+  /** Obtiene el catálogo persistido de estados operativos del equipo. */
+  getTeamStatuses: async () => {
+    const response = await api.get('/team-statuses/');
+    return response.data;
+  },
+
+  /** Actualiza parcialmente una ficha TeamMember existente. */
+  updateTeamMember: async (id, memberData) => {
+    const response = await api.patch(`/team-members/${id}/`, memberData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /** Obtiene las incidencias y licencias persistidas (admite paginación DRF). */
+  getPersonnelIncidents: async (params = {}) => {
+    const response = await api.get('/personnel-incidents/', {
+      params,
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /** Registra una incidencia en estado pendiente para revisión. */
+  createPersonnelIncident: async (incidentData) => {
+    const response = await api.post('/personnel-incidents/', incidentData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /** Ejecuta una transición autorizada del flujo de una incidencia. */
+  transitionPersonnelIncident: async (id, action, comment = '') => {
+    if (!['approve', 'reject', 'finalize'].includes(action)) {
+      throw new Error('La acción solicitada para la incidencia no es válida.');
+    }
+    const response = await api.post(
+      `/personnel-incidents/${id}/${action}/`,
+      { comment: String(comment ?? '').trim() },
+      { headers: getActorHeaders() }
+    );
+    return response.data;
+  },
+
+  approvePersonnelIncident: async (id, comment = '') =>
+    projectsApi.transitionPersonnelIncident(id, 'approve', comment),
+
+  rejectPersonnelIncident: async (id, comment = '') =>
+    projectsApi.transitionPersonnelIncident(id, 'reject', comment),
+
+  finalizePersonnelIncident: async (id, comment = '') =>
+    projectsApi.transitionPersonnelIncident(id, 'finalize', comment),
+
+  /** Obtiene el historial permanente de cambios del personal. */
+  getTeamMemberHistory: async (params = {}) => {
+    const response = await api.get('/team-member-change-logs/', {
+      params,
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
   /**
    * Crea la ficha del técnico y su cuenta de acceso en una sola operación.
    */
   createTechnician: async (technicianData) => {
-    let actorId = null;
-    try {
-      const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
-      actorId = savedUser?.db_id ?? savedUser?.id ?? null;
-    } catch {}
+    const availability = technicianData.availability ?? technicianData.workload;
+    const allocationPercentage = technicianData.allocation_percentage
+      ?? technicianData.allocationPercentage
+      ?? technicianData.workload;
 
     const response = await api.post('/technicians/create/', {
       first_name: technicianData.firstNames?.trim(),
@@ -113,8 +184,10 @@ export const projectsApi = {
       area: technicianData.area,
       project: technicianData.project || '',
       status: technicianData.status,
+      availability: Number(availability),
+      allocation_percentage: Number(allocationPercentage),
     }, {
-      headers: actorId ? { Authorization: `Bearer ${actorId}` } : {},
+      headers: getActorHeaders(),
     });
     return response.data;
   },

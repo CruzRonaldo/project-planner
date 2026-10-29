@@ -6,6 +6,9 @@ export {
   buildPersonnelCsv,
   updatePersonnel,
   getIncidentDuration,
+  getUpcomingIncidentAlerts,
+  normalizePersonnelIncidents,
+  normalizeTeamMemberHistory,
   registerPersonnelIncident,
 } from '../utils/humanResources.js';
 

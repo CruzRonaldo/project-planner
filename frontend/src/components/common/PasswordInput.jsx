@@ -18,6 +18,8 @@ export default function PasswordInput({
   showClear = true,
   autoComplete = 'current-password',
   leftIcon = null,
+  showPasswordLabel = 'Ver contraseña',
+  hidePasswordLabel = 'Ocultar contraseña',
   ...rest
 }) {
   const [visible, setVisible] = useState(false);
@@ -73,8 +75,8 @@ export default function PasswordInput({
           type="button"
           tabIndex={-1}
           onClick={() => setVisible((prev) => !prev)}
-          aria-label={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
-          title={visible ? 'Ocultar contraseña' : 'Ver contraseña'}
+          aria-label={visible ? hidePasswordLabel : showPasswordLabel}
+          title={visible ? hidePasswordLabel : showPasswordLabel}
           className="rounded p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
         >
           {visible ? <EyeOff size={15} /> : <Eye size={15} />}

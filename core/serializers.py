@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -11,6 +12,8 @@ from .models import (
     Role,
     TeamStatus,
     TeamMember,
+    TeamMemberChangeLog,
+    PersonnelIncident,
     Project,
     Milestone,
     Task,
@@ -75,6 +78,12 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     project_code = serializers.ReadOnlyField(source='project.code')
     project_name = serializers.ReadOnlyField(source='project.name')
     full_name = serializers.SerializerMethodField()
+    change_comment = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=500,
+    )
 
     class Meta:
         model = TeamMember
@@ -94,12 +103,298 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'project',
             'project_code',
             'project_name',
+            'availability',
+            'allocation_percentage',
             'is_active',
             'created_at',
+            'updated_at',
+            'change_comment',
         ]
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
+
+    def update(self, instance, validated_data):
+        validated_data.pop('change_comment', None)
+        return super().update(instance, validated_data)
+
+
+def _frontend_status_code(name):
+    normalized = re.sub(r'[\s_-]+', '', (name or '').strip().lower())
+    if normalized in {'active', 'activo', 'activoenobra'}:
+        return 'active'
+    if normalized in {'standby', 'enespera', 'fueradeobra'}:
+        return 'standby'
+    if normalized in {'support', 'apoyo', 'enapoyo'}:
+        return 'support'
+    return normalized or 'standby'
+
+
+class PersonnelIncidentSerializer(serializers.ModelSerializer):
+    member_name = serializers.SerializerMethodField()
+    incident_type_display = serializers.CharField(source='get_incident_type_display', read_only=True)
+    resulting_status_name = serializers.ReadOnlyField(source='resulting_status.name')
+    backup_member_name = serializers.SerializerMethodField()
+    workflow_status_display = serializers.CharField(source='get_workflow_status_display', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    duration_days = serializers.SerializerMethodField()
+    registeredAt = serializers.SerializerMethodField()
+    memberId = serializers.IntegerField(source='member_id', read_only=True)
+    memberName = serializers.SerializerMethodField()
+    type = serializers.CharField(source='incident_type', read_only=True)
+    typeLabel = serializers.CharField(source='get_incident_type_display', read_only=True)
+    startDate = serializers.DateField(source='start_date', read_only=True)
+    endDate = serializers.DateField(source='end_date', read_only=True)
+    status = serializers.SerializerMethodField()
+    backupMemberId = serializers.IntegerField(source='backup_member_id', read_only=True)
+    backupMemberName = serializers.SerializerMethodField()
+    comment = serializers.CharField(source='reason', read_only=True)
+
+    class Meta:
+        model = PersonnelIncident
+        fields = [
+            'id', 'member', 'member_name', 'incident_type', 'incident_type_display',
+            'start_date', 'end_date', 'resulting_status', 'resulting_status_name',
+            'availability', 'backup_member', 'backup_member_name', 'reason',
+            'workflow_status', 'workflow_status_display', 'previous_status',
+            'previous_status_name', 'previous_availability', 'applied_at',
+            'restored_at', 'restoration_skipped', 'restoration_note',
+            'created_by', 'created_by_name', 'reviewed_by', 'reviewed_by_name',
+            'reviewed_at', 'review_comment', 'created_at', 'updated_at',
+            'duration_days', 'registeredAt', 'memberId', 'memberName', 'type',
+            'typeLabel', 'startDate', 'endDate', 'status', 'backupMemberId',
+            'backupMemberName', 'comment',
+        ]
+        read_only_fields = [
+            'workflow_status', 'previous_status', 'previous_status_name',
+            'previous_availability', 'applied_at', 'restored_at',
+            'restoration_skipped', 'restoration_note', 'created_by', 'reviewed_by',
+            'reviewed_at', 'review_comment', 'created_at', 'updated_at',
+        ]
+
+    @staticmethod
+    def _related_id(value):
+        if value in (None, ''):
+            return None
+        if isinstance(value, int):
+            return value
+        match = re.search(r'(\d+)$', str(value).strip())
+        return int(match.group(1)) if match else value
+
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        aliases = {
+            'memberId': 'member',
+            'type': 'incident_type',
+            'startDate': 'start_date',
+            'endDate': 'end_date',
+            'backupMemberId': 'backup_member',
+            'comment': 'reason',
+        }
+        for source, target in aliases.items():
+            if source in data and target not in data:
+                data[target] = data[source]
+        if 'status' in data and 'resulting_status' not in data:
+            data['resulting_status'] = data['status']
+
+        for field in ('member', 'backup_member'):
+            if field in data:
+                data[field] = self._related_id(data[field])
+
+        raw_status = data.get('resulting_status')
+        if raw_status not in (None, '') and not str(raw_status).isdigit():
+            candidates = {
+                'active': ('Active', 'Activo'),
+                'standby': ('Stand-by', 'Standby', 'En espera'),
+                'support': ('Support', 'Apoyo', 'En apoyo'),
+            }.get(_frontend_status_code(str(raw_status)), (str(raw_status),))
+            status_record = TeamStatus.objects.filter(name__iexact=candidates[0]).first()
+            if not status_record:
+                for candidate in candidates[1:]:
+                    status_record = TeamStatus.objects.filter(name__iexact=candidate).first()
+                    if status_record:
+                        break
+            if not status_record:
+                raise serializers.ValidationError({
+                    'resulting_status': 'No se encontró el estado operativo indicado.'
+                })
+            data['resulting_status'] = status_record.pk
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        from .services.personnel_incidents import (
+            overlapping_backup_assignments,
+            overlapping_incidents,
+            validate_backup_availability,
+        )
+
+        member = attrs.get('member', getattr(self.instance, 'member', None))
+        start_date = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end_date = attrs.get('end_date', getattr(self.instance, 'end_date', None))
+        backup_member = attrs.get('backup_member', getattr(self.instance, 'backup_member', None))
+        reason = attrs.get('reason', getattr(self.instance, 'reason', ''))
+
+        if self.instance and self.instance.workflow_status != 'pending' and attrs:
+            raise serializers.ValidationError(
+                'Solo se puede editar una incidencia mientras está pendiente.'
+            )
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError({
+                'end_date': 'La fecha de retorno no puede ser anterior a la fecha de inicio.'
+            })
+        if reason is not None and len(reason.strip()) < 5:
+            raise serializers.ValidationError({
+                'reason': 'Detalla el motivo de la incidencia con al menos 5 caracteres.'
+            })
+        if member and not member.is_active:
+            raise serializers.ValidationError({'member': 'El integrante seleccionado está inactivo.'})
+        if member and start_date and end_date and overlapping_incidents(
+            member=member,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_id=getattr(self.instance, 'pk', None),
+        ).exists():
+            raise serializers.ValidationError({
+                'member': 'El integrante ya tiene una incidencia pendiente o aprobada en ese periodo.'
+            })
+        if member and start_date and end_date and overlapping_backup_assignments(
+            member=member,
+            start_date=start_date,
+            end_date=end_date,
+            exclude_id=getattr(self.instance, 'pk', None),
+        ).exists():
+            raise serializers.ValidationError({
+                'member': 'El integrante ya fue asignado como respaldo durante ese periodo.'
+            })
+        if member and start_date and end_date:
+            validate_backup_availability(
+                backup_member=backup_member,
+                member=member,
+                start_date=start_date,
+                end_date=end_date,
+                exclude_id=getattr(self.instance, 'pk', None),
+            )
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        from .services.personnel_incidents import (
+            capture_member_state,
+            create_change_log,
+            overlapping_backup_assignments,
+            overlapping_incidents,
+            validate_backup_availability,
+        )
+
+        member = TeamMember.objects.select_for_update().get(pk=validated_data['member'].pk)
+        backup_member = validated_data.get('backup_member')
+        if backup_member:
+            backup_member = TeamMember.objects.select_for_update().get(pk=backup_member.pk)
+            validated_data['backup_member'] = backup_member
+        if overlapping_incidents(
+            member=member,
+            start_date=validated_data['start_date'],
+            end_date=validated_data['end_date'],
+        ).exists():
+            raise serializers.ValidationError({
+                'member': 'El integrante ya tiene una incidencia pendiente o aprobada en ese periodo.'
+            })
+        if overlapping_backup_assignments(
+            member=member,
+            start_date=validated_data['start_date'],
+            end_date=validated_data['end_date'],
+        ).exists():
+            raise serializers.ValidationError({
+                'member': 'El integrante ya fue asignado como respaldo durante ese periodo.'
+            })
+        validate_backup_availability(
+            backup_member=backup_member,
+            member=member,
+            start_date=validated_data['start_date'],
+            end_date=validated_data['end_date'],
+        )
+        incident = PersonnelIncident.objects.create(**validated_data)
+        state = capture_member_state(member)
+        create_change_log(
+            member=member,
+            incident=incident,
+            action='incident_created',
+            source='incident',
+            previous=state,
+            current=state,
+            comment=incident.reason,
+            actor=incident.created_by,
+        )
+        return incident
+
+    def get_member_name(self, obj):
+        return f"{obj.member.first_name} {obj.member.last_name}".strip()
+
+    def get_memberName(self, obj):
+        return self.get_member_name(obj)
+
+    def get_backup_member_name(self, obj):
+        if not obj.backup_member:
+            return ''
+        return f"{obj.backup_member.first_name} {obj.backup_member.last_name}".strip()
+
+    def get_backupMemberName(self, obj):
+        return self.get_backup_member_name(obj)
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return ''
+        return obj.created_by.get_full_name() or obj.created_by.username
+
+    def get_reviewed_by_name(self, obj):
+        if not obj.reviewed_by:
+            return ''
+        return obj.reviewed_by.get_full_name() or obj.reviewed_by.username
+
+    def get_duration_days(self, obj):
+        return max(1, (obj.end_date - obj.start_date).days)
+
+    def get_registeredAt(self, obj):
+        return timezone.localtime(obj.created_at).date().isoformat()
+
+    def get_status(self, obj):
+        return _frontend_status_code(obj.resulting_status.name)
+
+
+class TeamMemberChangeLogSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    name = serializers.CharField(source='member_name', read_only=True)
+    previousStatus = serializers.SerializerMethodField()
+    nextStatus = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeamMemberChangeLog
+        fields = [
+            'id', 'member', 'member_name', 'member_email', 'incident', 'action',
+            'source', 'previous_status', 'new_status', 'previous_status_name',
+            'new_status_name', 'previous_availability', 'new_availability',
+            'previous_project', 'new_project', 'previous_project_name',
+            'new_project_name', 'field_changes', 'comment', 'changed_by',
+            'changed_by_name', 'created_at', 'date', 'name', 'previousStatus',
+            'nextStatus',
+        ]
+        read_only_fields = fields
+
+    def get_changed_by_name(self, obj):
+        if not obj.changed_by:
+            return 'Sistema'
+        return obj.changed_by.get_full_name() or obj.changed_by.username
+
+    def get_date(self, obj):
+        return timezone.localtime(obj.created_at).date().isoformat()
+
+    def get_previousStatus(self, obj):
+        return _frontend_status_code(obj.previous_status_name)
+
+    def get_nextStatus(self, obj):
+        return _frontend_status_code(obj.new_status_name)
 
 
 STATUS_TO_BACKEND_MILESTONE = {
@@ -419,6 +714,8 @@ class CreateTechnicianSerializer(serializers.Serializer):
     area = serializers.ChoiceField(choices=tuple(AREA_NAMES))
     status = serializers.ChoiceField(choices=tuple(STATUS_DATA))
     project = serializers.CharField(required=False, allow_blank=True, max_length=250)
+    availability = serializers.IntegerField(min_value=0, max_value=100, default=100)
+    allocation_percentage = serializers.IntegerField(min_value=0, max_value=100, default=0)
 
     def validate_email(self, value):
         email = value.strip().lower()
@@ -491,6 +788,8 @@ class CreateTechnicianSerializer(serializers.Serializer):
         area_code = validated_data.pop('area')
         status_code = validated_data.pop('status')
         project_label = validated_data.pop('project', '')
+        availability = validated_data.pop('availability')
+        allocation_percentage = validated_data.pop('allocation_percentage')
 
         first_name = validated_data['first_name'].strip()
         last_name = validated_data['last_name'].strip()
@@ -528,6 +827,8 @@ class CreateTechnicianSerializer(serializers.Serializer):
             technical_area=technical_area,
             status=team_status,
             project=project,
+            availability=availability,
+            allocation_percentage=allocation_percentage,
             is_active=True,
         )
 

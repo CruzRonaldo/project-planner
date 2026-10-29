@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, X, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, Zap } from 'lucide-react';
+import ModalDialog from '../../components/common/ModalDialog';
+import {
+  inputClass,
+  cardClass,
+  nestedClass,
+  labelClass,
+  primaryBtnClass,
+  secondaryButtonClass,
+  errorClass,
+} from '../../constants/themeClasses';
 import {
   operationalAreas,
   operationalProjects,
@@ -14,11 +24,7 @@ import {
   getWorkOrderDuration,
 } from '../../utils/operations';
 
-const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
-const cardClass = 'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
-const nestedClass = 'rounded-lg border border-slate-200 bg-slate-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14]';
-const secondaryButtonClass = 'rounded-lg border border-slate-300 px-4 py-2.5 text-xs text-slate-600 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:bg-cyan-900/20';
-const labelClass = 'text-xs text-slate-500 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-500/70';
+
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600';
 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
@@ -42,45 +48,202 @@ export function NewWorkOrderDialog({ projectOptions = [], responsibleOptions = [
   const endDate = new Date(today);
   endDate.setDate(endDate.getDate() + 7);
   const [draft, setDraft] = useState({
-    project: projectOptions[0] ?? '', type: operationTypes[0], title: '', area: operationalAreas[1],
-    responsible: responsibleOptions[0]?.name ?? '', startDate: formatDateInput(today), endDate: formatDateInput(endDate),
-    priority: 'high', critical: true, tolerance: 3, documentUrl: '', description: '',
+    project: projectOptions[0] ?? '',
+    type: operationTypes[0],
+    title: '',
+    area: operationalAreas[1],
+    responsible: responsibleOptions[0]?.name ?? '',
+    startDate: formatDateInput(today),
+    endDate: formatDateInput(endDate),
+    priority: 'high',
+    critical: true,
+    tolerance: 3,
+    documentUrl: '',
+    description: '',
   });
   const [error, setError] = useState('');
   const duration = getWorkOrderDuration(draft.startDate, draft.endDate);
-  const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
+  const changeField = (field) => (event) => {
+    setDraft((current) => ({ ...current, [field]: event.target.value }));
+    setError('');
+  };
 
-  useEffect(() => {
-    const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', closeWithEscape);
-    return () => document.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
+  const submitDraft = () => {
+    try {
+      onSubmit(draft);
+    } catch (submitError) {
+      setError(submitError.message);
+    }
+  };
+
+  const footnote = (
+    <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
+      * Campos obligatorios para emitir la orden operativa.
+    </p>
+  );
 
   return (
-    <div role="presentation" onMouseDown={onClose} className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm transition-colors duration-300 dark:bg-[#020617]/85 midnight:bg-[#020617]/90 sm:p-5">
-      <section role="dialog" aria-modal="true" aria-labelledby="new-work-order-title" onMouseDown={(event) => event.stopPropagation()} className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_25px_90px_rgba(15,23,42,0.18)] transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_25px_90px_rgba(0,0,0,0.72)] midnight:border-cyan-900/30 midnight:bg-[#0a1120]">
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6"><div className="flex gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition-colors duration-300 dark:border-cyan-400/25 dark:bg-cyan-500/15 dark:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-cyan-500/15 midnight:text-cyan-300"><Zap size={20} /></span><div><h2 id="new-work-order-title" className="text-lg font-bold text-slate-900 dark:text-white midnight:text-cyan-50">Nueva Orden de Trabajo</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">Emite una orden técnica de terreno, asigna responsables y fija su ruta crítica.</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar nueva orden" className="rounded-lg p-2 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><X size={19} /></button></header>
-        <form onSubmit={(event) => { event.preventDefault(); try { onSubmit(draft); } catch (submitError) { setError(submitError.message); } }} className="p-4 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className={labelClass}>Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>{projectOptions.length === 0 && <option value="">Sin proyectos registrados</option>}{projectOptions.map((project) => <option key={project} value={project}>{project}</option>)}</select></label>
-            <label className={labelClass}>Tipo de operación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.type} onChange={changeField('type')} className={inputClass}>{operationTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={submitDraft}
+      title="Nueva Orden de Trabajo"
+      subtitle="Emite una orden técnica de terreno, asigna responsables y fija su ruta crítica."
+      icon={<Zap size={20} />}
+      submitLabel="Emitir Orden de Trabajo"
+      submitIcon={<Download size={15} />}
+      cancelLabel="Cancelar"
+      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+      footnote={footnote}
+      maxWidth="max-w-3xl"
+      id="new-work-order"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={labelClass}>
+          Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>
+            {projectOptions.length === 0 && <option value="">Sin proyectos registrados</option>}
+            {projectOptions.map((project) => (
+              <option key={project} value={project}>
+                {project}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Tipo de operación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.type} onChange={changeField('type')} className={inputClass}>
+            {operationTypes.map((type) => (
+              <option key={type}>{type}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className={`mt-4 block ${labelClass}`}>
+        Título de la tarea / orden <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        <input
+          required
+          maxLength={120}
+          value={draft.title}
+          onChange={changeField('title')}
+          placeholder="Vaciado de losa Nivel 4 - Sector Norte"
+          className={inputClass}
+        />
+      </label>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label className={labelClass}>
+          Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.area} onChange={changeField('area')} className={inputClass}>
+            {operationalAreas.map((area) => (
+              <option key={area}>{area}</option>
+            ))}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Responsable asignado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.responsible} onChange={changeField('responsible')} className={inputClass}>
+            {responsibleOptions.length === 0 && <option value="">Sin técnicos registrados</option>}
+            {responsibleOptions.map((member) => (
+              <option key={member.id} value={member.name}>
+                {member.name} ({member.specialty})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={labelClass}>
+          Fecha de inicio <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <input type="date" required value={draft.startDate} onChange={changeField('startDate')} className={inputClass} />
+        </label>
+        <label className={labelClass}>
+          Fecha de fin / límite <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <input
+            type="date"
+            required
+            min={draft.startDate}
+            value={draft.endDate}
+            onChange={changeField('endDate')}
+            className={inputClass}
+          />
+          {duration && (
+            <span className="mt-2 block text-[10px] text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">
+              Duración estimada: {duration} {duration === 1 ? 'día' : 'días'}
+            </span>
+          )}
+        </label>
+        <label className={labelClass}>
+          Nivel de prioridad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.priority} onChange={changeField('priority')} className={inputClass}>
+            {workOrderPriorities.map((priority) => (
+              <option key={priority.id} value={priority.id}>
+                {priority.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset>
+          <legend className={labelClass}>Parámetro de ruta crítica</legend>
+          <div className={`mt-2 flex min-h-11 items-center justify-between gap-3 px-3 ${nestedClass}`}>
+            <label className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
+              <input
+                type="checkbox"
+                checked={draft.critical}
+                onChange={(event) => setDraft((current) => ({ ...current, critical: event.target.checked }))}
+                className="accent-cyan-500"
+              />{' '}
+              Tarea en ruta crítica
+            </label>
+            <label className="flex items-center gap-2 text-[10px] text-slate-500 midnight:text-cyan-600">
+              Tolerancia:
+              <input
+                type="number"
+                min="0"
+                max="30"
+                step="1"
+                value={draft.tolerance}
+                onChange={changeField('tolerance')}
+                aria-label="Tolerancia en días"
+                className="w-12 rounded border border-slate-300 bg-white px-2 py-1 text-center text-slate-900 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-50"
+              />{' '}
+              días
+            </label>
           </div>
-          <label className={`mt-4 block ${labelClass}`}>Título de la tarea / orden <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input required maxLength={120} value={draft.title} onChange={changeField('title')} placeholder="Vaciado de losa Nivel 4 - Sector Norte" className={inputClass} /></label>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className={labelClass}>Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.area} onChange={changeField('area')} className={inputClass}>{operationalAreas.map((area) => <option key={area}>{area}</option>)}</select></label>
-            <label className={labelClass}>Responsable asignado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.responsible} onChange={changeField('responsible')} className={inputClass}>{responsibleOptions.length === 0 && <option value="">Sin técnicos registrados</option>}{responsibleOptions.map((member) => <option key={member.id} value={member.name}>{member.name} ({member.specialty})</option>)}</select></label>
-            <label className={labelClass}>Fecha de inicio <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input type="date" required value={draft.startDate} onChange={changeField('startDate')} className={inputClass} /></label>
-            <label className={labelClass}>Fecha de fin / límite <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input type="date" required min={draft.startDate} value={draft.endDate} onChange={changeField('endDate')} className={inputClass} />{duration && <span className="mt-2 block text-[10px] text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">Duración estimada: {duration} {duration === 1 ? 'día' : 'días'}</span>}</label>
-            <label className={labelClass}>Nivel de prioridad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.priority} onChange={changeField('priority')} className={inputClass}>{workOrderPriorities.map((priority) => <option key={priority.id} value={priority.id}>{priority.label}</option>)}</select></label>
-            <fieldset><legend className={labelClass}>Parámetro de ruta crítica</legend><div className={`mt-2 flex min-h-11 items-center justify-between gap-3 px-3 ${nestedClass}`}><label className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200 midnight:text-cyan-100"><input type="checkbox" checked={draft.critical} onChange={(event) => setDraft((current) => ({ ...current, critical: event.target.checked }))} className="accent-cyan-500" /> Tarea en ruta crítica</label><label className="flex items-center gap-2 text-[10px] text-slate-500 midnight:text-cyan-600">Tolerancia:<input type="number" min="0" max="30" step="1" value={draft.tolerance} onChange={changeField('tolerance')} aria-label="Tolerancia en días" className="w-12 rounded border border-slate-300 bg-white px-2 py-1 text-center text-slate-900 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-50" /> días</label></div></fieldset>
-          </div>
-          <label className={`mt-4 block ${labelClass}`}>Documento o plano vinculado (Google Drive)<input type="url" maxLength={300} value={draft.documentUrl} onChange={changeField('documentUrl')} placeholder="https://drive.google.com/drive/folders/..." className={inputClass} /></label>
-          <label className={`mt-4 block ${labelClass}`}>Descripción e instrucciones de terreno <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><textarea required minLength={10} maxLength={600} rows={4} value={draft.description} onChange={changeField('description')} placeholder="Detalla verificaciones, entregables y criterios de aceptación..." className={`${inputClass} resize-y leading-relaxed`} /></label>
-          {error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 transition-colors duration-300 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300">{error}</p>}
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between"><p className="text-[10px] text-slate-500 midnight:text-cyan-600">* Campos obligatorios para emitir la orden operativa.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className={secondaryButtonClass}>Cancelar</button><button type="submit" className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"><Download size={15} /> Emitir Orden de Trabajo</button></div></footer>
-        </form>
-      </section>
-    </div>
+        </fieldset>
+      </div>
+
+      <label className={`mt-4 block ${labelClass}`}>
+        Documento o plano vinculado (Google Drive)
+        <input
+          type="url"
+          maxLength={300}
+          value={draft.documentUrl}
+          onChange={changeField('documentUrl')}
+          placeholder="https://drive.google.com/drive/folders/..."
+          className={inputClass}
+        />
+      </label>
+
+      <label className={`mt-4 block ${labelClass}`}>
+        Descripción e instrucciones de terreno <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        <textarea
+          required
+          minLength={10}
+          maxLength={600}
+          rows={4}
+          value={draft.description}
+          onChange={changeField('description')}
+          placeholder="Detalla verificaciones, entregables y criterios de aceptación..."
+          className={`${inputClass} resize-y leading-relaxed`}
+        />
+      </label>
+
+      {error && (
+        <p role="alert" className={errorClass}>
+          {error}
+        </p>
+      )}
+    </ModalDialog>
   );
 }
 
@@ -133,7 +296,31 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"><div><h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Gestión Operativa de Campo</h1><p className={`mt-1 text-sm ${mutedClass}`}>Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad</p></div><div className="flex flex-wrap items-center gap-2"><select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} aria-label="Filtrar por proyecto operativo" className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"><option value="all">Todos los proyectos</option>{availableProjects.map((project) => <option key={project}>{project}</option>)}</select>{canManage && <><button type="button" onClick={exportReport} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-600 transition-colors duration-300 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:text-cyan-50"><ClipboardCheck size={15} /> Generar Reporte Diario</button><button type="button" onClick={() => { setDialogOpen(true); setFeedback(''); }} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"><Plus size={16} /> Nueva Orden de Trabajo</button></>}</div></header>
+        <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Gestión Operativa de Campo</h1>
+            <p className={`mt-1 text-sm ${mutedClass}`}>Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+              aria-label="Filtrar por proyecto operativo"
+              className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"
+            >
+              <option value="all" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Todos los proyectos</option>
+              {availableProjects.map((project) => (
+                <option key={project} value={project} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">{project}</option>
+              ))}
+            </select>
+            {canManage && (
+              <>
+                <button type="button" onClick={exportReport} className={secondaryButtonClass}><ClipboardCheck size={15} /> Generar Reporte Diario</button>
+                <button type="button" onClick={() => { setDialogOpen(true); setFeedback(''); }} className={primaryBtnClass}><Plus size={16} /> Nueva Orden de Trabajo</button>
+              </>
+            )}
+          </div>
+        </header>
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
 
         <section aria-label="Resumen operativo" className="grid grid-cols-2 gap-3 xl:grid-cols-4">{metricCards.map((card) => { const Icon = card.icon; return <article key={card.label} className={`${cardClass} p-4 sm:p-5`}><div className="flex items-start justify-between gap-3"><p className={`text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>{card.label}</p><span className={`rounded-lg border border-slate-200 bg-slate-50 p-2 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14] ${card.color}`}><Icon size={16} /></span></div><div className="mt-4 flex items-end justify-between gap-3"><strong className={`text-3xl font-bold ${headingClass}`}>{card.value}</strong><span className={`rounded px-2 py-1 text-[10px] font-semibold ${card.badge}`}>{card.note}</span></div></article>; })}</section>

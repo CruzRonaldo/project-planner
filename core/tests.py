@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -41,6 +42,8 @@ class CreateTechnicianViewTests(APITestCase):
             'area': 'architecture',
             'project': '',
             'status': 'active',
+            'availability': 80,
+            'allocation_percentage': 65,
         }
 
     def test_creates_login_user_and_team_member(self):
@@ -57,8 +60,12 @@ class CreateTechnicianViewTests(APITestCase):
         self.assertEqual(member.technical_area.name, 'Arquitectura')
         self.assertEqual(member.role.name, self.payload['specialty'])
         self.assertEqual(member.status.name, 'Active')
+        self.assertEqual(member.availability, 80)
+        self.assertEqual(member.allocation_percentage, 65)
         self.assertNotIn('password', response.data)
         self.assertEqual(response.data['member']['id'], member.id)
+        self.assertEqual(response.data['member']['availability'], 80)
+        self.assertEqual(response.data['member']['allocation_percentage'], 65)
 
         self.client.credentials()
         login_response = self.client.post(
@@ -72,6 +79,29 @@ class CreateTechnicianViewTests(APITestCase):
         )
         self.assertEqual(login_response.status_code, status.HTTP_200_OK)
         self.assertEqual(login_response.data['user']['id'], user.id)
+
+    def test_created_technician_remains_in_directory_after_reload(self):
+        create_response = self.client.post(self.url, self.payload, format='json')
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        reloaded_client = APIClient()
+        directory_response = reloaded_client.get(reverse('team-member-list'))
+        self.assertEqual(directory_response.status_code, status.HTTP_200_OK)
+        directory = (
+            directory_response.data.get('results', [])
+            if isinstance(directory_response.data, dict)
+            else directory_response.data
+        )
+        persisted = next(
+            member for member in directory
+            if member['id'] == create_response.data['member']['id']
+        )
+
+        self.assertEqual(persisted['email'], self.payload['email'])
+        self.assertEqual(persisted['technical_area_name'], 'Arquitectura')
+        self.assertEqual(persisted['status_name'], 'Active')
+        self.assertEqual(persisted['availability'], 80)
+        self.assertEqual(persisted['allocation_percentage'], 65)
 
     def test_rejects_duplicate_email_without_creating_extra_records(self):
         first_response = self.client.post(self.url, self.payload, format='json')
@@ -99,6 +129,131 @@ class CreateTechnicianViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertFalse(User.objects.filter(email=self.payload['email']).exists())
         self.assertFalse(TeamMember.objects.filter(email=self.payload['email']).exists())
+
+
+class TeamMemberHumanResourcesTests(APITestCase):
+    def setUp(self):
+        self.area = TechnicalArea.objects.create(name='Sistemas')
+        self.role = Role.objects.create(
+            name='Desarrollador Backend',
+            technical_area=self.area,
+        )
+        self.team_status = TeamStatus.objects.create(
+            name='Active',
+            color_code='#10B981',
+        )
+        self.project = Project.objects.create(
+            code='PRJ-2026-HR1',
+            name='UnificaciÃ³n de Recursos Humanos',
+            start_date='2026-01-01',
+            end_date='2026-06-30',
+        )
+        self.member = TeamMember.objects.create(
+            first_name='Laura',
+            last_name='Castro',
+            email='laura.castro@empresa.com',
+            role=self.role,
+            technical_area=self.area,
+            status=self.team_status,
+            project=self.project,
+        )
+        self.super_admin = User.objects.create_superuser(
+            username='superadmin-rrhh',
+            email='superadmin.rrhh@empresa.com',
+            password='Admin-2026-Segura!',
+        )
+        self.sub_admin = User.objects.create_user(
+            username='subadmin-rrhh',
+            email='subadmin.rrhh@empresa.com',
+            password='SubAdmin-2026-Segura!',
+            is_staff=True,
+        )
+        self.regular_user = User.objects.create_user(
+            username='usuario-rrhh',
+            email='usuario.rrhh@empresa.com',
+            password='Usuario-2026-Segura!',
+        )
+        self.list_url = reverse('team-member-list')
+        self.detail_url = reverse('team-member-detail', args=[self.member.id])
+
+    def authenticate_as(self, user):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.id}')
+
+    def test_defaults_and_public_read_expose_human_resources_percentages(self):
+        self.assertEqual(self.member.availability, 100)
+        self.assertEqual(self.member.allocation_percentage, 0)
+
+        response = self.client.get(self.detail_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['availability'], 100)
+        self.assertEqual(response.data['allocation_percentage'], 0)
+        self.assertIn('updated_at', response.data)
+
+    def test_admin_and_subadmin_can_update_percentages(self):
+        for actor, availability, allocation in (
+            (self.super_admin, 70, 30),
+            (self.sub_admin, 55, 45),
+        ):
+            with self.subTest(actor=actor.username):
+                self.authenticate_as(actor)
+                response = self.client.patch(
+                    self.detail_url,
+                    {
+                        'availability': availability,
+                        'allocation_percentage': allocation,
+                    },
+                    format='json',
+                )
+
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.member.refresh_from_db()
+                self.assertEqual(self.member.availability, availability)
+                self.assertEqual(self.member.allocation_percentage, allocation)
+
+    def test_regular_user_and_anonymous_cannot_update_team_member(self):
+        self.authenticate_as(self.regular_user)
+        response = self.client.patch(
+            self.detail_url,
+            {'availability': 25},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.credentials()
+        response = self.client.patch(
+            self.detail_url,
+            {'availability': 25},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.availability, 100)
+
+    def test_api_rejects_percentages_outside_zero_to_one_hundred(self):
+        self.authenticate_as(self.sub_admin)
+        response = self.client.patch(
+            self.detail_url,
+            {
+                'availability': 101,
+                'allocation_percentage': -1,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('availability', response.data)
+        self.assertIn('allocation_percentage', response.data)
+
+    def test_database_constraints_reject_percentages_above_one_hundred(self):
+        for field_name in ('availability', 'allocation_percentage'):
+            with self.subTest(field=field_name):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        TeamMember.objects.filter(pk=self.member.pk).update(
+                            **{field_name: 101}
+                        )
 
 
 class ProjectModelAndWorkflowTests(TestCase):

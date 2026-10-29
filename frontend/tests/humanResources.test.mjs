@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../src/mocks/humanResourcesData.js';
+import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, getUpcomingIncidentAlerts, normalizePersonnelIncidents, normalizeTeamMemberHistory, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../src/mocks/humanResourcesData.js';
 
 test('Los totales coinciden con los 18 registros de demostración', () => {
   const { members } = createHumanResourcesData();
@@ -30,6 +30,10 @@ test('La búsqueda tolera tildes y mayúsculas y combina filtros', () => {
   assert.equal(filterPersonnel(members, 'Viaducto', 'support')[0].id, 'hr-andres');
   assert.equal(filterPersonnel(members, 'Stand-by').length, 4);
   assert.equal(filterPersonnel(members, 'no existe').length, 0);
+  assert.equal(filterPersonnel(members, '', ['active', 'support']).length, 14);
+  assert.equal(filterPersonnel(members, '', ['standby', 'support']).length, 6);
+  assert.equal(filterPersonnel(members, '', ['active', 'standby', 'support']).length, 18);
+  assert.equal(filterPersonnel(members, '', []).length, 18);
 });
 
 test('La matriz de Recursos Humanos se puede exportar como CSV', () => {
@@ -129,18 +133,66 @@ test('El registro de incidencia rechaza datos inválidos', () => {
   assert.equal(data.incidents.length, 0);
 });
 
+test('Normaliza incidencias paginadas e historial persistente del backend', () => {
+  const incidents = normalizePersonnelIncidents({ results: [{
+    id: 17,
+    member: 4,
+    member_name: 'Sofía Torres',
+    incident_type: 'vacation',
+    incident_type_display: 'Vacaciones programadas',
+    start_date: '2026-10-20',
+    end_date: '2026-10-24',
+    resulting_status_name: 'Stand-by',
+    availability: 0,
+    backup_member: 8,
+    backup_member_name: 'Alejandro Ruiz',
+    reason: 'Vacaciones aprobadas.',
+    workflow_status: 'approved',
+    workflow_status_display: 'Aprobada',
+    created_at: '2026-10-16T10:00:00-05:00',
+    duration_days: 5,
+  }] });
+  assert.equal(incidents.length, 1);
+  assert.equal(incidents[0].memberId, 4);
+  assert.equal(incidents[0].memberName, 'Sofía Torres');
+  assert.equal(incidents[0].workflowStatus, 'approved');
+  assert.equal(incidents[0].status, 'standby');
+  assert.equal(incidents[0].calendarDays, 5);
+
+  const history = normalizeTeamMemberHistory([{ id: 9, date: '2026-10-16', name: 'Sofía Torres', previousStatus: 'Activo', nextStatus: 'Stand-by', comment: 'Incidencia aprobada.' }]);
+  assert.deepEqual(history[0], {
+    id: 9,
+    date: '2026-10-16',
+    name: 'Sofía Torres',
+    previousStatus: 'active',
+    nextStatus: 'standby',
+    comment: 'Incidencia aprobada.',
+    changedByName: '',
+  });
+});
+
+test('Las alertas incluyen reincorporaciones a siete días y vencidas', () => {
+  const alerts = getUpcomingIncidentAlerts([
+    { id: 1, workflowStatus: 'approved', endDate: '2026-10-14' },
+    { id: 2, workflowStatus: 'approved', endDate: '2026-10-20' },
+    { id: 3, workflowStatus: 'approved', endDate: '2026-10-30' },
+    { id: 4, workflowStatus: 'pending', endDate: '2026-10-17' },
+  ], new Date(2026, 9, 16, 8));
+  assert.deepEqual(alerts.map((incident) => [incident.id, incident.daysUntilReturn]), [[1, -2], [2, 4]]);
+});
+
 test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const { default: HumanResources, PersonnelIncidentDialog } = await server.ssrLoadModule('/src/views/human-resources/HumanResources.jsx');
     const props = { data: createHumanResourcesData(), onChange: () => {}, onQueryChange: () => {}, canManage: true };
     const html = renderToStaticMarkup(React.createElement(HumanResources, props));
-    for (const title of ['Recursos Humanos y Estados', 'Asignación de Personal', 'Estado de Equipos', 'Historial de Cambios de Estado']) assert.ok(html.includes(title));
+    for (const title of ['Recursos Humanos y Estados', 'Asignación de Personal', 'Estado de Equipos', 'Incidencias y Licencias', 'Próximas reincorporaciones', 'Historial de Cambios de Estado']) assert.ok(html.includes(title));
     assert.match(html, /<main class="[^"]*bg-\[#0d1117\]/);
     assert.ok(html.includes('Total personal: 18'));
     assert.ok(html.includes('Registrar Incidencia / Licencia'));
     assert.ok(html.includes('Exportar Matriz'));
-    assert.ok(html.includes('Sincronizado en tiempo real'));
+    assert.ok(html.includes('Pendiente de sincronización'));
     assert.equal(html.match(/<tbody>([\s\S]*?)<\/tbody>/)[1].match(/<tr\b/g).length, 8);
 
     const searched = renderToStaticMarkup(React.createElement(HumanResources, { ...props, query: 'Sofia' }));
@@ -151,10 +203,30 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     const viewer = renderToStaticMarkup(React.createElement(HumanResources, { ...props, canManage: false }));
     assert.ok(!viewer.includes('Registrar Incidencia / Licencia'));
     assert.ok(!viewer.includes('Exportar Matriz'));
+    const viewerTeamStatus = viewer.match(/<section[^>]*aria-labelledby="team-status-title"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+    const managerTeamStatus = html.match(/<section[^>]*aria-labelledby="team-status-title"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+    assert.ok(viewerTeamStatus.includes('Sofía Torres'));
+    assert.equal((viewerTeamStatus.match(/<button\b/g) || []).length, 4);
+    assert.ok((managerTeamStatus.match(/<button\b/g) || []).length > 4);
 
     const incidentDialog = renderToStaticMarkup(React.createElement(PersonnelIncidentDialog, { data: props.data, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Registrar Incidencia / Licencia', 'Integrante del personal', 'Tipo de incidencia', 'Fecha de inicio / desde', 'Fecha de retorno / hasta', 'Estado operativo resultante', 'Disponibilidad en este periodo', 'Técnico de respaldo / cobertura temporal', 'Motivo / comentario detallado', 'Registrar incidencia']) assert.ok(incidentDialog.includes(field));
     assert.ok(incidentDialog.includes('Vacaciones programadas'));
+    assert.ok(incidentDialog.includes('como pendiente'));
+
+    const workflowData = {
+      ...props.data,
+      incidents: [
+        { id: 1, memberName: 'Sofía Torres', typeLabel: 'Vacaciones programadas', startDate: '2026-10-20', endDate: '2026-10-24', status: 'standby', availability: 0, comment: 'Vacaciones coordinadas.', workflowStatus: 'pending', backupMemberName: 'Alejandro Ruiz', calendarDays: 4 },
+        { id: 2, memberName: 'Elena Gómez', typeLabel: 'Capacitación externa', startDate: '2026-10-18', endDate: '2026-10-19', status: 'support', availability: 50, comment: 'Capacitación técnica.', workflowStatus: 'approved', backupMemberName: '', calendarDays: 1 },
+      ],
+    };
+    const workflowHtml = renderToStaticMarkup(React.createElement(HumanResources, { ...props, data: workflowData }));
+    assert.ok(workflowHtml.includes('Aprobar'));
+    assert.ok(workflowHtml.includes('Rechazar'));
+    assert.ok(workflowHtml.includes('Finalizar'));
+    const privateViewerHtml = renderToStaticMarkup(React.createElement(HumanResources, { ...props, data: workflowData, canManage: false }));
+    assert.ok(!privateViewerHtml.includes('Incidencias y Licencias'));
 
     const { default: MobileNavigation } = await server.ssrLoadModule('/src/components/layout/MobileNavigation.jsx');
     const navigated = [];

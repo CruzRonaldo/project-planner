@@ -21,12 +21,23 @@ function normalizeText(value) {
 
 export function filterPersonnel(members = [], query = '', status = 'all') {
   const normalizedQuery = normalizeText(query);
+  const isAll =
+    !status ||
+    status === 'all' ||
+    (Array.isArray(status) && (status.length === 0 || status.includes('all') || status.length >= personnelStatuses.length));
+
   return (members || []).filter((member) => {
     const statusLabel = personnelStatuses.find((item) => item.id === member.status)?.label ?? '';
     const matchesQuery = normalizeText(
       `${member.name} ${member.area} ${member.project} ${statusLabel} ${member.availability}%`
     ).includes(normalizedQuery);
-    return matchesQuery && (status === 'all' || member.status === status);
+
+    if (!matchesQuery) return false;
+    if (isAll) return true;
+    if (Array.isArray(status)) {
+      return status.includes(member.status);
+    }
+    return member.status === status;
   });
 }
 
@@ -92,6 +103,106 @@ export function getIncidentDuration(startDate, endDate) {
     if (current.getDay() !== 0 && current.getDay() !== 6) businessDays += 1;
   }
   return { calendarDays, businessDays };
+}
+
+function getCollectionRecords(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+function normalizeWorkflowStatus(value) {
+  const normalized = normalizeText(value).replace(/[\s_-]+/g, '');
+  if (['approved', 'aprobado', 'aprobada'].includes(normalized)) return 'approved';
+  if (['rejected', 'rechazado', 'rechazada'].includes(normalized)) return 'rejected';
+  if (['finalized', 'finalizado', 'finalizada', 'completed', 'completado'].includes(normalized)) return 'finalized';
+  return 'pending';
+}
+
+function normalizePersonnelStatus(value) {
+  const rawValue = value && typeof value === 'object'
+    ? value.name ?? value.code ?? value.id
+    : value;
+  const normalized = normalizeText(rawValue).replace(/[\s_-]+/g, '');
+  if (['active', 'activo', 'activoenobra'].includes(normalized)) return 'active';
+  if (['support', 'apoyo', 'enapoyo'].includes(normalized)) return 'support';
+  return 'standby';
+}
+
+/** Convierte la respuesta REST de incidencias al contrato estable de la vista. */
+export function normalizePersonnelIncidents(payload) {
+  return getCollectionRecords(payload).map((incident) => {
+    const startDate = incident.start_date ?? incident.startDate ?? '';
+    const endDate = incident.end_date ?? incident.endDate ?? '';
+    const duration = getIncidentDuration(startDate, endDate) || {};
+    const memberValue = incident.member && typeof incident.member === 'object'
+      ? incident.member.id
+      : incident.member;
+    const backupValue = incident.backup_member && typeof incident.backup_member === 'object'
+      ? incident.backup_member.id
+      : incident.backup_member;
+
+    return {
+      id: incident.id,
+      memberId: incident.memberId ?? memberValue ?? null,
+      memberName: incident.member_name ?? incident.memberName ?? incident.member?.name ?? 'Personal sin nombre',
+      type: incident.incident_type ?? incident.type ?? 'other',
+      typeLabel: incident.incident_type_display ?? incident.typeLabel ?? incident.incident_type ?? incident.type ?? 'Incidencia',
+      startDate,
+      endDate,
+      status: normalizePersonnelStatus(
+        incident.resulting_status_name ?? incident.resultingStatusName ?? incident.resulting_status ?? incident.resultingStatus
+      ),
+      availability: Number(incident.availability ?? 0),
+      backupMemberId: incident.backupMemberId ?? backupValue ?? null,
+      backupMemberName: incident.backup_member_name ?? incident.backupMemberName ?? incident.backup_member?.name ?? '',
+      comment: incident.reason ?? incident.comment ?? '',
+      workflowStatus: normalizeWorkflowStatus(
+        incident.workflow_status ?? incident.workflowStatus ?? incident.workflow_status_display
+      ),
+      workflowStatusLabel: incident.workflow_status_display ?? incident.workflowStatusDisplay ?? '',
+      createdByName: incident.created_by_name ?? incident.createdByName ?? '',
+      reviewedByName: incident.reviewed_by_name ?? incident.reviewedByName ?? '',
+      reviewedAt: incident.reviewed_at ?? incident.reviewedAt ?? null,
+      reviewComment: incident.review_comment ?? incident.reviewComment ?? '',
+      registeredAt: String(incident.created_at ?? incident.createdAt ?? '').split('T')[0],
+      updatedAt: incident.updated_at ?? incident.updatedAt ?? null,
+      calendarDays: Number(incident.duration_days ?? incident.durationDays ?? duration.calendarDays ?? 0),
+      businessDays: Number(incident.business_days ?? incident.businessDays ?? duration.businessDays ?? 0),
+    };
+  });
+}
+
+/** Convierte la bitácora persistente de Django al contrato de la tabla de RR. HH. */
+export function normalizeTeamMemberHistory(payload) {
+  return getCollectionRecords(payload).map((change) => ({
+    id: change.id,
+    date: String(change.date ?? change.created_at ?? change.createdAt ?? '').split('T')[0],
+    name: change.name ?? change.member_name ?? change.memberName ?? 'Personal sin nombre',
+    previousStatus: normalizePersonnelStatus(
+      change.previousStatus ?? change.previous_status_name ?? change.previousStatusName ?? change.previous_status
+    ),
+    nextStatus: normalizePersonnelStatus(
+      change.nextStatus ?? change.next_status_name ?? change.nextStatusName ?? change.next_status
+    ),
+    comment: change.comment ?? change.reason ?? change.description ?? 'Cambio registrado en el sistema.',
+    changedByName: change.changed_by_name ?? change.changedByName ?? '',
+  }));
+}
+
+export function getUpcomingIncidentAlerts(incidents = [], today = new Date(), warningDays = 7) {
+  const todayAtNoon = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12);
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  return (incidents || [])
+    .filter((incident) => incident.workflowStatus === 'approved')
+    .map((incident) => {
+      const returnDate = new Date(`${incident.endDate}T12:00:00`);
+      const daysUntilReturn = Math.ceil((returnDate - todayAtNoon) / millisecondsPerDay);
+      return { ...incident, daysUntilReturn };
+    })
+    .filter((incident) => Number.isFinite(incident.daysUntilReturn) && incident.daysUntilReturn <= warningDays)
+    .sort((left, right) => left.daysUntilReturn - right.daysUntilReturn);
 }
 
 export function registerPersonnelIncident(data, draft, date = new Date()) {

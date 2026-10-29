@@ -18,6 +18,8 @@ from .views import (
     RoleViewSet,
     TeamStatusViewSet,
     TeamMemberViewSet,
+    PersonnelIncidentViewSet,
+    TeamMemberChangeLogViewSet,
     ProjectViewSet,
     MilestoneViewSet,
     TaskViewSet,
@@ -51,57 +53,18 @@ from .views_make import (
 
 
 router = DefaultRouter()
-
-router.register(
-    r"technical-areas",
-    TechnicalAreaViewSet,
-    basename="technical-area",
-)
-router.register(
-    r"roles",
-    RoleViewSet,
-    basename="role",
-)
-router.register(
-    r"team-statuses",
-    TeamStatusViewSet,
-    basename="team-status",
-)
-router.register(
-    r"team-members",
-    TeamMemberViewSet,
-    basename="team-member",
-)
-router.register(
-    r"projects",
-    ProjectViewSet,
-    basename="project",
-)
-router.register(
-    r"milestones",
-    MilestoneViewSet,
-    basename="milestone",
-)
-router.register(
-    r"tasks",
-    TaskViewSet,
-    basename="task",
-)
-router.register(
-    r"performance-metrics",
-    PerformanceMetricViewSet,
-    basename="performance-metric",
-)
-router.register(
-    r"drive-links",
-    DriveLinkViewSet,
-    basename="drive-link",
-)
-router.register(
-    r"meetings",
-    ProjectMeetingViewSet,
-    basename="meetings",
-)
+router.register(r"technical-areas", TechnicalAreaViewSet, basename="technical-area")
+router.register(r"roles", RoleViewSet, basename="role")
+router.register(r"team-statuses", TeamStatusViewSet, basename="team-status")
+router.register(r"team-members", TeamMemberViewSet, basename="team-member")
+router.register(r"personnel-incidents", PersonnelIncidentViewSet, basename="personnel-incident")
+router.register(r"team-member-change-logs", TeamMemberChangeLogViewSet, basename="team-member-change-log")
+router.register(r"projects", ProjectViewSet, basename="project")
+router.register(r"milestones", MilestoneViewSet, basename="milestone")
+router.register(r"tasks", TaskViewSet, basename="task")
+router.register(r"performance-metrics", PerformanceMetricViewSet, basename="performance-metric")
+router.register(r"drive-links", DriveLinkViewSet, basename="drive-link")
+router.register(r"meetings", ProjectMeetingViewSet, basename="meetings")
 
 
 urlpatterns = [

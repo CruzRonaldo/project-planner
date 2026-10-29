@@ -82,18 +82,260 @@ class TeamMember(models.Model):
     technical_area = models.ForeignKey(TechnicalArea, on_delete=models.PROTECT, related_name='members', verbose_name="Ãrea TÃ©cnica")
     status = models.ForeignKey(TeamStatus, on_delete=models.SET_NULL, null=True, related_name='members', verbose_name="Estado Actual")
     project = models.ForeignKey('Project', on_delete=models.SET_NULL, null=True, blank=True, related_name='team_members', verbose_name="Proyecto Asignado")
+    availability = models.PositiveSmallIntegerField(
+        default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Disponibilidad (%)",
+    )
+    allocation_percentage = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="DedicaciÃ³n al Proyecto (%)",
+    )
     is_active = models.BooleanField(default=True, verbose_name="Â¿EstÃ¡ activo en la empresa?")
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Miembro del Equipo"
         verbose_name_plural = "Miembros del Equipo"
         ordering = ['last_name', 'first_name']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(availability__gte=0, availability__lte=100),
+                name='team_member_availability_0_100',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    allocation_percentage__gte=0,
+                    allocation_percentage__lte=100,
+                ),
+                name='team_member_allocation_0_100',
+            ),
+        ]
 
     def __str__(self):
         project_str = f" - {self.project.code}" if self.project else " (Sin Proyecto)"
         role_str = self.role.name if self.role else "Sin Rol"
         return f"{self.first_name} {self.last_name} ({role_str}){project_str}"
+
+
+class PersonnelIncident(models.Model):
+    """Incidencias, licencias y variaciones temporales del personal."""
+
+    TYPE_CHOICES = (
+        ('vacation', 'Vacaciones programadas'),
+        ('medical-leave', 'Descanso médico'),
+        ('paid-leave', 'Licencia con goce'),
+        ('unpaid-leave', 'Licencia sin goce'),
+        ('personal-permission', 'Permiso personal'),
+        ('training', 'Capacitación externa'),
+        ('other', 'Otro'),
+    )
+    WORKFLOW_STATUS_CHOICES = (
+        ('pending', 'Pendiente'),
+        ('approved', 'Aprobada'),
+        ('rejected', 'Rechazada'),
+        ('finalized', 'Finalizada'),
+    )
+
+    member = models.ForeignKey(
+        TeamMember,
+        on_delete=models.PROTECT,
+        related_name='personnel_incidents',
+        verbose_name='Integrante del personal',
+    )
+    incident_type = models.CharField(
+        max_length=30,
+        choices=TYPE_CHOICES,
+        verbose_name='Tipo de incidencia',
+    )
+    start_date = models.DateField(verbose_name='Fecha de inicio')
+    end_date = models.DateField(verbose_name='Fecha de retorno / fin')
+    resulting_status = models.ForeignKey(
+        TeamStatus,
+        on_delete=models.PROTECT,
+        related_name='personnel_incidents',
+        verbose_name='Estado operativo durante la incidencia',
+    )
+    availability = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name='Disponibilidad durante la incidencia (%)',
+    )
+    backup_member = models.ForeignKey(
+        TeamMember,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='incidents_as_backup',
+        verbose_name='Técnico de respaldo',
+    )
+    reason = models.TextField(verbose_name='Motivo / comentario detallado')
+    workflow_status = models.CharField(
+        max_length=20,
+        choices=WORKFLOW_STATUS_CHOICES,
+        default='pending',
+        db_index=True,
+        verbose_name='Estado de aprobación',
+    )
+
+    # Snapshot utilizado para una restauración segura al finalizar la incidencia.
+    previous_status = models.ForeignKey(
+        TeamStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='incident_snapshots',
+        verbose_name='Estado anterior',
+    )
+    previous_status_name = models.CharField(max_length=50, blank=True)
+    previous_availability = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    applied_at = models.DateTimeField(null=True, blank=True)
+    restored_at = models.DateTimeField(null=True, blank=True)
+    restoration_skipped = models.BooleanField(default=False)
+    restoration_note = models.CharField(max_length=255, blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_personnel_incidents',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_personnel_incidents',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Incidencia / Licencia del Personal'
+        verbose_name_plural = 'Incidencias / Licencias del Personal'
+        ordering = ['-start_date', '-created_at']
+        indexes = [
+            models.Index(fields=['member', 'start_date', 'end_date']),
+            models.Index(fields=['workflow_status', 'end_date']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F('start_date')),
+                name='personnel_incident_valid_date_range',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(availability__gte=0, availability__lte=100),
+                name='personnel_incident_availability_0_100',
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.member.first_name} {self.member.last_name} - "
+            f"{self.get_incident_type_display()} ({self.start_date} / {self.end_date})"
+        )
+
+
+class TeamMemberChangeLog(models.Model):
+    """Historial permanente de cambios operativos del personal."""
+
+    ACTION_CHOICES = (
+        ('manual_update', 'Actualización manual'),
+        ('incident_created', 'Incidencia registrada'),
+        ('incident_approved', 'Incidencia aprobada'),
+        ('incident_rejected', 'Incidencia rechazada'),
+        ('incident_finalized', 'Incidencia finalizada'),
+        ('automatic_restoration', 'Restauración automática'),
+        ('member_deleted', 'Integrante eliminado'),
+    )
+    SOURCE_CHOICES = (
+        ('manual', 'Manual'),
+        ('incident', 'Incidencia / licencia'),
+        ('system', 'Sistema'),
+    )
+
+    member = models.ForeignKey(
+        TeamMember,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs',
+    )
+    member_name = models.CharField(max_length=220)
+    member_email = models.EmailField(blank=True)
+    incident = models.ForeignKey(
+        PersonnelIncident,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs',
+    )
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
+    previous_status = models.ForeignKey(
+        TeamStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs_as_previous',
+    )
+    new_status = models.ForeignKey(
+        TeamStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs_as_new',
+    )
+    previous_status_name = models.CharField(max_length=50, blank=True)
+    new_status_name = models.CharField(max_length=50, blank=True)
+    previous_availability = models.PositiveSmallIntegerField(null=True, blank=True)
+    new_availability = models.PositiveSmallIntegerField(null=True, blank=True)
+    previous_project = models.ForeignKey(
+        'Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_logs_as_previous_project',
+    )
+    new_project = models.ForeignKey(
+        'Project',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_logs_as_new_project',
+    )
+    previous_project_name = models.CharField(max_length=200, blank=True)
+    new_project_name = models.CharField(max_length=200, blank=True)
+    field_changes = models.JSONField(default=dict, blank=True)
+    comment = models.TextField(blank=True)
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_member_change_logs',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Cambio de Estado del Personal'
+        verbose_name_plural = 'Historial de Cambios del Personal'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['member', 'created_at']),
+            models.Index(fields=['source', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.member_name} - {self.get_action_display()} ({self.created_at:%Y-%m-%d})"
 
 
 class Project(models.Model):
