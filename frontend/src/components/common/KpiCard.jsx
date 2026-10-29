@@ -13,11 +13,11 @@ import { cardClass } from '../../constants/themeClasses';
  * @param {Object} props
  * @param {string} props.title - Título o etiqueta descriptiva (ej. "PROYECTOS ACTIVOS", "Total personal")
  * @param {string|number} props.value - Valor métrico destacado (ej. 18, "$1.2M", "85%")
- * @param {React.ComponentType} [props.icon] - Icono vectorial Lucide opcional flotante y limpio
+ * @param {React.ComponentType} [props.icon] - Icono vectorial Lucide opcional en caja redondeada
  * @param {string} [props.iconColor] - Clase de color o acento para el icono
  * @param {string} [props.dotClass] - Indicador circular de estado (punto de color)
- * @param {string} [props.badge] - Etiqueta secundaria / nota sutil (ej. "7 en total", "En rango")
- * @param {string} [props.badgeClass] - Clases de estilo para la nota (texto fino sin pastilla pesada)
+ * @param {string} [props.badge] - Etiqueta secundaria / nota (ej. "0 en total", "En rango")
+ * @param {string} [props.badgeClass] - Clases de estilo para el cuadro/pastilla que rodea al badge
  * @param {Function} [props.onClick] - Si se define, renderiza como <button> accesible
  * @param {boolean} [props.isSelected] - Estado seleccionado para filtros activos
  * @param {string} [props.selectedClass] - Clases personalizadas de selección
@@ -31,7 +31,7 @@ export default function KpiCard({
   iconColor = 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
   dotClass,
   badge,
-  badgeClass = 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
+  badgeClass = 'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
   onClick,
   isSelected = false,
   selectedClass,
@@ -66,9 +66,11 @@ export default function KpiCard({
           </span>
         </span>
 
-        {/* Icono flotante limpio y estilizado (sin caja cuadrada tosca) */}
+        {/* Icono en caja redondeada sutil */}
         {Icon && (
-          <Icon size={17} className={`shrink-0 transition-colors duration-300 ${iconColor}`} />
+          <span className={`shrink-0 rounded-md border border-slate-200 bg-slate-100 p-1.5 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-cyan-950 ${iconColor}`}>
+            <Icon size={16} />
+          </span>
         )}
 
         {/* Indicador de punto circular para tarjetas de estado */}
@@ -77,7 +79,7 @@ export default function KpiCard({
         )}
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between gap-2">
+      <div className="mt-3 flex items-end justify-between gap-2">
         <strong
           className={`block text-3xl font-bold transition-colors duration-300 ${
             isSelected
@@ -88,9 +90,9 @@ export default function KpiCard({
           {value}
         </strong>
 
-        {/* Nota secundaria sutil y discreta (sin pastilla pesada de fondo) */}
+        {/* Cuadro que rodea a la fuente abajo a la derecha */}
         {badge && (
-          <span className={`text-xs font-medium transition-colors duration-300 ${badgeClass}`}>
+          <span className={`shrink-0 rounded px-2 py-1 text-xs font-medium transition-colors duration-300 ${badgeClass}`}>
             {badge}
           </span>
         )}

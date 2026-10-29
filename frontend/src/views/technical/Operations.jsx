@@ -271,10 +271,10 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
   const availableProjects = Array.from(new Set(baseProjects));
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
   const metricCards = [
-    { label: 'Tareas en progreso', value: metrics.inProgress, note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas', icon: Activity, color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
-    { label: 'Tareas completadas', value: metrics.completed, note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
-    { label: 'Incidencias abiertas', value: metrics.incidents, note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias', icon: AlertTriangle, color: 'text-red-600 dark:text-red-400 midnight:text-red-300', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
-    { label: 'Eficiencia operativa', value: `${metrics.efficiency}%`, note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas', icon: BarChart3, color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
+    { label: 'Tareas en progreso', value: metrics.inProgress, note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas', icon: Activity, color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300' },
+    { label: 'Tareas completadas', value: metrics.completed, note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
+    { label: 'Incidencias abiertas', value: metrics.incidents, note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias', icon: AlertTriangle, color: 'text-red-600 dark:text-red-400 midnight:text-red-300', badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300' },
+    { label: 'Eficiencia operativa', value: `${metrics.efficiency}%`, note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas', icon: BarChart3, color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
   ];
 
   const saveOrder = (draft) => {

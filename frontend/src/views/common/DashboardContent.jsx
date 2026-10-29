@@ -62,7 +62,8 @@ export default function DashboardContent({
               title: 'PROYECTOS ACTIVOS',
               value: String(activeProjects.length),
               badge: `${projects.length} en total`,
-              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
+              badgeColor:
+                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
               icon: Folder,
               color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
@@ -70,7 +71,8 @@ export default function DashboardContent({
               title: 'HITOS PENDIENTES',
               value: String(pendingMilestones.length),
               badge: `${milestones.length} en total`,
-              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
+              badgeColor:
+                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
               icon: CheckSquare,
               color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
@@ -81,17 +83,19 @@ export default function DashboardContent({
                 projects.length > 0
                   ? `${formatMoney(usedBudget)} usado`
                   : '$0 usado',
-              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
+              badgeColor:
+                'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
               icon: DollarSign,
-              color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300',
+              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
             {
               title: 'AVANCE PROMEDIO',
               value: `${avgProgress}%`,
               badge: projects.length > 0 ? `${projects.length} prjs` : 'Sin datos',
-              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
+              badgeColor:
+                'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
               icon: TrendingUp,
-              color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400',
+              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
           ].map((stat, i) => (
             <KpiCard
