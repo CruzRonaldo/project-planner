@@ -1,36 +1,44 @@
-import React, { useId } from 'react';
+import React, { forwardRef, useId } from 'react';
 import { inputClass, labelClass } from '../../constants/themeClasses';
 
 /**
  * Componente unificado de campo de texto / entrada (Input).
  * Integra etiqueta superior, soporte nativo multitema (Claro, Oscuro y Midnight),
- * icono opcional y mensaje de error accesible (role="alert").
+ * icono izquierdo, contenido derecho (botones/acciones) y mensaje de error accesible (role="alert").
  *
  * @param {Object} props
  * @param {string} [props.label] - Etiqueta descriptiva superior
  * @param {string} [props.error] - Mensaje de error para validación
  * @param {string} [props.helperText] - Texto sutil de ayuda o instrucción debajo del campo
  * @param {React.ComponentType} [props.icon] - Icono vectorial Lucide opcional al inicio del campo
+ * @param {React.ReactNode} [props.rightContent] - Elemento o botones de acción a la derecha
  * @param {string} [props.className] - Clases adicionales de Tailwind para el <input>
  * @param {string} [props.containerClassName] - Clases adicionales para el contenedor exterior
  * @param {boolean} [props.disabled=false] - Deshabilita el campo
  * @param {boolean} [props.required=false] - Indica obligatoriedad y añade asterisco rojo al label
  * @param {string} [props.id] - Identificador único opcional (se autogenera si se omite)
+ * @param {React.Ref} [props.inputRef] - Ref directo al input HTML
  */
-export default function Input({
-  label,
-  error,
-  helperText,
-  icon: Icon,
-  id: customId,
-  className = '',
-  containerClassName = '',
-  disabled = false,
-  required = false,
-  ...props
-}) {
+const Input = forwardRef(function Input(
+  {
+    label,
+    error,
+    helperText,
+    icon: Icon,
+    rightContent,
+    id: customId,
+    className = '',
+    containerClassName = '',
+    disabled = false,
+    required = false,
+    inputRef,
+    ...props
+  },
+  forwardedRef
+) {
   const generatedId = useId();
   const inputId = customId || (label ? `input-${generatedId}` : undefined);
+  const activeRef = inputRef || forwardedRef;
 
   const errorBorder = error
     ? 'border-red-500 focus:border-red-500 dark:border-red-500/60 dark:focus:border-red-400 midnight:border-red-500/60 midnight:focus:border-red-400'
@@ -55,6 +63,7 @@ export default function Input({
         )}
 
         <input
+          ref={activeRef}
           id={inputId}
           disabled={disabled}
           required={required}
@@ -65,6 +74,12 @@ export default function Input({
           } ${className}`}
           {...props}
         />
+
+        {rightContent && (
+          <div className="absolute inset-y-0 right-2 flex items-center">
+            {rightContent}
+          </div>
+        )}
       </div>
 
       {error ? (
@@ -82,4 +97,6 @@ export default function Input({
       ) : null}
     </div>
   );
-}
+});
+
+export default Input;
