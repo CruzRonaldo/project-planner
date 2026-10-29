@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, Zap } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
+import { useToast } from '../../context/ToastContext';
 import {
   inputClass,
   cardClass,
@@ -264,6 +265,7 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
   const [orderFilter, setOrderFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const { showToast } = useToast();
   const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : operationalProjects;
   const availableProjects = Array.from(new Set(baseProjects));
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
@@ -280,7 +282,13 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
     setDialogOpen(false);
     setOrderFilter('all');
     setProjectFilter('all');
-    setFeedback(`Orden ${updated.orders[0].code} emitida y añadida al panel operativo.`);
+    const msg = `Orden ${updated.orders[0].code} emitida y añadida al panel operativo.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Orden Emitida',
+      message: msg,
+      type: 'success',
+    });
   };
   const exportReport = () => {
     const blob = new Blob([`\uFEFF${buildWorkOrdersCsv(ordersList)}`], { type: 'text/csv;charset=utf-8' });
@@ -290,7 +298,13 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
     link.download = 'reporte-operativo-diario.csv';
     link.click();
     URL.revokeObjectURL(url);
-    setFeedback('Reporte operativo diario exportado correctamente.');
+    const msg = 'Reporte operativo diario exportado correctamente.';
+    setFeedback(msg);
+    showToast({
+      title: 'Reporte Exportado',
+      message: msg,
+      type: 'info',
+    });
   };
 
   return (

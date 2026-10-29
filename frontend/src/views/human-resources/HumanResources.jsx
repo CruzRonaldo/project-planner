@@ -18,6 +18,7 @@ import {
   updatePersonnel,
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
+import { useToast } from '../../context/ToastContext';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
@@ -148,6 +149,7 @@ export default function HumanResources({
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState('success');
   const [isExportingMatrix, setIsExportingMatrix] = useState(false);
+  const { showToast } = useToast();
   const [isRefreshingRecords, setIsRefreshingRecords] = useState(false);
   const [refreshState, setRefreshState] = useState('idle');
 
@@ -187,6 +189,11 @@ export default function HumanResources({
       setEditing(null);
       setFeedbackType('success');
       setFeedback('Cambio guardado correctamente en el sistema.');
+      showToast({
+        title: 'Personal Actualizado',
+        message: 'Los datos del integrante se guardaron correctamente en el sistema.',
+        type: 'success',
+      });
     } catch (error) {
       onChange(previousData);
       throw error;
@@ -199,8 +206,14 @@ export default function HumanResources({
     const member = members.find((item) => item.id === draft.memberId);
     setIncidentDialogOpen(false);
     setEditing(null);
+    const incidentMsg = `Incidencia registrada${member ? ` para ${member.name}` : ''} y enviada a revisión.`;
     setFeedbackType('success');
-    setFeedback(`Incidencia registrada${member ? ` para ${member.name}` : ''} y enviada a revisión.`);
+    setFeedback(incidentMsg);
+    showToast({
+      title: 'Incidencia Registrada',
+      message: incidentMsg,
+      type: 'success',
+    });
   };
 
   const submitIncidentAction = async (incidentId, action, comment) => {
@@ -209,7 +222,13 @@ export default function HumanResources({
     setIncidentAction(null);
     setFeedbackType('success');
     const labels = { approve: 'aprobada', reject: 'rechazada', finalize: 'finalizada' };
-    setFeedback(`Incidencia ${labels[action] || 'actualizada'} correctamente.`);
+    const actionMsg = `Incidencia ${labels[action] || 'actualizada'} correctamente.`;
+    setFeedback(actionMsg);
+    showToast({
+      title: 'Flujo de Incidencias',
+      message: actionMsg,
+      type: 'success',
+    });
   };
 
   const refreshRecords = async () => {
@@ -235,11 +254,23 @@ export default function HumanResources({
     setFeedbackType('success');
     try {
       await downloadPersonnelWorkbook(members);
-      setFeedback(`Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`);
+      const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
+      setFeedback(exportMsg);
+      showToast({
+        title: 'Matriz Exportada',
+        message: exportMsg,
+        type: 'success',
+      });
     } catch (error) {
       console.error('Error al exportar matriz de personal:', error);
+      const errMsg = 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.';
       setFeedbackType('error');
-      setFeedback('No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.');
+      setFeedback(errMsg);
+      showToast({
+        title: 'Error de Exportación',
+        message: errMsg,
+        type: 'error',
+      });
     } finally {
       setIsExportingMatrix(false);
     }

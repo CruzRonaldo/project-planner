@@ -18,6 +18,7 @@ import {
   summarizeTechnicalTeam,
 } from '../../utils/technicalTeam';
 import projectsApi from '../../services/projectsApi';
+import { useToast } from '../../context/ToastContext';
 import ModalDialog from '../../components/common/ModalDialog';
 import {
   inputClass,
@@ -405,6 +406,7 @@ export default function TechnicalTeam({
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const { showToast } = useToast();
   const summary = summarizeTechnicalTeam(membersList);
   const members = sortTechnicalTeam(filterTechnicalTeam(membersList, query, areaFilter), sortOrder);
   const totalPages = Math.max(1, Math.ceil(members.length / pageSize));
@@ -443,7 +445,13 @@ export default function TechnicalTeam({
     setDialogOpen(false);
     setAreaFilter('all');
     setPage(1);
-    setFeedback(`${getMemberFullName(persistedData.members[0])} fue añadido al equipo técnico y ya puede iniciar sesión.`);
+    const msg = `${getMemberFullName(persistedData.members[0])} fue añadido al equipo técnico y ya puede iniciar sesión.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Técnico Añadido',
+      message: msg,
+      type: 'success',
+    });
   };
   const reassignMemberToProject = async (draft) => {
     const previousData = data;
@@ -457,7 +465,13 @@ export default function TechnicalTeam({
     try {
       if (onPersistMember) await onPersistMember(reassignMemberId, draft);
       setReassignMemberId(null);
-      setFeedback(`${getMemberFullName(reassignMember)} fue reasignado y guardado en PostgreSQL.`);
+      const msg = `${getMemberFullName(reassignMember)} fue reasignado y guardado correctamente en el sistema.`;
+      setFeedback(msg);
+      showToast({
+        title: 'Técnico Reasignado',
+        message: msg,
+        type: 'success',
+      });
     } catch (error) {
       onChange(previousData);
       throw error;
@@ -476,7 +490,13 @@ export default function TechnicalTeam({
     link.download = 'equipo-tecnico.csv';
     link.click();
     URL.revokeObjectURL(url);
-    setFeedback('Reporte del equipo técnico exportado correctamente.');
+    const msg = 'Reporte del equipo técnico exportado correctamente.';
+    setFeedback(msg);
+    showToast({
+      title: 'Nómina Exportada',
+      message: msg,
+      type: 'info',
+    });
   };
 
   return (

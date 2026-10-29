@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Check, FileDown, Flag, History, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
+import { useToast } from '../../context/ToastContext';
 import {
   cardClass,
   closeBtnClass,
@@ -350,8 +351,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [feedback, setFeedback] = useState('');
+  const { showToast } = useToast();
   const projects = data?.projects || [];
   const milestones = data?.milestones ?? [];
+  const adjustments = data?.adjustments || [];
 
   const activeProject = useMemo(() => {
     if (selectedProjectFilter === 'ALL') return null;
@@ -371,6 +374,11 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         String(m.project) === String(activeProject.id)
     );
   }, [milestones, activeProject]);
+
+  const displayedAdjustments = useMemo(() => {
+    if (!activeProject) return adjustments;
+    return adjustments.filter((adj) => String(adj.projectId) === String(activeProject.id));
+  }, [adjustments, activeProject]);
 
   const targetProjectsForBudget = activeProject ? [activeProject] : projects;
 
@@ -413,7 +421,13 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     const updated = adjustProjectSchedule(data, draft);
     onChange(updated);
     setDialogOpen(false);
-    setFeedback(updated === data ? 'No había cambios que guardar.' : 'Calendario actualizado y registrado en el historial de auditoría.');
+    const msg = updated === data ? 'No había cambios que guardar.' : 'Calendario actualizado y registrado en el historial de auditoría.';
+    setFeedback(msg);
+    showToast({
+      title: 'Calendario de Proyecto',
+      message: msg,
+      type: updated === data ? 'info' : 'success',
+    });
   };
   const saveMilestone = async (draft) => {
     try {
@@ -433,7 +447,15 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     const updated = createGlobalMilestone(data, draft);
     onChange(updated);
     setMilestoneDialogOpen(false);
-    setFeedback(`Hito “${updated.milestones[0].title}” registrado en el calendario global.`);
+    const targetProject = projects.find((p) => String(p.id) === String(draft.projectId));
+    const projectLabel = targetProject ? ` para el proyecto '${targetProject.name}'` : '';
+    const msg = `Hito “${updated.milestones[0].title}” registrado${projectLabel} en el calendario global.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Hito Creado',
+      message: msg,
+      type: 'success',
+    });
   };
 
   const handleStatusChange = async (milestoneId, newStatus) => {
@@ -449,8 +471,16 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     );
     const updated = { ...data, milestones: updatedMilestones };
     onChange(updated);
+    const currentMilestone = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
     const statusLabel = milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus;
-    setFeedback(`Estado del hito actualizado a “${statusLabel}”.`);
+    const titleLabel = currentMilestone ? ` “${currentMilestone.title}”` : '';
+    const msg = `Estado del hito${titleLabel} actualizado a “${statusLabel}”.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Hito Actualizado',
+      message: msg,
+      type: 'info',
+    });
   };
 
   const handleDeleteMilestone = async (milestoneId, title) => {
@@ -461,12 +491,21 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     } catch (err) {
       console.warn('Error al eliminar hito en backend:', err);
     }
+    const milestoneToDelete = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
+    const associatedProject = projects.find((p) => String(p.id) === String(milestoneToDelete?.projectId));
+    const projectLabel = associatedProject ? ` del proyecto '${associatedProject.name}'` : '';
     const updated = {
       ...data,
       milestones: (data?.milestones || []).filter((m) => String(m.id) !== String(milestoneId)),
     };
     onChange(updated);
-    setFeedback(`Hito “${title}” eliminado.`);
+    const msg = `Hito “${title}”${projectLabel} eliminado.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Hito Eliminado',
+      message: msg,
+      type: 'info',
+    });
   };
 
   const exportToPdf = () => {
@@ -493,7 +532,13 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     window.print();
 
     setTimeout(restoreTitle, 3000);
-    setFeedback(`Vista de exportación abierta: “${fileName}.pdf”.`);
+    const msg = `Vista de exportación abierta para guardar o imprimir “${fileName}.pdf”.`;
+    setFeedback(msg);
+    showToast({
+      title: 'Exportación de Calendario',
+      message: msg,
+      type: 'info',
+    });
   };
   const exportGantt = exportToPdf;
 
@@ -876,6 +921,80 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             </div>
           </section>
         </div>
+
+        {/* HISTORIAL DE AUDITORÍA Y REAJUSTES DE CRONOGRAMA */}
+        <section
+          className={`min-w-0 overflow-hidden ${cardClass} print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}
+          aria-labelledby="audit-history-title"
+        >
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/15 midnight:text-cyan-300">
+                <History size={16} />
+              </div>
+              <div>
+                <h2 id="audit-history-title" className={`text-base font-semibold ${headingClass}`}>
+                  Historial de Reajustes de Cronograma
+                </h2>
+                <p className={`mt-0.5 text-xs ${mutedClass}`}>
+                  Registro de modificaciones de plazos, prórrogas y motivos de gobernanza
+                </p>
+              </div>
+            </div>
+            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-300">
+              {displayedAdjustments.length} {displayedAdjustments.length === 1 ? 'registro' : 'registros'}
+            </span>
+          </header>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-500 dark:border-[#30363d] dark:bg-[#0d1117]/60 dark:text-slate-400 midnight:border-cyan-900/30 midnight:bg-[#050B14]/80 midnight:text-cyan-500">
+                  <th className="px-4 py-3 sm:px-6">Fecha</th>
+                  <th className="px-4 py-3 sm:px-6">Proyecto</th>
+                  <th className="px-4 py-3 sm:px-6">Periodo Anterior</th>
+                  <th className="px-4 py-3 sm:px-6">Nuevo Periodo</th>
+                  <th className="px-4 py-3 sm:px-6">Motivo del Reajuste</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedAdjustments.map((adj) => (
+                  <tr
+                    key={adj.id}
+                    className="border-b border-slate-200 last:border-0 transition-colors hover:bg-slate-50/50 dark:border-[#30363d] dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20"
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 dark:text-slate-300 midnight:text-cyan-100 sm:px-6">
+                      {new Date(`${adj.date}T12:00:00`).toLocaleDateString('es-PE', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium text-cyan-700 dark:text-blue-400 midnight:text-cyan-400 sm:px-6">
+                      {adj.projectName}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-400 line-through dark:text-slate-500 midnight:text-cyan-600 sm:px-6">
+                      {adj.previousPeriod}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300 sm:px-6">
+                      {adj.nextPeriod}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90 sm:px-6">
+                      {adj.reason}
+                    </td>
+                  </tr>
+                ))}
+                {!displayedAdjustments.length && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                      No hay reajustes de cronograma registrados en este ejercicio.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
       {dialogOpen && canManage && <AdjustScheduleDialog data={data} initialProjectId={adjustingProjectId} onSubmit={saveSchedule} onClose={() => setDialogOpen(false)} />}
       {milestoneDialogOpen && canManage && <NewGlobalMilestoneDialog data={data} onSubmit={saveMilestone} onClose={() => setMilestoneDialogOpen(false)} />}

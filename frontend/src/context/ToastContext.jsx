@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import FormattedAuditText from '../components/common/FormattedAuditText';
 
 const ToastContext = createContext(null);
 
@@ -107,7 +108,7 @@ function ToastContainer({ toast, onClose }) {
                 {toast.title}
               </h4>
               <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/80">
-                {toast.message}
+                <FormattedAuditText text={toast.message} />
               </p>
             </div>
 
@@ -126,12 +127,14 @@ function ToastContainer({ toast, onClose }) {
   );
 }
 
+const defaultToastContext = {
+  showToast: () => {},
+  hideToast: () => {},
+};
+
 export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast debe ser utilizado dentro de un ToastProvider');
-  }
-  return context;
+  return context || defaultToastContext;
 }
 
 export default ToastContext;
