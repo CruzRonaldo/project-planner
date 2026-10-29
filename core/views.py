@@ -943,6 +943,8 @@ class PersonnelIncidentViewSet(viewsets.ModelViewSet):
             comment=request.data.get('comment', ''),
         )
         return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
+    
+
 
 
 class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1119,75 +1121,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get', 'post'], url_path='optimize')
     def optimize_timeline(self, request, pk=None):
-        """Calcula una posible optimización del proyecto."""
+        from .services.timeline_optimizer import TimelineError, analyze_project_timeline
 
         project = self.get_object()
-        tasks = project.tasks.all()
-        metrics = project.performance_metrics.all()
-
-        if tasks.exists():
-            total_original_days = sum(task.duration_days for task in tasks)
-        else:
-            total_original_days = project.duration_months * 30
-
-        optimized_tasks = []
-        total_optimized_days = 0
-
-        for task in tasks:
-            task_metrics = metrics.filter(task=task)
-            divisor = 5
-
-            if task_metrics.exists():
-                metric = task_metrics.first()
-                divisor = metric.divisor or 5
-
-            base_duration = task.duration_days
-            reduction = base_duration / divisor if divisor > 0 else 0
-            optimized_duration = max(1, round(base_duration - reduction))
-            tolerance = task.tolerance_days if task.is_critical_path else 0
-
-            optimized_tasks.append(
-                {
-                    "task_id": task.id,
-                    "title": task.title,
-                    "original_duration_days": base_duration,
-                    "optimized_duration_days": optimized_duration,
-                    "days_saved": base_duration - optimized_duration,
-                    "is_critical_path": task.is_critical_path,
-                    "tolerance_days": tolerance,
-                }
+        try:
+            return Response(analyze_project_timeline(project))
+        except TimelineError as error:
+            return Response(
+                {'detail': str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-            total_optimized_days += optimized_duration
-
-        original_months = project.duration_months
-
-        if total_optimized_days > 0:
-            optimized_months = max(1, round(total_optimized_days / 30))
-        else:
-            optimized_months = max(1, original_months - 1)
-
-        months_saved = max(0, original_months - optimized_months)
-
-        return Response(
-            {
-                "project_id": project.id,
-                "project_code": project.code,
-                "project_name": project.name,
-                "original_duration_months": original_months,
-                "optimized_duration_months": optimized_months,
-                "months_saved": months_saved,
-                "total_original_days": total_original_days,
-                "total_optimized_days": total_optimized_days,
-                "tolerance_applied_days": 7,
-                "optimized_tasks": optimized_tasks,
-                "message": (
-                    "Optimización calculada: reducción "
-                    f"de {original_months} a {optimized_months} meses."
-                ),
-            },
-            status=status.HTTP_200_OK,
-        )
 
 
 class MilestoneViewSet(viewsets.ModelViewSet):

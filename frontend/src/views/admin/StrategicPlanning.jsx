@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Check, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, FileDown, Flag, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
 import {
   cardClass,
@@ -18,13 +18,17 @@ import {
   milestoneValidators,
 } from '../../constants/strategicPlanning';
 import {
-  adjustProjectSchedule,
+  persistProjectSchedule,
   createGlobalMilestone,
   formatMilestoneDate,
-  formatPlanningPeriod,
+  formatSchedulePeriod,
+  parsePlanningDate,
+  planningDatePosition,
+  projectYearBar,
 } from '../../utils/strategicPlanning';
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
 import projectsApi from '../../services/projectsApi';
+import TimelineAnalysisDialog from './TimelineAnalysisDialog';
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
@@ -36,175 +40,63 @@ function formatDateInput(date) {
 }
 
 export function AdjustScheduleDialog({ data, initialProjectId, onSubmit, onClose }) {
-  const initialProject = data.projects.find((project) => String(project.id) === String(initialProjectId)) ?? data.projects[1] ?? data.projects[0];
-  const [draft, setDraft] = useState({ projectId: initialProject?.id ?? '', start: initialProject?.start ?? 1, duration: initialProject?.duration ?? 1, reason: scheduleAdjustmentReasons[0] });
+  const initialProject = data.projects.find((project) => String(project.id) === String(initialProjectId)) ?? data.projects[0];
+  const [draft, setDraft] = useState({
+    projectId: initialProject?.id ?? '',
+    startDate: initialProject?.startDate || initialProject?.start_date || '',
+    endDate: initialProject?.endDate || initialProject?.end_date || '',
+    reason: scheduleAdjustmentReasons[0],
+  });
   const [error, setError] = useState('');
-  const selectedProject = data.projects.find((project) => String(project.id) === String(draft.projectId));
-  const start = Number(draft.start);
-  const duration = Number(draft.duration);
-  const maxDuration = Math.max(1, 13 - start);
-  const previewPeriod = formatPlanningPeriod(start, duration);
-
-  useEffect(() => {
-    const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', closeWithEscape);
-    return () => document.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
-
+  const [saving, setSaving] = useState(false);
+  const changeField = (field) => (event) => {
+    setDraft((current) => ({ ...current, [field]: event.target.value }));
+    setError('');
+  };
   const selectProject = (event) => {
-    const project = data.projects.find((item) => String(item.id) === String(event.target.value));
-    setDraft((current) => ({ ...current, projectId: project.id, start: project.start, duration: project.duration }));
+    const project = data.projects.find((item) => String(item.id) === event.target.value);
+    setDraft((current) => ({ ...current, projectId: project?.id ?? '', startDate: project?.startDate || project?.start_date || '', endDate: project?.endDate || project?.end_date || '' }));
     setError('');
   };
-  const selectStart = (event) => {
-    const nextStart = Number(event.target.value);
-    setDraft((current) => ({ ...current, start: nextStart, duration: Math.min(Number(current.duration), 13 - nextStart) }));
+  const handleSubmit = async () => {
+    if (saving) return;
+    setSaving(true);
     setError('');
-  };
-  const changeDuration = (amount) => {
-    setDraft((current) => ({ ...current, duration: Math.max(1, Math.min(13 - Number(current.start), Number(current.duration) + amount)) }));
-    setError('');
-  };
-
-  const footnote = (
-    <p className={`text-[10px] ${mutedClass}`}>
-      <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">●</span> Se actualizará el Gantt general y quedará registro del cambio.
-    </p>
-  );
-
-  const handleSubmit = () => {
     try {
-      onSubmit(draft);
+      await onSubmit(draft);
     } catch (submitError) {
       setError(submitError.message);
+    } finally {
+      setSaving(false);
     }
   };
-
   return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={handleSubmit}
-      title="Ajustar Calendario de Proyecto"
-      subtitle="Modifica la ventana de meses y plazos en el diagrama de Gantt."
-      icon={<SlidersHorizontal size={20} />}
-      submitLabel="Guardar ajustes"
-      submitIcon={<Check size={15} />}
-      cancelLabel="Cancelar"
-      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
-      footnote={footnote}
-      maxWidth="max-w-2xl"
-      id="adjust-schedule"
-    >
-      <label className={`block ${labelClass}`}>
-        Proyecto a reprogramar <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
-        <select autoFocus required value={draft.projectId} onChange={selectProject} className={inputClass}>
-          {data.projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name} — {project.area}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
-          Mes de inicio <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
-          <select required value={draft.start} onChange={selectStart} className={inputClass}>
-            {planningMonths.map((month) => (
-              <option key={month.number} value={month.number}>
-                {month.label}
-              </option>
-            ))}
+    <ModalDialog isOpen onClose={onClose} onSubmit={handleSubmit} isSubmitting={saving}
+      title="Ajustar Calendario de Proyecto" subtitle="Selecciona fechas completas, incluso de años diferentes."
+      icon={<SlidersHorizontal size={20} />} submitLabel="Guardar ajustes" submitIcon={<Check size={15} />}
+      id="adjust-schedule" maxWidth="max-w-2xl">
+      <fieldset disabled={saving} className="space-y-4">
+        <label className={`block ${labelClass}`}>Proyecto a reprogramar
+          <select autoFocus required value={draft.projectId} onChange={selectProject} className={inputClass}>
+            {data.projects.map((project) => <option key={project.id} value={project.id}>{project.name} — {project.area}</option>)}
           </select>
         </label>
-        <fieldset>
-          <legend className={labelClass}>
-            Duración total <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
-          </legend>
-          <div className={`mt-2 flex h-11 items-center justify-between gap-2 overflow-hidden px-1 ${nestedClass}`}>
-            <button
-              type="button"
-              onClick={() => changeDuration(-1)}
-              disabled={duration <= 1}
-              aria-label="Reducir duración"
-              className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
-            >
-              <Minus size={15} />
-            </button>
-            <output className={`flex items-center justify-center text-sm font-semibold ${headingClass}`}>
-              {duration} {duration === 1 ? 'Mes' : 'Meses'}{' '}
-              <span className={`ml-1 text-[10px] font-normal ${mutedClass}`}>({previewPeriod.split(' (')[0]})</span>
-            </output>
-            <button
-              type="button"
-              onClick={() => changeDuration(1)}
-              disabled={duration >= maxDuration}
-              aria-label="Aumentar duración"
-              className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
-            >
-              <Plus size={15} />
-            </button>
-          </div>
-        </fieldset>
-      </div>
-
-      <section className={`mt-5 p-4 ${nestedClass}`} aria-labelledby="schedule-preview-title">
-        <div className="flex items-center justify-between gap-3">
-          <h3 id="schedule-preview-title" className={`text-xs font-medium ${mutedClass}`}>
-            Vista previa del cronograma resultante:
-          </h3>
-          <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700 transition-colors duration-300 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:border-emerald-500/20 midnight:bg-emerald-500/10 midnight:text-emerald-300">
-            Ruta Crítica Activa
-          </span>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className={labelClass}>Fecha de inicio
+            <input required type="date" min="0001-01-01" max="9999-12-31" value={draft.startDate} onChange={changeField('startDate')} className={inputClass} />
+          </label>
+          <label className={labelClass}>Fecha de fin
+            <input required type="date" min={draft.startDate || '0001-01-01'} max="9999-12-31" value={draft.endDate} onChange={changeField('endDate')} className={inputClass} />
+          </label>
         </div>
-        <div className="mt-4 min-w-[420px]">
-          <div className="grid grid-cols-12">
-            {months.map((month) => (
-              <span key={month} className={`text-center text-[9px] ${mutedClass}`}>
-                {month}
-              </span>
-            ))}
-          </div>
-
-          <div className="relative mt-2 h-9 overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14]">
-            <div className="absolute inset-0 grid grid-cols-12 divide-x divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-800/40">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="h-full"></div>
-              ))}
-            </div>
-
-            <div
-              className="absolute inset-y-1 flex items-center justify-center rounded-md px-2 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
-              style={{
-                left: `${((start - 1) / 12) * 100}%`,
-                width: `${(duration / 12) * 100}%`,
-                backgroundColor: selectedProject?.color,
-              }}
-            >
-              <span className="truncate">{previewPeriod}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <label className={`mt-5 block ${labelClass}`}>
-        Motivo del reajuste / historial de auditoría <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
-        <select
-          required
-          value={draft.reason}
-          onChange={(event) => {
-            setDraft((current) => ({ ...current, reason: event.target.value }));
-            setError('');
-          }}
-          className={inputClass}
-        >
-          {scheduleAdjustmentReasons.map((reason) => (
-            <option key={reason}>{reason}</option>
-          ))}
-        </select>
-      </label>
-
+        <p className={`p-4 text-sm ${nestedClass}`}>Vista previa del cronograma resultante: {formatSchedulePeriod(draft.startDate, draft.endDate) || 'Selecciona un rango válido.'}</p>
+        <label className={`block ${labelClass}`}>Motivo del reajuste
+          <select required value={draft.reason} onChange={changeField('reason')} className={inputClass}>
+            {scheduleAdjustmentReasons.map((reason) => <option key={reason}>{reason}</option>)}
+          </select>
+        </label>
+        <p className={`text-xs ${mutedClass}`}>Las fechas se guardan en Django. El resumen de ajustes de esta pantalla corresponde a la sesión actual.</p>
+      </fieldset>
       {error && <p role="alert" className={errorClass}>{error}</p>}
     </ModalDialog>
   );
@@ -221,13 +113,8 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
     blocking: true,
   });
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
-
-  useEffect(() => {
-    const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', closeWithEscape);
-    return () => document.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
 
   const footnote = (
     <p className={`text-[10px] ${mutedClass}`}>
@@ -235,11 +122,16 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
     </p>
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
     try {
-      onSubmit(draft);
+      await onSubmit(draft);
     } catch (submitError) {
       setError(submitError.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -248,6 +140,7 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
       isOpen={true}
       onClose={onClose}
       onSubmit={handleSubmit}
+      isSubmitting={saving}
       title="Nuevo Hito Global"
       subtitle="Define una entrega crítica, auditoría o fase clave en el calendario anual."
       icon={<Flag size={20} />}
@@ -334,7 +227,7 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
         <span>
           <strong className={`block text-xs font-medium ${headingClass}`}>Hito bloqueante</strong>
           <small className={`mt-1 block text-[10px] leading-relaxed ${mutedClass}`}>
-            Detiene el cronograma si no se valida en la fecha objetivo y activa la ruta crítica.
+            Identifica una entrega que requiere revisión si vence sin validación.
           </small>
         </span>
       </label>
@@ -346,10 +239,12 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
 
 export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false }) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [feedback, setFeedback] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const projects = data?.projects || [];
   const milestones = data?.milestones ?? [];
 
@@ -359,18 +254,30 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   }, [projects, selectedProjectFilter]);
 
   const displayedProjects = useMemo(() => {
-    if (!activeProject) return projects;
-    return projects.filter((p) => String(p.id) === String(activeProject.id));
-  }, [projects, activeProject]);
+    return projects.filter((project) => (!activeProject || String(project.id) === String(activeProject.id)) &&
+      (projectYearBar(project, selectedYear) || !formatSchedulePeriod(project.startDate || project.start_date, project.endDate || project.end_date)));
+  }, [projects, activeProject, selectedYear]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set([selectedYear, new Date().getFullYear()]);
+    for (const project of projects) {
+      const start = parsePlanningDate(project.startDate || project.start_date);
+      const end = parsePlanningDate(project.endDate || project.end_date);
+      if (start && end && end >= start) {
+        for (let year = start.getUTCFullYear(); year <= end.getUTCFullYear(); year += 1) years.add(year);
+      }
+    }
+    for (const milestone of milestones) {
+      const date = parsePlanningDate(milestone.targetDate);
+      if (date) years.add(date.getUTCFullYear());
+    }
+    return [...years].sort((a, b) => a - b);
+  }, [projects, milestones, selectedYear]);
 
   const filteredMilestones = useMemo(() => {
-    if (!activeProject) return milestones;
-    return milestones.filter(
-      (m) =>
-        String(m.projectId) === String(activeProject.id) ||
-        String(m.project) === String(activeProject.id)
-    );
-  }, [milestones, activeProject]);
+    return milestones.filter((m) => planningDatePosition(m.targetDate, selectedYear) !== null &&
+      (!activeProject || String(m.projectId) === String(activeProject.id) || String(m.project) === String(activeProject.id)));
+  }, [milestones, activeProject, selectedYear]);
 
   const targetProjectsForBudget = activeProject ? [activeProject] : projects;
 
@@ -392,94 +299,75 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     return `$${Number(amount || 0).toLocaleString()}`;
   };
 
-  const saveSchedule = async (draft) => {
-    try {
-      const startMonth = Number(draft.start);
-      const duration = Number(draft.duration);
-      const endMonth = Math.min(12, startMonth + duration - 1);
-      const startDateStr = `2026-${String(startMonth).padStart(2, '0')}-01`;
-      const endDateStr = `2026-${String(endMonth).padStart(2, '0')}-28`;
-
-      if (typeof draft.projectId === 'number' || (!isNaN(Number(draft.projectId)) && String(Number(draft.projectId)) === String(draft.projectId))) {
-        await projectsApi.updateProject(draft.projectId, {
-          start_date: startDateStr,
-          end_date: endDateStr,
-          duration_months: duration,
-        });
-      }
-    } catch (apiErr) {
-      console.warn('Reajuste registrado localmente:', apiErr);
-    }
-    const updated = adjustProjectSchedule(data, draft);
-    onChange(updated);
-    setDialogOpen(false);
-    setFeedback(updated === data ? 'No había cambios que guardar.' : 'Calendario actualizado y registrado en el historial de auditoría.');
+  const requireDatabaseId = (id) => {
+    if (!/^\d+$/.test(String(id))) throw new Error('Este registro no está guardado en Django. Recarga los datos del servidor.');
   };
-  const saveMilestone = async (draft) => {
-    try {
-      const createdBackend = await projectsApi.createMilestone({
-        projectId: draft.projectId,
-        title: draft.title,
-        description: draft.description,
-        targetDate: draft.targetDate,
-        status: draft.status,
-      });
-      if (createdBackend?.id) {
-        draft.id = createdBackend.id;
-      }
-    } catch (apiErr) {
-      console.warn('Hito registrado localmente:', apiErr);
+  const saveSchedule = async (draft) => {
+    const updated = await persistProjectSchedule(data, draft, projectsApi.updateProject);
+    if (updated === data) {
+      setDialogOpen(false);
+      setFeedback('No había cambios que guardar.');
+      return;
     }
-    const updated = createGlobalMilestone(data, draft);
     onChange(updated);
+    setSelectedYear(parsePlanningDate(draft.startDate).getUTCFullYear());
+    setDialogOpen(false);
+    setFeedback('Calendario guardado en Django.');
+  };
+
+  const saveMilestone = async (draft) => {
+    createGlobalMilestone(data, draft);
+    requireDatabaseId(draft.projectId);
+    let created;
+    try {
+      created = await projectsApi.createMilestone({
+        projectId: draft.projectId, title: draft.title, description: draft.description,
+        targetDate: draft.targetDate, status: draft.status,
+      });
+    } catch {
+      throw new Error('No se pudo guardar el hito. Revisa la conexión y los permisos e inténtalo nuevamente.');
+    }
+    if (!created?.id) throw new Error('El servidor no confirmó el hito. Recarga la lista antes de volver a intentarlo.');
+    const updated = createGlobalMilestone(data, { ...draft, id: created.id });
+    onChange(updated);
+    setSelectedYear(parsePlanningDate(draft.targetDate).getUTCFullYear());
     setMilestoneDialogOpen(false);
-    setFeedback(`Hito “${updated.milestones[0].title}” registrado en el calendario global.`);
+    setFeedback(`Hito “${draft.title}” guardado en Django.`);
   };
 
   const handleStatusChange = async (milestoneId, newStatus) => {
     try {
-      if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
-        await projectsApi.updateMilestone(milestoneId, { status: newStatus });
-      }
-    } catch (err) {
-      console.warn('Error al actualizar estado del hito en backend:', err);
+      requireDatabaseId(milestoneId);
+      await projectsApi.updateMilestone(milestoneId, { status: newStatus });
+      onChange({ ...data, milestones: milestones.map((m) => String(m.id) === String(milestoneId) ? { ...m, status: newStatus } : m) });
+      setFeedback('Estado del hito guardado en Django.');
+    } catch {
+      setFeedback('Error: no se pudo guardar el estado. Los datos de la pantalla se conservaron.');
     }
-    const updatedMilestones = (data?.milestones || []).map((m) =>
-      String(m.id) === String(milestoneId) ? { ...m, status: newStatus } : m
-    );
-    const updated = { ...data, milestones: updatedMilestones };
-    onChange(updated);
-    const statusLabel = milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus;
-    setFeedback(`Estado del hito actualizado a “${statusLabel}”.`);
   };
 
   const handleDeleteMilestone = async (milestoneId, title) => {
     try {
-      if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
-        await projectsApi.deleteMilestone(milestoneId);
-      }
-    } catch (err) {
-      console.warn('Error al eliminar hito en backend:', err);
+      requireDatabaseId(milestoneId);
+      await projectsApi.deleteMilestone(milestoneId);
+      onChange({ ...data, milestones: milestones.filter((m) => String(m.id) !== String(milestoneId)) });
+      setFeedback(`Hito “${title}” eliminado en Django.`);
+    } catch {
+      setFeedback('Error: no se pudo eliminar el hito. Los datos de la pantalla se conservaron.');
     }
-    const updated = {
-      ...data,
-      milestones: (data?.milestones || []).filter((m) => String(m.id) !== String(milestoneId)),
-    };
-    onChange(updated);
-    setFeedback(`Hito “${title}” eliminado.`);
   };
 
   const exportToPdf = () => {
     const todayStr = new Date().toISOString().split('T')[0];
     const originalTitle = document.title;
-    let fileName = `Calendario_Maestro_Proyectos_2026_${todayStr}`;
+    let fileName = `Calendario_Maestro_Proyectos_${selectedYear}_${todayStr}`;
 
     if (activeProject) {
       const slug = (activeProject.code || activeProject.name || 'Proyecto')
         .trim()
         .replace(/\s+/g, '_')
         .replace(/[^a-zA-Z0-9_-]/g, '');
-      fileName = `Calendario_${slug}_${todayStr}`;
+      fileName = `Calendario_${slug}_${selectedYear}_${todayStr}`;
     }
 
     document.title = fileName;
@@ -512,13 +400,13 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               </div>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
                 {activeProject
-                  ? `Calendario de Proyecto 2026 — ${activeProject.code ? `${activeProject.code} · ` : ''}${activeProject.name}`
-                  : 'Calendario Maestro de Proyectos 2026'}
+                  ? `Calendario de Proyecto ${selectedYear} — ${activeProject.code ? `${activeProject.code} · ` : ''}${activeProject.name}`
+                  : `Calendario Maestro de Proyectos ${selectedYear}`}
               </h1>
               <p className="mt-0.5 text-xs text-slate-600">
                 {activeProject
-                  ? `Cronograma de Ruta Crítica, Hitos Clave y Control Presupuestario (${activeProject.area})`
-                  : 'Cronograma Anual de Ruta Crítica, Hitos Clave y Asignación Presupuestaria'}
+                  ? `Cronograma de Planificación, Hitos Clave y Control Presupuestario (${activeProject.area})`
+                  : 'Cronograma Anual de Planificación, Hitos Clave y Asignación Presupuestaria'}
               </p>
             </div>
             <div className="text-right text-xs text-slate-500">
@@ -536,14 +424,17 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         <section className="flex flex-col gap-4 no-print print:hidden">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Calendario Maestro 2026</h1>
-              <p className={`mt-1 text-sm ${mutedClass}`}>Planificación de ruta crítica y cronograma de infraestructura anual</p>
+              <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Calendario Maestro {selectedYear}</h1>
+              <p className={`mt-1 text-sm ${mutedClass}`}>Cronograma de proyectos e hitos por año</p>
             </div>
 
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); setFeedback(''); }} className={secondaryButtonClass}>
                   <SlidersHorizontal size={15} /> Ajustar Calendario
+                </button>
+                <button type="button" onClick={() => setAnalysisOpen(true)} className={secondaryButtonClass}>
+                  <SlidersHorizontal size={15} /> Analizar tiempos
                 </button>
                 <button type="button" onClick={exportToPdf} className={secondaryButtonClass}>
                   <FileDown size={15} /> Exportar Gantt / PDF
@@ -579,13 +470,12 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
               {/* SELECTOR DE AÑO */}
               <select
-                defaultValue="2026"
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(Number(event.target.value))}
                 aria-label="Seleccionar año"
                 className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"
               >
-                <option value="2025" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2025</option>
-                <option value="2026" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2026</option>
-                <option value="2027" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2027</option>
+                {availableYears.map((year) => <option key={year} value={year}>Año {year}</option>)}
               </select>
             </div>
 
@@ -616,9 +506,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                   </div>
                 ) : (
                   displayedProjects.map((project) => {
+                    const bar = projectYearBar(project, selectedYear);
                     const projectBudget = Number(project.totalBudget) || Number(project.budget) || 0;
                     const isAbove100k = projectBudget > 100000;
-                    const projectMilestones = milestones.filter(
+                    const projectMilestones = filteredMilestones.filter(
                       (m) => String(m.projectId) === String(project.id) || String(m.project) === String(project.id)
                     );
 
@@ -665,21 +556,19 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                         <div
                           className="absolute inset-y-0.5 flex items-center rounded-md px-3 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
                           style={{
-                            left: `${((project.start - 1) / 12) * 100}%`,
-                            width: `${(project.duration / 12) * 100}%`,
+                            left: `${bar?.left ?? 0}%`,
+                            width: `${bar?.width ?? 100}%`,
+                            opacity: bar ? 1 : 0.6,
                             backgroundColor: project.color,
                           }}
                         >
-                          <span className="flex-1 truncate text-center">{project.period}</span>
+                          <span className="flex-1 truncate text-center">{bar ? project.period : 'Sin fechas válidas: ajusta el calendario'}</span>
                           {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); setFeedback(''); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white no-print print:hidden"><SlidersHorizontal size={11} /></button>}
                         </div>
 
                         {/* HITOS ASOCIADOS EN EL CRONOGRAMA */}
                         {projectMilestones.map((m) => {
-                          const mDate = new Date(`${m.targetDate}T00:00:00`);
-                          const mMonth = !isNaN(mDate.getTime()) ? mDate.getMonth() + 1 : project.start;
-                          const mDay = !isNaN(mDate.getTime()) ? mDate.getDate() : 15;
-                          const leftPct = Math.min(98, Math.max(2, (((mMonth - 1) + (mDay / 31)) / 12) * 100));
+                          const leftPct = planningDatePosition(m.targetDate, selectedYear);
                           const mStatus = (m.status || '').toLowerCase();
                           const isDone = mStatus === 'completed';
                           const isUp = mStatus === 'upcoming' || mStatus === 'in_progress';
@@ -877,6 +766,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           </section>
         </div>
       </div>
+      {analysisOpen && canManage && <TimelineAnalysisDialog projects={projects} initialProjectId={activeProject?.id} onClose={() => setAnalysisOpen(false)} />}
       {dialogOpen && canManage && <AdjustScheduleDialog data={data} initialProjectId={adjustingProjectId} onSubmit={saveSchedule} onClose={() => setDialogOpen(false)} />}
       {milestoneDialogOpen && canManage && <NewGlobalMilestoneDialog data={data} onSubmit={saveMilestone} onClose={() => setMilestoneDialogOpen(false)} />}
     </main>

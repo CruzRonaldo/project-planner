@@ -22,7 +22,7 @@ import {
   Configuration,
 } from '../views';
 import projectsApi from '../services/projectsApi';
-import { mapToGanttProject } from '../utils/strategicPlanning';
+import { mapToGanttProject, syncPortfolioSchedule } from '../utils/strategicPlanning';
 import {
   normalizePersonnelIncidents,
   normalizeTeamMemberHistory,
@@ -986,7 +986,10 @@ export function useAppController() {
       return (
         <StrategicPlanning
           data={strategicPlanningData}
-          onChange={setStrategicPlanningData}
+          onChange={(next) => {
+            setStrategicPlanningData(next);
+            setPortfolioData((previous) => syncPortfolioSchedule(previous, next.projects));
+          }}
           canManage={canManage}
         />
       );
