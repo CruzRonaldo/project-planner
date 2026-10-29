@@ -7,6 +7,8 @@ import {
   Calendar,
   Plus,
 } from 'lucide-react';
+import KpiCard from '../../components/common/KpiCard';
+import { cardClass } from '../../constants/themeClasses';
 
 export default function DashboardContent({
   portfolioData,
@@ -54,25 +56,23 @@ export default function DashboardContent({
     <main className="flex-1 overflow-y-auto p-4 md:p-6 transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
       <div className="flex flex-col gap-6 pb-8">
         {/* 1. Tarjetas Superiores */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <section aria-label="Resumen ejecutivo de proyectos" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {[
             {
               title: 'PROYECTOS ACTIVOS',
               value: String(activeProjects.length),
               badge: `${projects.length} en total`,
-              badgeColor:
-                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10',
+              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
               icon: Folder,
-              color: 'text-cyan-600 dark:text-cyan-400',
+              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
             {
               title: 'HITOS PENDIENTES',
               value: String(pendingMilestones.length),
               badge: `${milestones.length} en total`,
-              badgeColor:
-                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10',
+              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
               icon: CheckSquare,
-              color: 'text-cyan-600 dark:text-cyan-400',
+              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
             },
             {
               title: 'PRESUPUESTO TOTAL',
@@ -81,47 +81,35 @@ export default function DashboardContent({
                 projects.length > 0
                   ? `${formatMoney(usedBudget)} usado`
                   : '$0 usado',
-              badgeColor: 'text-green-600 bg-green-500/10 dark:text-green-400',
+              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
               icon: DollarSign,
-              color: 'text-cyan-600 dark:text-cyan-400',
+              color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300',
             },
             {
               title: 'AVANCE PROMEDIO',
               value: `${avgProgress}%`,
               badge: projects.length > 0 ? `${projects.length} prjs` : 'Sin datos',
-              badgeColor: 'text-green-600 bg-green-500/10 dark:text-green-400',
+              badgeColor: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600',
               icon: TrendingUp,
-              color: 'text-cyan-600 dark:text-cyan-400',
+              color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400',
             },
           ].map((stat, i) => (
-            <div
-              key={i}
-              className="border p-5 rounded-xl flex flex-col gap-4 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30"
-            >
-              <div className="flex justify-between items-center text-[11px] font-bold tracking-wider text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                <span>{stat.title}</span>
-                <div className="p-1.5 rounded-md border transition-colors bg-slate-100 border-slate-200 dark:bg-[#0d1117] dark:border-[#30363d] midnight:bg-cyan-950 midnight:border-cyan-800/40">
-                  <stat.icon size={16} className={stat.color} />
-                </div>
-              </div>
-              <div className="flex justify-between items-end">
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
-                  {stat.value}
-                </h2>
-                <span
-                  className={`text-xs px-2 py-1 rounded font-medium ${stat.badgeColor}`}
-                >
-                  {stat.badge}
-                </span>
-              </div>
-            </div>
+            <KpiCard
+              key={stat.title || i}
+              title={stat.title}
+              value={stat.value}
+              badge={stat.badge}
+              badgeClass={stat.badgeColor}
+              icon={stat.icon}
+              iconColor={stat.color}
+            />
           ))}
-        </div>
+        </section>
 
         {/* 2. Sección Media (Gantt y Alertas) */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Calendario Gantt */}
-          <div className="xl:col-span-2 border rounded-xl p-5 md:p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30">
+          <div className={`xl:col-span-2 ${cardClass} p-5 md:p-6`}>
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-100">
@@ -213,7 +201,7 @@ export default function DashboardContent({
           </div>
 
           {/* Alertas Ruta Crítica */}
-          <div className="border rounded-xl p-5 md:p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30">
+          <div className={`${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
               Alertas Ruta Crítica
             </h3>
@@ -258,7 +246,7 @@ export default function DashboardContent({
         {/* 3. Sección Inferior (Rendimiento y Presupuesto) */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Rendimiento por Equipo / Proyectos */}
-          <div className="xl:col-span-2 border rounded-xl p-5 md:p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30">
+          <div className={`xl:col-span-2 ${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
               Avance por Proyecto
             </h3>
@@ -301,7 +289,7 @@ export default function DashboardContent({
           </div>
 
           {/* Control Presupuestario */}
-          <div className="border rounded-xl p-5 md:p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30">
+          <div className={`${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
               Control Presupuestario
             </h3>

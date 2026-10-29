@@ -22,6 +22,7 @@ import { useToast } from '../../context/ToastContext';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
+import KpiCard from '../../components/common/KpiCard';
 
 export { PersonnelIncidentDialog };
 
@@ -341,30 +342,16 @@ export default function HumanResources({
             const isSelected = card.id === 'all' ? isAll : (!isAll && selectedStatuses.includes(card.id));
             const themeStyle = statusThemeStyles[card.id];
             return (
-              <button
+              <KpiCard
                 key={card.id}
-                type="button"
+                title={card.label}
+                value={card.value}
+                dotClass={card.dotClass}
+                isSelected={isSelected}
+                selectedClass={themeStyle?.cardSelected}
                 onClick={() => toggleStatus(card.id)}
-                aria-pressed={isSelected}
-                aria-label={`${card.label}: ${card.value}`}
-                className={`relative rounded-xl border p-4 text-left shadow-sm transition-all duration-300 sm:p-5 ${
-                  isSelected
-                    ? themeStyle?.cardSelected || 'border-cyan-500 bg-cyan-50/50 ring-2 ring-cyan-500/30 dark:border-cyan-400 dark:bg-cyan-950/20 dark:ring-cyan-400/30 midnight:border-cyan-400 midnight:bg-cyan-950/30 midnight:ring-cyan-400/40'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs dark:border-[#30363d] dark:bg-[#161b22] dark:hover:border-slate-600 midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:hover:border-cyan-700/50'
-                }`}
-              >
-                <span className="flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600">
-                  <span className={isSelected ? 'font-bold text-slate-900 dark:text-white midnight:text-cyan-100' : ''}>{card.label}</span>
-                  <i className={`h-2 w-2 shrink-0 rounded-full ${card.dotClass} ${isSelected ? 'ring-2 ring-offset-1 ring-current' : ''}`} />
-                </span>
-                <strong className={`mt-3 block text-3xl font-bold transition-colors duration-300 ${
-                  isSelected
-                    ? 'text-slate-950 dark:text-white midnight:text-cyan-50'
-                    : 'text-slate-900 dark:text-slate-100 midnight:text-cyan-100'
-                }`}>
-                  {card.value}
-                </strong>
-              </button>
+                ariaLabel={`${card.label}: ${card.value}`}
+              />
             );
           })}
         </section>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, Zap } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
+import KpiCard from '../../components/common/KpiCard';
 import { useToast } from '../../context/ToastContext';
 import {
   inputClass,
@@ -270,10 +271,10 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
   const availableProjects = Array.from(new Set(baseProjects));
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
   const metricCards = [
-    { label: 'Tareas en progreso', value: metrics.inProgress, note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas', icon: Activity, color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300' },
-    { label: 'Tareas completadas', value: metrics.completed, note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
-    { label: 'Incidencias abiertas', value: metrics.incidents, note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias', icon: AlertTriangle, color: 'text-red-600 dark:text-red-400 midnight:text-red-300', badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300' },
-    { label: 'Eficiencia operativa', value: `${metrics.efficiency}%`, note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas', icon: BarChart3, color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
+    { label: 'Tareas en progreso', value: metrics.inProgress, note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas', icon: Activity, color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
+    { label: 'Tareas completadas', value: metrics.completed, note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
+    { label: 'Incidencias abiertas', value: metrics.incidents, note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias', icon: AlertTriangle, color: 'text-red-600 dark:text-red-400 midnight:text-red-300', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
+    { label: 'Eficiencia operativa', value: `${metrics.efficiency}%`, note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas', icon: BarChart3, color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400', badge: 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600' },
   ];
 
   const saveOrder = (draft) => {
@@ -337,7 +338,19 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
         </header>
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
 
-        <section aria-label="Resumen operativo" className="grid grid-cols-2 gap-3 xl:grid-cols-4">{metricCards.map((card) => { const Icon = card.icon; return <article key={card.label} className={`${cardClass} p-4 sm:p-5`}><div className="flex items-start justify-between gap-3"><p className={`text-[10px] font-semibold uppercase tracking-wide ${mutedClass}`}>{card.label}</p><span className={`rounded-lg border border-slate-200 bg-slate-50 p-2 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14] ${card.color}`}><Icon size={16} /></span></div><div className="mt-4 flex items-end justify-between gap-3"><strong className={`text-3xl font-bold ${headingClass}`}>{card.value}</strong><span className={`rounded px-2 py-1 text-[10px] font-semibold ${card.badge}`}>{card.note}</span></div></article>; })}</section>
+        <section aria-label="Resumen operativo" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {metricCards.map((card) => (
+            <KpiCard
+              key={card.label}
+              title={card.label}
+              value={card.value}
+              icon={card.icon}
+              iconColor={card.color}
+              badge={card.note}
+              badgeClass={card.badge}
+            />
+          ))}
+        </section>
 
         <section className={`${cardClass} overflow-hidden p-4 sm:p-5`} aria-labelledby="critical-schedule-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="critical-schedule-title" className={`text-base font-semibold ${headingClass}`}>Cronograma de Actividades Críticas</h2><p className={`mt-1 text-[10px] ${mutedClass}`}>Seguimiento temporal y avance real de entregables clave</p></div><div className={`flex gap-3 text-[9px] ${mutedClass}`}><span><i className="mr-1 inline-block h-2 w-2 bg-blue-500" /> En tiempo</span><span><i className="mr-1 inline-block h-2 w-2 bg-emerald-500" /> Acelerada</span><span><i className="mr-1 inline-block h-2 w-2 bg-purple-500" /> Programada</span></div></div><div className="mt-5 overflow-x-auto"><div className="min-w-[780px]"><div className="grid grid-cols-[230px_1fr_90px] border-b border-slate-200 pb-2 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className="text-[9px] text-slate-500 midnight:text-cyan-600">Actividad / Obra</span><div className="grid grid-cols-6">{months.map((month) => <span key={month} className="text-center text-[9px] text-slate-500 midnight:text-cyan-600">{month}</span>)}</div><span className="text-right text-[9px] text-slate-500 midnight:text-cyan-600">Avance total</span></div><div className="space-y-4 pt-4">{activitiesList.map((activity) => <article key={activity.id} className="grid grid-cols-[230px_1fr_90px] items-center"><div><h3 className={`text-xs font-semibold ${headingClass}`}>{activity.name}</h3><p className="mt-1 text-[9px] text-slate-500 midnight:text-cyan-600">{activity.project}</p></div><div className="relative h-7 rounded bg-slate-100 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-cyan-950/50" style={{ backgroundImage: 'linear-gradient(to right, rgba(100,136,186,.14) 1px, transparent 1px)', backgroundSize: '16.6667% 100%' }}><div className="absolute inset-y-0 flex items-center justify-center rounded px-2 text-[9px] font-semibold text-white" style={{ left: `${((activity.start - 1) / 6) * 100}%`, width: `${(activity.duration / 6) * 100}%`, backgroundColor: activity.color }}><span className="truncate">{activity.period}</span></div></div><div className="pl-5"><strong className="block text-right text-[10px]" style={{ color: activity.color }}>{activity.progress}%</strong><div className="mt-2 h-1 overflow-hidden rounded bg-slate-200 dark:bg-[#0d1117] midnight:bg-cyan-950"><div className="h-full" style={{ width: `${activity.progress}%`, backgroundColor: activity.color }} /></div></div></article>)}{!activitiesList.length && <p className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay actividades críticas registradas.</p>}</div></div></div></section>
 
