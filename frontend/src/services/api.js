@@ -27,5 +27,22 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Interceptor para inyectar automáticamente la cabecera de autenticación Bearer del usuario
+api.interceptors.request.use((config) => {
+  try {
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('project_planner_user') : null;
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user && user.id && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${user.id}`;
+      }
+    }
+  } catch (err) {
+    // Silencioso ante errores de almacenamiento
+  }
+  return config;
+});
+
 export { baseURL };
 export default api;

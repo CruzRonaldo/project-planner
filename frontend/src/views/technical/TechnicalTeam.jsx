@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
+import PasswordInput from '../../components/common/PasswordInput';
 import {
   technicalAreas,
   technicalProjects,
@@ -70,8 +71,6 @@ function MemberAvatar({ member, sizeClass = 'h-10 w-10' }) {
 
 export function AddTechnicalMemberDialog({ existingData, projectOptions = technicalProjects, onSubmit, onClose }) {
   const [draft, setDraft] = useState({ firstNames: '', lastNames: '', email: '', password: '', passwordConfirm: '', specialty: '', area: 'architecture', project: projectOptions[0] ?? technicalProjects[0], status: 'active', workload: 100, avatar: null });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [photoName, setPhotoName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,9 +160,8 @@ export function AddTechnicalMemberDialog({ existingData, projectOptions = techni
         </label>
         <label className={labelClass}>
           Contraseña inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <div className="relative mt-2">
-            <input
-              type={showPassword ? 'text' : 'password'}
+          <div className="mt-2">
+            <PasswordInput
               required
               minLength={8}
               maxLength={128}
@@ -171,23 +169,14 @@ export function AddTechnicalMemberDialog({ existingData, projectOptions = techni
               value={draft.password}
               onChange={changeField('password')}
               placeholder="Mínimo 8 caracteres"
-              className={`${inputClass} !mt-0 pr-10`}
+              className={`${inputClass} !mt-0`}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 midnight:hover:text-cyan-300 transition-colors cursor-pointer"
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
           </div>
         </label>
         <label className={labelClass}>
           Confirmar contraseña <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <div className="relative mt-2">
-            <input
-              type={showPasswordConfirm ? 'text' : 'password'}
+          <div className="mt-2">
+            <PasswordInput
               required
               minLength={8}
               maxLength={128}
@@ -195,16 +184,10 @@ export function AddTechnicalMemberDialog({ existingData, projectOptions = techni
               value={draft.passwordConfirm}
               onChange={changeField('passwordConfirm')}
               placeholder="Repita la contraseña"
-              className={`${inputClass} !mt-0 pr-10`}
+              className={`${inputClass} !mt-0`}
+              showPasswordLabel="Ver confirmación de contraseña"
+              hidePasswordLabel="Ocultar confirmación de contraseña"
             />
-            <button
-              type="button"
-              onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-              aria-label={showPasswordConfirm ? 'Ocultar confirmación de contraseña' : 'Ver confirmación de contraseña'}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 midnight:hover:text-cyan-300 transition-colors cursor-pointer"
-            >
-              {showPasswordConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
           </div>
         </label>
         <label className={labelClass}>

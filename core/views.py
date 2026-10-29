@@ -42,6 +42,7 @@ from .models import (
     TeamStatus,
     TechnicalArea,
     UserProfile,
+    ProjectMeeting,
 )
 
 from rest_framework.authentication import BaseAuthentication
@@ -75,6 +76,7 @@ from .serializers import (
     TeamMemberChangeLogSerializer,
     TeamStatusSerializer,
     TechnicalAreaSerializer,
+    ProjectMeetingSerializer,
 )
 from .services.google_drive import (
     GoogleDriveConfigurationError,
@@ -1926,3 +1928,226 @@ class CreateTechnicianView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+
+# ==========================================================================
+# PASSWORD RESET — Recuperacion de contrasena por codigo OTP de 6 digitos
+# ==========================================================================
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/auth/password-reset/request/
+    Body: { "email": "usuario@empresa.com" }
+
+    Genera un codigo OTP numerico de 6 digitos, lo guarda (o actualiza si ya
+    existia uno previo) en PasswordResetCode y envia una peticion POST
+    al webhook configurado en settings.RECOVERY_WEBHOOK_URL.
+    Siempre responde con 200 OK para no revelar si el email existe en la BD.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        import random
+        import requests
+        from .models import PasswordResetCode
+
+        email = (request.data.get('email') or '').strip().lower()
+        if not email:
+            return Response(
+                {'status': 'error', 'message': 'El campo email es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(email__iexact=email).first()
+
+        # Respuesta generica para no exponer si el correo existe
+        generic_ok = Response({
+            'status': 'success',
+            'message': 'Si el correo existe en el sistema, recibiras un codigo de recuperacion.',
+        })
+
+        if not user:
+            return generic_ok
+
+        # Generar codigo y guardar/actualizar
+        code = str(random.randint(100000, 999999))
+        PasswordResetCode.objects.update_or_create(
+            user=user,
+            defaults={'code': code},
+        )
+
+        # Enviar peticion POST al webhook de recuperacion
+        webhook_url = getattr(settings, 'RECOVERY_WEBHOOK_URL', '')
+        payload = {
+            'email': user.email,
+            'code': code,
+        }
+
+        try:
+            if webhook_url:
+                requests.post(webhook_url, json=payload, timeout=5)
+            else:
+                print("Aviso: settings.RECOVERY_WEBHOOK_URL no esta configurado.")
+        except requests.RequestException as error:
+            print(f"Error al enviar webhook de recuperacion de contrasena: {error}")
+
+        return generic_ok
+
+
+class PasswordResetVerifyCodeView(APIView):
+    """
+    POST /api/auth/password-reset/verify-code/
+    Body: { "email": "usuario@empresa.com", "code": "123456" }
+
+    Valida que el codigo OTP coincida con el usuario y no este expirado (15 min).
+    No elimina el codigo para permitir que la vista de confirmacion lo valide antes de cambiar la contrasena.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .models import PasswordResetCode
+
+        email = (request.data.get('email') or '').strip().lower()
+        code  = (request.data.get('code') or '').strip()
+
+        if not email or not code:
+            return Response(
+                {'status': 'error', 'message': 'El correo y el codigo de verificacion son obligatorios.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response(
+                {'status': 'error', 'message': 'Codigo invalido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            reset_code = PasswordResetCode.objects.get(user=user)
+        except PasswordResetCode.DoesNotExist:
+            return Response(
+                {'status': 'error', 'message': 'Codigo invalido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reset_code.code != code:
+            return Response(
+                {'status': 'error', 'message': 'El codigo ingresado no es correcto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reset_code.is_expired(minutes=15):
+            reset_code.delete()
+            return Response(
+                {'status': 'error', 'message': 'El codigo ha expirado. Solicita uno nuevo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'status': 'success',
+            'message': 'Codigo verificado correctamente.',
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/auth/password-reset/confirm/
+    Body: { "email": "...", "code": "123456", "new_password": "...", "confirm_password": "..." }
+
+    Valida el codigo OTP, comprueba que no haya expirado (15 min),
+    cambia la contrasena y elimina el codigo usado.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .models import PasswordResetCode
+
+        email            = (request.data.get('email') or '').strip().lower()
+        code             = (request.data.get('code') or '').strip()
+        new_password     = request.data.get('new_password') or ''
+        confirm_password = request.data.get('confirm_password') or ''
+
+        # Validaciones basicas
+        if not all([email, code, new_password, confirm_password]):
+            return Response(
+                {'status': 'error', 'message': 'Todos los campos son obligatorios.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {'status': 'error', 'message': 'Las contrasenas nuevas no coinciden.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(new_password) < 8:
+            return Response(
+                {'status': 'error', 'message': 'La contrasena debe tener al menos 8 caracteres.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response(
+                {'status': 'error', 'message': 'Codigo invalido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            reset_code = PasswordResetCode.objects.get(user=user)
+        except PasswordResetCode.DoesNotExist:
+            return Response(
+                {'status': 'error', 'message': 'Codigo invalido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verificar codigo
+        if reset_code.code != code:
+            return Response(
+                {'status': 'error', 'message': 'El codigo ingresado no es correcto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verificar expiracion (15 minutos)
+        if reset_code.is_expired(minutes=15):
+            reset_code.delete()
+            return Response(
+                {'status': 'error', 'message': 'El codigo ha expirado. Solicita uno nuevo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cambiar contrasena
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+
+        # Eliminar el codigo usado
+        reset_code.delete()
+
+        logger.info('Contrasena restablecida exitosamente para el usuario %s', user.email)
+
+        return Response({
+            'status': 'success',
+            'message': 'Tu contrasena ha sido actualizada correctamente. Ya puedes iniciar sesion.',
+        })
+
+
+class ProjectMeetingViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para reuniones virtuales y videoconferencias Jitsi Meet de proyectos.
+    """
+    queryset = ProjectMeeting.objects.select_related('project', 'created_by').all().order_by('-created_at')
+    serializer_class = ProjectMeetingSerializer
+    authentication_classes = [SimpleUserAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

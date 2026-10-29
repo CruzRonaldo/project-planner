@@ -8,6 +8,7 @@ import {
   Pencil,
   Save,
   Trash2,
+  Video,
   X,
 } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
@@ -27,7 +28,7 @@ import {
   secondaryButtonClass,
   labelClass,
 } from "../../constants/themeClasses";
-
+import ProjectDetail from "../projects/ProjectDetail";
 
 const filters = [
   { id: "all", label: "Todos" },
@@ -50,7 +51,7 @@ function isoDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function ProjectCard({ project, onEdit, onDelete, canManage, isProjectLeader }) {
+function ProjectCard({ project, onEdit, onDelete, onOpenMeetings, canManage, isProjectLeader }) {
   const status = statusDetails(project.status);
   return (
     <article className={`${cardClass} p-5`}>
@@ -79,6 +80,17 @@ function ProjectCard({ project, onEdit, onDelete, canManage, isProjectLeader }) 
           >
             {status.label}
           </span>
+          {onOpenMeetings && (
+            <button
+              type="button"
+              onClick={() => onOpenMeetings(project)}
+              aria-label={`Videollamadas de ${project.name}`}
+              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-cyan-400/50 hover:bg-cyan-50 hover:text-cyan-700 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
+              title="Salas de Videoconferencia (Jitsi Meet)"
+            >
+              <Video size={13} />
+            </button>
+          )}
           {onEdit && (
             <button
               type="button"
@@ -151,9 +163,21 @@ function ProjectCard({ project, onEdit, onDelete, canManage, isProjectLeader }) 
         >
           Plazo: {formatProjectTerm(project.startDate, project.endDate)}
         </span>
-        {project.driveFolder ? (
-          <a
-            href={project.driveFolder}
+        <div className="flex items-center gap-3 shrink-0">
+          {onOpenMeetings && (
+            <button
+              type="button"
+              onClick={() => onOpenMeetings(project)}
+              className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
+              title="Abrir salas de videoconferencia"
+            >
+              <Video size={13} />
+              <span>Videollamada</span>
+            </button>
+          )}
+          {project.driveFolder ? (
+            <a
+              href={project.driveFolder}
             target="_blank"
             rel="noreferrer"
             aria-label={`Abrir carpeta de ${project.name}`}
@@ -164,6 +188,7 @@ function ProjectCard({ project, onEdit, onDelete, canManage, isProjectLeader }) 
         ) : (
           <span className="shrink-0">Sin carpeta Drive</span>
         )}
+        </div>
       </footer>
     </article>
   );
@@ -800,6 +825,7 @@ export default function Portfolio({
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const { showToast } = useToast();
   const visible = filterPortfolio(data, query, activeFilter);
 
@@ -1202,6 +1228,7 @@ export default function Portfolio({
                     project={project}
                     onEdit={canEditProject ? () => setEditingProject(project) : undefined}
                     onDelete={canDeleteProject ? () => setDeletingProject(project) : undefined}
+                    onOpenMeetings={() => setSelectedDetailProject(project)}
                     canManage={canEditProject}
                     isAdmin={isAdmin}
                     isProjectLeader={isProjectLeader}
@@ -1297,6 +1324,16 @@ export default function Portfolio({
           project={deletingProject}
           onConfirm={deleteProject}
           onClose={() => setDeletingProject(null)}
+        />
+      )}
+      {selectedDetailProject && (
+        <ProjectDetail
+          project={selectedDetailProject}
+          isOpen={Boolean(selectedDetailProject)}
+          onClose={() => setSelectedDetailProject(null)}
+          canManage={canManage}
+          isAdmin={isAdmin}
+          currentUser={currentUser}
         />
       )}
     </main>

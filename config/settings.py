@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'core.backup_middleware.BackupMaintenanceMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -51,6 +52,14 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https:\/\/.*\.onrender\.com$",
 ]
+
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'x-current-user',
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ROOT_URLCONF = 'config.urls'
 
@@ -127,11 +136,32 @@ STORAGES = {
     },
 }
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# ==========================================================
+# CONFIGURACION DE CORREO ELECTRONICO (SMTP)
+# ==========================================================
+# Variables de entorno necesarias en .env:
+#   EMAIL_HOST=smtp.gmail.com
+#   EMAIL_PORT=587
+#   EMAIL_USE_TLS=True
+#   EMAIL_HOST_USER=tu_correo@gmail.com
+#   EMAIL_HOST_PASSWORD=tu_app_password_de_gmail
+#   DEFAULT_FROM_EMAIL=tu_correo@gmail.com
+# Sin EMAIL_HOST, los correos se imprimen en la terminal (modo desarrollo).
+
+_email_host = env('EMAIL_HOST', default='')
+
+if _email_host:
+    # Prioriza la variable de entorno. Si no existe, usa SMTP por defecto.
+    EMAIL_BACKEND       = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST          = _email_host
+    EMAIL_PORT          = env.int('EMAIL_PORT', default=587)
+    EMAIL_USE_TLS       = env.bool('EMAIL_USE_TLS', default=True)
+    EMAIL_HOST_USER     = env('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+    DEFAULT_FROM_EMAIL  = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+else:
+    EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+
 # ==========================================================
 # GOOGLE DRIVE OAUTH 2.0
 # ==========================================================
@@ -180,7 +210,7 @@ GOOGLE_DRIVE_SCOPES = [
 # ==========================================================
 
 # URL del Webhook de Make. Configúrala en tu archivo .env local.
-MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default='')
+RECOVERY_WEBHOOK_URL = env('RECOVERY_WEBHOOK_URL', default='')
 
 # ==========================================================
 # AUTODESK PLATFORM SERVICES (APS) — Viewer 3D / BIM
