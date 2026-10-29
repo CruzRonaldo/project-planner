@@ -94,3 +94,46 @@ test('getYearOptions genera ventana móvil configurable e incluye años históri
   assert.equal(withHistory[0].value, '2022');
   assert.ok(withHistory.some((opt) => opt.value === String(current)));
 });
+
+test('SortDropdown renderiza estado inicial, etiqueta y dirección accesible con Vite SSR', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: SortDropdown } = await server.ssrLoadModule('/src/components/common/SortDropdown.jsx');
+    const categories = [
+      {
+        id: 'availability',
+        defaultId: 'availability-desc',
+        defaultLabel: 'Mayor disponibilidad',
+        descId: 'availability-desc',
+        ascId: 'availability-asc',
+        descLabel: 'Mayor disponibilidad',
+        ascLabel: 'Menor disponibilidad',
+      },
+      {
+        id: 'name',
+        defaultId: 'name',
+        defaultLabel: 'Nombre (A–Z)',
+        descId: 'name-desc',
+        ascId: 'name',
+        descLabel: 'Nombre (Z–A)',
+        ascLabel: 'Nombre (A–Z)',
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      React.createElement(SortDropdown, {
+        value: 'availability-desc',
+        onChange: () => {},
+        categories,
+        label: 'Ordenar por:',
+      })
+    );
+
+    assert.ok(html.includes('Ordenar por:'));
+    assert.ok(html.includes('Mayor disponibilidad'));
+    assert.ok(html.includes('aria-haspopup="listbox"'));
+    assert.ok(html.includes('aria-expanded="false"'));
+  } finally {
+    await server.close();
+  }
+});

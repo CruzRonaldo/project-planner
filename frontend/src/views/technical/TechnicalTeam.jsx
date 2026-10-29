@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ArrowDown,
   ArrowLeftRight,
-  ArrowUp,
   BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +13,6 @@ import {
 } from 'lucide-react';
 import {
   technicalAreas,
-  technicalSortOptions,
   technicalStatuses,
 } from '../../constants/technicalTeam';
 import {
@@ -40,6 +37,7 @@ import {
 import AddTechnicalMemberDialog from './components/AddTechnicalMemberDialog';
 import ReassignProjectDialog from './components/ReassignProjectDialog';
 import MemberAvatar from './components/MemberAvatar';
+import SortDropdown from '../../components/common/SortDropdown';
 
 export { AddTechnicalMemberDialog, ReassignProjectDialog, MemberAvatar };
 
@@ -53,10 +51,62 @@ const areaDetails = {
   systems: { description: 'Backend, APIs, Make y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
 };
 
+function getFilterBadgeClass(areaId) {
+  switch (areaId) {
+    case 'architecture':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-blue-500/15 midnight:text-blue-300';
+    case 'structures':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/15 midnight:text-emerald-300';
+    case 'systems':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/15 midnight:text-amber-300';
+    default:
+      return 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300';
+  }
+}
+
 function StatusBadge({ status }) {
   const details = technicalStatuses.find((item) => item.id === status);
   return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${details.className}`}>{details.shortLabel}</span>;
 }
+
+const sortCategories = [
+  {
+    id: 'availability',
+    defaultId: 'availability-desc',
+    defaultLabel: 'Mayor disponibilidad',
+    descId: 'availability-desc',
+    ascId: 'availability-asc',
+    descLabel: 'Mayor disponibilidad',
+    ascLabel: 'Menor disponibilidad',
+  },
+  {
+    id: 'name',
+    defaultId: 'name',
+    defaultLabel: 'Nombre (A–Z)',
+    descId: 'name-desc',
+    ascId: 'name',
+    descLabel: 'Nombre (Z–A)',
+    ascLabel: 'Nombre (A–Z)',
+  },
+  {
+    id: 'recent',
+    defaultId: 'recent',
+    defaultLabel: 'Incorporación reciente',
+    descId: 'recent',
+    ascId: 'recent-asc',
+    descLabel: 'Incorporación reciente',
+    ascLabel: 'Incorporación más antigua',
+  },
+];
+
+const sortOptionsMap = {
+  'availability-desc': { id: 'availability-desc', label: 'Mayor disponibilidad', category: 'availability', direction: 'desc' },
+  'availability-asc': { id: 'availability-asc', label: 'Menor disponibilidad', category: 'availability', direction: 'asc' },
+  'name': { id: 'name', label: 'Nombre (A–Z)', category: 'name', direction: 'asc' },
+  'name-desc': { id: 'name-desc', label: 'Nombre (Z–A)', category: 'name', direction: 'desc' },
+  'recent': { id: 'recent', label: 'Incorporación reciente', category: 'recent', direction: 'desc' },
+  'recent-asc': { id: 'recent-asc', label: 'Incorporación más antigua', category: 'recent', direction: 'asc' },
+};
 
 export default function TechnicalTeam({
   data = {},
@@ -76,29 +126,7 @@ export default function TechnicalTeam({
 
   const [areaFilter, setAreaFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('availability-desc');
-
-  const sortToggleMap = {
-    'availability-desc': 'availability-asc',
-    'availability-asc': 'availability-desc',
-    'name': 'name-desc',
-    'name-asc': 'name-desc',
-    'name-desc': 'name',
-    'recent': 'recent-asc',
-    'recent-desc': 'recent-asc',
-    'recent-asc': 'recent',
-  };
-
-  const isAscending =
-    sortOrder === 'availability-asc' ||
-    sortOrder === 'name' ||
-    sortOrder === 'name-asc' ||
-    sortOrder === 'recent-asc';
-
-  const toggleSortDirection = () => {
-    const nextSort = sortToggleMap[sortOrder] || (isAscending ? 'availability-desc' : 'availability-asc');
-    setSortOrder(nextSort);
-    setPage(1);
-  };
+  
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reassignMemberId, setReassignMemberId] = useState(null);
@@ -205,7 +233,64 @@ export default function TechnicalTeam({
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
         {syncLoading && <p className={`text-xs ${mutedClass}`}>Sincronizando con el servidor...</p>}
         {syncError && <p role="alert" className={errorClass}>{syncError}</p>}
-        <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between"><div className="flex max-w-full gap-2 overflow-x-auto pb-1">{filters.map((filter) => <button key={filter.id} type="button" onClick={() => { setAreaFilter(filter.id); setPage(1); }} aria-pressed={areaFilter === filter.id} className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-300 ${areaFilter === filter.id ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300' : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'}`}>{filter.label}<span className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors duration-300 ${filter.id === 'architecture' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-blue-500/15 midnight:text-blue-300' : filter.id === 'structures' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/15 midnight:text-emerald-300' : filter.id === 'systems' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/15 midnight:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300'}`}>{filter.count}</span></button>)}</div><div className="flex flex-wrap items-center gap-3"><div className="flex items-center gap-1.5"><select value={sortOrder} onChange={(event) => { setSortOrder(event.target.value); setPage(1); }} aria-label="Ordenar equipo técnico" className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100">{technicalSortOptions.map((option) => <option key={option.id} value={option.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">{option.label}</option>)}</select><button type="button" onClick={toggleSortDirection} aria-label={isAscending ? 'Invertir a orden descendente' : 'Invertir a orden ascendente'} title={isAscending ? 'Orden ascendente — Clic para invertir' : 'Orden descendente — Clic para invertir'} className="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 transition-colors duration-300 hover:border-cyan-400 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 midnight:hover:border-cyan-700">{isAscending ? <ArrowUp size={14} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" /> : <ArrowDown size={14} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />}</button></div>{(query || areaFilter !== 'all') && <button type="button" onClick={() => { setAreaFilter('all'); setPage(1); onQueryChange(''); }} className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300">Limpiar filtros</button>}</div></section>
+        <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between">
+          {/* Píldoras de filtro por especialidad */}
+          <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+            {filters.map((filter) => {
+              const active = areaFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => {
+                    setAreaFilter(filter.id);
+                    setPage(1);
+                  }}
+                  aria-pressed={active}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-300 ${
+                    active
+                      ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300'
+                      : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
+                  }`}
+                >
+                  {filter.label}
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors duration-300 ${getFilterBadgeClass(filter.id)}`}>
+                    {filter.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Menú de ordenamiento y acción de limpiar filtros */}
+          <div className="flex flex-wrap items-center gap-3">
+            <SortDropdown
+              value={sortOrder}
+              onChange={(nextSort) => {
+                setSortOrder(nextSort);
+                setPage(1);
+              }}
+              categories={sortCategories}
+              optionsMap={sortOptionsMap}
+              label="Ordenar por:"
+              ariaLabel="Ordenar equipo técnico"
+            />
+
+            {(query || areaFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAreaFilter('all');
+                  setPage(1);
+                  onQueryChange('');
+                }}
+                className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        </section>
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.3fr)_minmax(260px,0.8fr)]">
           <section className="min-w-0" aria-labelledby="technical-directory-title">
             <div className="sr-only"><h2 id="technical-directory-title">Directorio Técnico</h2></div>
