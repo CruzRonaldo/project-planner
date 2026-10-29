@@ -311,6 +311,7 @@ export default function HumanResources({
   const upcomingAlerts = getUpcomingIncidentAlerts(incidents);
 
   const openEditor = (member, mode = 'status') => {
+    if (!canManage) return;
     setFeedback('');
     setFeedbackType('success');
     setEditing({ id: member.id, mode });
@@ -418,7 +419,7 @@ export default function HumanResources({
         <p role={feedbackType === 'error' ? 'alert' : 'status'} className={feedback ? (feedbackType === 'error' ? 'text-xs text-red-600 dark:text-red-400 midnight:text-red-300' : 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300') : 'sr-only'}>{feedback}</p>
         {syncLoading && <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">Sincronizando personal con PostgreSQL...</p>}
         {syncError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:text-red-300">{syncError}</p>}
-        {editingMember && <PersonnelEditor key={`${editing.id}-${editing.mode}`} member={editingMember} projectOptions={projectOptions} editingProject={editing.mode === 'project'} onSave={saveMember} onCancel={() => setEditing(null)} />}
+        {editingMember && canManage && <PersonnelEditor key={`${editing.id}-${editing.mode}`} member={editingMember} projectOptions={projectOptions} editingProject={editing.mode === 'project'} onSave={saveMember} onCancel={() => setEditing(null)} />}
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
           <section className={panelClass} aria-labelledby="personnel-assignment-title">
@@ -472,7 +473,9 @@ export default function HumanResources({
                 return <div key={status.id} className="min-w-0">
                   <button type="button" onClick={() => setStatusFilter(statusFilter === status.id ? 'all' : status.id)} aria-pressed={statusFilter === status.id} className={`w-full rounded-md border px-1 py-2 text-[10px] font-semibold uppercase ${status.className}`}>{status.label} <span className="ml-1 opacity-70">{members.length}</span></button>
                   <div className="mt-3 flex max-h-[380px] flex-col gap-2 overflow-y-auto">
-                    {members.map((member) => <button key={member.id} type="button" onClick={() => openEditor(member)} title={`${member.name} · ${member.project}`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100 midnight:hover:text-cyan-50">{member.name}</button>)}
+                    {members.map((member) => canManage
+                      ? <button key={member.id} type="button" onClick={() => openEditor(member)} aria-label={`Editar estado de ${member.name}`} title={`${member.name} · ${member.project}`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100 midnight:hover:text-cyan-50">{member.name}</button>
+                      : <span key={member.id} title={`${member.name} · Vista de consulta`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100">{member.name}</span>)}
                     {!members.length && <p className="py-2 text-center text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">Sin personal</p>}
                   </div>
                 </div>;

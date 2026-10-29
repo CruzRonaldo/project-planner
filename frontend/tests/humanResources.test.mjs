@@ -199,6 +199,11 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     const viewer = renderToStaticMarkup(React.createElement(HumanResources, { ...props, canManage: false }));
     assert.ok(!viewer.includes('Registrar Incidencia / Licencia'));
     assert.ok(!viewer.includes('Exportar Matriz'));
+    const viewerTeamStatus = viewer.match(/<section[^>]*aria-labelledby="team-status-title"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+    const managerTeamStatus = html.match(/<section[^>]*aria-labelledby="team-status-title"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+    assert.ok(viewerTeamStatus.includes('Sofía Torres'));
+    assert.equal((viewerTeamStatus.match(/<button\b/g) || []).length, 4);
+    assert.ok((managerTeamStatus.match(/<button\b/g) || []).length > 4);
 
     const incidentDialog = renderToStaticMarkup(React.createElement(PersonnelIncidentDialog, { data: props.data, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Registrar Incidencia / Licencia', 'Integrante del personal', 'Tipo de incidencia', 'Fecha de inicio / desde', 'Fecha de retorno / hasta', 'Estado operativo resultante', 'Disponibilidad en este periodo', 'Técnico de respaldo / cobertura temporal', 'Motivo / comentario detallado', 'Registrar incidencia']) assert.ok(incidentDialog.includes(field));
