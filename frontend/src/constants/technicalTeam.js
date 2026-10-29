@@ -23,7 +23,8 @@ export const reassignmentReasons = [
 export const technicalSortOptions = [
   { id: 'availability-desc', label: 'Mayor disponibilidad' },
   { id: 'availability-asc', label: 'Menor disponibilidad' },
-  { id: 'name', label: 'Nombre A–Z' },
+  { id: 'name', label: 'Nombre (A–Z)' },
+  { id: 'name-desc', label: 'Nombre (Z–A)' },
   { id: 'recent', label: 'Incorporación reciente' },
 ];
 

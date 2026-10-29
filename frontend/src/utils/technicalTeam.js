@@ -33,7 +33,9 @@ export function filterTechnicalTeam(members = [], query = '', area = 'all') {
 export function sortTechnicalTeam(members = [], order = 'availability-desc') {
   const sorted = [...(members || [])];
   if (order === 'availability-asc') return sorted.sort((a, b) => a.workload - b.workload || getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
-  if (order === 'name') return sorted.sort((a, b) => getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
+  if (order === 'name' || order === 'name-asc') return sorted.sort((a, b) => getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
+  if (order === 'name-desc') return sorted.sort((a, b) => getMemberFullName(b).localeCompare(getMemberFullName(a), 'es'));
+  if (order === 'recent-asc') return sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
   if (order === 'recent') return sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   return sorted.sort((a, b) => b.workload - a.workload || getMemberFullName(a).localeCompare(getMemberFullName(b), 'es'));
 }
