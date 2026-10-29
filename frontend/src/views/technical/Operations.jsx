@@ -3,6 +3,8 @@ import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Downl
 import ModalDialog from '../../components/common/ModalDialog';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import { formatDateInput } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
 import {
   inputClass,
@@ -32,9 +34,7 @@ const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-wh
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600';
 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
 
-function formatDateInput(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
+
 
 function PriorityBadge({ priority }) {
   const details = workOrderPriorities.find((item) => item.id === priority);

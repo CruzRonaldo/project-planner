@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import KpiCard from '../../components/common/KpiCard';
 import { cardClass } from '../../constants/themeClasses';
+import { formatMoney } from '../../utils/format';
 
 export default function DashboardContent({
   portfolioData,
@@ -38,11 +39,7 @@ export default function DashboardContent({
         )
       : 0;
 
-  const formatMoney = (amount) => {
-    if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-    if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-    return `$${Number(amount || 0).toLocaleString()}`;
-  };
+
 
   // Alertas de proyectos en riesgo o pausados
   const alerts = projects.filter(
