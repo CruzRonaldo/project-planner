@@ -545,7 +545,7 @@ export function useAppController() {
       const hasCachedMembers = readCachedTeamMembers().length > 0;
       const message = getApiErrorMessage(
         error,
-        'No se pudo cargar el personal desde PostgreSQL.'
+        'No se pudo cargar el personal desde el servidor.'
       );
       setTeamMembersError(hasCachedMembers
         ? `${message} Se mantiene la última copia disponible.`
@@ -589,7 +589,7 @@ export function useAppController() {
     } catch (error) {
       setHumanResourcesRecordsError(getApiErrorMessage(
         error,
-        'No se pudo cargar el historial de Recursos Humanos desde PostgreSQL.'
+        'No se pudo cargar el historial de Recursos Humanos desde el servidor.'
       ));
       throw error;
     } finally {

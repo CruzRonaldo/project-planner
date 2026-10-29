@@ -21,12 +21,23 @@ function normalizeText(value) {
 
 export function filterPersonnel(members = [], query = '', status = 'all') {
   const normalizedQuery = normalizeText(query);
+  const isAll =
+    !status ||
+    status === 'all' ||
+    (Array.isArray(status) && (status.length === 0 || status.includes('all') || status.length >= personnelStatuses.length));
+
   return (members || []).filter((member) => {
     const statusLabel = personnelStatuses.find((item) => item.id === member.status)?.label ?? '';
     const matchesQuery = normalizeText(
       `${member.name} ${member.area} ${member.project} ${statusLabel} ${member.availability}%`
     ).includes(normalizedQuery);
-    return matchesQuery && (status === 'all' || member.status === status);
+
+    if (!matchesQuery) return false;
+    if (isAll) return true;
+    if (Array.isArray(status)) {
+      return status.includes(member.status);
+    }
+    return member.status === status;
   });
 }
 

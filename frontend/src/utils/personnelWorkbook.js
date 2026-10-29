@@ -21,8 +21,17 @@ function normalizeAvailability(value) {
 }
 
 async function loadExcelJS() {
-  const excelJsModule = await import('exceljs');
-  return excelJsModule.default ?? excelJsModule;
+  if (typeof window !== 'undefined' && window.ExcelJS?.Workbook) {
+    return window.ExcelJS;
+  }
+  const mod = await import('exceljs');
+  if (typeof window !== 'undefined' && window.ExcelJS?.Workbook) {
+    return window.ExcelJS;
+  }
+  if (mod?.Workbook) return mod;
+  if (mod?.default?.Workbook) return mod.default;
+  if (mod?.default?.default?.Workbook) return mod.default.default;
+  return mod?.default ?? mod;
 }
 
 export async function buildPersonnelWorkbook(members = []) {

@@ -30,6 +30,10 @@ test('La búsqueda tolera tildes y mayúsculas y combina filtros', () => {
   assert.equal(filterPersonnel(members, 'Viaducto', 'support')[0].id, 'hr-andres');
   assert.equal(filterPersonnel(members, 'Stand-by').length, 4);
   assert.equal(filterPersonnel(members, 'no existe').length, 0);
+  assert.equal(filterPersonnel(members, '', ['active', 'support']).length, 14);
+  assert.equal(filterPersonnel(members, '', ['standby', 'support']).length, 6);
+  assert.equal(filterPersonnel(members, '', ['active', 'standby', 'support']).length, 18);
+  assert.equal(filterPersonnel(members, '', []).length, 18);
 });
 
 test('La matriz de Recursos Humanos se puede exportar como CSV', () => {
