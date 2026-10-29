@@ -257,7 +257,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                     <button
                       type="button"
                       onClick={markAllAsRead}
-                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400/80 transition-colors"
+                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400/80 midnight:hover:text-cyan-200 transition-colors"
                       title="Marcar todas como leídas"
                     >
                       Marcar leídas

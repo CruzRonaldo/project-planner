@@ -398,7 +398,7 @@ function GoogleDriveFileManager({ connected }) {
             type="button"
             disabled={loading || folderStack.length <= 1}
             onClick={goBack}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
             <ArrowLeft size={13} /> Atrás
           </button>
@@ -406,7 +406,7 @@ function GoogleDriveFileManager({ connected }) {
             type="button"
             disabled={loading}
             onClick={() => refreshCurrentFolder(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:opacity-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:opacity-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
             <RotateCw size={13} className={loading ? 'animate-spin' : ''} /> Actualizar
           </button>

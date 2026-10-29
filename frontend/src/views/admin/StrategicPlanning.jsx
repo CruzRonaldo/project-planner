@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Check, FileDown, Flag, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import ModalDialog from '../../components/common/ModalDialog';
+import {
+  cardClass,
+  closeBtnClass,
+  errorClass,
+  inputClass,
+  labelClass,
+  nestedClass,
+  primaryBtnClass,
+  secondaryButtonClass,
+} from '../../constants/themeClasses';
 import {
   planningMonths,
   scheduleAdjustmentReasons,
@@ -15,19 +26,8 @@ import {
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
 import projectsApi from '../../services/projectsApi';
 
-const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500';
-const cardClass = 'rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_18px_45px_rgba(0,0,0,0.12)] midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
-const nestedClass = 'rounded-lg border border-slate-200 bg-slate-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14]';
-const overlayClass = 'fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm transition-colors duration-300 dark:bg-[#020617]/85 midnight:bg-[#020617]/90 sm:p-5';
-const dialogClass = 'max-h-[94vh] w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_25px_90px_rgba(15,23,42,0.18)] transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_25px_90px_rgba(0,0,0,0.72)] midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
-const iconBoxClass = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition-colors duration-300 dark:border-cyan-400/25 dark:bg-cyan-500/15 dark:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-cyan-500/15 midnight:text-cyan-300';
-const closeBtnClass = 'rounded-lg p-2 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50';
-const labelClass = 'text-[10px] font-semibold uppercase tracking-wide text-slate-500 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-500/70';
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
-const errorClass = 'mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300';
-const primaryBtnClass = 'inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500';
-const secondaryButtonClass = 'inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 transition-colors duration-300 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:border-cyan-500/50 midnight:hover:text-cyan-50';
 
 const months = planningMonths.map((month) => month.short);
 
@@ -66,42 +66,147 @@ export function AdjustScheduleDialog({ data, initialProjectId, onSubmit, onClose
     setError('');
   };
 
+  const footnote = (
+    <p className={`text-[10px] ${mutedClass}`}>
+      <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">●</span> Se actualizará el Gantt general y quedará registro del cambio.
+    </p>
+  );
+
+  const handleSubmit = () => {
+    try {
+      onSubmit(draft);
+    } catch (submitError) {
+      setError(submitError.message);
+    }
+  };
+
   return (
-    <div role="presentation" onMouseDown={onClose} className={overlayClass}>
-      <section role="dialog" aria-modal="true" aria-labelledby="adjust-schedule-title" onMouseDown={(event) => event.stopPropagation()} className={`${dialogClass} max-w-2xl`}>
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
-          <div className="flex gap-3"><span className={iconBoxClass}><SlidersHorizontal size={20} /></span><div><h2 id="adjust-schedule-title" className={`text-lg font-bold ${headingClass}`}>Ajustar Calendario de Proyecto</h2><p className={`mt-1 text-xs ${mutedClass}`}>Modifica la ventana de meses y plazos en el diagrama de Gantt.</p></div></div>
-          <button type="button" onClick={onClose} aria-label="Cerrar ajuste de calendario" className={closeBtnClass}><X size={19} /></button>
-        </header>
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      title="Ajustar Calendario de Proyecto"
+      subtitle="Modifica la ventana de meses y plazos en el diagrama de Gantt."
+      icon={<SlidersHorizontal size={20} />}
+      submitLabel="Guardar ajustes"
+      submitIcon={<Check size={15} />}
+      cancelLabel="Cancelar"
+      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+      footnote={footnote}
+      maxWidth="max-w-2xl"
+      id="adjust-schedule"
+    >
+      <label className={`block ${labelClass}`}>
+        Proyecto a reprogramar <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+        <select autoFocus required value={draft.projectId} onChange={selectProject} className={inputClass}>
+          {data.projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name} — {project.area}
+            </option>
+          ))}
+        </select>
+      </label>
 
-        <form onSubmit={(event) => { event.preventDefault(); try { onSubmit(draft); } catch (submitError) { setError(submitError.message); } }} className="p-4 sm:p-6">
-          <label className={`block ${labelClass}`}>Proyecto a reprogramar <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span><select autoFocus required value={draft.projectId} onChange={selectProject} className={inputClass}>{data.projects.map((project) => <option key={project.id} value={project.id}>{project.name} — {project.area}</option>)}</select></label>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label className={labelClass}>
+          Mes de inicio <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+          <select required value={draft.start} onChange={selectStart} className={inputClass}>
+            {planningMonths.map((month) => (
+              <option key={month.number} value={month.number}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset>
+          <legend className={labelClass}>
+            Duración total <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+          </legend>
+          <div className={`mt-2 flex h-11 items-center justify-between gap-2 overflow-hidden px-1 ${nestedClass}`}>
+            <button
+              type="button"
+              onClick={() => changeDuration(-1)}
+              disabled={duration <= 1}
+              aria-label="Reducir duración"
+              className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+            >
+              <Minus size={15} />
+            </button>
+            <output className={`flex items-center justify-center text-sm font-semibold ${headingClass}`}>
+              {duration} {duration === 1 ? 'Mes' : 'Meses'}{' '}
+              <span className={`ml-1 text-[10px] font-normal ${mutedClass}`}>({previewPeriod.split(' (')[0]})</span>
+            </output>
+            <button
+              type="button"
+              onClick={() => changeDuration(1)}
+              disabled={duration >= maxDuration}
+              aria-label="Aumentar duración"
+              className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+            >
+              <Plus size={15} />
+            </button>
+          </div>
+        </fieldset>
+      </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className={labelClass}>Mes de inicio <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span><select required value={draft.start} onChange={selectStart} className={inputClass}>{planningMonths.map((month) => <option key={month.number} value={month.number}>{month.label}</option>)}</select></label>
-            <fieldset><legend className={labelClass}>Duración total <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span></legend><div className={`mt-2 flex h-11 items-center justify-between gap-2 overflow-hidden px-1 ${nestedClass}`}><button type="button" onClick={() => changeDuration(-1)} disabled={duration <= 1} aria-label="Reducir duración" className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"><Minus size={15} /></button><output className={`flex items-center justify-center text-sm font-semibold ${headingClass}`}>{duration} {duration === 1 ? 'Mes' : 'Meses'} <span className={`ml-1 text-[10px] font-normal ${mutedClass}`}>({previewPeriod.split(' (')[0]})</span></output><button type="button" onClick={() => changeDuration(1)} disabled={duration >= maxDuration} aria-label="Aumentar duración" className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"><Plus size={15} /></button></div></fieldset>
+      <section className={`mt-5 p-4 ${nestedClass}`} aria-labelledby="schedule-preview-title">
+        <div className="flex items-center justify-between gap-3">
+          <h3 id="schedule-preview-title" className={`text-xs font-medium ${mutedClass}`}>
+            Vista previa del cronograma resultante:
+          </h3>
+          <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700 transition-colors duration-300 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:border-emerald-500/20 midnight:bg-emerald-500/10 midnight:text-emerald-300">
+            Ruta Crítica Activa
+          </span>
+        </div>
+        <div className="mt-4 min-w-[420px]">
+          <div className="grid grid-cols-12">
+            {months.map((month) => (
+              <span key={month} className={`text-center text-[9px] ${mutedClass}`}>
+                {month}
+              </span>
+            ))}
           </div>
 
-          <section className={`mt-5 p-4 ${nestedClass}`} aria-labelledby="schedule-preview-title"><div className="flex items-center justify-between gap-3"><h3 id="schedule-preview-title" className={`text-xs font-medium ${mutedClass}`}>Vista previa del cronograma resultante:</h3><span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700 transition-colors duration-300 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:border-emerald-500/20 midnight:bg-emerald-500/10 midnight:text-emerald-300">Ruta Crítica Activa</span></div><div className="mt-4 min-w-[420px]"><div className="grid grid-cols-12">{months.map((month) => <span key={month} className={`text-center text-[9px] ${mutedClass}`}>{month}</span>)}</div>
-          
           <div className="relative mt-2 h-9 overflow-hidden rounded-md border border-slate-200 bg-slate-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-800/40 midnight:bg-[#050B14]">
-            {/* CUADRÍCULA DE LÍNEAS NATIVAS */}
             <div className="absolute inset-0 grid grid-cols-12 divide-x divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-800/40">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div key={i} className="h-full"></div>
               ))}
             </div>
 
-            <div className="absolute inset-y-1 flex items-center justify-center rounded-md px-2 text-[10px] font-bold text-white shadow-sm transition-all duration-300" style={{ left: `${((start - 1) / 12) * 100}%`, width: `${(duration / 12) * 100}%`, backgroundColor: selectedProject?.color }}><span className="truncate">{previewPeriod}</span></div>
-          </div></div></section>
-
-          <label className={`mt-5 block ${labelClass}`}>Motivo del reajuste / historial de auditoría <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span><select required value={draft.reason} onChange={(event) => { setDraft((current) => ({ ...current, reason: event.target.value })); setError(''); }} className={inputClass}>{scheduleAdjustmentReasons.map((reason) => <option key={reason}>{reason}</option>)}</select></label>
-
-          {error && <p role="alert" className={errorClass}>{error}</p>}
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between"><p className={`text-[10px] ${mutedClass}`}><span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">●</span> Se actualizará el Gantt general y quedará registro del cambio.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs text-slate-600 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:bg-cyan-900/20">Cancelar</button><button type="submit" className={primaryBtnClass}><Check size={15} /> Guardar ajustes</button></div></footer>
-        </form>
+            <div
+              className="absolute inset-y-1 flex items-center justify-center rounded-md px-2 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
+              style={{
+                left: `${((start - 1) / 12) * 100}%`,
+                width: `${(duration / 12) * 100}%`,
+                backgroundColor: selectedProject?.color,
+              }}
+            >
+              <span className="truncate">{previewPeriod}</span>
+            </div>
+          </div>
+        </div>
       </section>
-    </div>
+
+      <label className={`mt-5 block ${labelClass}`}>
+        Motivo del reajuste / historial de auditoría <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+        <select
+          required
+          value={draft.reason}
+          onChange={(event) => {
+            setDraft((current) => ({ ...current, reason: event.target.value }));
+            setError('');
+          }}
+          className={inputClass}
+        >
+          {scheduleAdjustmentReasons.map((reason) => (
+            <option key={reason}>{reason}</option>
+          ))}
+        </select>
+      </label>
+
+      {error && <p role="alert" className={errorClass}>{error}</p>}
+    </ModalDialog>
   );
 }
 
@@ -124,27 +229,118 @@ export function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
     return () => document.removeEventListener('keydown', closeWithEscape);
   }, [onClose]);
 
+  const footnote = (
+    <p className={`text-[10px] ${mutedClass}`}>
+      * Campos requeridos para dar de alta el hito.
+    </p>
+  );
+
+  const handleSubmit = () => {
+    try {
+      onSubmit(draft);
+    } catch (submitError) {
+      setError(submitError.message);
+    }
+  };
+
   return (
-    <div role="presentation" onMouseDown={onClose} className={overlayClass}>
-      <section role="dialog" aria-modal="true" aria-labelledby="new-global-milestone-title" onMouseDown={(event) => event.stopPropagation()} className={`${dialogClass} max-w-2xl`}>
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6"><div className="flex gap-3"><span className={iconBoxClass}><Flag size={20} /></span><div><h2 id="new-global-milestone-title" className={`text-lg font-bold ${headingClass}`}>Nuevo Hito Global</h2><p className={`mt-1 text-xs ${mutedClass}`}>Define una entrega crítica, auditoría o fase clave en el calendario anual.</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar nuevo hito" className={closeBtnClass}><X size={19} /></button></header>
-        <form onSubmit={(event) => { event.preventDefault(); try { onSubmit(draft); } catch (submitError) { setError(submitError.message); } }} className="p-4 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className={`text-xs ${mutedClass}`}>Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select autoFocus required value={draft.projectId} onChange={changeField('projectId')} className={inputClass}>{data.projects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.code})</option>)}</select></label>
-            <label className={`text-xs ${mutedClass}`}>Estado inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.status} onChange={changeField('status')} className={inputClass}>{milestoneStatuses.map((status) => <option key={status.id} value={status.id}>{status.label}</option>)}</select><small className={`mt-1 block text-[10px] ${mutedClass}`}>Recomendado: “Pendiente” (amarillo) para entregas programadas.</small></label>
-          </div>
-          <label className={`mt-4 block text-xs ${mutedClass}`}>Nombre del hito / entrega crítica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input required maxLength={120} value={draft.title} onChange={changeField('title')} placeholder="Entrega Cimentación y Pilotes Estructurales" className={inputClass} /></label>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className={`text-xs ${mutedClass}`}>Fecha límite programada <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><input type="date" required value={draft.targetDate} onChange={changeField('targetDate')} className={inputClass} /></label>
-            <label className={`text-xs ${mutedClass}`}>Responsable de validación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><select required value={draft.validator} onChange={changeField('validator')} className={inputClass}>{milestoneValidators.map((validator) => <option key={validator}>{validator}</option>)}</select></label>
-          </div>
-          <label className={`mt-4 block text-xs ${mutedClass}`}>Descripción y entregables clave <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span><textarea required minLength={10} maxLength={600} rows={4} value={draft.description} onChange={changeField('description')} placeholder="Describe los criterios de aprobación, documentos y entregables..." className={`${inputClass} resize-y leading-relaxed`} /></label>
-          <label className={`mt-4 flex cursor-pointer items-start gap-3 p-3 ${nestedClass}`}><input type="checkbox" checked={draft.blocking} onChange={(event) => setDraft((current) => ({ ...current, blocking: event.target.checked }))} className="mt-0.5 accent-blue-600 dark:accent-blue-500 midnight:accent-cyan-500" /><span><strong className={`block text-xs font-medium ${headingClass}`}>Hito bloqueante</strong><small className={`mt-1 block text-[10px] leading-relaxed ${mutedClass}`}>Detiene el cronograma si no se valida en la fecha objetivo y activa la ruta crítica.</small></span></label>
-          {error && <p role="alert" className={errorClass}>{error}</p>}
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between"><p className={`text-[10px] ${mutedClass}`}>* Campos requeridos para dar de alta el hito.</p><div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs text-slate-600 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:bg-cyan-900/20">Cancelar</button><button type="submit" className={primaryBtnClass}><Plus size={15} /> Registrar Hito Global</button></div></footer>
-        </form>
-      </section>
-    </div>
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      title="Nuevo Hito Global"
+      subtitle="Define una entrega crítica, auditoría o fase clave en el calendario anual."
+      icon={<Flag size={20} />}
+      submitLabel="Registrar Hito Global"
+      submitIcon={<Plus size={15} />}
+      cancelLabel="Cancelar"
+      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+      footnote={footnote}
+      maxWidth="max-w-2xl"
+      id="new-global-milestone"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={`text-xs ${mutedClass}`}>
+          Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select autoFocus required value={draft.projectId} onChange={changeField('projectId')} className={inputClass}>
+            {data.projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name} ({project.code})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`text-xs ${mutedClass}`}>
+          Estado inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
+            {milestoneStatuses.map((status) => (
+              <option key={status.id} value={status.id}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+          <small className={`mt-1 block text-[10px] ${mutedClass}`}>Recomendado: “Pendiente” (amarillo) para entregas programadas.</small>
+        </label>
+      </div>
+
+      <label className={`mt-4 block text-xs ${mutedClass}`}>
+        Nombre del hito / entrega crítica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        <input
+          required
+          maxLength={120}
+          value={draft.title}
+          onChange={changeField('title')}
+          placeholder="Entrega Cimentación y Pilotes Estructurales"
+          className={inputClass}
+        />
+      </label>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label className={`text-xs ${mutedClass}`}>
+          Fecha límite programada <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <input type="date" required value={draft.targetDate} onChange={changeField('targetDate')} className={inputClass} />
+        </label>
+        <label className={`text-xs ${mutedClass}`}>
+          Responsable de validación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          <select required value={draft.validator} onChange={changeField('validator')} className={inputClass}>
+            {milestoneValidators.map((validator) => (
+              <option key={validator}>{validator}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className={`mt-4 block text-xs ${mutedClass}`}>
+        Descripción y entregables clave <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        <textarea
+          required
+          minLength={10}
+          maxLength={600}
+          rows={4}
+          value={draft.description}
+          onChange={changeField('description')}
+          placeholder="Describe los criterios de aprobación, documentos y entregables..."
+          className={`${inputClass} resize-y leading-relaxed`}
+        />
+      </label>
+
+      <label className={`mt-4 flex cursor-pointer items-start gap-3 p-3 ${nestedClass}`}>
+        <input
+          type="checkbox"
+          checked={draft.blocking}
+          onChange={(event) => setDraft((current) => ({ ...current, blocking: event.target.checked }))}
+          className="mt-0.5 accent-blue-600 dark:accent-blue-500 midnight:accent-cyan-500"
+        />
+        <span>
+          <strong className={`block text-xs font-medium ${headingClass}`}>Hito bloqueante</strong>
+          <small className={`mt-1 block text-[10px] leading-relaxed ${mutedClass}`}>
+            Detiene el cronograma si no se valida en la fecha objetivo y activa la ruta crítica.
+          </small>
+        </span>
+      </label>
+
+      {error && <p role="alert" className={errorClass}>{error}</p>}
+    </ModalDialog>
   );
 }
 
@@ -364,45 +560,33 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             <div className="flex flex-wrap items-center gap-2.5">
               <span className={`text-xs font-medium ${mutedClass}`}>Filtros del cronograma:</span>
               
-              {/* SELECTOR DE PROYECTO CON CHEVRONDOWN */}
-              <div className="relative inline-flex items-center">
-                <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Proyecto</span>
-                  <select
-                    value={selectedProjectFilter}
-                    onChange={(e) => setSelectedProjectFilter(e.target.value)}
-                    aria-label="Filtrar por proyecto"
-                    className="cursor-pointer appearance-none bg-transparent pr-5 text-xs font-semibold outline-none text-slate-900 dark:text-white midnight:text-cyan-100 max-w-[200px] truncate"
-                  >
-                    <option className="bg-white text-slate-900 dark:bg-[#111f36] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50" value="ALL">
-                      Todos los proyectos ({projects.length})
-                    </option>
-                    {projects.map((p) => (
-                      <option key={p.id} className="bg-white text-slate-900 dark:bg-[#111f36] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50" value={p.id}>
-                        {p.code ? `${p.code} · ` : ''}{p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <ChevronDown size={13} className="pointer-events-none absolute right-2.5 text-slate-400 dark:text-slate-500 midnight:text-cyan-500/70" />
-              </div>
+              {/* SELECTOR DE PROYECTO */}
+              <select
+                value={selectedProjectFilter}
+                onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                aria-label="Filtrar por proyecto"
+                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 max-w-[220px] truncate"
+              >
+                <option value="ALL" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
+                  Todos los proyectos ({projects.length})
+                </option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
+                    {p.code ? `${p.code} · ` : ''}{p.name}
+                  </option>
+                ))}
+              </select>
 
-              {/* SELECTOR DE AÑO CON CHEVRONDOWN */}
-              <div className="relative inline-flex items-center">
-                <label className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-medium text-blue-700 shadow-sm transition-colors duration-300 dark:border-blue-400/25 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-blue-900/40 midnight:bg-blue-900/20 midnight:text-blue-300">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-500/80 dark:text-blue-400/70">Año</span>
-                  <select
-                    defaultValue="2026"
-                    aria-label="Seleccionar año"
-                    className="cursor-pointer appearance-none bg-transparent pr-5 text-xs font-semibold outline-none text-blue-900 dark:text-blue-100 midnight:text-blue-200"
-                  >
-                    <option className="bg-white dark:bg-[#111f36] midnight:bg-[#0a1120]" value="2025">2025</option>
-                    <option className="bg-white dark:bg-[#111f36] midnight:bg-[#0a1120]" value="2026">2026</option>
-                    <option className="bg-white dark:bg-[#111f36] midnight:bg-[#0a1120]" value="2027">2027</option>
-                  </select>
-                </label>
-                <ChevronDown size={13} className="pointer-events-none absolute right-2.5 text-blue-500/80 dark:text-blue-400/70" />
-              </div>
+              {/* SELECTOR DE AÑO */}
+              <select
+                defaultValue="2026"
+                aria-label="Seleccionar año"
+                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"
+              >
+                <option value="2025" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2025</option>
+                <option value="2026" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2026</option>
+                <option value="2027" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2027</option>
+              </select>
             </div>
 
             {/* FEEDBACK O ESTADO */}

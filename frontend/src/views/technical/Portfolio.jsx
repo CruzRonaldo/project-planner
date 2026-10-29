@@ -20,13 +20,15 @@ import {
   getProjectDuration,
 } from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
+import ModalDialog from "../../components/common/ModalDialog";
+import {
+  inputClass,
+  cardClass,
+  secondaryButtonClass,
+  labelClass,
+} from "../../constants/themeClasses";
 
-const inputClass =
-  "mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 placeholder:text-slate-400 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:placeholder:text-slate-600 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:placeholder:text-cyan-800 midnight:focus:border-cyan-500";
-const cardClass =
-  "rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120]";
-const secondaryButtonClass =
-  "rounded-lg border border-slate-300 px-4 py-2.5 text-xs text-slate-600 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:bg-cyan-900/20";
+
 const filters = [
   { id: "all", label: "Todos" },
   ...projectStatuses.map((status) => ({ id: status.id, label: status.label })),
@@ -229,47 +231,29 @@ export function NewProjectDialog({
     }
   };
 
+  const footnote = (
+    <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
+      * Campos requeridos para el alta y seguimiento del proyecto.
+    </p>
+  );
+
   return (
-    <div
-      role="presentation"
-      onMouseDown={() => !isSubmitting && onClose()}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm transition-colors duration-300 dark:bg-black/75 midnight:bg-[#020617]/90 sm:p-5"
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      title="Crear Nuevo Proyecto"
+      subtitle="Define los parámetros maestros, cronograma y presupuesto de la obra."
+      icon={<FolderPlus size={21} />}
+      submitLabel="Crear Proyecto"
+      submitIcon={<Save size={15} />}
+      cancelLabel="Cancelar"
+      isSubmitting={isSubmitting}
+      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+      footnote={footnote}
+      maxWidth="max-w-3xl"
+      id="new-project"
     >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-project-title"
-        onMouseDown={(event) => event.stopPropagation()}
-        className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_25px_90px_rgba(15,23,42,0.18)] transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-[0_25px_90px_rgba(0,0,0,0.65)] midnight:border-cyan-900/30 midnight:bg-[#0a1120]"
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
-          <div className="flex gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-200 bg-cyan-50 text-cyan-700 transition-colors duration-300 dark:border-blue-400/25 dark:bg-blue-500/15 dark:text-blue-400 midnight:border-cyan-800/40 midnight:bg-cyan-500/15 midnight:text-cyan-300">
-              <FolderPlus size={21} />
-            </span>
-            <div>
-              <h2
-                id="new-project-title"
-                className="text-lg font-bold text-slate-900 dark:text-white midnight:text-cyan-50"
-              >
-                Crear Nuevo Proyecto
-              </h2>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                Define los parámetros maestros, cronograma y presupuesto de la obra.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled={isSubmitting}
-            onClick={onClose}
-            aria-label="Cerrar formulario"
-            className="rounded-lg p-2 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
-          >
-            <X size={19} />
-          </button>
-        </header>
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
               Código del proyecto{" "}
@@ -457,40 +441,7 @@ export function NewProjectDialog({
               {error}
             </p>
           )}
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
-              * Campos requeridos para el alta y seguimiento del proyecto.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={onClose}
-                className={secondaryButtonClass}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-blue-500 disabled:opacity-50 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Creando proyecto...
-                  </>
-                ) : (
-                  <>
-                    <Save size={15} /> Crear Proyecto
-                  </>
-                )}
-              </button>
-            </div>
-          </footer>
-        </form>
-      </section>
-    </div>
+    </ModalDialog>
   );
 }
 
@@ -572,39 +523,25 @@ export function EditProjectDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={submit}
+      title="Editar Proyecto"
+      subtitle={
+        <span>
+          Código: <span className="font-semibold text-cyan-600 dark:text-cyan-400">{project.code}</span>
+        </span>
+      }
+      icon={<Pencil size={18} />}
+      submitLabel="Guardar Cambios"
+      submitIcon={<Save size={15} />}
+      cancelLabel="Cancelar"
+      isSubmitting={isSubmitting}
+      submitButtonClass="bg-cyan-600 hover:bg-cyan-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+      maxWidth="max-w-2xl"
+      id="edit-project"
     >
-      <section
-        className={`w-full max-w-2xl overflow-hidden ${cardClass} border-cyan-400/40 shadow-2xl animate-in zoom-in-95 duration-200`}
-      >
-        <header className="flex items-center justify-between border-b border-slate-200 p-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 midnight:bg-cyan-500/20 midnight:text-cyan-300">
-              <Pencil size={18} />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-                Editar Proyecto
-              </h2>
-              <p className="text-xs text-slate-500 midnight:text-cyan-600">
-                Código: <span className="font-semibold text-cyan-600 dark:text-cyan-400">{project.code}</span>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar ventana"
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300 midnight:text-cyan-600 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-300"
-          >
-            <X size={18} />
-          </button>
-        </header>
-
-        <form onSubmit={submit} className="p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
               Nombre del proyecto{" "}
@@ -722,7 +659,7 @@ export function EditProjectDialog({
                 {!isAdmin && (
                   <span
                     title="La reasignación de jefatura es gestionada exclusivamente por el Administrador."
-                    className="cursor-help text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                    className="cursor-help text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 midnight:text-cyan-500/70 midnight:hover:text-cyan-300"
                   >
                     <Lock size={13} />
                   </span>
@@ -786,37 +723,7 @@ export function EditProjectDialog({
             </p>
           )}
 
-          <footer className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 sm:flex-row sm:items-center sm:justify-end">
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={onClose}
-                className={secondaryButtonClass}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-cyan-500 disabled:opacity-50 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save size={15} /> Guardar Cambios
-                  </>
-                )}
-              </button>
-            </div>
-          </footer>
-        </form>
-      </section>
-    </div>
+    </ModalDialog>
   );
 }
 
@@ -836,39 +743,22 @@ export function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm animate-in fade-in duration-200"
+    <ModalDialog
+      isOpen={true}
+      onClose={onClose}
+      onSubmit={handleConfirm}
+      title="Confirmar Eliminación"
+      subtitle={project.code}
+      icon={<Trash2 size={18} />}
+      submitLabel="Eliminar Proyecto"
+      submitIcon={<Trash2 size={15} />}
+      cancelLabel="Cancelar"
+      isSubmitting={isDeleting}
+      submitButtonClass="bg-red-600 hover:bg-red-500 text-white"
+      maxWidth="max-w-md"
+      id="confirm-delete"
     >
-      <section
-        className={`w-full max-w-md overflow-hidden ${cardClass} border-red-500/30 shadow-2xl animate-in zoom-in-95 duration-200`}
-      >
-        <header className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-[#30363d] midnight:border-cyan-900/30">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/20 midnight:text-red-300">
-              <Trash2 size={18} />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-                Confirmar Eliminación
-              </h2>
-              <p className="text-xs text-slate-500 midnight:text-cyan-600">
-                {project.code}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar ventana"
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300 midnight:text-cyan-600 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-300"
-          >
-            <X size={18} />
-          </button>
-        </header>
-
-        <div className="p-5">
+      <div className="space-y-2">
           <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/80">
             ¿Estás seguro de que deseas eliminar permanentemente el proyecto{" "}
             <strong className="text-slate-900 dark:text-white midnight:text-cyan-50">
@@ -889,36 +779,8 @@ export function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
             </p>
           )}
 
-          <footer className="mt-6 flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-[#30363d] midnight:border-cyan-900/30">
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={onClose}
-              className={secondaryButtonClass}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={handleConfirm}
-              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-red-500 disabled:opacity-50"
-            >
-              {isDeleting ? (
-                <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Eliminando...
-                </>
-              ) : (
-                <>
-                  <Trash2 size={14} /> Eliminar Proyecto
-                </>
-              )}
-            </button>
-          </footer>
-        </div>
-      </section>
-    </div>
+      </div>
+    </ModalDialog>
   );
 }
 
@@ -1304,7 +1166,7 @@ export default function Portfolio({
                 type="button"
                 onClick={handleSync}
                 disabled={syncing}
-                className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/40 hover:text-slate-900 disabled:cursor-wait disabled:opacity-70 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:text-cyan-50"
+                className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/40 hover:text-slate-900 disabled:cursor-wait disabled:opacity-70 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
               >
                 <Cloud
                   size={14}

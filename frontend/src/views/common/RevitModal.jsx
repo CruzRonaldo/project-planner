@@ -90,7 +90,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
               type="button"
               title="Renombrar modelo"
               onClick={() => setIsEditing(true)}
-              className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30"
+              className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
             >
               <Edit2 size={14} />
             </button>
@@ -99,7 +99,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
             type="button"
             title="Descargar modelo"
             onClick={() => onDownload(model)}
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30"
+            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
           >
             <Download size={14} />
           </button>
@@ -107,7 +107,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
             type="button"
             title="Ver modelo en 3D"
             onClick={() => onView(model)}
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30"
+            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
           >
             <Eye size={14} />
           </button>
@@ -115,7 +115,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
             type="button"
             title="Eliminar modelo"
             onClick={() => onDelete(model)}
-            className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10"
+            className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10 midnight:hover:text-red-400"
           >
             <Trash2 size={14} />
           </button>
@@ -259,7 +259,7 @@ export default function RevitModal({ onClose }) {
     <div
       role="presentation"
       onMouseDown={onClose}
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm transition-colors duration-300 dark:bg-[#020617]/85 midnight:bg-[#020617]/90 sm:p-5"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm transition-colors duration-300 dark:bg-black/70 midnight:bg-black/80 sm:p-5"
     >
       <section
         role="dialog"
@@ -335,7 +335,7 @@ export default function RevitModal({ onClose }) {
                     type="button"
                     disabled={isUploading}
                     onClick={() => fileInputRef.current.click()}
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 midnight:bg-cyan-600 midnight:text-white midnight:hover:bg-cyan-500"
                   >
                     {isUploading ? <><RotateCw size={14} className="animate-spin" /> Subiendo y traduciendo...</> : 'Seleccionar archivo .rvt'}
                   </button>
@@ -390,7 +390,7 @@ export default function RevitModal({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:text-cyan-200"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
             Cerrar
           </button>
@@ -409,7 +409,7 @@ export default function RevitModal({ onClose }) {
                   Vas a eliminar <strong className="font-semibold">{modelToDelete.name}</strong> de la bóveda.
                 </p>
                 <div className="mt-5 flex justify-end gap-2">
-                  <button onClick={() => setModelToDelete(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5">Cancelar</button>
+                  <button onClick={() => setModelToDelete(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">Cancelar</button>
                   <button onClick={confirmDelete} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500">Eliminar</button>
                 </div>
               </div>
