@@ -60,3 +60,29 @@ export function formatPercentage(value) {
   if (Number.isNaN(num)) return '0%';
   return `${Math.round(num)}%`;
 }
+
+/**
+ * Genera una lista de opciones de años para selectores, basada en una ventana móvil
+ * alrededor del ao actual, asegurando incluir años de registros históricos existentes.
+ *
+ * @param {number} [back=1] - Años hacia atrás desde el ao actual
+ * @param {number} [forward=3] - Años hacia adelante desde el ao actual
+ * @param {number[]} [existingYears=[]] - Años existentes en datos para no recortar historial
+ * @returns {Array<{ value: string, label: string }>} Opciones para el componente Select
+ */
+export function getYearOptions(back = 1, forward = 3, existingYears = []) {
+  const current = new Date().getFullYear();
+  const validExisting = (existingYears || []).filter(Number.isFinite);
+  const start = validExisting.length
+    ? Math.min(current - back, ...validExisting)
+    : current - back;
+  const end = validExisting.length
+    ? Math.max(current + forward, ...validExisting)
+    : current + forward;
+  const length = Math.max(1, end - start + 1);
+
+  return Array.from({ length }, (_, i) => {
+    const year = start + i;
+    return { value: String(year), label: `Año ${year}` };
+  });
+}

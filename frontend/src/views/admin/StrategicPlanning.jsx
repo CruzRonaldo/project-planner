@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, FileDown, Flag, History, Minus, MoreVertical, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
+import Select from '../../components/common/Select';
+import { getYearOptions } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
 import {
   cardClass,
@@ -350,6 +352,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [feedback, setFeedback] = useState('');
   const { showToast } = useToast();
   const projects = data?.projects || [];
@@ -606,32 +609,31 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               <span className={`text-xs font-medium ${mutedClass}`}>Filtros del cronograma:</span>
               
               {/* SELECTOR DE PROYECTO */}
-              <select
+              <Select
                 value={selectedProjectFilter}
                 onChange={(e) => setSelectedProjectFilter(e.target.value)}
                 aria-label="Filtrar por proyecto"
-                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 max-w-[220px] truncate"
-              >
-                <option value="ALL" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
-                  Todos los proyectos ({projects.length})
-                </option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
-                    {p.code ? `${p.code} · ` : ''}{p.name}
-                  </option>
-                ))}
-              </select>
+                className="max-w-[220px] truncate"
+                options={[
+                  { value: 'ALL', label: `Todos los proyectos (${projects.length})` },
+                  ...projects.map((p) => ({
+                    value: p.id,
+                    label: `${p.code ? `${p.code} · ` : ''}${p.name}`,
+                  })),
+                ]}
+              />
 
               {/* SELECTOR DE AÑO */}
-              <select
-                defaultValue="2026"
+              <Select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
                 aria-label="Seleccionar año"
-                className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"
-              >
-                <option value="2025" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2025</option>
-                <option value="2026" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2026</option>
-                <option value="2027" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Año 2027</option>
-              </select>
+                options={getYearOptions(
+                  1,
+                  3,
+                  (data.projects || []).map((p) => (p.startDate ? new Date(p.startDate).getFullYear() : null)).filter(Number.isFinite)
+                )}
+              />
             </div>
 
             {/* FEEDBACK O ESTADO */}

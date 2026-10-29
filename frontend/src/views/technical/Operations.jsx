@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
+import Select from '../../components/common/Select';
 import { useToast } from '../../context/ToastContext';
 import NewWorkOrderDialog from './components/NewWorkOrderDialog';
 import { cardClass, nestedClass } from '../../constants/themeClasses';
@@ -111,17 +112,16 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
             <p className={`mt-1 text-sm ${mutedClass}`}>Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <Select
               value={projectFilter}
               onChange={(event) => setProjectFilter(event.target.value)}
               aria-label="Filtrar por proyecto operativo"
-              className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100"
-            >
-              <option value="all" className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">Todos los proyectos</option>
-              {availableProjects.map((project) => (
-                <option key={project} value={project} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">{project}</option>
-              ))}
-            </select>
+              className="py-2.5"
+              options={[
+                { value: 'all', label: 'Todos los proyectos' },
+                ...availableProjects.map((project) => ({ value: project, label: project })),
+              ]}
+            />
             {canManage && (
               <>
                 <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>Generar Reporte Diario</Button>
