@@ -23,6 +23,7 @@ import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
 import KpiCard from '../../components/common/KpiCard';
+import Button from '../../components/common/Button';
 
 export { PersonnelIncidentDialog };
 
@@ -309,25 +310,26 @@ export default function HumanResources({
             )}
             {canManage ? (
               <>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   onClick={exportMatrix}
-                  disabled={isExportingMatrix || members.length === 0}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-medium text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+                  disabled={members.length === 0}
+                  isLoading={isExportingMatrix}
+                  icon={Download}
                 >
-                  <Download size={15} /> {isExportingMatrix ? 'Generando Excel...' : 'Exportar Matriz'}
-                </button>
-                <button
-                  type="button"
+                  {isExportingMatrix ? 'Generando Excel...' : 'Exportar Matriz'}
+                </Button>
+                <Button
+                  variant="primary"
                   onClick={() => {
                     setIncidentDialogOpen(true);
                     setFeedback('');
                     setFeedbackType('success');
                   }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+                  icon={CalendarDays}
                 >
-                  <CalendarDays size={16} /> Registrar Incidencia / Licencia
-                </button>
+                  Registrar Incidencia / Licencia
+                </Button>
               </>
             ) : (
               <span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">

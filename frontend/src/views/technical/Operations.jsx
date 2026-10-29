@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, ClipboardCheck, Download, MoreVertical, Plus, ShieldCheck, Zap } from 'lucide-react';
 import ModalDialog from '../../components/common/ModalDialog';
 import KpiCard from '../../components/common/KpiCard';
+import Button from '../../components/common/Button';
 import { useToast } from '../../context/ToastContext';
 import {
   inputClass,
@@ -330,8 +331,8 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
             </select>
             {canManage && (
               <>
-                <button type="button" onClick={exportReport} className={secondaryButtonClass}><ClipboardCheck size={15} /> Generar Reporte Diario</button>
-                <button type="button" onClick={() => { setDialogOpen(true); setFeedback(''); }} className={primaryBtnClass}><Plus size={16} /> Nueva Orden de Trabajo</button>
+                <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>Generar Reporte Diario</Button>
+                <Button variant="primary" onClick={() => { setDialogOpen(true); setFeedback(''); }} icon={Plus}>Nueva Orden de Trabajo</Button>
               </>
             )}
           </div>
