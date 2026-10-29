@@ -1,12 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowLeftRight, BriefcaseBusiness, Camera, Check, ChevronLeft, ChevronRight, Download, FolderOpen, Mail, MessageCircle, MoreVertical, UserPlus, Users, X } from 'lucide-react';
-import PasswordInput from '../../components/common/PasswordInput';
+import React, { useState } from 'react';
+import {
+  ArrowLeftRight,
+  BriefcaseBusiness,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FolderOpen,
+  Mail,
+  MessageCircle,
+  MoreVertical,
+  UserPlus,
+} from 'lucide-react';
 import {
   technicalAreas,
-  technicalProjects,
   technicalSortOptions,
   technicalStatuses,
-  reassignmentReasons,
 } from '../../constants/technicalTeam';
 import {
   addTechnicalMember,
@@ -19,22 +27,23 @@ import {
 } from '../../utils/technicalTeam';
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
-import ModalDialog from '../../components/common/ModalDialog';
 import {
-  inputClass,
   cardClass,
   nestedClass,
   secondaryButtonClass,
-  labelClass,
   errorClass,
   primaryBtnClass,
   closeBtnClass,
 } from '../../constants/themeClasses';
+import AddTechnicalMemberDialog from './components/AddTechnicalMemberDialog';
+import ReassignProjectDialog from './components/ReassignProjectDialog';
+import MemberAvatar from './components/MemberAvatar';
+
+export { AddTechnicalMemberDialog, ReassignProjectDialog, MemberAvatar };
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 const pageSize = 6;
-const operationalStatuses = technicalStatuses.filter((status) => status.id !== 'offline');
 
 const areaDetails = {
   architecture: { description: 'Renders, modelado Revit y recorridos 360°', valueClass: 'text-blue-600 dark:text-blue-400 midnight:text-blue-300' },
@@ -42,344 +51,9 @@ const areaDetails = {
   systems: { description: 'Backend, APIs, Make y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
 };
 
-function getInitials(member) {
-  return `${member.firstNames?.[0] ?? ''}${member.lastNames?.[0] ?? ''}`.toUpperCase();
-}
-
-function getRequestErrorMessage(error) {
-  const responseData = error?.response?.data;
-  if (typeof responseData?.message === 'string') return responseData.message;
-  if (typeof responseData?.detail === 'string') return responseData.detail;
-  if (responseData && typeof responseData === 'object') {
-    const messages = Object.values(responseData).flatMap((value) =>
-      Array.isArray(value) ? value : [value]
-    );
-    if (messages.length) return messages.join(' ');
-  }
-  return error?.message || 'No se pudo guardar el cambio en la base de datos.';
-}
-
 function StatusBadge({ status }) {
   const details = technicalStatuses.find((item) => item.id === status);
   return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${details.className}`}>{details.shortLabel}</span>;
-}
-
-function MemberAvatar({ member, sizeClass = 'h-10 w-10' }) {
-  return member.avatar
-    ? <img src={member.avatar} alt={`Perfil de ${getMemberFullName(member)}`} className={`${sizeClass} shrink-0 rounded-full object-cover`} />
-    : <span className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-xs font-bold text-cyan-700 transition-colors duration-300 dark:border-cyan-400/25 dark:bg-cyan-500/10 dark:text-cyan-300 midnight:border-cyan-800/40 midnight:bg-cyan-500/15 midnight:text-cyan-300`}>{getInitials(member)}</span>;
-}
-
-export function AddTechnicalMemberDialog({ existingData, projectOptions = technicalProjects, onSubmit, onClose }) {
-  const [draft, setDraft] = useState({ firstNames: '', lastNames: '', email: '', password: '', passwordConfirm: '', specialty: '', area: 'architecture', project: projectOptions[0] ?? technicalProjects[0], status: 'active', workload: 100, avatar: null });
-  const [photoName, setPhotoName] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
-
-  const submitDraft = async (event) => {
-    event.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(getRequestErrorMessage(submitError));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    const closeWithEscape = (event) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', closeWithEscape);
-    return () => document.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
-
-  const selectPhoto = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!['image/png', 'image/jpeg'].includes(file.type)) { setError('La foto debe ser PNG o JPG.'); event.target.value = ''; return; }
-    if (file.size > 2 * 1024 * 1024) { setError('La foto no debe superar 2 MB.'); event.target.value = ''; return; }
-    const reader = new FileReader();
-    reader.onload = () => { setDraft((current) => ({ ...current, avatar: String(reader.result) })); setPhotoName(file.name); setError(''); };
-    reader.onerror = () => setError('No se pudo leer la foto seleccionada.');
-    reader.readAsDataURL(file);
-  };
-
-  const footnote = (
-    <p className={`text-[10px] ${mutedClass}`}>
-      * Campos requeridos para el alta técnica. Actualmente hay {existingData.members.length} integrantes.
-    </p>
-  );
-
-  return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={submitDraft}
-      title="Añadir Nuevo Técnico"
-      subtitle="Registra un nuevo profesional en el directorio de ingeniería, arquitectura o sistemas."
-      icon={<UserPlus size={21} />}
-      submitLabel="Añadir al equipo"
-      submitIcon={<UserPlus size={15} />}
-      cancelLabel="Cancelar"
-      isSubmitting={isSubmitting}
-      footnote={footnote}
-      maxWidth="max-w-3xl"
-      id="new-technician"
-    >
-      <div className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center ${nestedClass}`}>
-        {draft.avatar ? (
-          <img src={draft.avatar} alt="Vista previa de la foto" className="h-16 w-16 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 transition-colors duration-300 dark:border-slate-500 midnight:border-cyan-800/40 midnight:text-cyan-600">
-            <Users size={27} />
-          </span>
-        )}
-        <div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 dark:border-slate-600 dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100">
-            <Camera size={15} /> Subir foto de perfil
-            <input type="file" accept="image/png,image/jpeg" onChange={selectPhoto} className="sr-only" />
-          </label>
-          <p className={`mt-2 text-[10px] ${mutedClass}`}>PNG o JPG (máx. 2 MB){photoName && ` · ${photoName}`}</p>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
-          Nombres <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <input autoFocus required maxLength={80} value={draft.firstNames} onChange={changeField('firstNames')} placeholder="Sofía Alejandra" className={inputClass} />
-        </label>
-        <label className={labelClass}>
-          Apellidos <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <input required maxLength={80} value={draft.lastNames} onChange={changeField('lastNames')} placeholder="Torres Valdivia" className={inputClass} />
-        </label>
-        <label className={labelClass}>
-          Correo electrónico corporativo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <input type="email" required maxLength={120} value={draft.email} onChange={changeField('email')} placeholder="nombre@empresa.com" className={inputClass} />
-        </label>
-        <label className={labelClass}>
-          Contraseña inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <div className="mt-2">
-            <PasswordInput
-              required
-              minLength={8}
-              maxLength={128}
-              autoComplete="new-password"
-              value={draft.password}
-              onChange={changeField('password')}
-              placeholder="Mínimo 8 caracteres"
-              className={`${inputClass} !mt-0`}
-            />
-          </div>
-        </label>
-        <label className={labelClass}>
-          Confirmar contraseña <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <div className="mt-2">
-            <PasswordInput
-              required
-              minLength={8}
-              maxLength={128}
-              autoComplete="new-password"
-              value={draft.passwordConfirm}
-              onChange={changeField('passwordConfirm')}
-              placeholder="Repita la contraseña"
-              className={`${inputClass} !mt-0`}
-              showPasswordLabel="Ver confirmación de contraseña"
-              hidePasswordLabel="Ocultar confirmación de contraseña"
-            />
-          </div>
-        </label>
-        <label className={labelClass}>
-          Especialidad / Rol <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <input required maxLength={100} value={draft.specialty} onChange={changeField('specialty')} placeholder="Arquitecta Principal / BIM" className={inputClass} />
-        </label>
-        <label className={labelClass}>
-          Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <select required value={draft.area} onChange={changeField('area')} className={inputClass}>
-            {technicalAreas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClass}>
-          Proyecto asignado inicial
-          <select value={draft.project} onChange={changeField('project')} className={inputClass}>
-            {projectOptions.map((project) => (
-              <option key={project}>{project}</option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClass}>
-          Estado de disponibilidad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
-            {technicalStatuses.map((status) => (
-              <option key={status.id} value={status.id}>
-                {status.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClass}>
-          Disponibilidad / carga inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <div className="relative">
-            <input type="number" min="0" max="100" step="1" required value={draft.workload} onChange={changeField('workload')} className={`${inputClass} pr-10`} />
-            <span className={`absolute bottom-2.5 right-3 text-xs ${mutedClass}`}>%</span>
-          </div>
-        </label>
-      </div>
-
-      {error && <p role="alert" className={errorClass}>{error}</p>}
-    </ModalDialog>
-  );
-}
-
-export function ReassignProjectDialog({ member, projectOptions = technicalProjects, onSubmit, onClose }) {
-  const availableProjects = Array.from(new Set([member.project, ...projectOptions]));
-  const [draft, setDraft] = useState({
-    project: member.project,
-    status: member.status === 'offline' ? 'standby' : member.status,
-    workload: member.workload,
-    reason: reassignmentReasons[0],
-  });
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const changeField = (field) => (event) => { setDraft((current) => ({ ...current, [field]: event.target.value })); setError(''); };
-
-  const submitDraft = async (event) => {
-    event.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(getRequestErrorMessage(submitError));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const footnote = (
-    <p className={`text-[10px] ${mutedClass}`}>
-      La modificación se guardará en PostgreSQL y en Asignaciones Recientes.
-    </p>
-  );
-
-  return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={submitDraft}
-      title="Reasignar Proyecto"
-      subtitle="Actualiza la obra o la disponibilidad operativa del técnico."
-      icon={<ArrowLeftRight size={20} />}
-      submitLabel="Guardar reasignación"
-      submitIcon={<Check size={15} />}
-      cancelLabel="Cancelar"
-      isSubmitting={isSubmitting}
-      footnote={footnote}
-      maxWidth="max-w-xl"
-      id="reassign-project"
-    >
-      <div className={`flex items-center gap-3 p-3 ${nestedClass}`}>
-        <MemberAvatar member={member} sizeClass="h-12 w-12" />
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className={`font-semibold ${headingClass}`}>
-              {member.area === 'architecture' ? 'Arq.' : 'Ing.'} {getMemberFullName(member)}
-            </p>
-            <span className="rounded bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 transition-colors duration-300 dark:bg-blue-500/15 dark:text-blue-300 midnight:bg-blue-500/15 midnight:text-blue-300">
-              {member.specialty}
-            </span>
-          </div>
-          <p className={`mt-1 truncate text-[10px] ${mutedClass}`}>Actual: {member.project}</p>
-        </div>
-      </div>
-
-      <label className={`mt-5 block ${labelClass}`}>
-        Nuevo proyecto asignado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-        <select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>
-          {availableProjects.map((project) => (
-            <option key={project}>{project}</option>
-          ))}
-        </select>
-      </label>
-
-      <fieldset className="mt-5">
-        <legend className={labelClass}>
-          Estado operativo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-        </legend>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {operationalStatuses.map((status) => (
-            <button
-              key={status.id}
-              type="button"
-              aria-pressed={draft.status === status.id}
-              onClick={() => {
-                setDraft((current) => ({ ...current, status: status.id }));
-                setError('');
-              }}
-              className={`flex min-w-0 items-center justify-center gap-2 rounded-lg border px-2 py-2.5 text-[11px] font-semibold transition-colors duration-300 ${
-                draft.status === status.id
-                  ? status.className
-                  : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:border-slate-500 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-500/70 midnight:hover:border-cyan-700/50'
-              }`}
-            >
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  status.id === 'active'
-                    ? 'bg-emerald-500 dark:bg-emerald-400'
-                    : status.id === 'standby'
-                    ? 'bg-amber-500 dark:bg-amber-400'
-                    : 'bg-blue-500 dark:bg-blue-400'
-                }`}
-              />
-              {status.shortLabel}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <label className={`mt-5 block ${labelClass}`}>
-        <span className="flex items-center justify-between gap-3">
-          <span>
-            Porcentaje de dedicación en esta obra <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          </span>
-          <output className="rounded border border-blue-200 bg-blue-50 px-2 py-1 font-mono text-[11px] text-blue-700 transition-colors duration-300 dark:border-blue-500/25 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300">
-            {draft.workload}%
-          </output>
-        </span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="5"
-          value={draft.workload}
-          onChange={changeField('workload')}
-          className="mt-3 h-2 w-full cursor-pointer accent-blue-600 dark:accent-blue-500 midnight:accent-cyan-500"
-        />
-        <span className={`mt-1 flex justify-between text-[9px] ${mutedClass}`}>
-          <span>0% (Sin asignación)</span>
-          <span>50% (Media jornada)</span>
-          <span>100% (Exclusivo)</span>
-        </span>
-      </label>
-
-      <label className={`mt-5 block ${labelClass}`}>
-        Motivo de la reasignación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-        <select required value={draft.reason} onChange={changeField('reason')} className={inputClass}>
-          {reassignmentReasons.map((reason) => (
-            <option key={reason}>{reason}</option>
-          ))}
-        </select>
-      </label>
-
-      {error && <p role="alert" className={errorClass}>{error}</p>}
-    </ModalDialog>
-  );
 }
 
 export default function TechnicalTeam({
@@ -506,7 +180,7 @@ export default function TechnicalTeam({
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
         {syncLoading && <p className={`text-xs ${mutedClass}`}>Sincronizando con el servidor...</p>}
         {syncError && <p role="alert" className={errorClass}>{syncError}</p>}
-        <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between"><div className="flex max-w-full gap-2 overflow-x-auto pb-1">{filters.map((filter) => <button key={filter.id} type="button" onClick={() => { setAreaFilter(filter.id); setPage(1); }} aria-pressed={areaFilter === filter.id} className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-300 ${areaFilter === filter.id ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300' : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'}`}>{filter.label}<span className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors duration-300 ${filter.id === 'architecture' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-blue-500/15 midnight:text-blue-300' : filter.id === 'structures' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/15 midnight:text-emerald-300' : filter.id === 'systems' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/15 midnight:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300'}`}>{filter.count}</span></button>)}</div><div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]"><span>Ordenar por:</span><select value={sortOrder} onChange={(event) => { setSortOrder(event.target.value); setPage(1); }} aria-label="Ordenar equipo técnico" className="cursor-pointer bg-transparent text-xs font-medium text-slate-900 outline-none transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{technicalSortOptions.map((option) => <option key={option.id} value={option.id} className="bg-white dark:bg-[#161b22] midnight:bg-[#0a1120]">{option.label}</option>)}</select></label>{(query || areaFilter !== 'all') && <button type="button" onClick={() => { setAreaFilter('all'); setPage(1); onQueryChange(''); }} className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300">Limpiar filtros</button>}</div></section>
+        <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between"><div className="flex max-w-full gap-2 overflow-x-auto pb-1">{filters.map((filter) => <button key={filter.id} type="button" onClick={() => { setAreaFilter(filter.id); setPage(1); }} aria-pressed={areaFilter === filter.id} className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors duration-300 ${areaFilter === filter.id ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-white midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300' : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:border-cyan-400/30 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'}`}>{filter.label}<span className={`rounded px-1.5 py-0.5 text-[9px] font-bold transition-colors duration-300 ${filter.id === 'architecture' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-blue-500/15 midnight:text-blue-300' : filter.id === 'structures' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/15 midnight:text-emerald-300' : filter.id === 'systems' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/15 midnight:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300'}`}>{filter.count}</span></button>)}</div><div className="flex flex-wrap items-center gap-3"><select value={sortOrder} onChange={(event) => { setSortOrder(event.target.value); setPage(1); }} aria-label="Ordenar equipo técnico" className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100">{technicalSortOptions.map((option) => <option key={option.id} value={option.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">{option.label}</option>)}</select>{(query || areaFilter !== 'all') && <button type="button" onClick={() => { setAreaFilter('all'); setPage(1); onQueryChange(''); }} className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300">Limpiar filtros</button>}</div></section>
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.3fr)_minmax(260px,0.8fr)]">
           <section className="min-w-0" aria-labelledby="technical-directory-title">
             <div className="sr-only"><h2 id="technical-directory-title">Directorio Técnico</h2></div>

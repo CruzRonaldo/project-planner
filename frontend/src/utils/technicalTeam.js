@@ -123,3 +123,16 @@ export function reassignTechnicalMember(data, memberId, draft, date = new Date()
     assignments: [assignment, ...assignments],
   };
 }
+
+export function getRequestErrorMessage(error) {
+  const responseData = error?.response?.data;
+  if (typeof responseData?.message === 'string') return responseData.message;
+  if (typeof responseData?.detail === 'string') return responseData.detail;
+  if (responseData && typeof responseData === 'object') {
+    const messages = Object.values(responseData).flatMap((value) =>
+      Array.isArray(value) ? value : [value]
+    );
+    if (messages.length) return messages.join(' ');
+  }
+  return error?.message || 'No se pudo guardar el cambio en la base de datos.';
+}
