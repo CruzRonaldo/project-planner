@@ -3,6 +3,7 @@ import { FileDown, Flag, History, MoreVertical, Plus, SlidersHorizontal, Trash2 
 import AdjustScheduleDialog from './components/AdjustScheduleDialog';
 import NewGlobalMilestoneDialog from './components/NewGlobalMilestoneDialog';
 import Select from '../../components/common/Select';
+import Pagination from '../../components/common/Pagination';
 import { getYearOptions } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -37,7 +38,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
-  const [feedback, setFeedback] = useState('');
+  const [milestonePage, setMilestonePage] = useState(1);
   const { showToast } = useToast();
   const projects = useMemo(() => data?.projects || [], [data]);
   const milestones = useMemo(() => data?.milestones ?? [], [data]);
@@ -61,6 +62,16 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         String(m.project) === String(activeProject.id)
     );
   }, [milestones, activeProject]);
+
+  const milestonePageSize = 5;
+  const totalMilestonePages = Math.max(1, Math.ceil(filteredMilestones.length / milestonePageSize));
+  const currentMilestonePage = Math.min(milestonePage, totalMilestonePages);
+  const visibleMilestones = useMemo(() => {
+    return filteredMilestones.slice(
+      (currentMilestonePage - 1) * milestonePageSize,
+      currentMilestonePage * milestonePageSize
+    );
+  }, [filteredMilestones, currentMilestonePage]);
 
   const displayedAdjustments = useMemo(() => {
     if (!activeProject) return adjustments;
@@ -116,6 +127,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     });
   };
   const saveMilestone = async (draft) => {
+    setMilestonePage(1);
     try {
       const createdBackend = await projectsApi.createMilestone({
         projectId: draft.projectId,
@@ -267,13 +279,13 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); setFeedback(''); }} className={secondaryButtonClass}>
+                <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); }} className={secondaryButtonClass}>
                   <SlidersHorizontal size={15} /> Ajustar Calendario
                 </button>
                 <button type="button" onClick={exportToPdf} className={secondaryButtonClass}>
                   <FileDown size={15} /> Exportar Gantt / PDF
                 </button>
-                <button type="button" onClick={() => { setMilestoneDialogOpen(true); setFeedback(''); }} className={primaryBtnClass}>
+                <button type="button" onClick={() => { setMilestoneDialogOpen(true); }} className={primaryBtnClass}>
                   <Plus size={15} /> Nuevo Hito Global
                 </button>
               </div>
@@ -288,7 +300,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               {/* SELECTOR DE PROYECTO */}
               <Select
                 value={selectedProjectFilter}
-                onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                onChange={(e) => { setSelectedProjectFilter(e.target.value); setMilestonePage(1); }}
                 aria-label="Filtrar por proyecto"
                 className="max-w-[220px] truncate"
                 options={[
@@ -313,10 +325,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               />
             </div>
 
-            {/* FEEDBACK O ESTADO */}
-            <p role="status" className="sr-only">
-              {feedback}
-            </p>
+
           </div>
         </section>
 
@@ -395,7 +404,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                           }}
                         >
                           <span className="flex-1 truncate text-center">{project.period}</span>
-                          {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); setFeedback(''); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white no-print print:hidden"><SlidersHorizontal size={11} /></button>}
+                          {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white no-print print:hidden"><SlidersHorizontal size={11} /></button>}
                         </div>
 
                         {/* HITOS ASOCIADOS EN EL CRONOGRAMA */}
@@ -414,7 +423,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                               key={m.id}
                               className="group absolute -top-1.5 z-20 flex -translate-x-1/2 flex-col items-center cursor-pointer"
                               style={{ left: `${leftPct}%` }}
-                              onClick={() => setFeedback(`Hito: ${m.title} (${formatMilestoneDate(m.targetDate)}) — Estado: ${m.status}`)}
+                              onClick={() => showToast({ title: m.title, message: `${formatMilestoneDate(m.targetDate)} · Estado: ${m.status}`, type: 'info' })}
                             >
                               <span
                                 aria-label={`Hito: ${m.title}`}
@@ -474,79 +483,131 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                     : 'No hay hitos registrados para el proyecto seleccionado.'}
                 </div>
               ) : (
-                filteredMilestones.map((milestone) => {
-                  const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
-                  const associatedProject = projects.find(
-                    (p) => String(p.id) === String(milestone.projectId || milestone.project)
-                  );
-                  return (
-                    <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass} print:bg-white print:border-slate-200`} title={milestone.description}>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className={`text-sm font-semibold truncate ${headingClass}`}>{milestone.title}</h3>
-                          {(associatedProject?.code || milestone.project_code) && (
-                            <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] text-slate-600 dark:bg-slate-800 dark:text-slate-400 midnight:bg-cyan-950 midnight:text-cyan-400 print:bg-slate-100 print:text-slate-700">
-                              {associatedProject?.code || milestone.project_code}
-                            </span>
-                          )}
-                          {associatedProject?.name && (
-                            <span className={`text-[10px] truncate ${mutedClass} hidden sm:inline-block print:inline-block`}>
-                              · {associatedProject.name}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{formatMilestoneDate(milestone.targetDate)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {canManage ? (
-                          <>
-                            <select
-                              value={(milestone.status || 'pending').toLowerCase()}
-                              onChange={(e) => handleStatusChange(milestone.id, e.target.value)}
-                              aria-label={`Cambiar estado de ${milestone.title}`}
-                              title="Cambiar estado del hito"
-                              className={`cursor-pointer rounded border border-transparent px-2 py-1 text-[10px] font-semibold transition-colors duration-300 outline-none ${status.badge} hover:border-slate-300 dark:hover:border-slate-600 no-print print:hidden`}
+                <>
+                  <div className="space-y-2.5 print:hidden">
+                    {visibleMilestones.map((milestone) => {
+                      const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
+                      const associatedProject = projects.find(
+                        (p) => String(p.id) === String(milestone.projectId || milestone.project)
+                      );
+                      return (
+                        <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass} print:bg-white print:border-slate-200`} title={milestone.description}>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className={`text-sm font-semibold truncate ${headingClass}`}>{milestone.title}</h3>
+                              {(associatedProject?.code || milestone.project_code) && (
+                                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] text-slate-600 dark:bg-slate-800 dark:text-slate-400 midnight:bg-cyan-950 midnight:text-cyan-400 print:bg-slate-100 print:text-slate-700">
+                                  {associatedProject?.code || milestone.project_code}
+                                </span>
+                              )}
+                              {associatedProject?.name && (
+                                <span className={`text-[10px] truncate ${mutedClass} hidden sm:inline-block print:inline-block`}>
+                                  · {associatedProject.name}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{formatMilestoneDate(milestone.targetDate)}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {canManage ? (
+                              <>
+                                <select
+                                  value={(milestone.status || 'pending').toLowerCase()}
+                                  onChange={(e) => handleStatusChange(milestone.id, e.target.value)}
+                                  aria-label={`Cambiar estado de ${milestone.title}`}
+                                  title="Cambiar estado del hito"
+                                  className={`cursor-pointer rounded border border-transparent px-2 py-1 text-[10px] font-semibold transition-colors duration-300 outline-none ${status.badge} hover:border-slate-300 dark:hover:border-slate-600 no-print print:hidden`}
+                                >
+                                  {milestoneStatuses.map((s) => (
+                                    <option key={s.id} value={s.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
+                                      {s.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <span className={`hidden print:inline-block shrink-0 rounded px-2 py-1 text-[10px] font-semibold ${status.badge}`}>
+                                  {status.label}
+                                </span>
+                              </>
+                            ) : (
+                              <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${status.badge}`}>
+                                {status.label}
+                              </span>
+                            )}
+                            {canManage && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMilestone(milestone.id, milestone.title)}
+                                aria-label={`Eliminar hito ${milestone.title}`}
+                                title="Eliminar hito"
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10 midnight:hover:text-red-400 no-print print:hidden"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => showToast({
+                                title: milestone.title,
+                                message: `${milestone.description || 'Sin descripción adicional.'} (Responsable: ${milestone.validator || 'PM'})`,
+                                type: 'info',
+                              })}
+                              aria-label={`Ver detalles de ${milestone.title}`}
+                              className={`${closeBtnClass} no-print print:hidden`}
                             >
-                              {milestoneStatuses.map((s) => (
-                                <option key={s.id} value={s.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
-                                  {s.label}
-                                </option>
-                              ))}
-                            </select>
-                            <span className={`hidden print:inline-block shrink-0 rounded px-2 py-1 text-[10px] font-semibold ${status.badge}`}>
+                              <MoreVertical size={14} />
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  <div className="hidden print:block space-y-2.5">
+                    {filteredMilestones.map((milestone) => {
+                      const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
+                      const associatedProject = projects.find(
+                        (p) => String(p.id) === String(milestone.projectId || milestone.project)
+                      );
+                      return (
+                        <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass} print:bg-white print:border-slate-200`}>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className={`text-sm font-semibold truncate ${headingClass}`}>{milestone.title}</h3>
+                              {(associatedProject?.code || milestone.project_code) && (
+                                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] text-slate-600 print:bg-slate-100 print:text-slate-700">
+                                  {associatedProject?.code || milestone.project_code}
+                                </span>
+                              )}
+                              {associatedProject?.name && (
+                                <span className={`text-[10px] truncate ${mutedClass} print:inline-block`}>
+                                  · {associatedProject.name}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`mt-0.5 text-[10px] ${mutedClass}`}>{formatMilestoneDate(milestone.targetDate)}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold ${status.badge}`}>
                               {status.label}
                             </span>
-                          </>
-                        ) : (
-                          <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${status.badge}`}>
-                            {status.label}
-                          </span>
-                        )}
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMilestone(milestone.id, milestone.title)}
-                            aria-label={`Eliminar hito ${milestone.title}`}
-                            title="Eliminar hito"
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10 midnight:hover:text-red-400 no-print print:hidden"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setFeedback(`${milestone.title}: ${milestone.description || 'Sin descripción adicional.'} Responsable: ${milestone.validator || 'PM'}.`)}
-                          aria-label={`Ver detalles de ${milestone.title}`}
-                          className={`${closeBtnClass} no-print print:hidden`}
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
+
+            <Pagination
+              currentPage={currentMilestonePage}
+              totalPages={totalMilestonePages}
+              totalItems={filteredMilestones.length}
+              pageSize={milestonePageSize}
+              itemLabel="hitos"
+              onPageChange={setMilestonePage}
+              hideOnSinglePage={true}
+              className="mt-4 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30"
+            />
           </section>
 
           {/* CONTROL PRESUPUESTARIO */}

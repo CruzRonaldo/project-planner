@@ -137,3 +137,54 @@ test('SortDropdown renderiza estado inicial, etiqueta y dirección accesible con
     await server.close();
   }
 });
+
+test('Pagination renderiza navegacion accesible, rango de elementos y estados disabled con Vite SSR', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: Pagination } = await server.ssrLoadModule('/src/components/common/Pagination.jsx');
+    const htmlFirstPage = renderToStaticMarkup(
+      React.createElement(Pagination, {
+        currentPage: 1,
+        totalPages: 3,
+        totalItems: 15,
+        pageSize: 5,
+        itemLabel: 'hitos',
+        onPageChange: () => {},
+      })
+    );
+    assert.ok(htmlFirstPage.includes('role="navigation"'));
+    assert.ok(htmlFirstPage.includes('1–5 de 15 hitos'));
+    assert.ok(htmlFirstPage.includes('1 / 3'));
+    assert.ok(htmlFirstPage.includes('aria-label="Página anterior"'));
+    assert.ok(htmlFirstPage.includes('disabled=""'));
+    assert.ok(htmlFirstPage.includes('aria-label="Página siguiente"'));
+
+    const htmlLastPage = renderToStaticMarkup(
+      React.createElement(Pagination, {
+        currentPage: 3,
+        totalPages: 3,
+        totalItems: 15,
+        pageSize: 5,
+        itemLabel: 'hitos',
+        onPageChange: () => {},
+      })
+    );
+    assert.ok(htmlLastPage.includes('11–15 de 15 hitos'));
+    assert.ok(htmlLastPage.includes('3 / 3'));
+    assert.ok(htmlLastPage.includes('disabled=""'));
+
+    const htmlHiddenSingle = renderToStaticMarkup(
+      React.createElement(Pagination, {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 4,
+        pageSize: 5,
+        hideOnSinglePage: true,
+        onPageChange: () => {},
+      })
+    );
+    assert.equal(htmlHiddenSingle, '');
+  } finally {
+    await server.close();
+  }
+});

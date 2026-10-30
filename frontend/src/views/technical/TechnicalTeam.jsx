@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   ArrowLeftRight,
   BriefcaseBusiness,
-  ChevronLeft,
-  ChevronRight,
   Download,
   FolderOpen,
   Mail,
@@ -38,6 +36,7 @@ import AddTechnicalMemberDialog from './components/AddTechnicalMemberDialog';
 import ReassignProjectDialog from './components/ReassignProjectDialog';
 import MemberAvatar from './components/MemberAvatar';
 import SortDropdown from '../../components/common/SortDropdown';
+import Pagination from '../../components/common/Pagination';
 
 export { AddTechnicalMemberDialog, ReassignProjectDialog, MemberAvatar };
 
@@ -304,7 +303,15 @@ export default function TechnicalTeam({
               </article>)}
               {!visibleMembers.length && <div className={`${cardClass} p-12 text-center text-sm ${mutedClass} sm:col-span-2 xl:col-span-3`}>No se encontraron técnicos con estos filtros.</div>}
             </div>
-            <footer className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-600"><span>{members.length ? `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, members.length)}` : '0'} de {members.length} técnicos</span><div className="flex items-center gap-2"><button type="button" aria-label="Página anterior" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="rounded border border-slate-200 p-1 transition-colors duration-300 hover:text-slate-900 disabled:opacity-30 dark:border-[#30363d] dark:hover:text-white midnight:border-cyan-900/30 midnight:hover:text-cyan-50"><ChevronLeft size={14} /></button><span>{currentPage} / {totalPages}</span><button type="button" aria-label="Página siguiente" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)} className="rounded border border-slate-200 p-1 transition-colors duration-300 hover:text-slate-900 disabled:opacity-30 dark:border-[#30363d] dark:hover:text-white midnight:border-cyan-900/30 midnight:hover:text-cyan-50"><ChevronRight size={14} /></button></div></footer>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={members.length}
+              pageSize={pageSize}
+              itemLabel="técnicos"
+              onPageChange={setPage}
+              className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120]"
+            />
           </section>
           <div className="space-y-5">
             <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="area-summary-title"><div className="flex items-center justify-between gap-3"><h2 id="area-summary-title" className={`text-base font-semibold ${headingClass}`}>Resumen por Área</h2><span className="rounded bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600 transition-colors duration-300 dark:bg-slate-700/40 dark:text-slate-400 midnight:bg-cyan-900/30 midnight:text-cyan-500/70">{summary.total} Total</span></div><div className="mt-4 space-y-3">{technicalAreas.map((area) => <article key={area.id} className={`p-3 ${nestedClass}`}><div className="flex items-center justify-between gap-3"><h3 className={`text-xs font-medium ${headingClass}`}>{area.label}</h3><strong className={`rounded bg-white px-2 py-1 text-[10px] shadow-sm transition-colors duration-300 dark:bg-white/[0.03] dark:shadow-none midnight:bg-[#050B14] ${areaDetails[area.id].valueClass}`}>{summary.areas[area.id]} Miembros</strong></div><p className={`mt-2 text-[10px] leading-relaxed ${mutedClass}`}>{areaDetails[area.id].description}</p></article>)}</div></aside>
