@@ -44,5 +44,53 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Verifica el código TOTP de 6 dígitos del Administrador ante el backend
+ * @param {string|number} userId
+ * @param {string} otpCode
+ */
+export const verify2FA = async (userId, otpCode) => {
+  const response = await api.post('/auth/verify-2fa/', {
+    user_id: userId,
+    otp_code: otpCode,
+  });
+  return response.data;
+};
+
+/**
+ * Genera el secreto TOTP, URI de aprovisionamiento y código QR para 2FA
+ * @param {string|number} userId
+ */
+export const setup2FA = async (userId) => {
+  const response = await api.post('/auth/setup-2fa/', {
+    user_id: userId,
+  });
+  return response.data;
+};
+
+/**
+ * Solicita el restablecimiento de 2FA por correo vía webhook de Make
+ * @param {string|number} userId
+ */
+export const request2FAReset = async (userId) => {
+  const response = await api.post('/auth/request-2fa-reset/', {
+    user_id: userId,
+  });
+  return response.data;
+};
+
+/**
+ * Verifica el código de 6 dígitos enviado por correo y restablece el 2FA
+ * @param {string|number} userId
+ * @param {string} code
+ */
+export const verify2FAReset = async (userId, code) => {
+  const response = await api.post('/auth/verify-2fa-reset/', {
+    user_id: userId,
+    code,
+  });
+  return response.data;
+};
+
 export { baseURL };
 export default api;

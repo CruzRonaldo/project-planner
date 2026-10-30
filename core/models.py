@@ -665,3 +665,48 @@ class ProjectMeeting(models.Model):
             self.meeting_url = f"https://meet.jit.si/{self.room_name}"
 
         super().save(*args, **kwargs)
+
+
+class TwoFactorProfile(models.Model):
+    """
+    Perfil de Autenticacion de Dos Factores (2FA) basado en TOTP.
+    Vinculado uno a uno al modelo de usuario del sistema.
+    Solo activo para cuentas de Administrador.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='two_factor_profile',
+        verbose_name="Usuario"
+    )
+    totp_secret = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Secreto TOTP"
+    )
+    is_enabled = models.BooleanField(
+        default=False,
+        verbose_name="2FA Habilitado"
+    )
+    recovery_code = models.CharField(
+        max_length=6,
+        blank=True,
+        null=True,
+        verbose_name="Código de recuperación"
+    )
+    recovery_code_expires = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Expiración del código de recuperación"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Perfil 2FA"
+        verbose_name_plural = "Perfiles 2FA"
+
+    def __str__(self):
+        status = "activo" if self.is_enabled else "inactivo"
+        return f"2FA ({status}) para {self.user.username}"

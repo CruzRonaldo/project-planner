@@ -20,3 +20,7 @@ google-api-python-client
 google-auth
 google-auth-oauthlib
 drf-spectacular>=0.28.0
+
+pyotp>=2.9.0
+qrcode>=7.4.2
+Pillow>=10.0.0
