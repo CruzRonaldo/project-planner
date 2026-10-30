@@ -73,11 +73,11 @@ export default function GanttScheduleSection({
                 const isClippedRight = Boolean(geom.clippedRight);
 
                 const roundedClass = isClippedLeft && isClippedRight
-                  ? 'rounded-none border-x-2 border-dashed border-white/70'
+                  ? 'rounded-none border-x-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                   : isClippedLeft
-                    ? 'rounded-r-md rounded-l-none border-l-2 border-dashed border-white/70'
+                    ? 'rounded-r-md rounded-l-none border-l-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                     : isClippedRight
-                      ? 'rounded-l-md rounded-r-none border-r-2 border-dashed border-white/70'
+                      ? 'rounded-l-md rounded-r-none border-r-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                       : 'rounded-md';
 
                 return (
@@ -129,9 +129,23 @@ export default function GanttScheduleSection({
                         }}
                       >
                         <span className="flex-1 truncate text-center flex items-center justify-center gap-1 min-w-0">
-                          {isClippedLeft && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Inició antes de ${selectedYear}`}>◀</span>}
+                          {isClippedLeft && (
+                            <span
+                              className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
+                              title={`Inició antes de ${selectedYear}`}
+                            >
+                              ◀
+                            </span>
+                          )}
                           <span className="truncate min-w-0 text-[9px]">{project.period}</span>
-                          {isClippedRight && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Continúa después de ${selectedYear}`}>▶</span>}
+                          {isClippedRight && (
+                            <span
+                              className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
+                              title={`Continúa después de ${selectedYear}`}
+                            >
+                              ▶
+                            </span>
+                          )}
                         </span>
                         {canManage && (
                           <button

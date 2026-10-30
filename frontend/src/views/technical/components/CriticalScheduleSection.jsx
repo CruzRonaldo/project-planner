@@ -64,11 +64,11 @@ export default function CriticalScheduleSection({
               const isClippedRight = Boolean(geom.clippedRight);
 
               const roundedClass = isClippedLeft && isClippedRight
-                ? 'rounded-none border-x-2 border-dashed border-white/70'
+                ? 'rounded-none border-x-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                 : isClippedLeft
-                  ? 'rounded-r rounded-l-none border-l-2 border-dashed border-white/70'
+                  ? 'rounded-r rounded-l-none border-l-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                   : isClippedRight
-                    ? 'rounded-l rounded-r-none border-r-2 border-dashed border-white/70'
+                    ? 'rounded-l rounded-r-none border-r-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
                     : 'rounded';
 
               return (
@@ -93,9 +93,23 @@ export default function CriticalScheduleSection({
                       }}
                     >
                       <span className="truncate min-w-0 flex items-center justify-center gap-1">
-                        {isClippedLeft && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Inició antes de ${currentYear}`}>◀</span>}
+                        {isClippedLeft && (
+                          <span
+                            className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
+                            title={`Inició antes de ${currentYear}`}
+                          >
+                            ◀
+                          </span>
+                        )}
                         <span className="truncate">{activity.period}</span>
-                        {isClippedRight && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Continúa en el siguiente periodo`}>▶</span>}
+                        {isClippedRight && (
+                          <span
+                            className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
+                            title={`Continúa en el siguiente periodo`}
+                          >
+                            ▶
+                          </span>
+                        )}
                       </span>
                     </div>
                   </div>
