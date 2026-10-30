@@ -1008,10 +1008,30 @@ export function useAppController() {
   useEffect(() => {
     if (portfolioData?.projects && portfolioData.projects.length > 0) {
       setStrategicPlanningData((prev) => {
+        let hasChanges = false;
         const updatedGantt = portfolioData.projects.map((p) => {
           const existing = prev.projects?.find((ep) => String(ep.id) === String(p.id) || ep.code === p.code);
-          return mapToGanttProject(p, existing);
+          const mapped = mapToGanttProject(p, existing);
+          if (
+            !existing ||
+            existing.start !== mapped.start ||
+            existing.duration !== mapped.duration ||
+            existing.startDate !== mapped.startDate ||
+            existing.endDate !== mapped.endDate ||
+            existing.name !== mapped.name ||
+            existing.area !== mapped.area ||
+            existing.totalBudget !== mapped.totalBudget
+          ) {
+            hasChanges = true;
+            return mapped;
+          }
+          return existing;
         });
+
+        if (!hasChanges && updatedGantt.length === prev.projects?.length) {
+          return prev;
+        }
+
         return {
           ...prev,
           projects: updatedGantt,
@@ -1019,6 +1039,38 @@ export function useAppController() {
       });
     }
   }, [portfolioData.projects]);
+
+  const handlePlanningChange = useCallback((updated) => {
+    setStrategicPlanningData(updated);
+    if (updated?.projects?.length) {
+      setPortfolioData((prev) => {
+        if (!prev?.projects?.length) return prev;
+        let hasChanges = false;
+        const newProjects = prev.projects.map((p) => {
+          const updatedProj = updated.projects.find((up) => String(up.id) === String(p.id) || up.code === p.code);
+          if (
+            updatedProj &&
+            ((updatedProj.startDate && updatedProj.startDate !== p.startDate) ||
+              (updatedProj.endDate && updatedProj.endDate !== p.endDate) ||
+              (updatedProj.start_date && updatedProj.start_date !== p.start_date) ||
+              (updatedProj.end_date && updatedProj.end_date !== p.end_date))
+          ) {
+            hasChanges = true;
+            return {
+              ...p,
+              startDate: updatedProj.startDate,
+              endDate: updatedProj.endDate,
+              start_date: updatedProj.startDate,
+              end_date: updatedProj.endDate,
+              duration_months: updatedProj.duration,
+            };
+          }
+          return p;
+        });
+        return hasChanges ? { ...prev, projects: newProjects } : prev;
+      });
+    }
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem('project-planner-users', JSON.stringify(users));
@@ -1111,7 +1163,7 @@ export function useAppController() {
       return (
         <StrategicPlanning
           data={strategicPlanningData}
-          onChange={setStrategicPlanningData}
+          onChange={handlePlanningChange}
           canManage={canManage}
         />
       );

@@ -119,6 +119,16 @@ export const projectsApi = {
     return response.data;
   },
 
+  /**
+   * Registra un reajuste de cronograma en la base de datos de auditoría.
+   */
+  createScheduleAdjustment: async (adjustmentData) => {
+    const response = await api.post('/schedule-adjustments/', adjustmentData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
 
   /**
    * Obtiene la lista de miembros y líderes del equipo registrados en la Base de Datos.

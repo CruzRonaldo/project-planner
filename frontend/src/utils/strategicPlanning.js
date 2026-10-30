@@ -37,28 +37,33 @@ export function mapToGanttProject(p, existing = null) {
   const sDateStr = p.startDate || p.start_date;
   const eDateStr = p.endDate || p.end_date;
 
-  let start = existing?.start ?? 1;
-  let duration = existing?.duration ?? 3;
+  let start = 1;
+  let duration = 3;
 
-  if (!existing?.start && sDateStr) {
+  if (sDateStr) {
     const parsedStart = new Date(`${sDateStr.slice(0, 10)}T00:00:00`);
     if (!isNaN(parsedStart.getTime())) {
       start = parsedStart.getMonth() + 1;
     }
+  } else if (existing?.start) {
+    start = existing.start;
   }
 
-  if (!existing?.duration && eDateStr) {
+  if (eDateStr) {
     const parsedEnd = new Date(`${eDateStr.slice(0, 10)}T00:00:00`);
     if (!isNaN(parsedEnd.getTime())) {
       const endMonth = parsedEnd.getMonth() + 1;
-      if (parsedEnd.getFullYear() === 2026) {
+      const startYear = sDateStr ? new Date(`${sDateStr.slice(0, 10)}T00:00:00`).getFullYear() : 2026;
+      if (parsedEnd.getFullYear() === startYear) {
         duration = Math.max(1, endMonth - start + 1);
-      } else if (parsedEnd.getFullYear() > 2026) {
+      } else if (parsedEnd.getFullYear() > startYear) {
         duration = Math.max(1, 13 - start);
       }
     }
-  } else if (!existing?.duration && p.duration_months) {
+  } else if (p.duration_months) {
     duration = Number(p.duration_months);
+  } else if (existing?.duration) {
+    duration = existing.duration;
   }
 
   start = Math.max(1, Math.min(12, start));
@@ -137,9 +142,40 @@ export function adjustProjectSchedule(data, draft, date = new Date()) {
     nextPeriod,
     reason: draft.reason,
   };
+  const origS = project.startDate || project.start_date;
+  const origE = project.endDate || project.end_date;
+
+  const existingYear = origS ? new Date(`${String(origS).slice(0, 10)}T00:00:00`).getFullYear() : null;
+  const startYear = existingYear || date.getFullYear();
+
+  // Preservar el día original de inicio si existe; de lo contrario iniciar el 1
+  const origStartDay = origS ? parseInt(String(origS).slice(8, 10), 10) : 1;
+  const daysInStartMonth = new Date(startYear, start, 0).getDate();
+  const safeStartDay = Math.min(Math.max(1, isNaN(origStartDay) ? 1 : origStartDay), daysInStartMonth);
+  const startDateStr = `${startYear}-${String(start).padStart(2, '0')}-${String(safeStartDay).padStart(2, '0')}`;
+
+  const endMonthNum = Math.min(12, start + duration - 1);
+  const daysInEndMonth = new Date(startYear, endMonthNum, 0).getDate();
+  const origEndDay = origE ? parseInt(String(origE).slice(8, 10), 10) : null;
+  const safeEndDay = origEndDay && !isNaN(origEndDay) ? Math.min(Math.max(1, origEndDay), daysInEndMonth) : daysInEndMonth;
+  const endDateStr = `${startYear}-${String(endMonthNum).padStart(2, '0')}-${String(safeEndDay).padStart(2, '0')}`;
+
   return {
     ...data,
-    projects: projects.map((item) => String(item.id) === String(project.id) ? { ...item, start, duration, period: nextPeriod } : item),
+    projects: projects.map((item) =>
+      String(item.id) === String(project.id)
+        ? {
+            ...item,
+            start,
+            duration,
+            period: nextPeriod,
+            startDate: startDateStr,
+            endDate: endDateStr,
+            start_date: startDateStr,
+            end_date: endDateStr,
+          }
+        : item
+    ),
     adjustments: [adjustment, ...adjustments],
   };
 }

@@ -141,31 +141,70 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   };
 
   const saveSchedule = async (draft) => {
-    try {
-      const startMonth = Number(draft.start);
-      const duration = Number(draft.duration);
-      const endMonth = Math.min(12, startMonth + duration - 1);
-      const startDateStr = `2026-${String(startMonth).padStart(2, '0')}-01`;
-      const endDateStr = `2026-${String(endMonth).padStart(2, '0')}-28`;
-
-      if (typeof draft.projectId === 'number' || (!isNaN(Number(draft.projectId)) && String(Number(draft.projectId)) === String(draft.projectId))) {
-        await projectsApi.updateProject(draft.projectId, {
-          start_date: startDateStr,
-          end_date: endDateStr,
-          duration_months: duration,
-        });
-      }
-    } catch (apiErr) {
-      console.warn('Reajuste registrado localmente:', apiErr);
-    }
     const updated = adjustProjectSchedule(data, draft);
+    if (updated === data) {
+      setDialogOpen(false);
+      showToast({
+        title: 'Calendario de Proyecto',
+        message: 'No había cambios que guardar.',
+        type: 'info',
+      });
+      return;
+    }
+
+    const updatedProject = updated.projects.find((p) => String(p.id) === String(draft.projectId));
+    const previousProject = projects.find((p) => String(p.id) === String(draft.projectId));
+
+    const isBackendProject =
+      typeof draft.projectId === 'number' ||
+      (!isNaN(Number(draft.projectId)) && String(Number(draft.projectId)) === String(draft.projectId));
+
+    let auditSaved = true;
+    if (isBackendProject && updatedProject) {
+      try {
+        await projectsApi.updateProject(draft.projectId, {
+          start_date: updatedProject.startDate,
+          end_date: updatedProject.endDate,
+          duration_months: updatedProject.duration,
+        });
+
+        // Registrar auditoría de reajuste en backend Django
+        try {
+          if (projectsApi.createScheduleAdjustment) {
+            const createdAdj = await projectsApi.createScheduleAdjustment({
+              project: Number(draft.projectId),
+              previousPeriod: previousProject?.period || '',
+              nextPeriod: updatedProject.period,
+              reason: draft.reason,
+            });
+            if (createdAdj?.id && updated.adjustments?.length > 0) {
+              updated.adjustments[0].id = createdAdj.id;
+            }
+          }
+        } catch (adjErr) {
+          console.warn('Reajuste de fecha aplicado pero falló el registro en auditoría remota:', adjErr);
+          auditSaved = false;
+        }
+      } catch (apiErr) {
+        console.error('Error al actualizar el cronograma en backend:', apiErr);
+        showToast({
+          title: 'Error de Sincronización',
+          message: 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.',
+          type: 'danger',
+        });
+        return;
+      }
+    }
+
     onChange(updated);
     setDialogOpen(false);
-    const msg = updated === data ? 'No había cambios que guardar.' : 'Calendario actualizado y registrado en el historial de auditoría.';
+
     showToast({
       title: 'Calendario de Proyecto',
-      message: msg,
-      type: updated === data ? 'info' : 'success',
+      message: auditSaved
+        ? 'Calendario actualizado y registrado en el historial de auditoría.'
+        : 'Cronograma guardado en el servidor, pero no se pudo registrar el reajuste en el historial.',
+      type: auditSaved ? 'success' : 'warning',
     });
   };
   const saveMilestone = async (draft) => {

@@ -12,6 +12,7 @@ from core.models import (
     PerformanceMetric,
     Project,
     Role,
+    ScheduleAdjustment,
     SecurityAuditLog,
     Task,
     TeamMember,
@@ -881,6 +882,37 @@ class BackupAuthenticationAndSecurityTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+class ScheduleAdjustmentApiTests(APITestCase):
+    """Pruebas para el registro y consulta de auditoría de reajustes de cronograma."""
 
+    def setUp(self):
+        self.project = Project.objects.create(
+            code="PRJ-2026-ADJ",
+            name="Proyecto Reajuste Test",
+            start_date="2026-02-01",
+            end_date="2026-08-31",
+            duration_months=7,
+            budget=150000.00,
+        )
 
+    def test_create_and_list_schedule_adjustments(self):
+        # 1. Crear registro de reajuste vía POST
+        payload = {
+            "project": self.project.id,
+            "previousPeriod": "Feb - Ago (7 Meses)",
+            "nextPeriod": "Mar - Sep (7 Meses)",
+            "reason": "Retraso en permisos municipales",
+        }
+        create_response = self.client.post("/api/schedule-adjustments/", payload, format="json")
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data["projectName"], "Proyecto Reajuste Test")
+        self.assertEqual(create_response.data["previousPeriod"], "Feb - Ago (7 Meses)")
+        self.assertEqual(create_response.data["nextPeriod"], "Mar - Sep (7 Meses)")
+
+        # 2. Listar registros y filtrar por proyecto
+        list_response = self.client.get(f"/api/schedule-adjustments/?project={self.project.id}")
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        results = list_response.data if isinstance(list_response.data, list) else list_response.data.get("results", [])
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["reason"], "Retraso en permisos municipales")
 

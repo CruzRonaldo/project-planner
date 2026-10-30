@@ -196,3 +196,48 @@ test('El Gantt renderiza marcadores visuales de hitos y la regla de gobernanza $
   }
 });
 
+
+test('adjustProjectSchedule actualiza startDate y endDate preservando los días originales del proyecto', () => {
+  const data = createStrategicPlanningData();
+  // Caso 1: Proyecto sin fechas ISO previas (usa día 1 y último día del mes)
+  const adjusted1 = adjustProjectSchedule(data, {
+    projectId: 'planning-puente',
+    start: 4,
+    duration: 5,
+    reason: scheduleAdjustmentReasons[0],
+  }, new Date('2026-05-01'));
+
+  const p1 = adjusted1.projects.find((proj) => proj.id === 'planning-puente');
+  assert.equal(p1.start, 4);
+  assert.equal(p1.duration, 5);
+  assert.equal(p1.startDate, '2026-04-01');
+  assert.equal(p1.endDate, '2026-08-31');
+
+  // Caso 2: Proyecto con fechas reales (ej. día 17 y día 15) conserva la granularidad de los días
+  const dataWithExactDays = {
+    ...data,
+    projects: [
+      {
+        id: 'prj-exact',
+        name: 'Proyecto Granular',
+        start: 3,
+        duration: 4,
+        startDate: '2026-03-17',
+        endDate: '2026-06-15',
+      },
+    ],
+  };
+
+  const adjusted2 = adjustProjectSchedule(dataWithExactDays, {
+    projectId: 'prj-exact',
+    start: 5, // Mayo
+    duration: 2, // Mayo y Junio
+    reason: scheduleAdjustmentReasons[0],
+  }, new Date('2026-05-01'));
+
+  const p2 = adjusted2.projects.find((proj) => proj.id === 'prj-exact');
+  assert.equal(p2.start, 5);
+  assert.equal(p2.duration, 2);
+  assert.equal(p2.startDate, '2026-05-17'); // Conserva día 17
+  assert.equal(p2.endDate, '2026-06-15');   // Conserva día 15
+});
