@@ -45,6 +45,7 @@ from .models import (
     ProjectMeeting,
     ProjectChangeLog,
     ScheduleAdjustment,
+    TwoFactorProfile,
 )
 
 from rest_framework.authentication import BaseAuthentication
@@ -203,6 +204,17 @@ def login_view(request):
             'status': 'error',
             'message': f"Acceso denegado: El usuario '{user.username}' no tiene permisos de Administrador."
         }, status=status.HTTP_403_FORBIDDEN)
+
+    # Autenticación de Dos Factores (2FA/TOTP) obligatoria y exclusiva para Administradores
+    if is_admin:
+        two_fa, _ = TwoFactorProfile.objects.get_or_create(user=user)
+        return Response({
+            "requires_2fa": True,
+            "user_id": user.id,
+            "is_2fa_setup": bool(two_fa.totp_secret),
+            "status": "requires_2fa",
+            "message": "Se requiere 2FA",
+        }, status=status.HTTP_200_OK)
 
     # Actualizar last_login en la base de datos
     update_last_login(None, user)
@@ -2125,3 +2137,292 @@ class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
         if project_id:
             queryset = queryset.filter(project_id=project_id)
         return queryset
+
+
+# =============================================================
+# AUTENTICACION DE DOS FACTORES (2FA/TOTP) — Solo Administradores
+# =============================================================
+
+class Setup2FAView(APIView):
+    """
+    Genera y devuelve el secreto TOTP y la URI de aprovisionamiento para
+    que el administrador configure su app de autenticación (Google Authenticator, Authy, etc.).
+    Permite autenticación Bearer o envío de user_id de administrador.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        user = None
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        else:
+            user_id = request.data.get('user_id')
+            if user_id:
+                User = get_user_model()
+                user = User.objects.filter(id=user_id).first()
+
+        if not user or not (user.is_superuser or user.is_staff):
+            return Response(
+                {"status": "error", "message": "Solo los administradores pueden configurar 2FA."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        import pyotp
+        import qrcode
+        import io
+        import base64
+
+        profile, _ = TwoFactorProfile.objects.get_or_create(user=user)
+        if not profile.totp_secret:
+            profile.totp_secret = pyotp.random_base32()
+            profile.is_enabled = True
+            profile.save(update_fields=['totp_secret', 'is_enabled'])
+        elif not profile.is_enabled:
+            profile.is_enabled = True
+            profile.save(update_fields=['is_enabled'])
+
+        secret = profile.totp_secret
+
+        totp = pyotp.TOTP(secret)
+        app_name = "ProjectPlanner"
+        provisioning_uri = totp.provisioning_uri(
+            name=user.email or user.username,
+            issuer_name=app_name,
+        )
+
+        qr_code = ""
+        try:
+            img = qrcode.make(provisioning_uri)
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+            base64_img = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            qr_code = f"data:image/png;base64,{base64_img}"
+        except Exception as e:
+            pass
+
+        return Response({
+            "status": "success",
+            "message": "2FA configurado correctamente. Escanea el código QR con tu aplicación.",
+            "secret": secret,
+            "provisioning_uri": provisioning_uri,
+            "qr_code": qr_code,
+            "account": user.email or user.username,
+        }, status=status.HTTP_200_OK)
+
+
+class Verify2FAView(APIView):
+    """
+    Verifica el código TOTP de 6 dígitos del administrador.
+    Si es válido, devuelve los tokens de sesión y el perfil completo.
+    Recibe: { user_id, otp_code }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        otp_code = (request.data.get("otp_code") or request.data.get("code") or "").strip()
+
+        if not user_id or not otp_code:
+            return Response(
+                {"status": "error", "message": "Se requieren user_id y otp_code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+        except (User.DoesNotExist, ValueError):
+            return Response(
+                {"status": "error", "message": "Usuario no encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            profile = TwoFactorProfile.objects.get(user=user)
+            if not profile.totp_secret:
+                return Response(
+                    {"status": "error", "message": "2FA no tiene un secreto configurado para este usuario."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except TwoFactorProfile.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "2FA no está habilitado para este usuario."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        import pyotp
+        totp = pyotp.TOTP(profile.totp_secret)
+        # valid_window=1 tolera 1 periodo de 30s anterior/siguiente por desfase de reloj
+        if not totp.verify(otp_code, valid_window=1):
+            return Response(
+                {"status": "error", "message": "Código de verificación inválido o expirado. Verifique la hora de su dispositivo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Código válido → completar el login
+        update_last_login(None, user)
+
+        is_admin = bool(user.is_superuser or user.is_staff)
+        user_role = "admin" if is_admin else "user"
+        role_display = "Project Manager (Admin)" if is_admin else "Equipo Técnico"
+
+        user_photo = None
+        user_phone = ""
+        try:
+            up, _ = UserProfile.objects.get_or_create(user=user)
+            user_photo = up.avatar
+            user_phone = up.phone or ""
+        except Exception:
+            pass
+
+        token_str = str(user.id)
+
+        return Response({
+            "status": "success",
+            "message": f"Verificación 2FA exitosa. Bienvenido, {user.username}.",
+            "access": token_str,
+            "refresh": token_str,
+            "token": token_str,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user_role,
+                "role_display": role_display,
+                "is_superuser": user.is_superuser,
+                "last_login": user.last_login,
+                "photo": user_photo,
+                "avatar": user_photo,
+                "phone": user_phone,
+            },
+        }, status=status.HTTP_200_OK)
+
+
+
+class Request2FAResetView(APIView):
+    """
+    POST /api/auth/request-2fa-reset/
+    Body: { "user_id": 4 }
+
+    Genera un código de 6 dígitos con expiración de 15 minutos en recovery_code_expires.
+    Envía una petición POST al webhook de Make configurado en settings.RECOVERY_WEBHOOK_URL.
+    Retorna HTTP 200.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        import random
+        import requests
+        from datetime import timedelta
+        from django.utils import timezone
+
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response(
+                {'status': 'error', 'message': 'El user_id es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        User = get_user_model()
+        user = User.objects.filter(id=user_id).first()
+        if not user or not (user.is_superuser or user.is_staff):
+            return Response(
+                {'status': 'error', 'message': 'Usuario administrador no encontrado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Generar código numérico de 6 dígitos
+        code = str(random.randint(100000, 999999))
+        expires_at = timezone.now() + timedelta(minutes=15)
+
+        two_fa, _ = TwoFactorProfile.objects.get_or_create(user=user)
+        two_fa.recovery_code = code
+        two_fa.recovery_code_expires = expires_at
+        two_fa.save(update_fields=['recovery_code', 'recovery_code_expires'])
+
+        # Enviar petición POST al webhook de Make
+        webhook_url = getattr(settings, 'RECOVERY_WEBHOOK_URL', '')
+        payload = {
+            'email': user.email or user.username,
+            'code': code,
+            'action': '2fa_reset',
+        }
+
+        try:
+            if webhook_url:
+                requests.post(webhook_url, json=payload, timeout=5)
+            else:
+                logger.warning("settings.RECOVERY_WEBHOOK_URL no está configurado.")
+        except requests.RequestException as error:
+            logger.error(f"Error al enviar webhook de recuperación de 2FA: {error}")
+
+        return Response({
+            'status': 'success',
+            'message': 'Se ha enviado un código de 6 dígitos a tu correo.',
+        }, status=status.HTTP_200_OK)
+
+
+class Verify2FAResetView(APIView):
+    """
+    POST /api/auth/verify-2fa-reset/
+    Body: { "user_id": 4, "code": "123456" }
+
+    Busca el perfil. Si el código coincide y no ha expirado, restablece el 2FA:
+    totp_secret = None, is_enabled = False, recovery_code = None, guarda y retorna HTTP 200.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from django.utils import timezone
+
+        user_id = request.data.get('user_id')
+        code = (request.data.get('code') or request.data.get('recovery_code') or '').strip()
+
+        if not user_id or not code:
+            return Response(
+                {'status': 'error', 'message': 'user_id y código son obligatorios.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        User = get_user_model()
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            return Response(
+                {'status': 'error', 'message': 'Usuario no encontrado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        two_fa = TwoFactorProfile.objects.filter(user=user).first()
+        if not two_fa or not two_fa.recovery_code:
+            return Response(
+                {'status': 'error', 'message': 'No hay un código de recuperación activo para este usuario.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validar expiración
+        if two_fa.recovery_code_expires and timezone.now() > two_fa.recovery_code_expires:
+            return Response(
+                {'status': 'error', 'message': 'El código de recuperación ha expirado. Solicita uno nuevo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validar coincidencia
+        if two_fa.recovery_code != code:
+            return Response(
+                {'status': 'error', 'message': 'Código de recuperación inválido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Restablecer 2FA
+        two_fa.totp_secret = None
+        two_fa.is_enabled = False
+        two_fa.recovery_code = None
+        two_fa.recovery_code_expires = None
+        two_fa.save(update_fields=['totp_secret', 'is_enabled', 'recovery_code', 'recovery_code_expires'])
+
+        return Response({
+            'status': 'success',
+            'message': '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.',
+        }, status=status.HTTP_200_OK)

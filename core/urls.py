@@ -13,6 +13,10 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetVerifyCodeView,
     PasswordResetConfirmView,
+    Setup2FAView,
+    Verify2FAView,
+    Request2FAResetView,
+    Verify2FAResetView,
 
     TechnicalAreaViewSet,
     RoleViewSet,
@@ -109,6 +113,28 @@ urlpatterns = [
         name='api_notifications',
     ),
 
+
+    # Autenticación de Dos Factores (2FA / TOTP) — Solo Administradores
+    path(
+        'auth/setup-2fa/',
+        Setup2FAView.as_view(),
+        name='setup_2fa',
+    ),
+    path(
+        'auth/verify-2fa/',
+        Verify2FAView.as_view(),
+        name='verify_2fa',
+    ),
+    path(
+        'auth/request-2fa-reset/',
+        Request2FAResetView.as_view(),
+        name='request_2fa_reset',
+    ),
+    path(
+        'auth/verify-2fa-reset/',
+        Verify2FAResetView.as_view(),
+        name='verify_2fa_reset',
+    ),
     # Recuperación de contraseña por OTP de 6 dígitos
     path(
         'auth/password-reset/request/',

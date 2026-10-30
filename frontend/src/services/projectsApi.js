@@ -328,6 +328,46 @@ export const projectsApi = {
     const response = await api.post('/meetings/', meetingData);
     return response.data;
   },
+  /**
+   * Verifica el código TOTP de 6 dígitos para administradores (2FA)
+   */
+  verify2FA: async (userId, otpCode) => {
+    const response = await api.post('/auth/verify-2fa/', {
+      user_id: userId,
+      otp_code: otpCode,
+    });
+    return response.data;
+  },
+
+  /**
+   * Genera el secreto TOTP, URI de aprovisionamiento y código QR para 2FA
+   */
+  setup2FA: async (userId) => {
+    const response = await api.post('/auth/setup-2fa/', {
+      user_id: userId,
+    });
+    return response.data;
+  },
+  /**
+   * Solicita el restablecimiento de 2FA por correo
+   */
+  request2FAReset: async (userId) => {
+    const response = await api.post('/auth/request-2fa-reset/', {
+      user_id: userId,
+    });
+    return response.data;
+  },
+
+  /**
+   * Verifica el código de recuperación de 2FA
+   */
+  verify2FAReset: async (userId, code) => {
+    const response = await api.post('/auth/verify-2fa-reset/', {
+      user_id: userId,
+      code,
+    });
+    return response.data;
+  },
 };
 
 export default projectsApi;

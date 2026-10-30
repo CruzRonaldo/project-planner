@@ -13,6 +13,7 @@ from core.models import (
     Project,
     Role,
     ScheduleAdjustment,
+    TwoFactorProfile,
     SecurityAuditLog,
     Task,
     TeamMember,
@@ -428,8 +429,25 @@ class DatabaseAndAuthEndpointsTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertEqual(data["status"], "success")
-        self.assertEqual(data["user"]["role"], "admin")
+        self.assertEqual(data["status"], "requires_2fa")
+        self.assertTrue(data.get("requires_2fa"))
+        self.assertEqual(data.get("user_id"), self.user.id)
+
+        import pyotp
+        profile, _ = TwoFactorProfile.objects.get_or_create(user=self.user)
+        profile.totp_secret = pyotp.random_base32()
+        profile.is_enabled = True
+        profile.save(update_fields=["totp_secret", "is_enabled"])
+
+        verify_resp = self.client.post(
+            "/api/auth/verify-2fa/",
+            {"user_id": self.user.id, "otp_code": pyotp.TOTP(profile.totp_secret).now()},
+            format="json",
+        )
+        self.assertEqual(verify_resp.status_code, status.HTTP_200_OK)
+        verify_data = verify_resp.json()
+        self.assertEqual(verify_data["status"], "success")
+        self.assertEqual(verify_data["user"]["role"], "admin")
 
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.last_login)
@@ -706,15 +724,29 @@ class UserProfileAPITests(TestCase):
         self.assertEqual(response.data["profile"]["photo"], mock_photo)
         self.assertEqual(response.data["profile"]["phone"], "+51 987 654 321")
 
-        # Verificar que el login posterior devuelve la foto y teléfono de la base de datos
+        # Verificar que el login posterior devuelve la foto y teléfono de la base de datos tras verificar 2FA
         login_resp = self.client.post(
             "/api/auth/login/",
             {"email": self.email, "password": self.password, "role": "admin"},
             format="json",
         )
         self.assertEqual(login_resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(login_resp.data["user"]["photo"], mock_photo)
-        self.assertEqual(login_resp.data["user"]["phone"], "+51 987 654 321")
+        self.assertTrue(login_resp.data.get("requires_2fa"))
+
+        import pyotp
+        profile, _ = TwoFactorProfile.objects.get_or_create(user=self.user)
+        profile.totp_secret = pyotp.random_base32()
+        profile.is_enabled = True
+        profile.save(update_fields=["totp_secret", "is_enabled"])
+
+        verify_resp = self.client.post(
+            "/api/auth/verify-2fa/",
+            {"user_id": self.user.id, "otp_code": pyotp.TOTP(profile.totp_secret).now()},
+            format="json",
+        )
+        self.assertEqual(verify_resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(verify_resp.data["user"]["photo"], mock_photo)
+        self.assertEqual(verify_resp.data["user"]["phone"], "+51 987 654 321")
 
     def test_remove_profile_photo(self):
         # Primero guardar foto

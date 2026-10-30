@@ -15,7 +15,12 @@ import {
   Clock,
   Headphones,
 } from "lucide-react";
-import api from "../../services/api";
+import api, {
+  verify2FA,
+  setup2FA,
+  request2FAReset,
+  verify2FAReset,
+} from "../../services/api";
 import PasswordInput from "../../components/common/PasswordInput";
 
 export default function LoginScreen({ onLogin }) {
@@ -40,6 +45,19 @@ export default function LoginScreen({ onLogin }) {
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
 
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
+  // Estados para Autenticación de Dos Factores (2FA / TOTP)
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempUserId, setTempUserId] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [twoFAError, setTwoFAError] = useState('');
+  const [is2FALoading, setIs2FALoading] = useState(false);
+  const [isQrLoading, setIsQrLoading] = useState(false);
+  const [is2FASetup, setIs2FASetup] = useState(false);
+  const [isResetting2FA, setIsResetting2FA] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [isResetLoading, setIsResetLoading] = useState(false);
 
   const resetForgotState = () => {
     setForgotStep(1);
@@ -180,6 +198,20 @@ export default function LoginScreen({ onLogin }) {
         role: role,
       });
 
+      // Interceptar login de Administrador con 2FA requerido
+      if (response.data?.requires_2fa) {
+        setRequires2FA(true);
+        setTempUserId(response.data.user_id);
+        setIs2FASetup(Boolean(response.data.is_2fa_setup));
+        setIsResetting2FA(false);
+        setRecoveryCode('');
+        setOtpCode('');
+        setQrCodeData(null);
+        setTwoFAError('');
+        setIsLoading(false);
+        return;
+      }
+
       if (response.data.status === "success") {
         const userData = response.data.user;
         if (rememberMe) {
@@ -209,6 +241,118 @@ export default function LoginScreen({ onLogin }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Lógica de Verificación de 2FA
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setTwoFAError('');
+    setIs2FALoading(true);
+    try {
+      const response = await verify2FA(tempUserId, otpCode.trim());
+      if (response.status === 'success' || response.user) {
+        const userData = response.user;
+        if (rememberMe && userData) {
+          localStorage.setItem('project_planner_user', JSON.stringify(userData));
+        }
+        if (response.access) {
+          localStorage.setItem('project_planner_token', response.access);
+        }
+        onLogin(userData);
+      } else {
+        setTwoFAError(response.message || 'Código inválido. Verifica tu app de autenticación.');
+      }
+    } catch (error) {
+      setTwoFAError(
+        error.response?.data?.message || 'Código inválido o expirado. Verifica tu app de autenticación.'
+      );
+    } finally {
+      setIs2FALoading(false);
+    }
+  };
+
+  // Lógica para Configurar 2FA (obtener secreto y QR)
+  const handleSetup2FA = async () => {
+    if (!tempUserId) return;
+    setTwoFAError('');
+    setIsQrLoading(true);
+    try {
+      const response = await setup2FA(tempUserId);
+      if (response.qr_code) {
+        setQrCodeData(response.qr_code);
+      } else if (response.secret) {
+        setTwoFAError(`Secreto manual: ${response.secret}`);
+      }
+    } catch (error) {
+      console.error('Error al configurar 2FA:', error);
+      setTwoFAError(
+        error.response?.data?.message || 'No se pudo generar el código QR de configuración.'
+      );
+    } finally {
+      setIsQrLoading(false);
+    }
+  };
+
+  // Lógica para Solicitar Restablecimiento de 2FA (envío de código por correo vía Make)
+  const handleRequest2FAReset = async () => {
+    if (!tempUserId) return;
+    setTwoFAError('');
+    setIsResetLoading(true);
+    try {
+      await request2FAReset(tempUserId);
+      setIsResetting2FA(true);
+      setRecoveryCode('');
+    } catch (error) {
+      console.error('Error al solicitar recuperación de 2FA:', error);
+      setTwoFAError(
+        error.response?.data?.message ||
+          'No se pudo enviar el código de recuperación por correo. Inténtalo más tarde.'
+      );
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
+  // Lógica para Verificar Código de Recuperación y Restablecer 2FA
+  const handleVerify2FAReset = async (e) => {
+    e.preventDefault();
+    setTwoFAError('');
+    setIsResetLoading(true);
+    try {
+      const response = await verify2FAReset(tempUserId, recoveryCode.trim());
+      if (response.status === 'success' || response.message) {
+        setRequires2FA(false);
+        setIsResetting2FA(false);
+        setTempUserId(null);
+        setOtpCode('');
+        setRecoveryCode('');
+        setQrCodeData(null);
+        setTwoFAError('');
+        setSuccessMessage(
+          '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.'
+        );
+      } else {
+        setTwoFAError(response.message || 'Código de recuperación inválido.');
+      }
+    } catch (error) {
+      console.error('Error al verificar código de recuperación 2FA:', error);
+      setTwoFAError(
+        error.response?.data?.message ||
+          'Código de recuperación inválido o expirado. Inténtalo nuevamente.'
+      );
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
+  const handleCancel2FA = () => {
+    setRequires2FA(false);
+    setIsResetting2FA(false);
+    setTempUserId(null);
+    setOtpCode('');
+    setRecoveryCode('');
+    setQrCodeData(null);
+    setTwoFAError('');
   };
 
   return (
@@ -259,6 +403,209 @@ export default function LoginScreen({ onLogin }) {
               />
             </div>
           </div>
+          {requires2FA ? (
+            /* Panel 2FA - Autenticación de Dos Factores o Recuperación */
+            <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+              {isResetting2FA ? (
+                /* Subpanel: Recuperación de Cuenta por Correo (Make Webhook) */
+                <form onSubmit={handleVerify2FAReset} className="flex flex-col items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                    <Mail className="w-7 h-7 text-cyan-400" />
+                  </div>
+
+                  <div className="text-center space-y-1">
+                    <h3 className="text-xl font-bold text-white tracking-tight">
+                      Recuperación de Cuenta
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+                      Se ha enviado un código de 6 dígitos a tu correo corporativo. Ingrésalo para restablecer tu 2FA.
+                    </p>
+                  </div>
+
+                  {/* Input de código de recuperación */}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    autoFocus
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="w-52 text-center text-2xl font-mono font-bold tracking-[0.75em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                  />
+
+                  {twoFAError && (
+                    <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-xs w-full animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{twoFAError}</span>
+                    </div>
+                  )}
+
+                  {/* Botón Verificar Recuperación */}
+                  <button
+                    type="submit"
+                    disabled={recoveryCode.length !== 6 || isResetLoading}
+                    className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isResetLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <span>Restableciendo 2FA...</span>
+                      </>
+                    ) : (
+                      'Verificar Código de Recuperación'
+                    )}
+                  </button>
+
+                  {/* Reenviar código */}
+                  <button
+                    type="button"
+                    onClick={handleRequest2FAReset}
+                    disabled={isResetLoading}
+                    className="text-xs text-cyan-400/80 hover:text-cyan-300 hover:underline transition-colors cursor-pointer"
+                  >
+                    ¿No recibiste el código? Reenviar
+                  </button>
+
+                  {/* Volver a TOTP */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsResetting2FA(false);
+                      setRecoveryCode('');
+                      setTwoFAError('');
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    Volver a ingresar código TOTP
+                  </button>
+                </form>
+              ) : (
+                /* Subpanel: Verificación normal de TOTP */
+                <form onSubmit={handleVerify2FA} className="flex flex-col items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                    <ShieldCheck className="w-7 h-7 text-cyan-400" />
+                  </div>
+                  
+                  <div className="text-center space-y-1">
+                    <h3 className="text-xl font-bold text-white tracking-tight">
+                      Autenticación de Dos Factores
+                    </h3>
+                    <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+                      Ingresa el código de 6 dígitos generado por{" "}
+                      <strong className="text-slate-300">Google Authenticator</strong> o{" "}
+                      <strong className="text-slate-300">Authy</strong>.
+                    </p>
+                  </div>
+
+                  {/* Código QR generado si el admin pulsa configurar */}
+                  {qrCodeData && (
+                    <div className="w-full bg-[#080E1C] p-4 rounded-2xl border border-cyan-500/30 flex flex-col items-center gap-2.5 animate-in fade-in duration-300">
+                      <p className="text-xs font-semibold text-cyan-300 text-center">
+                        Escanea este código con tu app:
+                      </p>
+                      <img
+                        src={qrCodeData}
+                        alt="QR Code"
+                        className="mx-auto w-48 h-48 bg-white p-2 rounded-lg shadow-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setQrCodeData(null)}
+                        className="text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                      >
+                        Ocultar código QR
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Input de código de 6 dígitos */}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    autoFocus
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="w-52 text-center text-2xl font-mono font-bold tracking-[0.75em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                  />
+
+                  {twoFAError && (
+                    <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-xs w-full animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{twoFAError}</span>
+                    </div>
+                  )}
+
+                  {/* Botón principal: Verificar Código */}
+                  <button
+                    type="submit"
+                    disabled={otpCode.length !== 6 || is2FALoading}
+                    className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {is2FALoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <span>Verificando...</span>
+                      </>
+                    ) : (
+                      'Verificar Código'
+                    )}
+                  </button>
+
+                  {/* Botón secundario discreto: ¿Primera vez? Configurar Autenticador (SOLO SI NO ESTÁ CONFIGURADO) */}
+                  {!is2FASetup && !qrCodeData && (
+                    <button
+                      type="button"
+                      onClick={handleSetup2FA}
+                      disabled={isQrLoading}
+                      className="text-xs text-cyan-400/90 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {isQrLoading ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                          <span>Generando QR...</span>
+                        </>
+                      ) : (
+                        '¿Primera vez? Configurar Autenticador'
+                      )}
+                    </button>
+                  )}
+
+                  {/* Enlace de recuperación: ¿Perdiste tu dispositivo? (SOLO SI ESTÁ CONFIGURADO) */}
+                  {is2FASetup && (
+                    <button
+                      type="button"
+                      onClick={handleRequest2FAReset}
+                      disabled={isResetLoading}
+                      className="text-xs text-cyan-400/80 hover:text-cyan-300 hover:underline transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {isResetLoading ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                          <span>Enviando código al correo...</span>
+                        </>
+                      ) : (
+                        '¿Perdiste tu dispositivo?'
+                      )}
+                    </button>
+                  )}
+
+                  {/* Volver al login */}
+                  <button
+                    type="button"
+                    onClick={handleCancel2FA}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    Volver al login
+                  </button>
+                </form>
+              )}
+            </div>
+          ) : (
           <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative ">
             <div className="space-y-1 mb-8 text-left">
               <h3 className="text-2xl font-bold text-white tracking-tight">
@@ -432,6 +779,7 @@ export default function LoginScreen({ onLogin }) {
               </button>
             </form>
           </div>
+          )}
         </div>
       </main>
 
