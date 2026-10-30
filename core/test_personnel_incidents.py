@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
+from core.authentication import issue_session_token
 from core.models import (
     PersonnelIncident,
     Role,
@@ -52,7 +53,7 @@ class PersonnelIncidentWorkflowTests(APITestCase):
             email='regular.incidents@empresa.com',
             password='Regular-2026-Segura!',
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.admin)}')
         self.list_url = reverse('personnel-incident-list')
 
     def make_member(self, first_name, last_name, email, availability):
@@ -97,7 +98,7 @@ class PersonnelIncidentWorkflowTests(APITestCase):
         ).exists())
 
         reloaded_client = APIClient()
-        reloaded_client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.id}')
+        reloaded_client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.admin)}')
         response = reloaded_client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         records = response.data.get('results', []) if isinstance(response.data, dict) else response.data
@@ -107,11 +108,11 @@ class PersonnelIncidentWorkflowTests(APITestCase):
         self.assertEqual(persisted['workflow_status'], 'pending')
 
     def test_only_admin_and_subadmin_can_use_incident_endpoints(self):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.regular.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.regular)}')
         denied = self.client.post(self.list_url, self.payload(), format='json')
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
 
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.subadmin.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.subadmin)}')
         allowed = self.client.post(self.list_url, self.payload(), format='json')
         self.assertEqual(allowed.status_code, status.HTTP_201_CREATED, allowed.data)
 
@@ -356,7 +357,7 @@ class TeamMemberPermanentHistoryTests(APITestCase):
             password='Admin-2026-Segura!',
             is_staff=True,
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.admin)}')
 
     def test_manual_update_creates_persistent_auditable_history(self):
         response = self.client.patch(
@@ -378,7 +379,7 @@ class TeamMemberPermanentHistoryTests(APITestCase):
         self.assertIn('Apoyo temporal', log.comment)
 
         reloaded_client = APIClient()
-        reloaded_client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.id}')
+        reloaded_client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.admin)}')
         history = reloaded_client.get(
             reverse('team-member-change-log-list'),
             {'member': self.member.id, 'source': 'manual'},

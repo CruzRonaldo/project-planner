@@ -153,8 +153,10 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
     assert.ok(techDialogHtml.includes('aria-label="Ver contraseña"'));
     assert.ok(techDialogHtml.includes('aria-label="Ver confirmación de contraseña"'));
 
-    // 3. projectsApi tiene método changePassword definido
+    // 3. projectsApi permite verificar primero la clave actual y luego cambiarla
+    assert.equal(typeof projectsApi.verifyCurrentPassword, 'function');
     assert.equal(typeof projectsApi.changePassword, 'function');
+    assert.equal(typeof projectsApi.validateSession, 'function');
   } finally {
     await server.close();
   }

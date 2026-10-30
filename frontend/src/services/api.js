@@ -28,20 +28,22 @@ const api = axios.create({
   },
 });
 
-// Interceptor para inyectar automáticamente la cabecera de autenticación Bearer del usuario
-api.interceptors.request.use((config) => {
+// Inyecta el token firmado de la sesión activa en las solicitudes protegidas.
+api.interceptors.request.use((requestConfig) => {
+  if (typeof window === 'undefined') return requestConfig;
+
   try {
-    const userStr = typeof window !== 'undefined' ? localStorage.getItem('project_planner_user') : null;
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user && user.id && !config.headers.Authorization) {
-        config.headers.Authorization = `Bearer ${user.id}`;
-      }
+    const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user') || 'null');
+    const sessionToken = savedUser?.session_token;
+    if (sessionToken && !requestConfig.headers?.Authorization) {
+      requestConfig.headers = requestConfig.headers || {};
+      requestConfig.headers.Authorization = `Bearer ${sessionToken}`;
     }
-  } catch (err) {
-    // Silencioso ante errores de almacenamiento
+  } catch {
+    // Una sesión local dañada será tratada por el controlador de la aplicación.
   }
-  return config;
+
+  return requestConfig;
 });
 
 /**
@@ -91,6 +93,5 @@ export const verify2FAReset = async (userId, code) => {
   });
   return response.data;
 };
-
 export { baseURL };
 export default api;
