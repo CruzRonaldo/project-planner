@@ -95,3 +95,53 @@ test('La vista operativa y su modal están disponibles y son responsive', async 
     await server.close();
   }
 });
+
+test('normalizeCriticalActivities normaliza camelCase, snake_case, formato legado y objetos vacios sin mutar', async () => {
+  const { normalizeCriticalActivities } = await import('../src/utils/operations.js');
+  const { getBarGeometry } = await import('../src/utils/gantt.js');
+
+  const rawInput = [
+    { id: 'act-camel', name: 'CamelCase', startDate: '2026-03-01', endDate: '2026-05-30' },
+    { id: 'act-snake', name: 'SnakeCase', start_date: '2026-04-10', end_date: '2026-06-20' },
+    { id: 'act-legacy', name: 'Legacy', start: 1, duration: 3 },
+    { id: 'act-empty', name: 'Sin fechas' },
+    { id: 'act-overflow', name: 'Desborde semestral', start: 5, duration: 4 },
+  ];
+  const inputCopy = JSON.parse(JSON.stringify(rawInput));
+
+  const normalized = normalizeCriticalActivities(rawInput, 2026);
+
+  // 1. Inmutabilidad: el array original no cambia
+  assert.deepEqual(rawInput, inputCopy);
+
+  // 2. camelCase respetado
+  assert.equal(normalized[0].startDate, '2026-03-01');
+  assert.equal(normalized[0].endDate, '2026-05-30');
+
+  // 3. snake_case mapeado
+  assert.equal(normalized[1].startDate, '2026-04-10');
+  assert.equal(normalized[1].endDate, '2026-06-20');
+
+  // 4. Legado puente
+  assert.equal(normalized[2].startDate, '2026-01-01');
+  assert.equal(normalized[2].endDate, '2026-03-31');
+
+  // 5. Sin fechas utilizables queda con null
+  assert.equal(normalized[3].startDate, null);
+  assert.equal(normalized[3].endDate, null);
+
+  // 6. Actividad que desborda el semestre (Mayo a Agosto en ventana Ene-Jun = 6 meses)
+  assert.equal(normalized[4].startDate, '2026-05-01');
+  assert.equal(normalized[4].endDate, '2026-08-31');
+  const overflowGeom = getBarGeometry({
+    startDate: normalized[4].startDate,
+    endDate: normalized[4].endDate,
+    windowStart: '2026-01-01',
+    windowMonths: 6,
+  });
+  assert.ok(overflowGeom !== null);
+  assert.equal(Math.round(overflowGeom.leftPct * 100) / 100, 66.67);
+  assert.equal(Math.round(overflowGeom.widthPct * 100) / 100, 33.33);
+  assert.equal(overflowGeom.clippedLeft, false);
+  assert.equal(overflowGeom.clippedRight, true);
+});

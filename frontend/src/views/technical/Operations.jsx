@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -21,6 +21,7 @@ import {
   buildWorkOrdersCsv,
   createWorkOrder,
   filterWorkOrders,
+  normalizeCriticalActivities,
 } from '../../utils/operations';
 import { createOperationsData } from '../../mocks/operationsData';
 
@@ -58,12 +59,16 @@ export default function Operations({
       : hideMocks
         ? []
         : defaultMockData.orders;
-  const activitiesList =
+  const rawActivities =
     data?.activities && data.activities.length > 0
       ? data.activities
       : hideMocks
         ? []
         : defaultMockData.activities;
+  const activitiesList = useMemo(
+    () => normalizeCriticalActivities(rawActivities),
+    [rawActivities]
+  );
   const alertsList =
     data?.alerts && data.alerts.length > 0
       ? data.alerts

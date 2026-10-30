@@ -1,4 +1,5 @@
 import { operationTypes, operationalAreas, workOrderPriorities } from '../constants/operations.js';
+import { legacyMonthRangeToDates } from './gantt.js';
 
 function normalizeText(value) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -83,4 +84,36 @@ export function buildWorkOrdersCsv(orders = []) {
   const header = ['ID', 'Proyecto', 'Tipo', 'Título', 'Área', 'Responsable', 'Prioridad', 'Estado', 'Inicio', 'Límite'];
   const rows = (orders || []).map((order) => [order.code, order.project, order.type, order.title, order.area, order.responsible, order.priority, order.status, order.startDate, order.endDate].map(escapeCsv).join(','));
   return [header.join(','), ...rows].join('\n');
+}
+
+/**
+ * Normaliza actividades críticas para el cronograma de operaciones.
+ * DEUDA TÉCNICA: Si el backend añade endpoints con startDate/endDate reales para actividades,
+ * se usarán de forma nativa. Mientras tanto, si solo existen start y duration numéricos,
+ * se genera el rango ISO usando el año actual como puente.
+ *
+ * @param {Array} activities - Lista de actividades
+ * @param {number} [year=new Date().getFullYear()] - Año de referencia
+ * @returns {Array} Actividades normalizadas con startDate y endDate garantizados sin mutar el origen
+ */
+export function normalizeCriticalActivities(activities = [], year = new Date().getFullYear()) {
+  return (activities || []).map((activity) => {
+    const sDate = activity.startDate || activity.start_date;
+    const eDate = activity.endDate || activity.end_date;
+
+    let startDate = sDate ? String(sDate).slice(0, 10) : null;
+    let endDate = eDate ? String(eDate).slice(0, 10) : null;
+
+    if (!startDate && !endDate && activity.start) {
+      const bridge = legacyMonthRangeToDates(activity.start, activity.duration, year);
+      startDate = bridge.startDate;
+      endDate = bridge.endDate;
+    }
+
+    return {
+      ...activity,
+      startDate,
+      endDate,
+    };
+  });
 }
