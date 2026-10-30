@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Folder,
   CheckSquare,
@@ -10,11 +10,13 @@ import {
 import KpiCard from '../../components/common/KpiCard';
 import { cardClass } from '../../constants/themeClasses';
 import { formatMoney } from '../../utils/format';
+import { getBarGeometry, getRollingWindow, legacyMonthRangeToDates } from '../../utils/gantt';
 
 export default function DashboardContent({
   portfolioData,
   strategicPlanningData,
   onNavigate,
+  referenceDate = new Date(),
 }) {
   const projects = portfolioData?.projects || [];
   const milestones = strategicPlanningData?.milestones || [];
@@ -46,8 +48,54 @@ export default function DashboardContent({
     (p) => p.status === 'risk' || p.status === 'paused'
   );
 
-  // Meses del primer semestre para la vista de Gantt
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+  // Ventana móvil semestral (6 meses desde el mes actual o de referencia)
+  const rolling = useMemo(
+    () => getRollingWindow(referenceDate, 6, 0),
+    [referenceDate]
+  );
+  const { windowStart, windowMonths, months } = rolling;
+  const isSameYear = months[0].year === months[months.length - 1].year;
+  const windowLabel = isSameYear
+    ? `${months[0].short} – ${months[months.length - 1].short} ${months[0].year}`
+    : `${months[0].short} ${months[0].year} – ${months[months.length - 1].short} ${months[months.length - 1].year}`;
+
+  const colors = [
+    '#0ea5e9',
+    '#10b981',
+    '#f59e0b',
+    '#8b5cf6',
+    '#3b82f6',
+  ];
+
+  const visibleProjects = useMemo(() => {
+    return projects
+      .map((project, idx) => {
+        const sDate = project.startDate || project.start_date;
+        const eDate = project.endDate || project.end_date;
+        let dates = { startDate: sDate, endDate: eDate };
+        if (!dates.startDate || !dates.endDate) {
+          dates = legacyMonthRangeToDates(project.start, project.duration, months[0].year);
+        }
+
+        const geom = getBarGeometry({
+          startDate: dates.startDate,
+          endDate: dates.endDate,
+          windowStart,
+          windowMonths,
+        });
+
+        if (!geom) return null;
+
+        const barColor = project.color || colors[idx % colors.length];
+
+        return {
+          ...project,
+          geom,
+          barColor,
+        };
+      })
+      .filter(Boolean);
+  }, [projects, windowStart, windowMonths, months]);
 
   return (
     <main className="flex-1 overflow-y-auto p-4 md:p-6 transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
@@ -114,10 +162,10 @@ export default function DashboardContent({
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-100">
-                  Calendario de Proyectos 2026
+                  Calendario de Proyectos ({windowLabel})
                 </h3>
                 <p className="text-xs mt-1 text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                  Fases operativas críticas por trimestre
+                  Fases operativas críticas para los próximos 6 meses
                 </p>
               </div>
               {onNavigate && (
@@ -134,9 +182,12 @@ export default function DashboardContent({
             <div className="relative overflow-x-auto">
               <div className="min-w-[600px]">
                 <div className="flex text-xs mb-4 border-b pb-2 ml-[160px] text-slate-500 dark:text-gray-500 border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30">
-                  {months.map((mes) => (
-                    <div key={mes} className="flex-1 text-center">
-                      {mes}
+                  {months.map((m) => (
+                    <div key={m.key} className="flex-1 text-center font-medium">
+                      <span>{m.short}</span>
+                      {m.year !== months[0].year && (
+                        <span className="ml-0.5 text-[10px] opacity-75 font-mono">'{String(m.year).slice(2)}</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -160,20 +211,46 @@ export default function DashboardContent({
                       </button>
                     )}
                   </div>
+                ) : visibleProjects.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                    <Calendar size={28} className="mx-auto mb-2 opacity-40" />
+                    <p className="font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-100">
+                      Sin proyectos activos en esta ventana temporal
+                    </p>
+                    <p className="mt-1">
+                      Los proyectos registrados están programados fuera del periodo ({windowLabel}).
+                    </p>
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('planning')}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
+                      >
+                        Ver Planificación Anual
+                      </button>
+                    )}
+                  </div>
                 ) : (
-                  <div className="space-y-5">
-                    {projects.slice(0, 5).map((project, i) => {
-                      const colors = [
-                        'bg-cyan-400',
-                        'bg-green-500',
-                        'bg-orange-500',
-                        'bg-[#b388ff]',
-                        'bg-blue-500',
-                      ];
-                      const bg = colors[i % colors.length];
+                  <div className="space-y-4">
+                    {visibleProjects.slice(0, 5).map((project, i) => {
+                      const { geom, barColor } = project;
+                      const isClippedLeft = Boolean(geom.clippedLeft);
+                      const isClippedRight = Boolean(geom.clippedRight);
+
+                      const roundedClass = isClippedLeft && isClippedRight
+                        ? 'rounded-none border-x-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
+                        : isClippedLeft
+                          ? 'rounded-r-md rounded-l-none border-l-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
+                          : isClippedRight
+                            ? 'rounded-l-md rounded-r-none border-r-2 border-dashed border-slate-800/40 dark:border-white/80 midnight:border-cyan-300/80'
+                            : 'rounded-md';
+
+                      const hasProgress = project.progress !== undefined && project.progress !== null && !isNaN(Number(project.progress));
+                      const progressVal = Math.min(100, Math.max(0, Number(project.progress) || 0));
+
                       return (
-                        <div key={project.id || i} className="flex items-center">
-                          <div className="w-[160px] shrink-0 pr-2">
+                        <div key={project.id || i} className="flex items-center" aria-label={`Cronograma de ${project.name}`}>
+                          <div className="w-[160px] shrink-0 pr-3">
                             <p className="truncate text-sm font-medium text-slate-900 dark:text-white midnight:text-cyan-50">
                               {project.name}
                             </p>
@@ -182,14 +259,56 @@ export default function DashboardContent({
                             </p>
                           </div>
                           <div className="flex-1 relative h-7 rounded bg-slate-100 dark:bg-[#0d1117] midnight:bg-cyan-950/50">
+                            {/* Cuadrícula de 6 columnas */}
+                            <div className="absolute inset-0 grid grid-cols-6 divide-x divide-slate-200/60 dark:divide-white/5 midnight:divide-cyan-900/20">
+                              {Array.from({ length: 6 }).map((_, colIdx) => (
+                                <div key={colIdx} className="h-full w-full" />
+                              ))}
+                            </div>
+
+                            {/* Barra del proyecto con geometría calculada */}
                             <div
-                              className={`absolute h-full ${bg} rounded flex items-center justify-center text-xs font-bold text-slate-900 px-2 shadow-sm whitespace-nowrap overflow-hidden`}
+                              className={`absolute inset-y-0.5 flex items-center shadow-sm overflow-hidden min-w-0 ${roundedClass}`}
                               style={{
-                                left: `${(i * 15) % 40}%`,
-                                width: `${Math.max(30, project.progress || 40)}%`,
+                                left: `${geom.leftPct}%`,
+                                width: `${geom.widthPct}%`,
+                                backgroundColor: barColor,
                               }}
                             >
-                              {project.progress ? `${project.progress}%` : 'En curso'}
+                              {/* Relleno interno de avance */}
+                              <div
+                                className="absolute inset-y-0 left-0 bg-black/15 dark:bg-black/25 pointer-events-none"
+                                style={{ width: `${progressVal}%` }}
+                              />
+
+                              {/* Texto y flechas de continuación */}
+                              <div className="relative z-10 flex items-center justify-between w-full px-1.5 text-[10px] font-bold text-white min-w-0 gap-0.5">
+                                {isClippedLeft ? (
+                                  <span
+                                    className="shrink-0 rounded bg-black/30 px-1 py-0.2 text-[8px] font-mono leading-none"
+                                    title="Inició antes de esta ventana"
+                                  >
+                                    ◀
+                                  </span>
+                                ) : (
+                                  <span />
+                                )}
+
+                                <span className="truncate text-[9px] min-w-0 font-medium">
+                                  {hasProgress ? `${progressVal}%` : 'En curso'}
+                                </span>
+
+                                {isClippedRight ? (
+                                  <span
+                                    className="shrink-0 rounded bg-black/30 px-1 py-0.2 text-[8px] font-mono leading-none"
+                                    title="Continúa después de esta ventana"
+                                  >
+                                    ▶
+                                  </span>
+                                ) : (
+                                  <span />
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

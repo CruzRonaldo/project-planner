@@ -6,7 +6,11 @@ import {
   legacyMonthRangeToDates,
   getBarGeometry,
   getMilestoneGeometry,
+  getRollingWindow,
 } from '../src/utils/gantt.js';
+import { createServer } from 'vite';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   evaluateProjectGovernance,
   GOVERNANCE_BUDGET_THRESHOLD,
@@ -159,4 +163,97 @@ test('evaluateProjectGovernance: Aplica umbral de $100k y genera metadatos', () 
   assert.equal(high.isRequired, true);
   assert.equal(high.badgeText, 'Comité (>$100k)');
   assert.equal(high.approvalType, 'Revisión por Comité Directivo');
+});
+
+test('getRollingWindow genera ventana semestral con cruce de año y nombres de meses', () => {
+  // Octubre 2026 -> Oct 2026 a Mar 2027
+  const rolling = getRollingWindow('2026-10-15', 6, 0);
+  assert.equal(rolling.windowStart, '2026-10-01');
+  assert.equal(rolling.windowMonths, 6);
+  assert.equal(rolling.months.length, 6);
+  assert.deepEqual(
+    rolling.months.map((m) => m.short),
+    ['Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar']
+  );
+  assert.deepEqual(
+    rolling.months.map((m) => m.year),
+    [2026, 2026, 2026, 2027, 2027, 2027]
+  );
+  assert.equal(rolling.months[0].label, 'Oct 2026');
+  assert.equal(rolling.months[3].label, 'Ene 2027');
+});
+
+test('DashboardContent renderiza calendario con ventana móvil y geometría real con Vite SSR', async () => {
+  const server = await createServer({
+    server: { middlewareMode: true, hmr: false },
+    appType: 'custom',
+  });
+
+  try {
+    const { default: DashboardContent } = await server.ssrLoadModule('/src/views/common/DashboardContent.jsx');
+
+    const portfolioData = {
+      projects: [
+        {
+          id: 1,
+          name: 'Edificio Central',
+          area: 'Arquitectura',
+          progress: 65,
+          startDate: '2026-10-01',
+          endDate: '2026-12-31',
+        },
+        {
+          id: 2,
+          name: 'Autopista Sur',
+          area: 'Civil',
+          progress: 30,
+          startDate: '2026-08-01',
+          endDate: '2026-11-30',
+        },
+        {
+          id: 3,
+          name: 'Proyecto Futuro',
+          area: 'Sistemas',
+          progress: 0,
+          startDate: '2027-08-01',
+          endDate: '2027-12-31',
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(DashboardContent, {
+        portfolioData,
+        strategicPlanningData: { milestones: [] },
+        referenceDate: new Date('2026-10-15T00:00:00'),
+      })
+    );
+
+    // Cabecera con ventana móvil Oct 2026 – Mar 2027
+    assert.ok(html.includes('Calendario de Proyectos (Oct 2026 – Mar 2027)'));
+    assert.ok(html.includes('Fases operativas críticas para los próximos 6 meses'));
+
+    // Columnas de meses (Oct, Nov, Dic, Ene '27, Feb '27, Mar '27)
+    assert.ok(html.includes('>Oct<'));
+    assert.ok(html.includes('>Nov<'));
+    assert.ok(html.includes('>Dic<'));
+    assert.ok(html.includes('>Ene<'));
+    assert.ok(html.includes('&#x27;27') || html.includes("'27"));
+
+    // Proyectos visibles dentro de la ventana del Gantt
+    assert.ok(html.includes('aria-label="Cronograma de Edificio Central"'));
+    assert.ok(html.includes('aria-label="Cronograma de Autopista Sur"'));
+    // Proyecto futuro fuera de la ventana NO debe tener barra en el cronograma
+    assert.ok(!html.includes('aria-label="Cronograma de Proyecto Futuro"'));
+
+    // Flecha de continuación para Autopista Sur (inició en agosto, antes de octubre)
+    assert.ok(html.includes('title="Inició antes de esta ventana"'));
+    assert.ok(html.includes('◀'));
+
+    // Progreso mostrado
+    assert.ok(html.includes('65%'));
+    assert.ok(html.includes('30%'));
+  } finally {
+    await server.close();
+  }
 });

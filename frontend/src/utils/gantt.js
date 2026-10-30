@@ -110,3 +110,45 @@ export function getMilestoneGeometry({ targetDate, windowStart, windowMonths = 1
     leftPct: Math.min(98, Math.max(2, rawPct)),
   };
 }
+
+const SHORT_MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+
+/**
+ * Genera la configuración de una ventana temporal móvil o fija.
+ * @param {Date|string} [referenceDate=new Date()] - Fecha de referencia (ej. hoy)
+ * @param {number} [windowMonths=6] - Cantidad de meses de la ventana
+ * @param {number} [monthsBack=0] - Meses hacia atrás desde la fecha de referencia
+ * @returns {{ windowStart: string, windowMonths: number, months: Array<{ index: number, key: string, label: string, short: string, year: number, month: number }> }}
+ */
+export function getRollingWindow(referenceDate = new Date(), windowMonths = 6, monthsBack = 0) {
+  const ref = parseISODate(referenceDate) || (referenceDate instanceof Date ? referenceDate : new Date());
+  const refIdx = Number.isNaN(ref.getTime()) ? monthIndex(new Date()) : monthIndex(ref);
+  const startMonthIndex = refIdx - (Number(monthsBack) || 0);
+  const count = Number(windowMonths) > 0 ? Number(windowMonths) : 6;
+
+  const startYear = Math.floor(startMonthIndex / 12);
+  const startMonth = ((startMonthIndex % 12) + 12) % 12;
+  const windowStart = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-01`;
+
+  const months = [];
+  for (let i = 0; i < count; i++) {
+    const curIdx = startMonthIndex + i;
+    const y = Math.floor(curIdx / 12);
+    const m = ((curIdx % 12) + 12) % 12;
+    months.push({
+      index: i,
+      key: `${y}-${String(m + 1).padStart(2, '0')}`,
+      label: `${SHORT_MONTH_NAMES[m]} ${y}`,
+      short: SHORT_MONTH_NAMES[m],
+      year: y,
+      month: m + 1,
+    });
+  }
+
+  return {
+    windowStart,
+    windowMonths: count,
+    months,
+  };
+}
+
