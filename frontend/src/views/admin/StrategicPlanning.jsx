@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { FileDown, Flag, History, MoreVertical, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
-import AdjustScheduleDialog from './components/AdjustScheduleDialog';
-import NewGlobalMilestoneDialog from './components/NewGlobalMilestoneDialog';
+import { FileDown, MoreVertical, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
+import {
+  GanttScheduleSection,
+  ScheduleAdjustmentsSection,
+  AdjustScheduleDialog,
+  NewGlobalMilestoneDialog,
+} from './components';
 import Select from '../../components/common/Select';
 import Pagination from '../../components/common/Pagination';
 import { getYearOptions } from '../../utils/format';
@@ -345,122 +349,27 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         </section>
 
         {/* CONTENEDOR DEL GANTT */}
-        <section className={`${cardClass} overflow-hidden p-0 md:p-0 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
-          <div className="overflow-x-auto p-5 md:p-6 print:p-3 print:overflow-visible">
-            <div className="min-w-[820px] print:min-w-full">
-              <div className="grid grid-cols-[220px_1fr] border-b border-slate-200 pb-3 transition-colors duration-300 dark:border-white/10 midnight:border-cyan-900/30">
-                <div />
-                <div className="grid grid-cols-12">
-                  {months.map((month) => (
-                    <span key={month} className={`text-center text-[11px] font-medium ${mutedClass}`}>{month}</span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-4">
-                {displayedProjects.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                    No hay proyectos registrados en el calendario anual para la selección actual.
-                  </div>
-                ) : (
-                  displayedProjects.map((project) => {
-                    const projectBudget = Number(project.totalBudget) || Number(project.budget) || 0;
-                    const isAbove100k = projectBudget > 100000;
-                    const projectMilestones = milestones.filter(
-                      (m) => String(m.projectId) === String(project.id) || String(m.project) === String(project.id)
-                    );
-
-                    return (
-                    <div key={project.name} className="grid min-h-12 grid-cols-[220px_1fr] items-center">
-                      <div className="pr-5">
-                        <div className="flex items-center gap-1.5">
-                          <p className={`text-sm font-semibold truncate ${headingClass}`}>{project.name}</p>
-                          {project.code && (
-                            <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 font-mono text-[9px] text-slate-600 dark:bg-slate-800 dark:text-slate-400 midnight:bg-cyan-950 midnight:text-cyan-400">
-                              {project.code}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                          <p className={`text-[10px] ${mutedClass}`}>{project.area}</p>
-                          {isAbove100k ? (
-                            <span
-                              className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[8px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 midnight:border-amber-500/30 midnight:bg-amber-500/10 midnight:text-amber-300"
-                              title="Presupuesto > $100k: Requiere revisión y dictamen por Comité Directivo"
-                            >
-                              Comité (&gt;$100k)
-                            </span>
-                          ) : (
-                            <span
-                              className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.2 text-[8px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-500/30 midnight:bg-cyan-500/10 midnight:text-cyan-300"
-                              title="Presupuesto ≤ $100k: Aprobación directa por Líder Técnico"
-                            >
-                              Líder (≤$100k)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="relative h-9 rounded-md bg-slate-50 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950/30">
-                        {/* CUADRÍCULA DE LÍNEAS NATIVAS */}
-                        <div className="absolute inset-0 grid grid-cols-12 divide-x divide-slate-200 transition-colors duration-300 dark:divide-white/5 midnight:divide-cyan-900/30">
-                          {Array.from({ length: 12 }).map((_, i) => (
-                            <div key={i} className="h-full w-full"></div>
-                          ))}
-                        </div>
-
-                        {/* BARRA PRINCIPAL DEL PROYECTO */}
-                        <div
-                          className="absolute inset-y-0.5 flex items-center rounded-md px-3 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
-                          style={{
-                            left: `${((project.start - 1) / 12) * 100}%`,
-                            width: `${(project.duration / 12) * 100}%`,
-                            backgroundColor: project.color,
-                          }}
-                        >
-                          <span className="flex-1 truncate text-center">{project.period}</span>
-                          {canManage && <button type="button" onClick={() => { setAdjustingProjectId(project.id); setDialogOpen(true); }} aria-label={`Ajustar calendario de ${project.name}`} title="Ajustar calendario" className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white no-print print:hidden"><SlidersHorizontal size={11} /></button>}
-                        </div>
-
-                        {/* HITOS ASOCIADOS EN EL CRONOGRAMA */}
-                        {projectMilestones.map((m) => {
-                          const mDate = new Date(`${m.targetDate}T00:00:00`);
-                          const mMonth = !isNaN(mDate.getTime()) ? mDate.getMonth() + 1 : project.start;
-                          const mDay = !isNaN(mDate.getTime()) ? mDate.getDate() : 15;
-                          const leftPct = Math.min(98, Math.max(2, (((mMonth - 1) + (mDay / 31)) / 12) * 100));
-                          const mStatus = (m.status || '').toLowerCase();
-                          const isDone = mStatus === 'completed';
-                          const isUp = mStatus === 'upcoming' || mStatus === 'in_progress';
-                          const markerBg = isDone ? 'bg-emerald-500 border-white text-white' : isUp ? 'bg-blue-500 border-white text-white' : 'bg-amber-500 border-white text-white';
-
-                          return (
-                            <div
-                              key={m.id}
-                              className="group absolute -top-1.5 z-20 flex -translate-x-1/2 flex-col items-center cursor-pointer"
-                              style={{ left: `${leftPct}%` }}
-                              onClick={() => showToast({ title: m.title, message: `${formatMilestoneDate(m.targetDate)} · Estado: ${m.status}`, type: 'info' })}
-                            >
-                              <span
-                                aria-label={`Hito: ${m.title}`}
-                                className={`flex h-5 w-5 items-center justify-center rounded-full border-2 shadow-md transition-transform duration-150 group-hover:scale-125 ${markerBg}`}
-                              >
-                                <Flag size={9} className="fill-current" />
-                              </span>
-                              <div className="pointer-events-none absolute bottom-full mb-1.5 hidden flex-col items-center rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] text-white shadow-xl transition-all group-hover:flex z-30 whitespace-nowrap dark:border-slate-600 dark:bg-slate-800">
-                                <span className="font-semibold">{m.title}</span>
-                                <span className="text-[9px] text-slate-300">{formatMilestoneDate(m.targetDate)}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ); })
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
+        <GanttScheduleSection
+          displayedProjects={displayedProjects}
+          months={months}
+          milestones={milestones}
+          canManage={canManage}
+          headingClass={headingClass}
+          mutedClass={mutedClass}
+          cardClass={cardClass}
+          onAdjustProject={(id) => {
+            setAdjustingProjectId(id);
+            setDialogOpen(true);
+          }}
+          onMilestoneClick={(m) => {
+            showToast({
+              title: m.title,
+              message: `${formatMilestoneDate(m.targetDate)} · Estado: ${m.status}`,
+              type: 'info',
+            });
+          }}
+          formatMilestoneDate={formatMilestoneDate}
+        />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
           
@@ -678,89 +587,17 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         </div>
 
         {/* HISTORIAL DE AUDITORÍA Y REAJUSTES DE CRONOGRAMA */}
-        <section
-          className={`min-w-0 overflow-hidden ${cardClass} print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}
-          aria-labelledby="audit-history-title"
-        >
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-4 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/15 midnight:text-cyan-300">
-                <History size={16} />
-              </div>
-              <div>
-                <h2 id="audit-history-title" className={`text-base font-semibold ${headingClass}`}>
-                  Historial de Reajustes de Cronograma
-                </h2>
-                <p className={`mt-0.5 text-xs ${mutedClass}`}>
-                  Registro de modificaciones de plazos, prórrogas y motivos de gobernanza
-                </p>
-              </div>
-            </div>
-            <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-300">
-              {displayedAdjustments.length} {displayedAdjustments.length === 1 ? 'registro' : 'registros'}
-            </span>
-          </header>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-semibold text-slate-500 dark:border-[#30363d] dark:bg-[#0d1117]/60 dark:text-slate-400 midnight:border-cyan-900/30 midnight:bg-[#050B14]/80 midnight:text-cyan-500">
-                  <th className="px-4 py-3 sm:px-6">Fecha</th>
-                  <th className="px-4 py-3 sm:px-6">Proyecto</th>
-                  <th className="px-4 py-3 sm:px-6">Periodo Anterior</th>
-                  <th className="px-4 py-3 sm:px-6">Nuevo Periodo</th>
-                  <th className="px-4 py-3 sm:px-6">Motivo del Reajuste</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedAdjustments.map((adj) => (
-                  <tr
-                    key={adj.id}
-                    className="border-b border-slate-200 last:border-0 transition-colors hover:bg-slate-50/50 dark:border-[#30363d] dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20"
-                  >
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600 dark:text-slate-300 midnight:text-cyan-100 sm:px-6">
-                      {new Date(`${adj.date}T12:00:00`).toLocaleDateString('es-PE', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-cyan-700 dark:text-blue-400 midnight:text-cyan-400 sm:px-6">
-                      {adj.projectName}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-400 line-through dark:text-slate-500 midnight:text-cyan-600 sm:px-6">
-                      {adj.previousPeriod}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300 sm:px-6">
-                      {adj.nextPeriod}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90 sm:px-6">
-                      {adj.reason}
-                    </td>
-                  </tr>
-                ))}
-                {!displayedAdjustments.length && (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                      No hay reajustes de cronograma registrados en este ejercicio.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
-            <Pagination
-              currentPage={currentAdjustmentPage}
-              totalPages={totalAdjustmentPages}
-              totalItems={displayedAdjustments.length}
-              pageSize={adjustmentPageSize}
-              itemLabel="reajustes"
-              onPageChange={setAdjustmentPage}
-              hideOnSinglePage={true}
-            />
-          </div>
-        </section>
+        <ScheduleAdjustmentsSection
+          displayedAdjustments={displayedAdjustments}
+          paginatedAdjustments={paginatedAdjustments}
+          currentPage={currentAdjustmentPage}
+          totalPages={totalAdjustmentPages}
+          pageSize={adjustmentPageSize}
+          onPageChange={setAdjustmentPage}
+          cardClass={cardClass}
+          headingClass={headingClass}
+          mutedClass={mutedClass}
+        />
       </div>
       {dialogOpen && canManage && <AdjustScheduleDialog data={data} initialProjectId={adjustingProjectId} onSubmit={saveSchedule} onClose={() => setDialogOpen(false)} />}
       {milestoneDialogOpen && canManage && <NewGlobalMilestoneDialog data={data} onSubmit={saveMilestone} onClose={() => setMilestoneDialogOpen(false)} />}
