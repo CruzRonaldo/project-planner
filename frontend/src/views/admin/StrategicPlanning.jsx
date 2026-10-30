@@ -75,8 +75,23 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
   const displayedAdjustments = useMemo(() => {
     if (!activeProject) return adjustments;
-    return adjustments.filter((adj) => String(adj.projectId) === String(activeProject.id));
+    return adjustments.filter(
+      (adj) =>
+        String(adj.projectId) === String(activeProject.id) ||
+        String(adj.projectId) === String(activeProject.code)
+    );
   }, [adjustments, activeProject]);
+
+  const [adjustmentPage, setAdjustmentPage] = useState(1);
+  const adjustmentPageSize = 5;
+  const totalAdjustmentPages = Math.max(1, Math.ceil(displayedAdjustments.length / adjustmentPageSize));
+  const currentAdjustmentPage = Math.min(adjustmentPage, totalAdjustmentPages);
+  const paginatedAdjustments = useMemo(() => {
+    return displayedAdjustments.slice(
+      (currentAdjustmentPage - 1) * adjustmentPageSize,
+      currentAdjustmentPage * adjustmentPageSize
+    );
+  }, [displayedAdjustments, currentAdjustmentPage]);
 
   const targetProjectsForBudget = activeProject ? [activeProject] : projects;
 
@@ -300,7 +315,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               {/* SELECTOR DE PROYECTO */}
               <Select
                 value={selectedProjectFilter}
-                onChange={(e) => { setSelectedProjectFilter(e.target.value); setMilestonePage(1); }}
+                onChange={(e) => { setSelectedProjectFilter(e.target.value); setMilestonePage(1); setAdjustmentPage(1); }}
                 aria-label="Filtrar por proyecto"
                 className="max-w-[220px] truncate"
                 options={[
@@ -698,7 +713,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </tr>
               </thead>
               <tbody>
-                {displayedAdjustments.map((adj) => (
+                {paginatedAdjustments.map((adj) => (
                   <tr
                     key={adj.id}
                     className="border-b border-slate-200 last:border-0 transition-colors hover:bg-slate-50/50 dark:border-[#30363d] dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20"
@@ -733,6 +748,17 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-6">
+            <Pagination
+              currentPage={currentAdjustmentPage}
+              totalPages={totalAdjustmentPages}
+              totalItems={displayedAdjustments.length}
+              pageSize={adjustmentPageSize}
+              itemLabel="reajustes"
+              onPageChange={setAdjustmentPage}
+              hideOnSinglePage={true}
+            />
           </div>
         </section>
       </div>

@@ -1,813 +1,28 @@
 import React, { useEffect, useState } from "react";
-import {
-  CalendarDays,
-  Cloud,
-  ExternalLink,
-  FolderPlus,
-  Lock,
-  Pencil,
-  Save,
-  Trash2,
-  Video,
-  X,
-} from "lucide-react";
+import { Cloud, FolderPlus } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
-import { projectAreas, projectLeaders, projectStatuses } from "../../constants/portfolio";
-import {
-  createProjectCode,
-  filterPortfolio,
-  formatMoney,
-  formatProjectTerm,
-  getProjectDuration,
-} from "../../utils/portfolio";
+import { projectStatuses } from "../../constants/portfolio";
+import { filterPortfolio } from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
-import ModalDialog from "../../components/common/ModalDialog";
-import {
-  inputClass,
-  cardClass,
-  secondaryButtonClass,
-  labelClass,
-} from "../../constants/themeClasses";
+import Pagination from "../../components/common/Pagination";
+import { cardClass } from "../../constants/themeClasses";
 import ProjectDetail from "../projects/ProjectDetail";
+import {
+  ProjectCard,
+  NewProjectDialog,
+  EditProjectDialog,
+  ConfirmDeleteDialog,
+} from "./components";
+
+export { NewProjectDialog, EditProjectDialog, ConfirmDeleteDialog, ProjectCard };
+
+const PROJECTS_PER_PAGE = 6;
+const CHANGES_PER_PAGE = 5;
 
 const filters = [
   { id: "all", label: "Todos" },
   ...projectStatuses.map((status) => ({ id: status.id, label: status.label })),
 ];
-
-function statusDetails(status) {
-  return (
-    projectStatuses.find((item) => item.id === status) || {
-      id: status,
-      label: status,
-      className:
-        "bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300 midnight:bg-cyan-900/30 midnight:text-cyan-500/70",
-      barClass: "bg-cyan-500",
-    }
-  );
-}
-
-function isoDate(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function ProjectCard({ project, onEdit, onDelete, onOpenMeetings, canManage, isProjectLeader }) {
-  const status = statusDetails(project.status);
-  return (
-    <article className={`${cardClass} p-5`}>
-      <header className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-700 dark:text-blue-400 midnight:text-cyan-400">
-              {project.code}
-            </p>
-            {isProjectLeader && (
-              <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300 midnight:bg-cyan-900/50 midnight:text-cyan-200">
-                Tu Liderazgo
-              </span>
-            )}
-          </div>
-          <h2 className="truncate text-base font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-            {project.name}
-          </h2>
-          <p className="mt-1 text-[10px] text-slate-500 midnight:text-cyan-600">
-            {project.area}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            className={`rounded px-2 py-1 text-[10px] font-semibold ${status.className}`}
-          >
-            {status.label}
-          </span>
-          {onOpenMeetings && (
-            <button
-              type="button"
-              onClick={() => onOpenMeetings(project)}
-              aria-label={`Videollamadas de ${project.name}`}
-              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-cyan-400/50 hover:bg-cyan-50 hover:text-cyan-700 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
-              title="Salas de Videoconferencia (Jitsi Meet)"
-            >
-              <Video size={13} />
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              onClick={() => onEdit(project)}
-              aria-label={`Editar ${project.name}`}
-              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-cyan-400/50 hover:bg-cyan-50 hover:text-cyan-700 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
-              title="Editar proyecto"
-            >
-              <Pencil size={13} />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => onDelete(project)}
-              aria-label={`Eliminar ${project.name}`}
-              className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-red-400/50 hover:bg-red-50 hover:text-red-600 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-red-900/30 midnight:hover:text-red-300"
-              title="Eliminar proyecto (Solo Administrador)"
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
-        </div>
-      </header>
-      <div className="mt-5">
-        <div className="mb-2 flex justify-between text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-          <span>Progreso General</span>
-          <strong className="text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-            {project.progress}%
-          </strong>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-[#0d1117] midnight:bg-cyan-950">
-          <div
-            className={`h-full rounded-full ${status.barClass}`}
-            style={{ width: `${project.progress}%` }}
-          />
-        </div>
-      </div>
-      <div className="mt-5 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-[#30363d] midnight:border-cyan-900/30">
-        <div>
-          <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
-            Presupuesto Usado / Total
-          </p>
-          <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-            {formatMoney(project.usedBudget)}{" "}
-            <span className="px-1 text-slate-400 midnight:text-cyan-800">
-              /
-            </span>{" "}
-            {formatMoney(project.totalBudget)}
-          </p>
-        </div>
-        <div
-          className="flex -space-x-2"
-          aria-label={`${(project.members || []).length} integrantes`}
-        >
-          {(project.members || []).map((member, index) => (
-            <span
-              key={`${member}-${index}`}
-              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-gradient-to-br from-slate-400 to-slate-600 text-[8px] font-bold text-white dark:border-[#161b22] midnight:border-[#0a1120]"
-            >
-              {member}
-            </span>
-          ))}
-        </div>
-      </div>
-      <footer className="mt-4 flex items-center justify-between gap-3 text-[10px] text-slate-500 midnight:text-cyan-600">
-        <span
-          className="truncate"
-          title={formatProjectTerm(project.startDate, project.endDate)}
-        >
-          Plazo: {formatProjectTerm(project.startDate, project.endDate)}
-        </span>
-        <div className="flex items-center gap-3 shrink-0">
-          {onOpenMeetings && (
-            <button
-              type="button"
-              onClick={() => onOpenMeetings(project)}
-              className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-              title="Abrir salas de videoconferencia"
-            >
-              <Video size={13} />
-              <span>Videollamada</span>
-            </button>
-          )}
-          {project.driveFolder ? (
-            <a
-              href={project.driveFolder}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Abrir carpeta de ${project.name}`}
-            className="shrink-0 text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-          >
-            <ExternalLink size={14} />
-          </a>
-        ) : (
-          <span className="shrink-0">Sin carpeta Drive</span>
-        )}
-        </div>
-      </footer>
-    </article>
-  );
-}
-
-export function NewProjectDialog({
-  data,
-  currentUserName,
-  onSubmit,
-  onClose,
-  teamMembers = [],
-}) {
-  const leadersList =
-    teamMembers.length > 0
-      ? teamMembers.map((m) => ({
-          id: m.id,
-          name: m.full_name,
-          role: m.role_name,
-        }))
-      : projectLeaders;
-
-  const now = new Date();
-  const end = new Date(now);
-  end.setMonth(end.getMonth() + 6);
-  const [draft, setDraft] = useState({
-    code: createProjectCode(data, now.getFullYear()),
-    area: projectAreas[0],
-    name: "",
-    startDate: isoDate(now),
-    endDate: isoDate(end),
-    totalBudget: "",
-    status: "planning",
-    leaderId: leadersList[0]?.id || 1,
-    driveFolder: "",
-    description: "",
-    createdBy: currentUserName,
-  });
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const changeField = (field) => (event) => {
-    setDraft((current) => ({ ...current, [field]: event.target.value }));
-    setError("");
-  };
-  const duration = getProjectDuration(draft.startDate, draft.endDate);
-
-  useEffect(() => {
-    const closeWithEscape = (event) => {
-      if (event.key === "Escape" && !isSubmitting) onClose();
-    };
-    document.addEventListener("keydown", closeWithEscape);
-    return () => document.removeEventListener("keydown", closeWithEscape);
-  }, [onClose, isSubmitting]);
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setError("");
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(
-        submitError.message || "Error al procesar la creación del proyecto",
-      );
-      setIsSubmitting(false);
-    }
-  };
-
-  const footnote = (
-    <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
-      * Campos requeridos para el alta y seguimiento del proyecto.
-    </p>
-  );
-
-  return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={handleSubmit}
-      title="Crear Nuevo Proyecto"
-      subtitle="Define los parámetros maestros, cronograma y presupuesto de la obra."
-      icon={<FolderPlus size={21} />}
-      submitLabel="Crear Proyecto"
-      submitIcon={<Save size={15} />}
-      cancelLabel="Cancelar"
-      isSubmitting={isSubmitting}
-      submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
-      footnote={footnote}
-      maxWidth="max-w-3xl"
-      id="new-project"
-    >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Código del proyecto{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <div className="relative">
-                <input
-                  readOnly
-                  value={draft.code}
-                  className={`${inputClass} pr-28 text-slate-500 dark:text-slate-400 midnight:text-cyan-600`}
-                />
-                <span className="absolute bottom-2.5 right-2 rounded bg-cyan-50 px-2 py-1 text-[9px] text-cyan-700 dark:bg-blue-500/15 dark:text-blue-300 midnight:bg-cyan-500/15 midnight:text-cyan-300">
-                  Autogenerado
-                </span>
-              </div>
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Área técnica{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <select
-                required
-                value={draft.area}
-                onChange={changeField("area")}
-                className={inputClass}
-              >
-                {projectAreas.map((area) => (
-                  <option key={area}>{area}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-              Nombre del proyecto{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <input
-                autoFocus
-                required
-                maxLength={120}
-                value={draft.name}
-                onChange={changeField("name")}
-                placeholder="Torre Corporativa Platinum"
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Fecha de inicio{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <input
-                type="date"
-                required
-                value={draft.startDate}
-                onChange={changeField("startDate")}
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Fecha final estimada{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <input
-                type="date"
-                required
-                value={draft.endDate}
-                onChange={changeField("endDate")}
-                className={inputClass}
-              />
-            </label>
-            <p
-              className={`-mt-2 flex items-center gap-1.5 text-[10px] sm:col-span-2 ${duration ? "text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400" : "text-red-600 dark:text-red-400 midnight:text-red-300"}`}
-            >
-              <CalendarDays size={12} />{" "}
-              {duration
-                ? `Duración calculada: ${duration} ${duration === 1 ? "mes" : "meses"}`
-                : "La fecha final debe ser posterior a la inicial."}
-            </p>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Presupuesto estimado (USD){" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <input
-                type="number"
-                min="0"
-                max="1000000000000"
-                step="any"
-                required
-                value={draft.totalBudget}
-                onKeyDown={(e) => {
-                  // Bloquear explícitamente caracteres de notación científica (+, -, e, E)
-                  if (["e", "E", "+", "-"].includes(e.key)) {
-                    e.preventDefault();
-                  }
-                }}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                    changeField("totalBudget")(e);
-                  }
-                }}
-                onPaste={(e) => {
-                  const paste = e.clipboardData.getData("text");
-                  if (!/^\d*\.?\d*$/.test(paste)) {
-                    e.preventDefault();
-                  }
-                }}
-                placeholder="1500000"
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Estado inicial{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <select
-                required
-                value={draft.status}
-                onChange={changeField("status")}
-                className={inputClass}
-              >
-                {projectStatuses
-                  .filter((status) =>
-                    ["planning", "active", "paused", "risk"].includes(status.id),
-                  )
-                  .map((status) => (
-                    <option key={status.id} value={status.id}>
-                      {status.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Líder de obra{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                *
-              </span>
-              <select
-                required
-                value={draft.leaderId}
-                onChange={changeField("leaderId")}
-                className={inputClass}
-              >
-                {leadersList.map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.name} · {leader.role}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Carpeta de Google Drive
-              <input
-                type="url"
-                maxLength={300}
-                value={draft.driveFolder}
-                onChange={changeField("driveFolder")}
-                placeholder="https://drive.google.com/drive/folders/..."
-                className={inputClass}
-              />
-            </label>
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-              Descripción / alcance
-              <textarea
-                rows="4"
-                maxLength={1000}
-                value={draft.description}
-                onChange={changeField("description")}
-                placeholder="Describe brevemente el alcance del proyecto..."
-                className={`${inputClass} resize-y`}
-              />
-            </label>
-          </div>
-          {error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300"
-            >
-              {error}
-            </p>
-          )}
-    </ModalDialog>
-  );
-}
-
-export function EditProjectDialog({
-  project,
-  onSubmit,
-  onClose,
-  teamMembers = [],
-  isAdmin = false,
-}) {
-  const leadersList =
-    teamMembers.length > 0
-      ? teamMembers.map((m) => ({
-          id: m.id,
-          name: m.full_name,
-          role: m.role_name,
-        }))
-      : projectLeaders;
-
-  const [draft, setDraft] = useState({
-    name: project.name || "",
-    area: project.area || projectAreas[0],
-    startDate: project.startDate || "",
-    endDate: project.endDate || "",
-    totalBudget: project.totalBudget ?? "",
-    status: project.status || "planning",
-    leaderId: project.leaderId || leadersList[0]?.id || 1,
-    driveFolder: project.driveFolder || "",
-    description: project.description || "",
-  });
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const changeField = (field) => (event) => {
-    setDraft((current) => ({ ...current, [field]: event.target.value }));
-    setError("");
-  };
-
-  const handleBudgetChange = (event) => {
-    const raw = event.target.value;
-    const clean = raw.replace(/[^0-9.]/g, "");
-    setDraft((current) => ({ ...current, totalBudget: clean }));
-    setError("");
-  };
-
-  const handleKeyDownBudget = (e) => {
-    if (["e", "E", "+", "-"].includes(e.key)) {
-      e.preventDefault();
-    }
-  };
-
-  const submit = async (event) => {
-    event.preventDefault();
-    setError("");
-    const numericBudget = !isAdmin
-      ? Number(project.totalBudget ?? 0)
-      : Number(draft.totalBudget);
-
-    if (isAdmin && (!draft.totalBudget || isNaN(numericBudget) || numericBudget <= 0)) {
-      setError("El presupuesto total debe ser un monto mayor a 0.");
-      return;
-    }
-    if (new Date(draft.endDate) < new Date(draft.startDate)) {
-      setError("La fecha de entrega debe ser posterior a la fecha de inicio.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await onSubmit(project.id, {
-        ...draft,
-        leaderId: !isAdmin ? (project.leaderId || draft.leaderId) : draft.leaderId,
-        totalBudget: numericBudget,
-      });
-    } catch (submitError) {
-      setError(submitError.message);
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={submit}
-      title="Editar Proyecto"
-      subtitle={
-        <span>
-          Código: <span className="font-semibold text-cyan-600 dark:text-cyan-400">{project.code}</span>
-        </span>
-      }
-      icon={<Pencil size={18} />}
-      submitLabel="Guardar Cambios"
-      submitIcon={<Save size={15} />}
-      cancelLabel="Cancelar"
-      isSubmitting={isSubmitting}
-      submitButtonClass="bg-cyan-600 hover:bg-cyan-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
-      maxWidth="max-w-2xl"
-      id="edit-project"
-    >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-              Nombre del proyecto{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-              <input
-                required
-                maxLength={80}
-                value={draft.name}
-                onChange={changeField("name")}
-                placeholder="Ej. Torre Mirador Fase 2"
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Área técnica{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-              <select
-                value={draft.area}
-                onChange={changeField("area")}
-                className={inputClass}
-              >
-                {projectAreas.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              <span className="flex items-center justify-between">
-                <span>
-                  Presupuesto total (S/){" "}
-                  <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-                </span>
-                {!isAdmin && (
-                  <span
-                    title="Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
-                    className="cursor-help text-slate-400 transition-colors hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400"
-                  >
-                    <Lock size={13} />
-                  </span>
-                )}
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                required
-                disabled={!isAdmin}
-                title={
-                  !isAdmin
-                    ? "Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
-                    : undefined
-                }
-                value={draft.totalBudget}
-                onKeyDown={handleKeyDownBudget}
-                onChange={handleBudgetChange}
-                placeholder="Ej. 1500000"
-                className={`${inputClass} ${
-                  !isAdmin
-                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
-                    : ""
-                }`}
-              />
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Fecha de inicio{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-              <input
-                type="date"
-                required
-                value={draft.startDate}
-                onChange={changeField("startDate")}
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Fecha de entrega estimada{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-              <input
-                type="date"
-                required
-                value={draft.endDate}
-                onChange={changeField("endDate")}
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              Estado operativo{" "}
-              <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-              <select
-                value={draft.status}
-                onChange={changeField("status")}
-                className={inputClass}
-              >
-                {projectStatuses.map((status) => (
-                  <option key={status.id} value={status.id}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-              <span className="flex items-center justify-between">
-                <span>
-                  Líder de obra{" "}
-                  <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-                </span>
-                {!isAdmin && (
-                  <span
-                    title="La reasignación de jefatura es gestionada exclusivamente por el Administrador."
-                    className="cursor-help text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 midnight:text-cyan-500/70 midnight:hover:text-cyan-300"
-                  >
-                    <Lock size={13} />
-                  </span>
-                )}
-              </span>
-              <select
-                required
-                disabled={!isAdmin}
-                title={
-                  !isAdmin
-                    ? "La reasignación de jefatura es gestionada exclusivamente por el Administrador."
-                    : undefined
-                }
-                value={draft.leaderId}
-                onChange={changeField("leaderId")}
-                className={`${inputClass} ${
-                  !isAdmin
-                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40"
-                    : ""
-                }`}
-              >
-                {leadersList.map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.name} · {leader.role}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-              Carpeta de Google Drive
-              <input
-                type="url"
-                maxLength={300}
-                value={draft.driveFolder}
-                onChange={changeField("driveFolder")}
-                placeholder="https://drive.google.com/drive/folders/..."
-                className={inputClass}
-              />
-            </label>
-
-            <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-              Descripción / alcance
-              <textarea
-                rows="3"
-                maxLength={1000}
-                value={draft.description}
-                onChange={changeField("description")}
-                placeholder="Describe brevemente el alcance del proyecto..."
-                className={`${inputClass} resize-y`}
-              />
-            </label>
-          </div>
-
-          {error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300"
-            >
-              {error}
-            </p>
-          )}
-
-    </ModalDialog>
-  );
-}
-
-export function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleConfirm = async () => {
-    setError("");
-    setIsDeleting(true);
-    try {
-      await onConfirm(project.id);
-    } catch (err) {
-      setError(err.message || "Error al eliminar el proyecto.");
-      setIsDeleting(false);
-    }
-  };
-
-  return (
-    <ModalDialog
-      isOpen={true}
-      onClose={onClose}
-      onSubmit={handleConfirm}
-      title="Confirmar Eliminación"
-      subtitle={project.code}
-      icon={<Trash2 size={18} />}
-      submitLabel="Eliminar Proyecto"
-      submitIcon={<Trash2 size={15} />}
-      cancelLabel="Cancelar"
-      isSubmitting={isDeleting}
-      submitButtonClass="bg-red-600 hover:bg-red-500 text-white"
-      maxWidth="max-w-md"
-      id="confirm-delete"
-    >
-      <div className="space-y-2">
-          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/80">
-            ¿Estás seguro de que deseas eliminar permanentemente el proyecto{" "}
-            <strong className="text-slate-900 dark:text-white midnight:text-cyan-50">
-              {project.name}
-            </strong>
-            ?
-          </p>
-          <p className="mt-2 text-xs leading-relaxed text-amber-600 dark:text-amber-400 midnight:text-amber-300">
-            ⚠️ Esta acción es irreversible y eliminará las tareas, hitos y datos asociados en el sistema.
-          </p>
-
-          {error && (
-            <p
-              role="alert"
-              className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300"
-            >
-              {error}
-            </p>
-          )}
-
-      </div>
-    </ModalDialog>
-  );
-}
 
 export default function Portfolio({
   data,
@@ -828,6 +43,28 @@ export default function Portfolio({
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const { showToast } = useToast();
   const visible = filterPortfolio(data, query, activeFilter);
+  const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", page: 1 });
+  const [changePageSelection, setChangePageSelection] = useState({ query: "", page: 1 });
+
+  const totalProjectPages = Math.max(1, Math.ceil(visible.projects.length / PROJECTS_PER_PAGE));
+  const safeProjectPage =
+    projectPageSelection.query === query && projectPageSelection.filter === activeFilter
+      ? Math.min(projectPageSelection.page, totalProjectPages)
+      : 1;
+  const paginatedProjects = visible.projects.slice(
+    (safeProjectPage - 1) * PROJECTS_PER_PAGE,
+    safeProjectPage * PROJECTS_PER_PAGE
+  );
+
+  const totalChangePages = Math.max(1, Math.ceil(visible.changes.length / CHANGES_PER_PAGE));
+  const safeChangePage =
+    changePageSelection.query === query
+      ? Math.min(changePageSelection.page, totalChangePages)
+      : 1;
+  const paginatedChanges = visible.changes.slice(
+    (safeChangePage - 1) * CHANGES_PER_PAGE,
+    safeChangePage * CHANGES_PER_PAGE
+  );
 
   // Sincronizar proyectos y colaboradores reales de la base de datos al montar
   useEffect(() => {
@@ -1210,8 +447,9 @@ export default function Portfolio({
 
         <section aria-live="polite">
           {visible.projects.length ? (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-              {visible.projects.map((project) => {
+            <>
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                {paginatedProjects.map((project) => {
                 const isProjectLeader = Boolean(
                   currentUser && (
                     (project.leaderEmail && currentUser.email && project.leaderEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
@@ -1236,7 +474,18 @@ export default function Portfolio({
                 );
               })}
             </div>
-          ) : (
+            <Pagination
+              currentPage={safeProjectPage}
+              totalPages={totalProjectPages}
+              totalItems={visible.projects.length}
+              pageSize={PROJECTS_PER_PAGE}
+              itemLabel="proyectos"
+              onPageChange={(nextPage) => setProjectPageSelection({ query, filter: activeFilter, page: nextPage })}
+              hideOnSinglePage={true}
+              className="mt-6"
+            />
+          </>
+        ) : (
             <div
               className={`${cardClass} p-10 text-center text-sm text-slate-500 midnight:text-cyan-500/70`}
             >
@@ -1264,7 +513,7 @@ export default function Portfolio({
                 </tr>
               </thead>
               <tbody>
-                {visible.changes.map((change) => (
+                {paginatedChanges.map((change) => (
                   <tr
                     key={change.id}
                     className="border-b border-slate-200 last:border-0 dark:border-[#30363d] midnight:border-cyan-900/30"
@@ -1299,6 +548,16 @@ export default function Portfolio({
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={safeChangePage}
+            totalPages={totalChangePages}
+            totalItems={visible.changes.length}
+            pageSize={CHANGES_PER_PAGE}
+            itemLabel="cambios"
+            onPageChange={(nextPage) => setChangePageSelection({ query, page: nextPage })}
+            hideOnSinglePage={true}
+            className="mt-4 border-t border-slate-200 pt-3 dark:border-[#30363d] midnight:border-cyan-900/30"
+          />
         </section>
       </div>
       {dialogOpen && canManage && (

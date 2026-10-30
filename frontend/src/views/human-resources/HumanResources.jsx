@@ -3,8 +3,6 @@ import {
   AlertCircle,
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Pencil,
   RefreshCw,
@@ -24,12 +22,16 @@ import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
+import Pagination from '../../components/common/Pagination';
+import MemberAvatar from '../../components/common/MemberAvatar';
 
 export { PersonnelIncidentDialog };
 
 const panelClass = 'min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
 const iconButtonClass = 'rounded p-1.5 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-cyan-700 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-cyan-400 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-300';
 const pageSize = 8;
+const INCIDENTS_PAGE_SIZE = 5;
+const HISTORY_PAGE_SIZE = 5;
 
 const statusThemeStyles = {
   active: {
@@ -77,9 +79,7 @@ const workflowStatuses = {
   },
 };
 
-function getInitials(name) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
-}
+
 
 function StatusBadge({ status }) {
   const details = personnelStatuses.find((item) => item.id === status) || {
@@ -145,6 +145,8 @@ export default function HumanResources({
   };
 
   const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', page: 1 });
+  const [incidentPageSelection, setIncidentPageSelection] = useState({ query: '', page: 1 });
+  const [historyPageSelection, setHistoryPageSelection] = useState({ query: '', page: 1 });
   const [editing, setEditing] = useState(null);
   const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
   const [incidentAction, setIncidentAction] = useState(null);
@@ -161,6 +163,26 @@ export default function HumanResources({
   const page = pageSelection.query === query && pageSelection.status === statusFilterKey ? Math.min(pageSelection.page, totalPages) : 1;
   const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
   const editingMember = editing && members.find((member) => member.id === editing.id);
+
+  const totalIncidentPages = Math.max(1, Math.ceil(incidents.length / INCIDENTS_PAGE_SIZE));
+  const safeIncidentPage =
+    incidentPageSelection.query === query
+      ? Math.min(incidentPageSelection.page, totalIncidentPages)
+      : 1;
+  const visibleIncidents = incidents.slice(
+    (safeIncidentPage - 1) * INCIDENTS_PAGE_SIZE,
+    safeIncidentPage * INCIDENTS_PAGE_SIZE
+  );
+
+  const totalHistoryPages = Math.max(1, Math.ceil(history.length / HISTORY_PAGE_SIZE));
+  const safeHistoryPage =
+    historyPageSelection.query === query
+      ? Math.min(historyPageSelection.page, totalHistoryPages)
+      : 1;
+  const visibleHistory = history.slice(
+    (safeHistoryPage - 1) * HISTORY_PAGE_SIZE,
+    safeHistoryPage * HISTORY_PAGE_SIZE
+  );
 
   const summaryCards = [
     { id: 'all', label: 'Total personal', value: summary.total, dotClass: 'bg-slate-400' },
@@ -391,7 +413,7 @@ export default function HumanResources({
                 <tbody>
                   {visibleMembers.map((member) => (
                     <tr key={member.id} className="border-b border-slate-200 last:border-b-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20">
-                      <td className="whitespace-nowrap py-3.5 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50"><span className="flex items-center gap-2"><i className="flex h-7 w-7 items-center justify-center rounded-full bg-cyan-50 text-[9px] font-bold not-italic text-cyan-700 transition-colors duration-300 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-500/15 midnight:text-cyan-300">{getInitials(member.name)}</i><span>{member.name}</span></span></td>
+                      <td className="whitespace-nowrap py-3.5 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50"><span className="flex items-center gap-2"><MemberAvatar member={member} sizeClass="h-7 w-7" textClass="text-[9px]" /><span>{member.name}</span></span></td>
                       <td className="whitespace-nowrap px-2 py-3.5 text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{member.area}</td>
                       <td className="max-w-[180px] truncate px-2 py-3.5 text-[11px] text-slate-700 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100" title={member.project}>{member.project}</td>
                       <td className="whitespace-nowrap px-2 py-3.5"><StatusBadge status={member.status} /></td>
@@ -412,13 +434,16 @@ export default function HumanResources({
                 </tbody>
               </table>
             </div>
-            <footer className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-900/30 midnight:text-cyan-600 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <span>Página {page} de {totalPages} · Mostrando {visibleMembers.length} de {filteredMembers.length} integrantes</span>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setPageSelection({ query, status: statusFilterKey, page: page - 1 })} disabled={page <= 1} className="rounded border border-slate-200 px-3 py-1 transition-colors duration-300 hover:bg-slate-50 disabled:opacity-50 dark:border-[#30363d] dark:hover:bg-white/5 midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"><ChevronLeft size={14} /></button>
-                <button type="button" onClick={() => setPageSelection({ query, status: statusFilterKey, page: page + 1 })} disabled={page >= totalPages} className="rounded border border-slate-200 px-3 py-1 transition-colors duration-300 hover:bg-slate-50 disabled:opacity-50 dark:border-[#30363d] dark:hover:bg-white/5 midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"><ChevronRight size={14} /></button>
-              </div>
-            </footer>
+            <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-5">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={filteredMembers.length}
+                pageSize={pageSize}
+                itemLabel="integrantes"
+                onPageChange={(nextPage) => setPageSelection({ query, status: statusFilterKey, page: nextPage })}
+              />
+            </div>
           </section>
 
           <section className={`${panelClass} flex flex-col justify-between`} aria-labelledby="team-status-title">
@@ -503,7 +528,7 @@ export default function HumanResources({
                       {['Integrante', 'Tipo', 'Periodo / Fechas', 'Días', 'Estado Solicitud', 'Respaldo', 'Acciones'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}
                     </tr></thead>
                     <tbody>
-                      {incidents.map((incident) => (
+                      {visibleIncidents.map((incident) => (
                         <tr key={incident.id} className="border-b border-slate-200 last:border-b-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20">
                           <td className="whitespace-nowrap py-3 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50">{incident.memberName}</td>
                           <td className="whitespace-nowrap px-2 py-3 text-[11px] text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">{incident.typeLabel}</td>
@@ -530,6 +555,17 @@ export default function HumanResources({
                     </tbody>
                   </table>
                 </div>
+                <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-5">
+                  <Pagination
+                    currentPage={safeIncidentPage}
+                    totalPages={totalIncidentPages}
+                    totalItems={incidents.length}
+                    pageSize={INCIDENTS_PAGE_SIZE}
+                    itemLabel="incidencias"
+                    onPageChange={(nextPage) => setIncidentPageSelection({ query, page: nextPage })}
+                    hideOnSinglePage={true}
+                  />
+                </div>
               </section>
 
               <aside className={panelClass} aria-labelledby="alerts-title">
@@ -554,13 +590,13 @@ export default function HumanResources({
 
             <section className={`${panelClass} w-full`} aria-labelledby="status-history-title">
               <h2 id="status-history-title" className="px-4 pt-5 text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 sm:px-5">Historial de Cambios de Estado</h2>
-              <div className="mt-3 max-h-[360px] overflow-auto px-4 pb-3 sm:px-5">
+              <div className="mt-3 overflow-x-auto px-4 pb-3 sm:px-5">
                 <table className="w-full min-w-[660px] border-collapse text-left text-xs">
                   <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
                     {['Fecha', 'Miembro', 'Estado Anterior', 'Estado Nuevo', 'Motivo / Comentario'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0">{label}</th>)}
                   </tr></thead>
                   <tbody>
-                    {history.map((change) => (
+                    {visibleHistory.map((change) => (
                       <tr key={change.id} className="border-b border-slate-200 last:border-0 transition-colors duration-300 dark:border-[#30363d]/70 midnight:border-cyan-900/30">
                         <td className="whitespace-nowrap py-3.5 pr-2 font-mono text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600"><time dateTime={change.date}>{formatDisplayDate(change.date, { day: '2-digit', month: 'short' })}</time></td>
                         <td className="whitespace-nowrap px-2 py-3.5 text-[11px] font-medium text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{change.name}</td>
@@ -572,6 +608,17 @@ export default function HumanResources({
                     {!history.length && <tr><td colSpan={5} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay cambios de estado registrados en el historial.</td></tr>}
                   </tbody>
                 </table>
+              </div>
+              <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-5">
+                <Pagination
+                  currentPage={safeHistoryPage}
+                  totalPages={totalHistoryPages}
+                  totalItems={history.length}
+                  pageSize={HISTORY_PAGE_SIZE}
+                  itemLabel="cambios"
+                  onPageChange={(nextPage) => setHistoryPageSelection({ query, page: nextPage })}
+                  hideOnSinglePage={true}
+                />
               </div>
             </section>
           </>

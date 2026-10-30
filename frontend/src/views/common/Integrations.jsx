@@ -27,7 +27,7 @@ import {
 import api, { baseURL as apiBaseUrl } from '../../services/api';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
-import RevitModal from './RevitModal';
+import RevitModal from './components/RevitModal';
 
 
 const iconMap = { cloud: Cloud, model: Box, workflow: Workflow, automation: Zap };

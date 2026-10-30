@@ -1,75 +1,140 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Activity,
   AlertTriangle,
   BarChart3,
   CheckCircle2,
   ClipboardCheck,
-  MoreVertical,
   Plus,
-  ShieldCheck,
 } from 'lucide-react';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import Select from '../../components/common/Select';
 import { useToast } from '../../context/ToastContext';
 import NewWorkOrderDialog from './components/NewWorkOrderDialog';
+import CriticalScheduleSection from './components/CriticalScheduleSection';
+import WorkOrdersSection from './components/WorkOrdersSection';
+import OperationsSidebar from './components/OperationsSidebar';
 import { cardClass, nestedClass } from '../../constants/themeClasses';
-import {
-  operationalProjects,
-  workOrderPriorities,
-  workOrderStatuses,
-} from '../../constants/operations';
+import { operationalProjects } from '../../constants/operations';
 import {
   buildWorkOrdersCsv,
   createWorkOrder,
   filterWorkOrders,
 } from '../../utils/operations';
+import { createOperationsData } from '../../mocks/operationsData';
 
 export { NewWorkOrderDialog };
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600';
-const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+const ORDERS_PER_PAGE = 6;
 
-
-
-function PriorityBadge({ priority }) {
-  const details = workOrderPriorities.find((item) => item.id === priority);
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[9px] font-semibold ${details.className}`}>{details.label}</span>;
-}
-
-function OrderStatusBadge({ status }) {
-  const details = workOrderStatuses.find((item) => item.id === status);
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[9px] font-semibold ${details.className}`}>{details.label}</span>;
-}
-
-export default function Operations({ data = {}, onChange, query = '', onQueryChange, canManage = false, projectOptions = [], responsibleOptions = [] }) {
+export default function Operations({
+  data = {},
+  onChange,
+  query = '',
+  onQueryChange,
+  canManage = false,
+  projectOptions = [],
+  responsibleOptions = [],
+}) {
   const isProduction =
     import.meta.env.PROD ||
     (typeof window !== 'undefined' &&
       !['localhost', '127.0.0.1'].includes(window.location.hostname));
   const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
 
-  const metrics = data?.metrics || { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 };
-  const ordersList = data?.orders || [];
-  const activitiesList = data?.activities || [];
-  const alertsList = data?.alerts || [];
-  const qualityList = data?.qualityChecks || [];
+  const defaultMockData = createOperationsData();
+  const metrics =
+    data?.metrics && (data.metrics.inProgress > 0 || data.metrics.completed > 0)
+      ? data.metrics
+      : hideMocks
+        ? { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 }
+        : defaultMockData.metrics;
+  const ordersList =
+    data?.orders && data.orders.length > 0
+      ? data.orders
+      : hideMocks
+        ? []
+        : defaultMockData.orders;
+  const activitiesList =
+    data?.activities && data.activities.length > 0
+      ? data.activities
+      : hideMocks
+        ? []
+        : defaultMockData.activities;
+  const alertsList =
+    data?.alerts && data.alerts.length > 0
+      ? data.alerts
+      : hideMocks
+        ? []
+        : defaultMockData.alerts;
+  const qualityList =
+    data?.qualityChecks && data.qualityChecks.length > 0
+      ? data.qualityChecks
+      : hideMocks
+        ? []
+        : defaultMockData.qualityChecks;
 
   const [projectFilter, setProjectFilter] = useState('all');
   const [orderFilter, setOrderFilter] = useState('all');
+  const [orderPageSelection, setOrderPageSelection] = useState({
+    query: '',
+    orderFilter: 'all',
+    projectFilter: 'all',
+    page: 1,
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const { showToast } = useToast();
+
   const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : operationalProjects;
   const availableProjects = Array.from(new Set(baseProjects));
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
+
+  const totalOrderPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+  const safeOrderPage =
+    orderPageSelection.query === query &&
+    orderPageSelection.orderFilter === orderFilter &&
+    orderPageSelection.projectFilter === projectFilter
+      ? Math.min(orderPageSelection.page, totalOrderPages)
+      : 1;
+  const paginatedOrders = orders.slice((safeOrderPage - 1) * ORDERS_PER_PAGE, safeOrderPage * ORDERS_PER_PAGE);
+
   const metricCards = [
-    { label: 'Tareas en progreso', value: metrics.inProgress, note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas', icon: Activity, color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300' },
-    { label: 'Tareas completadas', value: metrics.completed, note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros', icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
-    { label: 'Incidencias abiertas', value: metrics.incidents, note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias', icon: AlertTriangle, color: 'text-red-600 dark:text-red-400 midnight:text-red-300', badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300' },
-    { label: 'Eficiencia operativa', value: `${metrics.efficiency}%`, note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas', icon: BarChart3, color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' },
+    {
+      label: 'Tareas en progreso',
+      value: metrics.inProgress,
+      note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas',
+      icon: Activity,
+      color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400',
+      badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300',
+    },
+    {
+      label: 'Tareas completadas',
+      value: metrics.completed,
+      note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros',
+      icon: CheckCircle2,
+      color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300',
+      badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300',
+    },
+    {
+      label: 'Incidencias abiertas',
+      value: metrics.incidents,
+      note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias',
+      icon: AlertTriangle,
+      color: 'text-red-600 dark:text-red-400 midnight:text-red-300',
+      badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300',
+    },
+    {
+      label: 'Eficiencia operativa',
+      value: `${metrics.efficiency}%`,
+      note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas',
+      icon: BarChart3,
+      color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400',
+      badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300',
+    },
   ];
 
   const saveOrder = (draft) => {
@@ -86,6 +151,7 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
       type: 'success',
     });
   };
+
   const exportReport = () => {
     const blob = new Blob([`\uFEFF${buildWorkOrdersCsv(ordersList)}`], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -108,8 +174,12 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Gestión Operativa de Campo</h1>
-            <p className={`mt-1 text-sm ${mutedClass}`}>Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad</p>
+            <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>
+              Gestión Operativa de Campo
+            </h1>
+            <p className={`mt-1 text-sm ${mutedClass}`}>
+              Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select
@@ -124,13 +194,27 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
             />
             {canManage && (
               <>
-                <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>Generar Reporte Diario</Button>
-                <Button variant="primary" onClick={() => { setDialogOpen(true); setFeedback(''); }} icon={Plus}>Nueva Orden de Trabajo</Button>
+                <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>
+                  Generar Reporte Diario
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    setDialogOpen(true);
+                    setFeedback('');
+                  }}
+                  icon={Plus}
+                >
+                  Nueva Orden de Trabajo
+                </Button>
               </>
             )}
           </div>
         </header>
-        <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
+
+        <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>
+          {feedback}
+        </p>
 
         <section aria-label="Resumen operativo" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {metricCards.map((card) => (
@@ -146,15 +230,55 @@ export default function Operations({ data = {}, onChange, query = '', onQueryCha
           ))}
         </section>
 
-        <section className={`${cardClass} overflow-hidden p-4 sm:p-5`} aria-labelledby="critical-schedule-title"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 id="critical-schedule-title" className={`text-base font-semibold ${headingClass}`}>Cronograma de Actividades Críticas</h2><p className={`mt-1 text-[10px] ${mutedClass}`}>Seguimiento temporal y avance real de entregables clave</p></div><div className={`flex gap-3 text-[9px] ${mutedClass}`}><span><i className="mr-1 inline-block h-2 w-2 bg-blue-500" /> En tiempo</span><span><i className="mr-1 inline-block h-2 w-2 bg-emerald-500" /> Acelerada</span><span><i className="mr-1 inline-block h-2 w-2 bg-purple-500" /> Programada</span></div></div><div className="mt-5 overflow-x-auto"><div className="min-w-[780px]"><div className="grid grid-cols-[230px_1fr_90px] border-b border-slate-200 pb-2 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className="text-[9px] text-slate-500 midnight:text-cyan-600">Actividad / Obra</span><div className="grid grid-cols-6">{months.map((month) => <span key={month} className="text-center text-[9px] text-slate-500 midnight:text-cyan-600">{month}</span>)}</div><span className="text-right text-[9px] text-slate-500 midnight:text-cyan-600">Avance total</span></div><div className="space-y-4 pt-4">{activitiesList.map((activity) => <article key={activity.id} className="grid grid-cols-[230px_1fr_90px] items-center"><div><h3 className={`text-xs font-semibold ${headingClass}`}>{activity.name}</h3><p className="mt-1 text-[9px] text-slate-500 midnight:text-cyan-600">{activity.project}</p></div><div className="relative h-7 rounded bg-slate-100 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-cyan-950/50" style={{ backgroundImage: 'linear-gradient(to right, rgba(100,136,186,.14) 1px, transparent 1px)', backgroundSize: '16.6667% 100%' }}><div className="absolute inset-y-0 flex items-center justify-center rounded px-2 text-[9px] font-semibold text-white" style={{ left: `${((activity.start - 1) / 6) * 100}%`, width: `${(activity.duration / 6) * 100}%`, backgroundColor: activity.color }}><span className="truncate">{activity.period}</span></div></div><div className="pl-5"><strong className="block text-right text-[10px]" style={{ color: activity.color }}>{activity.progress}%</strong><div className="mt-2 h-1 overflow-hidden rounded bg-slate-200 dark:bg-[#0d1117] midnight:bg-cyan-950"><div className="h-full" style={{ width: `${activity.progress}%`, backgroundColor: activity.color }} /></div></div></article>)}{!activitiesList.length && <p className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay actividades críticas registradas.</p>}</div></div></div></section>
+        <CriticalScheduleSection
+          activitiesList={activitiesList}
+          headingClass={headingClass}
+          mutedClass={mutedClass}
+          cardClass={cardClass}
+        />
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.2fr)_minmax(270px,0.8fr)]">
-          <section className={`min-w-0 overflow-hidden ${cardClass}`} aria-labelledby="work-orders-title"><header className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-5"><div><h2 id="work-orders-title" className={`text-base font-semibold ${headingClass}`}>Órdenes de Trabajo Activas</h2><p className={`mt-1 text-[10px] ${mutedClass}`}>Últimas órdenes de operación en terreno</p></div><div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">{[{ id: 'all', label: 'Todas' }, { id: 'high', label: 'Alta prioridad' }, { id: 'in-progress', label: 'En curso' }].map((filter) => <button key={filter.id} type="button" onClick={() => setOrderFilter(filter.id)} aria-pressed={orderFilter === filter.id} className={`rounded px-3 py-1.5 text-[9px] font-medium transition-colors duration-300 ${orderFilter === filter.id ? 'bg-blue-600 text-white midnight:bg-cyan-600' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:text-cyan-50'}`}>{filter.label}</button>)}</div></header><div className="mt-3 overflow-x-auto px-4 sm:px-5"><table className="w-full min-w-[760px] border-collapse text-left"><thead><tr className="border-b border-slate-200 text-[9px] uppercase text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">{['ID', 'Proyecto', 'Tipo', 'Responsable', 'Prioridad', 'Estado', 'Acción'].map((label) => <th key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}</tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="border-b border-slate-200 last:border-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20"><td className={`py-3.5 pr-2 font-mono text-[10px] font-bold ${headingClass}`}>{order.code}</td><td className="max-w-[150px] truncate px-2 py-3.5 text-[10px] font-medium text-cyan-700 dark:text-blue-400 midnight:text-cyan-400" title={order.project}>{order.project.split(' (')[0]}</td><td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">{order.type}</td><td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">{order.responsible}</td><td className="px-2 py-3.5"><PriorityBadge priority={order.priority} /></td><td className="px-2 py-3.5"><OrderStatusBadge status={order.status} /></td><td className="py-3.5 pl-2 text-right"><button type="button" onClick={() => setFeedback(`${order.code}: ${order.title}. ${order.description}`)} aria-label={`Ver orden ${order.code}`} className="rounded p-1.5 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><MoreVertical size={15} /></button></td></tr>)}{!orders.length && <tr><td colSpan={7} className="py-12 text-center text-sm text-slate-500 midnight:text-cyan-500/70">No se encontraron órdenes con estos filtros.</td></tr>}</tbody></table></div><footer className="mt-2 flex items-center justify-between border-t border-slate-200 px-4 py-3 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600 sm:px-5"><span>Mostrando {orders.length} de {ordersList.length} órdenes</span>{(query || projectFilter !== 'all' || orderFilter !== 'all') && <button type="button" onClick={() => { setOrderFilter('all'); setProjectFilter('all'); onQueryChange(''); }} className="text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200">Limpiar filtros</button>}</footer></section>
+          <WorkOrdersSection
+            orders={orders}
+            ordersList={ordersList}
+            paginatedOrders={paginatedOrders}
+            orderFilter={orderFilter}
+            setOrderFilter={setOrderFilter}
+            onViewOrder={(order) => setFeedback(`${order.code}: ${order.title}. ${order.description}`)}
+            safeOrderPage={safeOrderPage}
+            totalOrderPages={totalOrderPages}
+            pageSize={ORDERS_PER_PAGE}
+            onPageChange={(nextPage) => setOrderPageSelection({ query, orderFilter, projectFilter, page: nextPage })}
+            hasActiveFilters={Boolean(query || projectFilter !== 'all' || orderFilter !== 'all')}
+            onClearFilters={() => {
+              setOrderFilter('all');
+              setProjectFilter('all');
+              onQueryChange('');
+            }}
+            headingClass={headingClass}
+            mutedClass={mutedClass}
+            cardClass={cardClass}
+          />
 
-        <div className="space-y-5"><aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="operation-alerts-title"><div className="flex items-center justify-between gap-3"><h2 id="operation-alerts-title" className={`text-sm font-semibold ${headingClass}`}>Alertas Críticas de Operación</h2><span className="rounded bg-red-50 px-2 py-1 text-[9px] font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300">{alertsList.length} Urgentes</span></div><div className="mt-4 space-y-3">{alertsList.map((alert) => <article key={alert.id} className={`rounded-lg border p-3 ${alert.level === 'critical' ? 'border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/5 midnight:border-red-500/20 midnight:bg-red-500/5' : 'border-amber-200 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/5 midnight:border-amber-500/20 midnight:bg-amber-500/5'}`}><div className="flex items-start justify-between gap-3"><div><h3 className="text-[10px] font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100"><i className={`mr-2 inline-block h-2 w-2 rounded-full ${alert.level === 'critical' ? 'bg-red-500' : 'bg-amber-500'}`} />{alert.title}</h3><p className="mt-1 pl-4 text-[9px] text-slate-500 midnight:text-cyan-600">{alert.project}</p></div><button type="button" onClick={() => setFeedback(`Alerta seleccionada: ${alert.title}`)} className={`rounded border px-2 py-1 text-[9px] font-semibold ${alert.level === 'critical' ? 'border-red-200 text-red-700 dark:border-red-500/25 dark:text-red-400 midnight:text-red-300' : 'border-amber-200 text-amber-700 dark:border-amber-500/25 dark:text-amber-400 midnight:text-amber-300'}`}>{alert.level === 'critical' ? 'Atender' : 'Revisar'}</button></div></article>)}{!alertsList.length && <p className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">Sin alertas operativas activas.</p>}</div></aside><aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="quality-title"><div className="flex items-center justify-between gap-3"><h2 id="quality-title" className={`text-sm font-semibold ${headingClass}`}>Aseguramiento de Calidad</h2><span className="text-[9px] text-slate-500 midnight:text-cyan-600">Norma ISO-9001</span></div><div className="mt-4 space-y-3">{qualityList.map((check) => <article key={check.id} className={`flex items-center justify-between gap-3 p-3 ${nestedClass}`}><p className="flex items-center gap-2 text-[10px] text-slate-700 dark:text-slate-300 midnight:text-cyan-100"><ShieldCheck size={13} className={check.status === 'Aprobada' ? 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300' : 'text-amber-600 dark:text-amber-400 midnight:text-amber-300'} />{check.title}</p><span className={`rounded px-2 py-1 text-[9px] font-semibold ${check.status === 'Aprobada' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/10 midnight:text-amber-300'}`}>{check.status}</span></article>)}{!qualityList.length && <p className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">Sin controles de calidad registrados.</p>}</div></aside></div>
+          <OperationsSidebar
+            alertsList={alertsList}
+            qualityList={qualityList}
+            onSelectAlert={(alert) => setFeedback(`Alerta seleccionada: ${alert.title}`)}
+            headingClass={headingClass}
+            cardClass={cardClass}
+            nestedClass={nestedClass}
+          />
         </div>
       </div>
-      {dialogOpen && canManage && <NewWorkOrderDialog projectOptions={availableProjects} responsibleOptions={responsibleOptions} onSubmit={saveOrder} onClose={() => setDialogOpen(false)} />}
+
+      {dialogOpen && canManage && (
+        <NewWorkOrderDialog
+          projectOptions={availableProjects}
+          responsibleOptions={responsibleOptions}
+          onSubmit={saveOrder}
+          onClose={() => setDialogOpen(false)}
+        />
+      )}
     </main>
   );
 }
