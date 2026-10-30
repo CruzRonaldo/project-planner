@@ -185,6 +185,12 @@ test('El Gantt renderiza marcadores visuales de hitos y la regla de gobernanza $
     assert.ok(html.includes('Líder (≤$100k)'));
     assert.ok(html.includes('aria-label="Hito: Entrega Expediente BIM"'));
     assert.ok(html.includes('aria-label="Hito: Vaciado Estructural"'));
+    assert.ok(html.includes('title="Continúa después de 2026"'));
+
+    const html2027 = renderToStaticMarkup(React.createElement(StrategicPlanning, { data: testData, canManage: true, initialYear: '2027' }));
+    assert.ok(html2027.includes('aria-label="Ajustar calendario de Edificio Central Miraflores"'));
+    assert.ok(!html2027.includes('aria-label="Ajustar calendario de Remodelación Oficinas"'));
+    assert.ok(html2027.includes('title="Inició antes de 2027"'));
   } finally {
     await server.close();
   }

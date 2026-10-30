@@ -26,6 +26,7 @@ import {
   createGlobalMilestone,
   formatMilestoneDate,
 } from '../../utils/strategicPlanning';
+import { getBarGeometry, legacyMonthRangeToDates } from '../../utils/gantt';
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
 import projectsApi from '../../services/projectsApi';
 
@@ -36,12 +37,12 @@ const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slat
 
 const months = planningMonths.map((month) => month.short);
 
-export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false }) {
+export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false, initialYear = null }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
-  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [selectedYear, setSelectedYear] = useState(() => initialYear ? String(initialYear) : String(new Date().getFullYear()));
   const [milestonePage, setMilestonePage] = useState(1);
   const { showToast } = useToast();
   const projects = useMemo(() => data?.projects || [], [data]);
@@ -54,9 +55,31 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   }, [projects, selectedProjectFilter]);
 
   const displayedProjects = useMemo(() => {
-    if (!activeProject) return projects;
-    return projects.filter((p) => String(p.id) === String(activeProject.id));
-  }, [projects, activeProject]);
+    const year = Number(selectedYear) || new Date().getFullYear();
+    const windowStart = `${year}-01-01`;
+
+    return projects.filter((p) => {
+      if (activeProject && String(p.id) !== String(activeProject.id)) {
+        return false;
+      }
+
+      const sDate = p.startDate || p.start_date;
+      const eDate = p.endDate || p.end_date;
+      let dates = { startDate: sDate, endDate: eDate };
+      if (!dates.startDate || !dates.endDate) {
+        dates = legacyMonthRangeToDates(p.start, p.duration, year);
+      }
+
+      const geom = getBarGeometry({
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        windowStart,
+        windowMonths: 12,
+      });
+
+      return geom !== null;
+    });
+  }, [projects, activeProject, selectedYear]);
 
   const filteredMilestones = useMemo(() => {
     if (!activeProject) return milestones;
@@ -97,7 +120,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     );
   }, [displayedAdjustments, currentAdjustmentPage]);
 
-  const targetProjectsForBudget = activeProject ? [activeProject] : projects;
+  const targetProjectsForBudget = activeProject ? [activeProject] : displayedProjects;
 
   const totalBudget = targetProjectsForBudget.reduce(
     (acc, p) => acc + (Number(p.totalBudget) || Number(p.budget) || 0),
@@ -351,6 +374,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         {/* CONTENEDOR DEL GANTT */}
         <GanttScheduleSection
           displayedProjects={displayedProjects}
+          selectedYear={selectedYear}
           months={months}
           milestones={milestones}
           canManage={canManage}

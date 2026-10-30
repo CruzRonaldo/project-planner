@@ -1,8 +1,15 @@
 import React from 'react';
 import { SlidersHorizontal, Flag } from 'lucide-react';
+import {
+  getBarGeometry,
+  legacyMonthRangeToDates,
+  getMilestoneGeometry,
+} from '../../../utils/gantt';
+import { evaluateProjectGovernance } from '../../../utils/governance';
 
 export default function GanttScheduleSection({
   displayedProjects = [],
+  selectedYear = new Date().getFullYear(),
   months = [],
   milestones = [],
   canManage = false,
@@ -13,6 +20,9 @@ export default function GanttScheduleSection({
   onMilestoneClick = () => {},
   formatMilestoneDate = () => '',
 }) {
+  const windowStart = `${selectedYear}-01-01`;
+  const windowMonths = 12;
+
   return (
     <section className={`${cardClass} overflow-hidden p-0 md:p-0 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
       <div className="overflow-x-auto p-5 md:p-6 print:p-3 print:overflow-visible">
@@ -33,11 +43,42 @@ export default function GanttScheduleSection({
               </div>
             ) : (
               displayedProjects.map((project) => {
-                const projectBudget = Number(project.totalBudget) || Number(project.budget) || 0;
-                const isAbove100k = projectBudget > 100000;
+                const gov = evaluateProjectGovernance(project.totalBudget || project.budget);
+                const isAbove100k = gov.isRequired;
                 const projectMilestones = milestones.filter(
                   (m) => String(m.projectId) === String(project.id) || String(m.project) === String(project.id)
                 );
+
+                // Cálculo puro de geometría con tolerancia a snake_case/camelCase y fallback legado
+                const sDate = project.startDate || project.start_date;
+                const eDate = project.endDate || project.end_date;
+                let dates = { startDate: sDate, endDate: eDate };
+                if (!dates.startDate || !dates.endDate) {
+                  dates = legacyMonthRangeToDates(project.start, project.duration, selectedYear);
+                }
+
+                const geom = getBarGeometry({
+                  startDate: dates.startDate,
+                  endDate: dates.endDate,
+                  windowStart,
+                  windowMonths,
+                }) || {
+                  leftPct: Math.max(0, ((Number(project.start || 1) - 1) / 12) * 100),
+                  widthPct: Math.max(5, (Number(project.duration || 1) / 12) * 100),
+                  clippedLeft: false,
+                  clippedRight: false,
+                };
+
+                const isClippedLeft = Boolean(geom.clippedLeft);
+                const isClippedRight = Boolean(geom.clippedRight);
+
+                const roundedClass = isClippedLeft && isClippedRight
+                  ? 'rounded-none border-x-2 border-dashed border-white/70'
+                  : isClippedLeft
+                    ? 'rounded-r-md rounded-l-none border-l-2 border-dashed border-white/70'
+                    : isClippedRight
+                      ? 'rounded-l-md rounded-r-none border-r-2 border-dashed border-white/70'
+                      : 'rounded-md';
 
                 return (
                   <div key={project.name} className="grid min-h-12 grid-cols-[220px_1fr] items-center">
@@ -55,14 +96,14 @@ export default function GanttScheduleSection({
                         {isAbove100k ? (
                           <span
                             className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[8px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 midnight:border-amber-500/30 midnight:bg-amber-500/10 midnight:text-amber-300"
-                            title="Presupuesto > $100k: Requiere revisión y dictamen por Comité Directivo"
+                            title={gov.tooltip}
                           >
                             Comité (&gt;$100k)
                           </span>
                         ) : (
                           <span
                             className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.2 text-[8px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-500/30 midnight:bg-cyan-500/10 midnight:text-cyan-300"
-                            title="Presupuesto ≤ $100k: Aprobación directa por Líder Técnico"
+                            title={gov.tooltip}
                           >
                             Líder (≤$100k)
                           </span>
@@ -80,14 +121,18 @@ export default function GanttScheduleSection({
 
                       {/* BARRA PRINCIPAL DEL PROYECTO */}
                       <div
-                        className="absolute inset-y-0.5 flex items-center rounded-md px-3 text-[10px] font-bold text-white shadow-sm transition-all duration-300"
+                        className={`absolute inset-y-0.5 flex items-center px-2 text-[10px] font-bold text-white shadow-sm transition-all duration-300 min-w-0 ${roundedClass}`}
                         style={{
-                          left: `${((project.start - 1) / 12) * 100}%`,
-                          width: `${(project.duration / 12) * 100}%`,
+                          left: `${geom.leftPct}%`,
+                          width: `${geom.widthPct}%`,
                           backgroundColor: project.color,
                         }}
                       >
-                        <span className="flex-1 truncate text-center">{project.period}</span>
+                        <span className="flex-1 truncate text-center flex items-center justify-center gap-1 min-w-0">
+                          {isClippedLeft && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Inició antes de ${selectedYear}`}>◀</span>}
+                          <span className="truncate min-w-0 text-[9px]">{project.period}</span>
+                          {isClippedRight && <span className="opacity-75 font-mono text-[8px] shrink-0" title={`Continúa después de ${selectedYear}`}>▶</span>}
+                        </span>
                         {canManage && (
                           <button
                             type="button"
@@ -103,10 +148,13 @@ export default function GanttScheduleSection({
 
                       {/* HITOS ASOCIADOS EN EL CRONOGRAMA */}
                       {projectMilestones.map((m) => {
-                        const mDate = new Date(`${m.targetDate}T00:00:00`);
-                        const mMonth = !isNaN(mDate.getTime()) ? mDate.getMonth() + 1 : project.start;
-                        const mDay = !isNaN(mDate.getTime()) ? mDate.getDate() : 15;
-                        const leftPct = Math.min(98, Math.max(2, (((mMonth - 1) + (mDay / 31)) / 12) * 100));
+                        const mGeom = getMilestoneGeometry({
+                          targetDate: m.targetDate,
+                          windowStart,
+                          windowMonths,
+                        });
+                        const leftPct = mGeom ? mGeom.leftPct : Math.min(98, Math.max(2, geom.leftPct));
+
                         const mStatus = (m.status || '').toLowerCase();
                         const isDone = mStatus === 'completed';
                         const isUp = mStatus === 'upcoming' || mStatus === 'in_progress';
