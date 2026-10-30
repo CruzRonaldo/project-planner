@@ -488,6 +488,29 @@ export function useAppController() {
     }
   }, [currentUser]);
 
+  const handleSessionTokenChange = useCallback((sessionToken) => {
+    if (!sessionToken) return;
+    setCurrentUser((previousUser) => {
+      if (!previousUser) return previousUser;
+      const updatedUser = { ...previousUser, session_token: sessionToken };
+      try {
+        localStorage.setItem('project_planner_user', JSON.stringify(updatedUser));
+      } catch {}
+      return updatedUser;
+    });
+  }, []);
+
+  const clearLocalSession = useCallback(() => {
+    try {
+      localStorage.removeItem('project_planner_user');
+      localStorage.removeItem('project-planner-users');
+    } catch {}
+
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    navigate('/login', { replace: true });
+  }, [navigate]);
+
   const handleLogout = useCallback(() => {
     // 1. Notificar al backend de forma asíncrona sin bloquear la UI
     if (currentUser?.username || currentUser?.email) {
@@ -500,15 +523,8 @@ export function useAppController() {
     }
 
     // 2. Limpieza inmediata del almacenamiento local y estados
-    try {
-      localStorage.removeItem('project_planner_user');
-      localStorage.removeItem('project-planner-users');
-    } catch {}
-
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    navigate('/login', { replace: true });
-  }, [currentUser, navigate]);
+    clearLocalSession();
+  }, [clearLocalSession, currentUser]);
 
   const refreshTeamMembers = useCallback(async () => {
     setTeamMembersLoading(true);
@@ -738,9 +754,7 @@ export function useAppController() {
 
       if (!event.newValue) {
         // Sesión cerrada o removida en otra pestaña: desalojar memoria y volver a login de inmediato
-        setCurrentUser(null);
-        setIsAuthenticated(false);
-        navigate('/login', { replace: true });
+        clearLocalSession();
       } else {
         // Sesión cambiada/iniciada en otra pestaña: sincronizar usuario activo en tiempo real
         try {
@@ -750,9 +764,7 @@ export function useAppController() {
             setIsAuthenticated(true);
           }
         } catch {
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-          navigate('/login', { replace: true });
+          clearLocalSession();
         }
       }
     };
@@ -761,7 +773,41 @@ export function useAppController() {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [navigate]);
+  }, [clearLocalSession]);
+
+  // Verifica periódicamente la sesión para cerrar otros dispositivos cuando cambie la contraseña.
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    let isActive = true;
+    const validateCurrentSession = async () => {
+      try {
+        await projectsApi.validateSession();
+      } catch (error) {
+        const statusCode = error?.response?.status;
+        if (isActive && (statusCode === 401 || statusCode === 403)) {
+          clearLocalSession();
+        }
+      }
+    };
+
+    validateCurrentSession();
+    const intervalId = window.setInterval(validateCurrentSession, 15000);
+    const handleFocus = () => validateCurrentSession();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') validateCurrentSession();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [clearLocalSession, isAuthenticated, currentUser?.session_token]);
 
   // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde la Base de Datos al recargar la app
   useEffect(() => {
@@ -1083,6 +1129,7 @@ export function useAppController() {
         <Configuration
           currentUser={displayedCurrentUser}
           onUpdateCurrentUser={handleUpdateCurrentUser}
+          onSessionTokenChange={handleSessionTokenChange}
           fontScale={fontScale}
           setFontScale={setFontScale}
           users={users}
@@ -1127,6 +1174,7 @@ export function useAppController() {
     handleToggleSubAdmin,
     handleAddMember,
     handleUpdateCurrentUser,
+    handleSessionTokenChange,
     createPersonnelIncident,
     transitionPersonnelIncident,
     refreshHumanResourcesRecords,

@@ -18,6 +18,7 @@ from core.models import (
     TeamStatus,
     TechnicalArea,
 )
+from core.authentication import issue_session_token
 from core.services.make_service import send_make_webhook, test_make_connection
 
 User = get_user_model()
@@ -32,7 +33,7 @@ class CreateTechnicianViewTests(APITestCase):
             password='Admin-2026-Segura!',
             is_staff=True,
         )
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(self.admin)}')
         self.payload = {
             'first_name': 'Sofía',
             'last_name': 'Torres',
@@ -126,7 +127,7 @@ class CreateTechnicianViewTests(APITestCase):
 
         response = self.client.post(self.url, self.payload, format='json')
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(User.objects.filter(email=self.payload['email']).exists())
         self.assertFalse(TeamMember.objects.filter(email=self.payload['email']).exists())
 
@@ -177,7 +178,7 @@ class TeamMemberHumanResourcesTests(APITestCase):
         self.detail_url = reverse('team-member-detail', args=[self.member.id])
 
     def authenticate_as(self, user):
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {user.id}')
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {issue_session_token(user)}')
 
     def test_defaults_and_public_read_expose_human_resources_percentages(self):
         self.assertEqual(self.member.availability, 100)
@@ -226,7 +227,7 @@ class TeamMemberHumanResourcesTests(APITestCase):
             {'availability': 25},
             format='json',
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         self.member.refresh_from_db()
         self.assertEqual(self.member.availability, 100)
@@ -450,6 +451,8 @@ class DatabaseAndAuthEndpointsTests(TestCase):
         data = response.json()
         self.assertEqual(data["status"], "success")
         self.assertEqual(data["user"]["role"], "admin")
+        self.assertTrue(data["session_token"])
+        self.assertEqual(data["user"]["session_token"], data["session_token"])
 
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.last_login)
@@ -603,6 +606,8 @@ class ChangePasswordTests(APITestCase):
             last_name="Gonzales",
         )
         self.url = "/api/auth/change-password/"
+        self.session_token = issue_session_token(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.session_token}")
 
     def test_change_password_success(self):
         new_password = "NuevoPassword456*"
@@ -615,6 +620,7 @@ class ChangePasswordTests(APITestCase):
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "success")
+        self.assertTrue(response.data["session_token"])
 
         # Verificar que el usuario en BD tiene la nueva contraseña
         self.user.refresh_from_db()
@@ -637,6 +643,64 @@ class ChangePasswordTests(APITestCase):
             format="json",
         )
         self.assertEqual(login_fail_resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_verify_current_password_without_changing_it(self):
+        response = self.client.post(
+            self.url,
+            {
+                "identifier": self.email,
+                "current_password": self.old_password,
+                "verify_only": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["verified"])
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.old_password))
+        self.assertFalse(
+            SecurityAuditLog.objects.filter(
+                user=self.user,
+                action="password_change",
+            ).exists()
+        )
+        session_response = self.client.get("/api/auth/session/validate/")
+        self.assertEqual(session_response.status_code, status.HTTP_200_OK)
+
+    def test_verify_current_password_allows_retries(self):
+        for attempt in range(3):
+            response = self.client.post(
+                self.url,
+                {
+                    "identifier": self.email,
+                    "current_password": f"WrongPassword{attempt}!",
+                    "verify_only": True,
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            self.url,
+            {
+                "identifier": self.email,
+                "current_password": self.old_password,
+                "verify_only": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["verified"])
+
+    def test_verify_current_password_requires_current_password(self):
+        response = self.client.post(
+            self.url,
+            {"identifier": self.email, "verify_only": True},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Debe ingresar su contraseña actual", response.data["message"])
 
     def test_change_password_invalid_current_password(self):
         payload = {
@@ -675,6 +739,19 @@ class ChangePasswordTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("no coinciden", response.data["message"])
 
+    def test_change_password_requires_confirmation(self):
+        response = self.client.post(
+            self.url,
+            {
+                "identifier": self.email,
+                "current_password": self.old_password,
+                "new_password": "NuevoPassword456*",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Debe confirmar", response.data["message"])
+
     def test_change_password_too_short(self):
         payload = {
             "identifier": self.email,
@@ -686,15 +763,51 @@ class ChangePasswordTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("al menos 6 caracteres", response.data["message"])
 
-    def test_change_password_user_not_found(self):
-        payload = {
-            "identifier": "nonexistent@user.com",
-            "current_password": "AnyPassword123*",
-            "new_password": "NuevoPassword456*",
-            "confirm_password": "NuevoPassword456*",
-        }
-        response = self.client.post(self.url, payload, format="json")
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    def test_change_password_requires_authenticated_session(self):
+        self.client.credentials()
+        response = self.client.post(
+            self.url,
+            {
+                "current_password": self.old_password,
+                "new_password": "NuevoPassword456*",
+                "confirm_password": "NuevoPassword456*",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_change_password_invalidates_previous_sessions(self):
+        response = self.client.post(
+            self.url,
+            {
+                "current_password": self.old_password,
+                "new_password": "NuevoPassword456*",
+                "confirm_password": "NuevoPassword456*",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        new_session_token = response.data["session_token"]
+
+        old_session_client = APIClient()
+        old_session_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {self.session_token}"
+        )
+        old_response = old_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(old_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        current_session_client = APIClient()
+        current_session_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {new_session_token}"
+        )
+        current_response = current_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(current_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(current_response.data["valid"])
+
+    def test_numeric_user_id_is_not_a_valid_session_token(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.user.id}")
+        response = self.client.get("/api/auth/session/validate/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class UserProfileAPITests(TestCase):

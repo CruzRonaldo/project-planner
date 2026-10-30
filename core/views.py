@@ -20,6 +20,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import (
     action,
     api_view,
+    authentication_classes,
     parser_classes,
     permission_classes,
 )
@@ -44,24 +45,10 @@ from .models import (
     UserProfile,
 )
 
-from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import ValidationError
+from .authentication import PasswordBoundAuthentication, issue_session_token
 
-class SimpleUserAuthentication(BaseAuthentication):
-    """Autenticación simple que asume que el token Bearer es el ID del usuario."""
-    def authenticate(self, request):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return None
-            
-        user_id = auth_header.split(' ')[1]
-        User = get_user_model()
-        try:
-            user = User.objects.get(id=user_id)
-            return (user, None)
-        except (User.DoesNotExist, ValueError):
-            raise AuthenticationFailed('Usuario no encontrado o token inválido')
+SimpleUserAuthentication = PasswordBoundAuthentication
 from .serializers import (
     CreateTechnicianSerializer,
     DriveLinkSerializer,
@@ -200,6 +187,7 @@ def login_view(request):
 
     # Actualizar last_login en la base de datos
     update_last_login(None, user)
+    session_token = issue_session_token(user)
 
     user_role = "admin" if is_admin else "user"
     role_display = "Project Manager (Admin)" if is_admin else "Equipo Técnico"
@@ -217,6 +205,7 @@ def login_view(request):
         {
             "status": "success",
             "message": f"Bienvenido al sistema, {user.username}",
+            "session_token": session_token,
             "user": {
                 "id": user.id,
                 "username": user.username,
@@ -230,6 +219,7 @@ def login_view(request):
                 "photo": user_photo,
                 "avatar": user_photo,
                 "phone": user_phone,
+                "session_token": session_token,
             },
         },
         status=status.HTTP_200_OK,
@@ -310,8 +300,21 @@ def logout_view(request):
     return Response({'status': 'success', 'message': 'Sesión cerrada correctamente'}, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@authentication_classes([SimpleUserAuthentication])
+@permission_classes([IsAuthenticated])
+def session_validate_view(request):
+    """Confirma que el token siga vinculado a la contraseña vigente."""
+    return Response({
+        'status': 'success',
+        'valid': True,
+        'user_id': request.user.id,
+    }, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@authentication_classes([SimpleUserAuthentication])
+@permission_classes([IsAuthenticated])
 def change_password_view(request):
     """
     Endpoint para cambiar la contraseña de un usuario validando su contraseña actual.
@@ -319,30 +322,14 @@ def change_password_view(request):
     encriptada en la Base de Datos.
     """
     data = request.data
-    user_id = data.get('user_id') or data.get('userId') or data.get('id')
-    identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
     current_password = data.get('current_password') or data.get('currentPassword') or ''
     new_password = data.get('new_password') or data.get('newPassword') or ''
     confirm_password = data.get('confirm_password') or data.get('confirmPassword') or ''
+    verify_only_value = data.get('verify_only', data.get('verifyOnly', False))
+    verify_only = verify_only_value is True or str(verify_only_value).lower() in ('1', 'true', 'yes')
 
-    # 1. Localizar usuario por ID, email o username
-    user = None
-    if user_id:
-        user = User.objects.filter(id=user_id).first()
-    if not user and identifier:
-        user = User.objects.filter(
-            Q(username__iexact=identifier) |
-            Q(email__iexact=identifier) |
-            Q(email__istartswith=identifier)
-        ).first()
-    if not user and request.user and request.user.is_authenticated:
-        user = request.user
-
-    if not user:
-        return Response({
-            'status': 'error',
-            'message': 'No se encontró la cuenta de usuario para actualizar la contraseña.'
-        }, status=status.HTTP_404_NOT_FOUND)
+    # La cuenta se toma únicamente del token de sesión autenticado.
+    user = request.user
 
     # 2. Validar contraseña actual obligatoria y correcta
     if not current_password:
@@ -356,6 +343,15 @@ def change_password_view(request):
             'status': 'error',
             'message': 'La contraseña actual no es correcta. Verifique e intente nuevamente.'
         }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Permite que la interfaz verifique la clave actual antes de mostrar
+    # los campos de la nueva contraseña, sin modificar ningún dato.
+    if verify_only:
+        return Response({
+            'status': 'success',
+            'verified': True,
+            'message': 'Contraseña actual verificada correctamente.'
+        }, status=status.HTTP_200_OK)
 
     # 3. Validar nueva contraseña
     if not new_password:
@@ -376,7 +372,13 @@ def change_password_view(request):
             'message': 'La nueva contraseña no puede ser idéntica a la contraseña actual.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    if confirm_password and new_password != confirm_password:
+    if not confirm_password:
+        return Response({
+            'status': 'error',
+            'message': 'Debe confirmar la nueva contraseña.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if new_password != confirm_password:
         return Response({
             'status': 'error',
             'message': 'La nueva contraseña y su confirmación no coinciden.'
@@ -385,6 +387,7 @@ def change_password_view(request):
     # 4. Actualizar contraseña cifrada en la base de datos
     user.set_password(new_password)
     user.save()
+    new_session_token = issue_session_token(user)
 
     # Registrar en bitácora de auditoría
     try:
@@ -403,7 +406,8 @@ def change_password_view(request):
 
     return Response({
         'status': 'success',
-        'message': 'Contraseña modificada correctamente.'
+        'message': 'Contraseña modificada correctamente. Las demás sesiones fueron cerradas.',
+        'session_token': new_session_token,
     }, status=status.HTTP_200_OK)
 
 

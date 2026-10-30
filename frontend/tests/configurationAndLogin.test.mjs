@@ -4,8 +4,14 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 
+const createTestServer = () => createServer({
+  configLoader: 'runner',
+  server: { middlewareMode: true, hmr: false },
+  appType: 'custom',
+});
+
 test('Configuration renderiza perfiles, preferencias y acciones de administración según rol', async () => {
-  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const server = await createTestServer();
   try {
     const { default: Configuration } = await server.ssrLoadModule('/src/views/common/Configuration.jsx');
 
@@ -80,7 +86,7 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
 });
 
 test('LoginScreen contiene botones interactivos para recuperación y contacto con soporte', async () => {
-  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const server = await createTestServer();
   try {
     const { default: LoginScreen } = await server.ssrLoadModule('/src/views/auth/LoginScreen.jsx');
 
@@ -106,7 +112,7 @@ test('LoginScreen contiene botones interactivos para recuperación y contacto co
 });
 
 test('StrategicPlanning Hitos Globales sincroniza con el filtro del cronograma sin select duplicado', async () => {
-  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const server = await createTestServer();
   try {
     const { default: StrategicPlanning } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
     const { createStrategicPlanningData } = await server.ssrLoadModule('/src/mocks/strategicPlanningData.js');
@@ -128,7 +134,7 @@ test('StrategicPlanning Hitos Globales sincroniza con el filtro del cronograma s
 });
 
 test('Campos de contraseña incluyen botones con icono de ojo para alternar visibilidad', async () => {
-  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const server = await createTestServer();
   try {
     const { default: LoginScreen } = await server.ssrLoadModule('/src/views/auth/LoginScreen.jsx');
     const { AddTechnicalMemberDialog } = await server.ssrLoadModule('/src/views/technical/TechnicalTeam.jsx');
@@ -153,15 +159,17 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
     assert.ok(techDialogHtml.includes('aria-label="Ver contraseña"'));
     assert.ok(techDialogHtml.includes('aria-label="Ver confirmación de contraseña"'));
 
-    // 3. projectsApi tiene método changePassword definido
+    // 3. projectsApi permite verificar primero la clave actual y luego cambiarla
+    assert.equal(typeof projectsApi.verifyCurrentPassword, 'function');
     assert.equal(typeof projectsApi.changePassword, 'function');
+    assert.equal(typeof projectsApi.validateSession, 'function');
   } finally {
     await server.close();
   }
 });
 
 test('LoadingScreen renderiza logotipo, mensaje de inicialización y barra animada', async () => {
-  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const server = await createTestServer();
   try {
     const { default: LoadingScreen } = await server.ssrLoadModule('/src/views/auth/LoadingScreen.jsx');
 

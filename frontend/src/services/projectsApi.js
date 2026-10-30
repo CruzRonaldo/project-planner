@@ -3,8 +3,8 @@ import api from './api';
 function getActorHeaders() {
   try {
     const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
-    const actorId = savedUser?.db_id ?? savedUser?.id ?? null;
-    return actorId ? { Authorization: `Bearer ${actorId}` } : {};
+    const sessionToken = savedUser?.session_token;
+    return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
   } catch {
     return {};
   }
@@ -216,6 +216,12 @@ export const projectsApi = {
     return response.data;
   },
 
+  /** Comprueba que la sesión del dispositivo continúe vigente. */
+  validateSession: async () => {
+    const response = await api.get('/auth/session/validate/');
+    return response.data;
+  },
+
   /**
    * Obtiene las notificaciones personalizadas del usuario autenticado.
    */
@@ -227,6 +233,16 @@ export const projectsApi = {
   /**
    * Cambia la contraseña del usuario validando su clave actual en la Base de Datos.
    */
+  verifyCurrentPassword: async ({ identifier, userId, currentPassword }) => {
+    const response = await api.post('/auth/change-password/', {
+      identifier,
+      user_id: userId,
+      current_password: currentPassword,
+      verify_only: true,
+    });
+    return response.data;
+  },
+
   changePassword: async ({ identifier, userId, currentPassword, newPassword, confirmPassword }) => {
     const response = await api.post('/auth/change-password/', {
       identifier,

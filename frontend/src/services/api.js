@@ -27,5 +27,23 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.request.use((requestConfig) => {
+  if (typeof window === 'undefined') return requestConfig;
+
+  try {
+    const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user') || 'null');
+    const sessionToken = savedUser?.session_token;
+    if (sessionToken) {
+      requestConfig.headers = requestConfig.headers || {};
+      requestConfig.headers.Authorization = `Bearer ${sessionToken}`;
+    }
+  } catch {
+    // Una sesión local dañada será tratada por el controlador de la aplicación.
+  }
+
+  return requestConfig;
+});
+
 export { baseURL };
 export default api;
