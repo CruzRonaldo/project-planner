@@ -44,6 +44,7 @@ import {
   createStrategicPlanningData,
   createPortfolioData,
   createOperationsData,
+  createTechnicalTeamData,
   createIntegrationsData,
   initialUsers,
 } from '../mocks';
@@ -108,7 +109,7 @@ export function useAppController() {
     return location.pathname.replace(/\/$/, '') || '/';
   }, [location.pathname]);
 
-  // Derivar activeView a partir de la URL real
+    // Derivar activeView a partir de la URL real
   const activeView = useMemo(() => {
     if (normalizedPath === '/login') return 'login';
     if (normalizedPath === '/' || normalizedPath === '/dashboard') return 'dashboard';
@@ -123,9 +124,9 @@ export function useAppController() {
       !['localhost', '127.0.0.1'].includes(window.location.hostname));
   const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
 
-  // Estados de datos (en Render se inicializan vacíos por defecto)
+  // Estados de datos (en producción se inicializan vacíos por defecto)
   const [strategicPlanningData, setStrategicPlanningData] = useState(() =>
-    hideMocks ? { projects: [], milestones: [] } : createStrategicPlanningData()
+    hideMocks ? { projects: [], milestones: [], adjustments: [] } : createStrategicPlanningData()
   );
   const [portfolioData, setPortfolioData] = useState(() =>
     hideMocks ? { projects: [], changes: [] } : createPortfolioData()
@@ -144,7 +145,7 @@ export function useAppController() {
   // Equipo Técnico y Recursos Humanos comparten una única fuente real: TeamMember en Django.
   const [technicalTeamData, setTechnicalTeamData] = useState(() => ({
     members: readCachedTeamMembers().map(mapTeamMemberToTechnical),
-    assignments: [],
+    assignments: hideMocks ? [] : createTechnicalTeamData().assignments,
   }));
   const [humanResourcesData, setHumanResourcesData] = useState(() => ({
     members: readCachedTeamMembers().map(mapTeamMemberToHumanResources),
@@ -809,13 +810,36 @@ export function useAppController() {
     let isMounted = true;
     const syncBackendData = async () => {
       try {
-        const [backendProjects, backendMilestones] = await Promise.all([
+        const [
+          backendProjects,
+          backendMilestones,
+          backendTasks,
+          historyResult,
+          backendProjectChanges,
+          backendAdjustments,
+        ] = await Promise.all([
           projectsApi.getProjects().catch((err) => {
             console.error('Error al sincronizar proyectos de la Base de Datos:', err);
             return null;
           }),
           projectsApi.getMilestones().catch((err) => {
             console.warn('Error al sincronizar hitos de la Base de Datos:', err);
+            return null;
+          }),
+          projectsApi.getTasks().catch((err) => {
+            console.warn('Error al sincronizar tareas operativas de la Base de Datos:', err);
+            return null;
+          }),
+          projectsApi.getTeamMemberHistory().catch((err) => {
+            console.warn('Error al sincronizar historial de personal:', err);
+            return null;
+          }),
+          projectsApi.getProjectChangeLogs().catch((err) => {
+            console.warn('Error al sincronizar historial de cambios de proyectos:', err);
+            return null;
+          }),
+          projectsApi.getScheduleAdjustments().catch((err) => {
+            console.warn('Error al sincronizar reajustes de cronograma:', err);
             return null;
           }),
         ]);
@@ -842,9 +866,20 @@ export function useAppController() {
             members: bp.members || ['PM'],
           }));
 
+          const mappedChanges = Array.isArray(backendProjectChanges) && backendProjectChanges.length > 0
+            ? backendProjectChanges.map((c) => ({
+                id: c.id,
+                date: c.date,
+                project: c.project_name || c.project_code || 'Proyecto',
+                change: c.change,
+                user: c.user,
+              }))
+            : [];
+
           setPortfolioData((prev) => ({
             ...prev,
             projects: mapped,
+            changes: mappedChanges.length > 0 ? mappedChanges : (prev.changes || []),
           }));
 
           // Sincronizar Calendario Maestro (Gantt)
@@ -863,10 +898,100 @@ export function useAppController() {
               }))
             : [];
 
+          const mappedAdjustments = Array.isArray(backendAdjustments) && backendAdjustments.length > 0
+            ? backendAdjustments.map((a) => ({
+                id: a.id,
+                date: a.date,
+                projectId: a.projectId ?? a.project,
+                projectName: a.projectName,
+                previousPeriod: a.previousPeriod,
+                nextPeriod: a.nextPeriod,
+                reason: a.reason,
+              }))
+            : [];
+
           setStrategicPlanningData((prev) => ({
             ...prev,
             projects: mappedGanttProjects,
             milestones: mappedMilestones.length > 0 ? mappedMilestones : prev.milestones,
+            adjustments: mappedAdjustments.length > 0 ? mappedAdjustments : (prev.adjustments || []),
+          }));
+        }
+
+        // Sincronizar Gestión Operativa desde las Tareas de la Base de Datos
+        if (Array.isArray(backendTasks) && backendTasks.length > 0) {
+          const projectMap = {};
+          if (Array.isArray(backendProjects)) {
+            backendProjects.forEach((p) => {
+              projectMap[p.id] = p.name;
+              projectMap[p.code] = p.name;
+            });
+          }
+
+          const statusMap = {
+            DONE: 'completed',
+            IN_PROGRESS: 'in-progress',
+            TODO: 'planned',
+            REVIEW: 'in-progress',
+          };
+
+          const mappedOrders = backendTasks.map((t) => {
+            const projName = projectMap[t.project] || (typeof t.project === 'object' && t.project?.name) || 'Proyecto Operativo';
+            return {
+              id: `order-${t.id}`,
+              code: `#${100 + Number(t.id || 1)}`,
+              project: projName,
+              type: t.category_name ? `Inspección ${t.category_name}` : 'Operación técnica',
+              title: t.title,
+              area: t.category_name || 'Operaciones',
+              responsible: t.assigned_to_name || 'Personal Técnico',
+              startDate: t.start_date,
+              endDate: t.end_date,
+              priority: t.is_critical_path ? 'high' : 'medium',
+              status: statusMap[t.status] || 'in-progress',
+              critical: !!t.is_critical_path,
+              tolerance: t.tolerance_days || 7,
+              documentUrl: '',
+              description: t.description || '',
+              progress: t.progress ?? 0,
+            };
+          });
+
+          const inProg = mappedOrders.filter((o) => o.status === 'in-progress').length;
+          const comp = mappedOrders.filter((o) => o.status === 'completed').length;
+          const avgEff = mappedOrders.length > 0
+            ? Math.round((mappedOrders.reduce((acc, o) => acc + (o.progress || 0), 0) / mappedOrders.length) * 10) / 10
+            : 93.4;
+
+          setOperationsData((prev) => ({
+            ...prev,
+            orders: mappedOrders,
+            metrics: {
+              inProgress: inProg,
+              completed: comp,
+              incidents: 2,
+              efficiency: avgEff,
+            },
+            activities: prev.activities?.length > 0 ? prev.activities : createOperationsData().activities,
+            alerts: prev.alerts?.length > 0 ? prev.alerts : createOperationsData().alerts,
+            qualityChecks: prev.qualityChecks?.length > 0 ? prev.qualityChecks : createOperationsData().qualityChecks,
+          }));
+        }
+
+        // Sincronizar Historial de Asignaciones en Equipo Técnico
+        if (Array.isArray(historyResult) && historyResult.length > 0) {
+          const mappedAssignments = historyResult.map((log) => ({
+            id: `assign-${log.id}`,
+            date: (log.date || log.created_at || '').split('T')[0] || '2026-10-24',
+            memberPrefix: (log.member_name || log.name || '').toLowerCase().includes('arq') ? 'Arq.' : 'Ing.',
+            memberName: log.member_name || log.name || 'Especialista',
+            project: log.new_project_name || log.previous_project_name || 'Proyecto Asignado',
+            reason: log.comment || 'Asignación técnica de responsabilidades',
+          }));
+
+          setTechnicalTeamData((prev) => ({
+            ...prev,
+            assignments: mappedAssignments,
           }));
         }
       } catch (err) {

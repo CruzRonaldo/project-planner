@@ -26,6 +26,8 @@ from .views import (
     PerformanceMetricViewSet,
     DriveLinkViewSet,
     ProjectMeetingViewSet,
+    ProjectChangeLogViewSet,
+    ScheduleAdjustmentViewSet,
 
     google_drive_connect_view,
     google_drive_callback_view,
@@ -65,6 +67,8 @@ router.register(r"tasks", TaskViewSet, basename="task")
 router.register(r"performance-metrics", PerformanceMetricViewSet, basename="performance-metric")
 router.register(r"drive-links", DriveLinkViewSet, basename="drive-link")
 router.register(r"meetings", ProjectMeetingViewSet, basename="meetings")
+router.register(r"project-change-logs", ProjectChangeLogViewSet, basename="project-change-log")
+router.register(r"schedule-adjustments", ScheduleAdjustmentViewSet, basename="schedule-adjustment")
 
 
 urlpatterns = [

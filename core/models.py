@@ -1,3 +1,5 @@
+import datetime
+from django.utils import timezone
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
@@ -665,3 +667,50 @@ class ProjectMeeting(models.Model):
             self.meeting_url = f"https://meet.jit.si/{self.room_name}"
 
         super().save(*args, **kwargs)
+
+
+class ProjectChangeLog(models.Model):
+    """Historial de cambios y auditoria de proyectos (Portafolio)."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='project_change_logs',
+        verbose_name="Proyecto"
+    )
+    description = models.CharField(max_length=255, verbose_name="Descripcion del Cambio")
+    user_name = models.CharField(max_length=150, default="Administrador", verbose_name="Usuario")
+    date = models.DateField(default=datetime.date.today, verbose_name="Fecha")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+
+    class Meta:
+        verbose_name = "Historial de Proyecto"
+        verbose_name_plural = "Historial de Proyectos"
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"[{self.project.code}] {self.description[:40]}"
+
+
+class ScheduleAdjustment(models.Model):
+    """Historial de reajustes de cronograma (Planificacion Estrategica)."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='schedule_adjustments',
+        verbose_name="Proyecto"
+    )
+    previous_period = models.CharField(max_length=100, verbose_name="Periodo Anterior")
+    next_period = models.CharField(max_length=100, verbose_name="Nuevo Periodo")
+    reason = models.CharField(max_length=255, verbose_name="Motivo del Reajuste")
+    date = models.DateField(default=datetime.date.today, verbose_name="Fecha")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+
+    class Meta:
+        verbose_name = "Reajuste de Cronograma"
+        verbose_name_plural = "Reajustes de Cronograma"
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.project.code}: {self.previous_period} -> {self.next_period}"

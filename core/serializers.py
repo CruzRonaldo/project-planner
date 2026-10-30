@@ -20,6 +20,8 @@ from .models import (
     PerformanceMetric,
     DriveLink,
     ProjectMeeting,
+    ProjectChangeLog,
+    ScheduleAdjustment,
 )
 
 
@@ -850,3 +852,32 @@ class ProjectMeetingSerializer(serializers.ModelSerializer):
             name = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
             return name or obj.created_by.username
         return None
+
+
+
+class ProjectChangeLogSerializer(serializers.ModelSerializer):
+    """Serializador para el historial de cambios en proyectos (Portafolio)."""
+    project_name = serializers.ReadOnlyField(source='project.name')
+    project_code = serializers.ReadOnlyField(source='project.code')
+    change = serializers.CharField(source='description')
+    user = serializers.CharField(source='user_name')
+
+    class Meta:
+        model = ProjectChangeLog
+        fields = ['id', 'project', 'project_name', 'project_code', 'change', 'user', 'date', 'created_at']
+
+
+class ScheduleAdjustmentSerializer(serializers.ModelSerializer):
+    """Serializador para el historial de reajustes de cronograma (Planificacion Estrategica)."""
+    projectId = serializers.IntegerField(source='project.id', read_only=True)
+    projectCode = serializers.CharField(source='project.code', read_only=True)
+    projectName = serializers.CharField(source='project.name', read_only=True)
+    previousPeriod = serializers.CharField(source='previous_period')
+    nextPeriod = serializers.CharField(source='next_period')
+
+    class Meta:
+        model = ScheduleAdjustment
+        fields = [
+            'id', 'project', 'projectId', 'projectCode', 'projectName',
+            'previousPeriod', 'nextPeriod', 'reason', 'date', 'created_at'
+        ]

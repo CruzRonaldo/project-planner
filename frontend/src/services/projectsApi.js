@@ -95,6 +95,30 @@ export const projectsApi = {
     return response.data;
   },
 
+  /**
+   * Obtiene la lista de tareas y ordenes operativas registradas en la Base de Datos.
+   */
+  getTasks: async (params = {}) => {
+    const response = await api.get('/tasks/', { params });
+    return response.data;
+  },
+
+  /**
+   * Obtiene el historial de cambios y auditoria de proyectos (Portafolio).
+   */
+  getProjectChangeLogs: async (params = {}) => {
+    const response = await api.get('/project-change-logs/', { params });
+    return response.data;
+  },
+
+  /**
+   * Obtiene el historial de reajustes de cronograma (Planificacion Estrategica).
+   */
+  getScheduleAdjustments: async (params = {}) => {
+    const response = await api.get('/schedule-adjustments/', { params });
+    return response.data;
+  },
+
 
   /**
    * Obtiene la lista de miembros y líderes del equipo registrados en la Base de Datos.

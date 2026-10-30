@@ -43,6 +43,8 @@ from .models import (
     TechnicalArea,
     UserProfile,
     ProjectMeeting,
+    ProjectChangeLog,
+    ScheduleAdjustment,
 )
 
 from rest_framework.authentication import BaseAuthentication
@@ -64,6 +66,8 @@ class SimpleUserAuthentication(BaseAuthentication):
         except (User.DoesNotExist, ValueError):
             raise AuthenticationFailed('Usuario no encontrado o token inválido')
 from .serializers import (
+    ProjectChangeLogSerializer,
+    ScheduleAdjustmentSerializer,
     CreateTechnicianSerializer,
     DriveLinkSerializer,
     MilestoneSerializer,
@@ -2151,3 +2155,30 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+
+
+class ProjectChangeLogViewSet(viewsets.ModelViewSet):
+    """CRUD para historial de cambios en proyectos (Portafolio)."""
+    queryset = ProjectChangeLog.objects.select_related('project').all()
+    serializer_class = ProjectChangeLogSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        return queryset
+
+
+class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
+    """CRUD para historial de reajustes de cronograma (Planificacion Estrategica)."""
+    queryset = ScheduleAdjustment.objects.select_related('project').all()
+    serializer_class = ScheduleAdjustmentSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            queryset = queryset.filter(project_id=project_id)
+        return queryset
