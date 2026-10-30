@@ -28,6 +28,7 @@ import {
 } from '../../utils/strategicPlanning';
 import { getBarGeometry, legacyMonthRangeToDates } from '../../utils/gantt';
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
+import TimelineAnalysisDialog from './TimelineAnalysisDialog';
 import projectsApi from '../../services/projectsApi';
 
 export { AdjustScheduleDialog, NewGlobalMilestoneDialog };
@@ -40,6 +41,7 @@ const months = planningMonths.map((month) => month.short);
 export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false, initialYear = null }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [adjustingProjectId, setAdjustingProjectId] = useState(null);
   const [selectedProjectFilter, setSelectedProjectFilter] = useState('ALL');
   const [selectedYear, setSelectedYear] = useState(() => initialYear ? String(initialYear) : String(new Date().getFullYear()));
@@ -146,7 +148,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       setDialogOpen(false);
       showToast({
         title: 'Calendario de Proyecto',
-        message: 'No había cambios que guardar.',
+        message: 'No hab├¡a cambios que guardar.',
         type: 'info',
       });
       return;
@@ -168,7 +170,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           duration_months: updatedProject.duration,
         });
 
-        // Registrar auditoría de reajuste en backend Django
+        // Registrar auditor├¡a de reajuste en backend Django
         try {
           if (projectsApi.createScheduleAdjustment) {
             const createdAdj = await projectsApi.createScheduleAdjustment({
@@ -182,14 +184,14 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             }
           }
         } catch (adjErr) {
-          console.warn('Reajuste de fecha aplicado pero falló el registro en auditoría remota:', adjErr);
+          console.warn('Reajuste de fecha aplicado pero fall├│ el registro en auditor├¡a remota:', adjErr);
           auditSaved = false;
         }
       } catch (apiErr) {
         console.error('Error al actualizar el cronograma en backend:', apiErr);
         showToast({
-          title: 'Error de Sincronización',
-          message: 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.',
+          title: 'Error de Sincronizaci├│n',
+          message: 'No se pudo guardar el nuevo cronograma en el servidor. Int├®ntalo nuevamente.',
           type: 'danger',
         });
         return;
@@ -202,7 +204,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     showToast({
       title: 'Calendario de Proyecto',
       message: auditSaved
-        ? 'Calendario actualizado y registrado en el historial de auditoría.'
+        ? 'Calendario actualizado y registrado en el historial de auditor├¡a.'
         : 'Cronograma guardado en el servidor, pero no se pudo registrar el reajuste en el historial.',
       type: auditSaved ? 'success' : 'warning',
     });
@@ -228,7 +230,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     setMilestoneDialogOpen(false);
     const targetProject = projects.find((p) => String(p.id) === String(draft.projectId));
     const projectLabel = targetProject ? ` para el proyecto '${targetProject.name}'` : '';
-    const msg = `Hito “${updated.milestones[0].title}” registrado${projectLabel} en el calendario global.`;
+    const msg = `Hito ÔÇ£${updated.milestones[0].title}ÔÇØ registrado${projectLabel} en el calendario global.`;
     showToast({
       title: 'Hito Creado',
       message: msg,
@@ -251,8 +253,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     onChange(updated);
     const currentMilestone = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
     const statusLabel = milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus;
-    const titleLabel = currentMilestone ? ` “${currentMilestone.title}”` : '';
-    const msg = `Estado del hito${titleLabel} actualizado a “${statusLabel}”.`;
+    const titleLabel = currentMilestone ? ` ÔÇ£${currentMilestone.title}ÔÇØ` : '';
+    const msg = `Estado del hito${titleLabel} actualizado a ÔÇ£${statusLabel}ÔÇØ.`;
     showToast({
       title: 'Hito Actualizado',
       message: msg,
@@ -276,7 +278,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       milestones: (data?.milestones || []).filter((m) => String(m.id) !== String(milestoneId)),
     };
     onChange(updated);
-    const msg = `Hito “${title}”${projectLabel} eliminado.`;
+    const msg = `Hito ÔÇ£${title}ÔÇØ${projectLabel} eliminado.`;
     showToast({
       title: 'Hito Eliminado',
       message: msg,
@@ -309,8 +311,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
     setTimeout(restoreTitle, 3000);
     showToast({
-      title: 'Exportación de Calendario',
-      message: `Vista de exportación abierta para guardar o imprimir “${fileName}.pdf”.`,
+      title: 'Exportaci├│n de Calendario',
+      message: `Vista de exportaci├│n abierta para guardar o imprimir ÔÇ£${fileName}.pdfÔÇØ.`,
       type: 'info',
     });
   };
@@ -319,32 +321,32 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8 print:bg-white print:p-0 print:overflow-visible">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-8 print:max-w-none print:gap-4 print:pb-0">
         
-        {/* ENCABEZADO FORMAL PARA EXPORTACIÓN A PDF */}
+        {/* ENCABEZADO FORMAL PARA EXPORTACI├ôN A PDF */}
         <header className="print-header hidden print:block mb-4 border-b-2 border-slate-800 pb-3">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-bold tracking-widest text-blue-700 uppercase">PROJECT PLANNER</span>
                 <span className="text-slate-300">|</span>
-                <span className="text-xs text-slate-500 font-medium">Sistema de Planificación Estratégica</span>
+                <span className="text-xs text-slate-500 font-medium">Sistema de Planificaci├│n Estrat├®gica</span>
               </div>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
                 {activeProject
-                  ? `Calendario de Proyecto 2026 — ${activeProject.code ? `${activeProject.code} · ` : ''}${activeProject.name}`
+                  ? `Calendario de Proyecto 2026 ÔÇö ${activeProject.code ? `${activeProject.code} ┬À ` : ''}${activeProject.name}`
                   : 'Calendario Maestro de Proyectos 2026'}
               </h1>
               <p className="mt-0.5 text-xs text-slate-600">
                 {activeProject
-                  ? `Cronograma de Ruta Crítica, Hitos Clave y Control Presupuestario (${activeProject.area})`
-                  : 'Cronograma Anual de Ruta Crítica, Hitos Clave y Asignación Presupuestaria'}
+                  ? `Cronograma de Ruta Cr├¡tica, Hitos Clave y Control Presupuestario (${activeProject.area})`
+                  : 'Cronograma Anual de Ruta Cr├¡tica, Hitos Clave y Asignaci├│n Presupuestaria'}
               </p>
             </div>
             <div className="text-right text-xs text-slate-500">
-              <p><span className="font-semibold text-slate-700">Fecha de Emisión:</span> {new Date().toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><span className="font-semibold text-slate-700">Fecha de Emisi├│n:</span> {new Date().toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
                 {activeProject
-                  ? `Proyecto: ${activeProject.code || activeProject.name} · Hitos Asociados: ${filteredMilestones.length}`
-                  : `Total Proyectos: ${projects.length} · Total Hitos: ${milestones.length}`}
+                  ? `Proyecto: ${activeProject.code || activeProject.name} ┬À Hitos Asociados: ${filteredMilestones.length}`
+                  : `Total Proyectos: ${projects.length} ┬À Total Hitos: ${milestones.length}`}
               </p>
             </div>
           </div>
@@ -355,13 +357,16 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Calendario Maestro 2026</h1>
-              <p className={`mt-1 text-sm ${mutedClass}`}>Planificación de ruta crítica y cronograma de infraestructura anual</p>
+              <p className={`mt-1 text-sm ${mutedClass}`}>Planificaci├│n de ruta cr├¡tica y cronograma de infraestructura anual</p>
             </div>
 
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); }} className={secondaryButtonClass}>
                   <SlidersHorizontal size={15} /> Ajustar Calendario
+                </button>
+                <button type="button" onClick={() => setAnalysisOpen(true)} className={secondaryButtonClass}>
+                  <SlidersHorizontal size={15} /> Analizar tiempos
                 </button>
                 <button type="button" onClick={exportToPdf} className={secondaryButtonClass}>
                   <FileDown size={15} /> Exportar Gantt / PDF
@@ -373,7 +378,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             )}
           </div>
 
-          {/* BARRA DE FILTROS SUPERIOR (PROYECTO Y AÑO) */}
+          {/* BARRA DE FILTROS SUPERIOR (PROYECTO Y A├æO) */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30">
             <div className="flex flex-wrap items-center gap-2.5">
               <span className={`text-xs font-medium ${mutedClass}`}>Filtros del cronograma:</span>
@@ -388,16 +393,16 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                   { value: 'ALL', label: `Todos los proyectos (${projects.length})` },
                   ...projects.map((p) => ({
                     value: p.id,
-                    label: `${p.code ? `${p.code} · ` : ''}${p.name}`,
+                    label: `${p.code ? `${p.code} ┬À ` : ''}${p.name}`,
                   })),
                 ]}
               />
 
-              {/* SELECTOR DE AÑO */}
+              {/* SELECTOR DE A├æO */}
               <Select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                aria-label="Seleccionar año"
+                aria-label="Seleccionar a├▒o"
                 options={getYearOptions(
                   1,
                   3,
@@ -427,7 +432,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           onMilestoneClick={(m) => {
             showToast({
               title: m.title,
-              message: `${formatMilestoneDate(m.targetDate)} · Estado: ${m.status}`,
+              message: `${formatMilestoneDate(m.targetDate)} ┬À Estado: ${m.status}`,
               type: 'info',
             });
           }}
@@ -436,7 +441,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
           
-          {/* HITOS GLOBALES: Aquí devolvemos el padding de p-5 md:p-6 */}
+          {/* HITOS GLOBALES: Aqu├¡ devolvemos el padding de p-5 md:p-6 */}
           <section className={`${cardClass} p-5 md:p-6 xl:col-span-3 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -452,7 +457,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               <div className="no-print print:hidden">
                 {activeProject ? (
                   <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
-                    {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
+                    {activeProject.code ? `${activeProject.code} ┬À ` : ''}{activeProject.name}
                   </span>
                 ) : (
                   <span className={`text-xs ${mutedClass}`}>
@@ -489,7 +494,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                               )}
                               {associatedProject?.name && (
                                 <span className={`text-[10px] truncate ${mutedClass} hidden sm:inline-block print:inline-block`}>
-                                  · {associatedProject.name}
+                                  ┬À {associatedProject.name}
                                 </span>
                               )}
                             </div>
@@ -535,7 +540,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                               type="button"
                               onClick={() => showToast({
                                 title: milestone.title,
-                                message: `${milestone.description || 'Sin descripción adicional.'} (Responsable: ${milestone.validator || 'PM'})`,
+                                message: `${milestone.description || 'Sin descripci├│n adicional.'} (Responsable: ${milestone.validator || 'PM'})`,
                                 type: 'info',
                               })}
                               aria-label={`Ver detalles de ${milestone.title}`}
@@ -566,7 +571,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                               )}
                               {associatedProject?.name && (
                                 <span className={`text-[10px] truncate ${mutedClass} print:inline-block`}>
-                                  · {associatedProject.name}
+                                  ┬À {associatedProject.name}
                                 </span>
                               )}
                             </div>
@@ -649,7 +654,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           </section>
         </div>
 
-        {/* HISTORIAL DE AUDITORÍA Y REAJUSTES DE CRONOGRAMA */}
+        {/* HISTORIAL DE AUDITOR├ìA Y REAJUSTES DE CRONOGRAMA */}
         <ScheduleAdjustmentsSection
           displayedAdjustments={displayedAdjustments}
           paginatedAdjustments={paginatedAdjustments}
@@ -664,6 +669,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       </div>
       {dialogOpen && canManage && <AdjustScheduleDialog data={data} initialProjectId={adjustingProjectId} onSubmit={saveSchedule} onClose={() => setDialogOpen(false)} />}
       {milestoneDialogOpen && canManage && <NewGlobalMilestoneDialog data={data} onSubmit={saveMilestone} onClose={() => setMilestoneDialogOpen(false)} />}
+      {analysisOpen && canManage && <TimelineAnalysisDialog projects={projects} initialProjectId={activeProject?.id} onClose={() => setAnalysisOpen(false)} />}
     </main>
   );
 }

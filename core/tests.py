@@ -354,65 +354,44 @@ class ProjectModelAndWorkflowTests(TestCase):
 
 
 class ProjectTimelineOptimizationTests(TestCase):
-    """Pruebas del Motor de Tiempos y Optimización (Ruta Crítica, Divisor y Holgura 7d)."""
-
     def setUp(self):
         self.client = APIClient()
         self.area = TechnicalArea.objects.create(name="Arquitectura")
         self.project = Project.objects.create(
-            code="PRJ-2026-010",
-            name="Complejo Residencial Altavista",
-            start_date="2026-01-01",
-            end_date="2026-10-31",
-            duration_months=10,
-            budget=2000000.00,
+            code="PRJ-2026-010", name="Complejo Residencial Altavista",
+            start_date="2026-01-01", end_date="2026-10-31",
+            duration_months=10, budget=2000000.00,
         )
 
-    def test_optimize_timeline_with_tasks_and_performance_metrics(self):
-        # Crear tarea en ruta crítica con duración de 30 días y tolerancia de 7 días
+    def test_metrics_do_not_invent_shorter_task_durations(self):
         task = Task.objects.create(
-            project=self.project,
-            category=self.area,
-            title="Encofrado de Muros y Placas",
-            start_date="2026-01-01",
-            end_date="2026-01-30",
-            duration_days=30,
-            is_critical_path=True,
-            tolerance_days=7,
+            project=self.project, category=self.area,
+            title="Encofrado de Muros y Placas", start_date="2026-01-01",
+            end_date="2026-01-30", duration_days=30,
+            is_critical_path=True, tolerance_days=7,
         )
-
-        # Rendimiento con factor divisor = 5 (espera reducción de 30 / 5 = 6 días => 24 días)
         PerformanceMetric.objects.create(
-            project=self.project,
-            task=task,
-            unit="M2",
-            quantity=1200.00,
-            rate_per_day=40.00,
-            divisor=5,
+            project=self.project, task=task, unit="M2",
+            quantity=1200.00, rate_per_day=40.00, divisor=5,
         )
-
         response = self.client.get(f"/api/projects/{self.project.id}/optimize/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
         data = response.json()
         self.assertEqual(data["project_id"], self.project.id)
-        self.assertEqual(data["tolerance_applied_days"], 7)
-        self.assertIn("optimized_tasks", data)
+        self.assertEqual(data["scheduled_duration_days"], 30)
+        self.assertEqual(data["tasks"][0]["duration_days"], 30)
+        self.assertEqual(data["tasks"][0]["scheduled_duration_days"], 30)
+        self.assertTrue(data["tasks"][0]["is_critical_path"])
+        self.assertFalse(data["applied"])
 
-        task_opt = data["optimized_tasks"][0]
-        self.assertEqual(task_opt["original_duration_days"], 30)
-        self.assertEqual(task_opt["optimized_duration_days"], 24)
-        self.assertEqual(task_opt["days_saved"], 6)
-        self.assertTrue(task_opt["is_critical_path"])
-        self.assertEqual(task_opt["tolerance_days"], 7)
-
-    def test_optimize_timeline_fallback_without_tasks(self):
-        # Proyecto sin tareas hijas debe calcular reducción estimada
+    def test_without_tasks_there_is_no_estimated_reduction(self):
         response = self.client.get(f"/api/projects/{self.project.id}/optimize/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        self.assertEqual(data["original_duration_months"], 10)
-        self.assertLessEqual(data["optimized_duration_months"], 10)
+        self.assertEqual(data["status"], "empty")
+        self.assertEqual(data["days_saved"], 0)
+        self.assertIsNone(data["scheduled_duration_days"])
+
 
 
 class DatabaseAndAuthEndpointsTests(TestCase):

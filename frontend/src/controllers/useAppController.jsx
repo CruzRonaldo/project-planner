@@ -22,7 +22,7 @@ import {
   Configuration,
 } from '../views';
 import projectsApi from '../services/projectsApi';
-import { mapToGanttProject } from '../utils/strategicPlanning';
+import { mapToGanttProject, syncPortfolioSchedule } from '../utils/strategicPlanning';
 import {
   normalizePersonnelIncidents,
   normalizeTeamMemberHistory,

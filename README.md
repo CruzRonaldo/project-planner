@@ -308,3 +308,33 @@ Para que una historia de usuario, módulo o corrección se considere **Done (Ter
 - [ ] Validar despliegue en Render y completar revisión e integración en Git.
 
 La programación local requiere equipo encendido, sesión de Windows iniciada y PostgreSQL activo. 
+
+## Actualización: cronograma y análisis de tiempos
+
+### Cronograma
+- Fechas reales, incluyendo años bisiestos y proyectos que atraviesan varios años.
+- Selector de año y visualización del cronograma según las fechas del proyecto.
+- Sincronización de fechas entre planificación y portafolio.
+- Los cambios se confirman después de guardarse en Django; los errores se muestran al usuario.
+- Configuración local `VITE_HIDE_MOCKS=true` para ocultar datos ficticios.
+
+### Análisis de tiempos
+- Nuevo panel «Analizar tiempos» dentro de Planificación estratégica.
+- Propuestas calculadas con tareas, dependencias, disponibilidad y responsables registrados.
+- Trabajo paralelo entre responsables distintos y ejecución sin solapamientos para un mismo responsable dentro del proyecto.
+- Cálculo de ruta crítica y holguras por dependencias, esperas por responsables compartidos y fecha final propuesta.
+- Validación de dependencias circulares y avisos por tareas sin responsable.
+- Simulación de consulta: no modifica las fechas guardadas.
+- Ajuste visual para conservar el resultado durante un nuevo cálculo y evitar el salto de la ventana.
+
+### Validación y DoD
+- [x] Pruebas automatizadas de cronograma y compilación verificadas durante su implementación.
+- [x] Pruebas manuales del análisis: 8 días con trabajo paralelo y 12 días al compartir responsable.
+- [x] Detección de ciclos y recuperación del cálculo después de corregir las dependencias.
+- [ ] Verificar el último ajuste visual y ejecutar las pruebas finales en el equipo local.
+- [ ] Validar interfaz móvil, temas claro/oscuro y permisos por rol.
+- [ ] Completar revisión en Git y validación del despliegue en Render.
+
+El cálculo utiliza días calendario y la disponibilidad actual. No contempla festivos, licencias futuras ni carga de otros proyectos.
+
+Pendientes: notificaciones y presencia; posteriormente, correcciones críticas de autenticación y permisos.
