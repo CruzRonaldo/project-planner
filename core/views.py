@@ -193,7 +193,7 @@ def login_view(request):
         }, status=status.HTTP_403_FORBIDDEN)
 
     # Autenticación de Dos Factores (2FA/TOTP) obligatoria y exclusiva para Administradores
-    if is_admin:
+    if is_admin and not getattr(settings, 'DISABLE_2FA', False):
         two_fa, _ = TwoFactorProfile.objects.get_or_create(user=user)
         return Response({
             "requires_2fa": True,

@@ -1,7 +1,7 @@
 from unittest.mock import patch, MagicMock
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -422,6 +422,7 @@ class DatabaseAndAuthEndpointsTests(TestCase):
         self.assertIn("database", data)
         self.assertIn("engine", data["database"])
 
+    @override_settings(DISABLE_2FA=False)
     def test_login_success_and_last_login_updated(self):
         response = self.client.post(
             "/api/auth/login/",
@@ -465,6 +466,20 @@ class DatabaseAndAuthEndpointsTests(TestCase):
         self.assertEqual(session_response.status_code, status.HTTP_200_OK)
         self.assertTrue(session_response.data["valid"])
 
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.last_login)
+
+    @override_settings(DISABLE_2FA=True)
+    def test_login_bypasses_2fa_when_disabled(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"username": self.username, "password": self.password, "role": "admin"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertTrue(data.get("session_token"))
         self.user.refresh_from_db()
         self.assertIsNotNone(self.user.last_login)
 

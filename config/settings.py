@@ -11,6 +11,7 @@ environ.Env.read_env(BASE_DIR / '.env')
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
+DISABLE_2FA = env.bool('DISABLE_2FA', default=False)
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', 'testserver', '.onrender.com'])
 render_hostname = env('RENDER_EXTERNAL_HOSTNAME', default='')
