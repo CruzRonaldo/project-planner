@@ -5,7 +5,6 @@ import {
   Download,
   FolderOpen,
   Mail,
-  MessageCircle,
   MoreVertical,
   UserPlus,
 } from 'lucide-react';
@@ -106,6 +105,60 @@ const sortOptionsMap = {
   'recent': { id: 'recent', label: 'Incorporación reciente', category: 'recent', direction: 'desc' },
   'recent-asc': { id: 'recent-asc', label: 'Incorporación más antigua', category: 'recent', direction: 'asc' },
 };
+
+function WhatsAppIcon({ size = 13, className = '' }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.82 11.82 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+function WhatsAppButton({ member, onShowToast }) {
+  const rawPhone = member.phone || member.telefono || member.celular || member.mobile;
+  const cleanPhone = rawPhone ? String(rawPhone).replace(/\D/g, '') : '';
+  const fullName = getMemberFullName(member);
+
+  if (cleanPhone) {
+    return (
+      <a
+        href={`https://wa.me/${cleanPhone}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Escribir a ${fullName}`}
+        title={`Contactar por WhatsApp: ${rawPhone}`}
+        className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-700 transition-colors duration-300 hover:bg-emerald-100 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 midnight:border-emerald-900/40 midnight:bg-emerald-900/20 midnight:text-emerald-300 midnight:hover:bg-emerald-900/40"
+      >
+        <WhatsAppIcon size={13} />
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onShowToast?.({
+          title: 'Número no disponible',
+          message: `No hay un número de WhatsApp registrado para ${fullName}.`,
+          type: 'warning',
+        });
+      }}
+      aria-label={`Escribir a ${fullName}`}
+      title="Número no disponible"
+      className="inline-flex cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-400 opacity-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-500 midnight:border-cyan-900/30 midnight:bg-[#050B14] midnight:text-slate-600"
+    >
+      <WhatsAppIcon size={13} />
+    </button>
+  );
+}
 
 export default function TechnicalTeam({
   data = {},
@@ -299,7 +352,7 @@ export default function TechnicalTeam({
                 {openMenuId === member.id && <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">{canManage && <button type="button" onClick={() => openReassignment(member.id)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><ArrowLeftRight size={13} /> Reasignar proyecto</button>}<a href={`mailto:${member.email}`} onClick={() => setOpenMenuId(null)} className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><Mail size={13} /> Enviar correo</a></div>}
                 <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>Proyecto asignado</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} /></div></div>
                 <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>Progreso de tarea</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={`Progreso de ${getMemberFullName(member)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
-                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>Enlaces de trabajo</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={`Ver proyecto de ${getMemberFullName(member)}`} title="Ver proyecto asignado" className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={`Reasignar a ${getMemberFullName(member)}`} title="Reasignar proyecto" className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<a href={`mailto:${member.email}`} aria-label={`Escribir a ${getMemberFullName(member)}`} title={member.email} className="inline-flex rounded-md border border-blue-200 bg-blue-50 p-1.5 text-blue-700 transition-colors duration-300 hover:bg-blue-100 dark:border-blue-500/25 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 midnight:border-blue-900/40 midnight:bg-blue-900/20 midnight:text-blue-300 midnight:hover:bg-blue-900/40"><MessageCircle size={13} /></a></div></footer>
+                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>Enlaces de trabajo</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={`Ver proyecto de ${getMemberFullName(member)}`} title="Ver proyecto asignado" className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={`Reasignar a ${getMemberFullName(member)}`} title="Reasignar proyecto" className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
               </article>)}
               {!visibleMembers.length && <div className={`${cardClass} p-12 text-center text-sm ${mutedClass} sm:col-span-2 xl:col-span-3`}>No se encontraron técnicos con estos filtros.</div>}
             </div>

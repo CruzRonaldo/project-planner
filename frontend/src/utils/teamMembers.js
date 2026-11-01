@@ -139,6 +139,7 @@ export function mapTeamMemberToTechnical(member = {}) {
     firstNames: names.firstNames,
     lastNames: names.lastNames,
     email: String(member.email ?? '').trim().toLowerCase(),
+    ...(member.phone || member.telefono || member.cellphone || member.celular ? { phone: member.phone || member.telefono || member.cellphone || member.celular } : {}),
     specialty: String(member.role_name ?? getRelatedValue(member.role, 'name') ?? member.specialty ?? 'Sin especialidad').trim(),
     area,
     project: getProject(member, true),

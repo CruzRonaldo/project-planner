@@ -80,6 +80,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     project_code = serializers.ReadOnlyField(source='project.code')
     project_name = serializers.ReadOnlyField(source='project.name')
     full_name = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
     change_comment = serializers.CharField(
         write_only=True,
         required=False,
@@ -110,11 +111,27 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'is_active',
             'created_at',
             'updated_at',
+            'phone',
             'change_comment',
         ]
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
+
+    def get_phone(self, obj):
+        direct_phone = getattr(obj, 'phone', None)
+        if direct_phone:
+            return direct_phone
+        if obj.email:
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.filter(email__iexact=obj.email).select_related('profile').first()
+                if user and hasattr(user, 'profile') and user.profile and user.profile.phone:
+                    return user.profile.phone
+            except Exception:
+                pass
+        return None
 
     def update(self, instance, validated_data):
         validated_data.pop('change_comment', None)
