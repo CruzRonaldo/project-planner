@@ -432,7 +432,7 @@ export default function LoginScreen({ onLogin }) {
                     value={recoveryCode}
                     onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="w-52 text-center text-2xl font-mono font-bold tracking-[0.75em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
                   />
 
                   {twoFAError && (
@@ -530,7 +530,7 @@ export default function LoginScreen({ onLogin }) {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="w-52 text-center text-2xl font-mono font-bold tracking-[0.75em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
                   />
 
                   {twoFAError && (
