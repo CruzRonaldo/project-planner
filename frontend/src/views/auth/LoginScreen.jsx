@@ -200,15 +200,22 @@ export default function LoginScreen({ onLogin }) {
 
       // Interceptar login de Administrador con 2FA requerido
       if (response.data?.requires_2fa) {
+        const userId = response.data.user_id;
+        const isSetup = Boolean(response.data.is_2fa_setup);
         setRequires2FA(true);
-        setTempUserId(response.data.user_id);
-        setIs2FASetup(Boolean(response.data.is_2fa_setup));
+        setTempUserId(userId);
+        setIs2FASetup(isSetup);
         setIsResetting2FA(false);
         setRecoveryCode('');
         setOtpCode('');
         setQrCodeData(null);
         setTwoFAError('');
         setIsLoading(false);
+
+        // Si el 2FA no está configurado (post-reset o primera vez), desplegar QR automáticamente
+        if (!isSetup) {
+          handleSetup2FA(userId);
+        }
         return;
       }
 
@@ -272,12 +279,14 @@ export default function LoginScreen({ onLogin }) {
   };
 
   // Lógica para Configurar 2FA (obtener secreto y QR)
-  const handleSetup2FA = async () => {
-    if (!tempUserId) return;
+  // Acepta un userId explícito para poder ser invocada antes de que el estado tempUserId se actualice
+  const handleSetup2FA = async (overrideUserId) => {
+    const userId = overrideUserId || tempUserId;
+    if (!userId) return;
     setTwoFAError('');
     setIsQrLoading(true);
     try {
-      const response = await setup2FA(tempUserId);
+      const response = await setup2FA(userId);
       if (response.qr_code) {
         setQrCodeData(response.qr_code);
       } else if (response.secret) {
@@ -432,7 +441,7 @@ export default function LoginScreen({ onLogin }) {
                     value={recoveryCode}
                     onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
 
                   {twoFAError && (
@@ -530,7 +539,7 @@ export default function LoginScreen({ onLogin }) {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] px-4 py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                    className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
 
                   {twoFAError && (
@@ -877,30 +886,20 @@ export default function LoginScreen({ onLogin }) {
                     Hemos enviado un código a <strong className="text-cyan-400">{forgotEmail}</strong>. Válido por 15 minutos.
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label htmlFor="forgot-code" className="text-xs font-medium text-slate-300">
-                      Código de verificación (6 dígitos)
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <KeyRound className="w-4 h-4" />
-                      </div>
-                      <input
-                        id="forgot-code"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        autoComplete="off"
-                        value={forgotCode}
-                        onChange={(e) =>
-                          setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                        }
-                        placeholder="123456"
-                        required
-                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors tracking-widest font-mono"
-                      />
-                    </div>
-                  </div>
+                  <input
+                    id="forgot-code"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    autoComplete="off"
+                    value={forgotCode}
+                    onChange={(e) =>
+                      setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                    }
+                    placeholder="000000"
+                    required
+                    className="w-51 block mx-auto my-6 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                  />
                 </>
               )}
 
