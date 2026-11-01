@@ -9,9 +9,6 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
-  Lock,
   Camera,
   Trash2,
   UserPen,
@@ -27,6 +24,7 @@ import PasswordInput from '../../components/common/PasswordInput';
 const Configuration = ({
   currentUser,
   onUpdateCurrentUser,
+  onSessionTokenChange,
   fontScale,
   setFontScale,
   theme,
@@ -73,6 +71,7 @@ const Configuration = ({
 
   // Modales interactivos
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordStep, setPasswordStep] = useState('current');
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -85,6 +84,50 @@ const Configuration = ({
   const [lastBackup, setLastBackup] = useState(
     'Aún no se ha generado un respaldo desde esta pantalla.',
   );
+
+  const getActiveUser = () => {
+    if (currentUser) return currentUser;
+    try {
+      return JSON.parse(localStorage.getItem('project_planner_user') || '{}');
+    } catch {
+      return {};
+    }
+  };
+
+  const handleCurrentPasswordVerify = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!passwordForm.currentPassword) {
+      setPasswordError('Debe ingresar su contraseña actual.');
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    try {
+      const activeUser = getActiveUser();
+      const identifier = activeUser?.email || activeUser?.username;
+
+      await projectsApi.verifyCurrentPassword({
+        identifier,
+        userId: activeUser?.id,
+        currentPassword: passwordForm.currentPassword,
+      });
+
+      setPasswordStep('new');
+      setPasswordError('');
+    } catch (err) {
+      console.error('Error al verificar contraseña:', err);
+      const msg =
+        err.response?.data?.message ||
+        (err.response?.data?.error ? String(err.response.data.error) : null) ||
+        err.message ||
+        'La contraseña actual no es correcta. Puede intentarlo nuevamente.';
+      setPasswordError(msg);
+    } finally {
+      setIsSubmittingPassword(false);
+    }
+  };
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
@@ -109,22 +152,19 @@ const Configuration = ({
 
     setIsSubmittingPassword(true);
     try {
-      const activeUser = currentUser || (() => {
-        try {
-          return JSON.parse(localStorage.getItem('project_planner_user') || '{}');
-        } catch {
-          return {};
-        }
-      })();
-
+      const activeUser = getActiveUser();
       const identifier = activeUser?.email || activeUser?.username;
-      await projectsApi.changePassword({
+      const result = await projectsApi.changePassword({
         identifier,
         userId: activeUser?.id,
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
         confirmPassword: passwordForm.confirmPassword,
       });
+
+      if (result?.session_token && onSessionTokenChange) {
+        onSessionTokenChange(result.session_token);
+      }
 
       setPasswordSuccess(true);
       setPasswordForm({
@@ -508,10 +548,8 @@ const Configuration = ({
                 <button
                   type="button"
                   onClick={() => {
+                    setPasswordStep('current');
                     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                    setShowCurrentPassword(false);
-                    setShowNewPassword(false);
-                    setShowConfirmPassword(false);
                     setPasswordError('');
                     setPasswordSuccess(false);
                     setIsPasswordModalOpen(true);
@@ -771,7 +809,7 @@ const Configuration = ({
                   ¡Contraseña Actualizada!
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-400 leading-relaxed">
-                  Su contraseña ha sido modificada satisfactoriamente. Sus credenciales han sido sincronizadas en el sistema de seguridad.
+                  Su contraseña fue modificada correctamente. Las demás sesiones abiertas con esta cuenta fueron cerradas.
                 </p>
                 <button
                   type="button"
@@ -782,7 +820,10 @@ const Configuration = ({
                 </button>
               </div>
             ) : (
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <form
+                onSubmit={passwordStep === 'current' ? handleCurrentPasswordVerify : handlePasswordSubmit}
+                className="space-y-4"
+              >
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300 flex items-center justify-center">
                     <KeyRound size={20} />
@@ -792,51 +833,72 @@ const Configuration = ({
                       Cambiar Contraseña
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">
-                      Actualice su clave de acceso personal
+                      {passwordStep === 'current'
+                        ? 'Primero verifique su contraseña actual'
+                        : 'Ingrese y confirme su nueva clave de acceso'}
                     </p>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                    Contraseña actual
-                  </label>
-                  <PasswordInput
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                    required
-                    placeholder="••••••••"
-                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                  />
-                </div>
+                {passwordStep === 'current' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
+                      Contraseña actual
+                    </label>
+                    <PasswordInput
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                      required
+                      autoFocus
+                      placeholder="••••••••"
+                      showPasswordLabel="Mostrar contraseña actual"
+                      hidePasswordLabel="Ocultar contraseña actual"
+                      className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                    />
+                  </div>
+                )}
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                    Nueva contraseña
-                  </label>
-                  <PasswordInput
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                    required
-                    placeholder="Mínimo 6 caracteres"
-                    autoComplete="new-password"
-                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                  />
-                </div>
+                {passwordStep === 'new' && (
+                  <>
+                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 size={14} className="shrink-0" />
+                      <span>Contraseña actual verificada</span>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                    Confirmar nueva contraseña
-                  </label>
-                  <PasswordInput
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                    required
-                    placeholder="Repita la nueva contraseña"
-                    autoComplete="new-password"
-                    className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
-                  />
-                </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
+                        Nueva contraseña
+                      </label>
+                      <PasswordInput
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                        required
+                        autoFocus
+                        placeholder="Mínimo 6 caracteres"
+                        autoComplete="new-password"
+                        showPasswordLabel="Mostrar nueva contraseña"
+                        hidePasswordLabel="Ocultar nueva contraseña"
+                        className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
+                        Repetir nueva contraseña
+                      </label>
+                      <PasswordInput
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        required
+                        placeholder="Repita la nueva contraseña"
+                        autoComplete="new-password"
+                        showPasswordLabel="Mostrar confirmación de contraseña"
+                        hidePasswordLabel="Ocultar confirmación de contraseña"
+                        className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {passwordError && (
                   <div className="p-2.5 rounded-lg text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 midnight:bg-red-950/40 midnight:border-red-500/30">
@@ -848,17 +910,27 @@ const Configuration = ({
                 <div className="flex gap-2.5 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsPasswordModalOpen(false)}
+                    onClick={() => {
+                      if (passwordStep === 'new') {
+                        setPasswordStep('current');
+                        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        setPasswordError('');
+                      } else {
+                        setIsPasswordModalOpen(false);
+                      }
+                    }}
                     className="flex-1 bg-transparent border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50 py-2 rounded-lg text-xs font-medium cursor-pointer transition-colors"
                   >
-                    Cancelar
+                    {passwordStep === 'new' ? 'Volver' : 'Cancelar'}
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmittingPassword}
                     className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 rounded-lg text-xs transition-colors cursor-pointer shadow-sm disabled:opacity-60 disabled:cursor-wait"
                   >
-                    {isSubmittingPassword ? 'Actualizando...' : 'Actualizar Clave'}
+                    {isSubmittingPassword
+                      ? (passwordStep === 'current' ? 'Verificando...' : 'Actualizando...')
+                      : (passwordStep === 'current' ? 'Verificar y Continuar' : 'Actualizar Clave')}
                   </button>
                 </div>
               </form>

@@ -5,6 +5,7 @@ from .views import (
     test_db_connection,
     login_view,
     logout_view,
+    session_validate_view,
     change_password_view,
     user_profile_view,
     users_status_view,
@@ -86,6 +87,11 @@ urlpatterns = [
         'auth/logout/',
         logout_view,
         name='api_logout',
+    ),
+    path(
+        'auth/session/validate/',
+        session_validate_view,
+        name='api_session_validate',
     ),
     path(
         'auth/change-password/',

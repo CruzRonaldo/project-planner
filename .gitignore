@@ -212,3 +212,8 @@ docs/.obsidian/cache/
 *.lock
 *.bak
 /backups/
+
+# Archivos estáticos recolectados de Django
+/staticfiles/
+staticfiles/
+
