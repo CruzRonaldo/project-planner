@@ -312,3 +312,18 @@ test('Portafolio recibe las fechas guardadas conservando los demás campos y pro
   assert.equal(updated.projects[1], other);
   assert.equal(syncPortfolioSchedule(updated, [{ id: 1, startDate: '2029-12-31', endDate: '2030-03-31' }]), updated);
 });
+
+test('Planificación Estratégica y sus diálogos integran runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { AdjustScheduleDialog, NewGlobalMilestoneDialog } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof AdjustScheduleDialog, 'function');
+    assert.equal(typeof NewGlobalMilestoneDialog, 'function');
+  } finally {
+    await server.close();
+  }
+});

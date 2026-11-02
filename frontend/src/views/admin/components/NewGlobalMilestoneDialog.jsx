@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Flag, Plus } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 import {
   errorClass,
   inputClass,
@@ -54,12 +55,14 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
     </p>
   );
 
-  const handleSubmit = () => {
-    try {
-      onSubmit(draft);
-    } catch (submitError) {
-      setError(submitError.message);
-    }
+  const handleSubmit = async () => {
+    setError('');
+    await runSafe(
+      () => onSubmit(draft),
+      {
+        onError: (_submitError, message) => setError(message),
+      }
+    );
   };
 
   return (

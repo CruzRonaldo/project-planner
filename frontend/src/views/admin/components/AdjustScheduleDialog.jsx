@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 import {
   errorClass,
   inputClass,
@@ -53,15 +54,14 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
 
   const handleSubmit = async () => {
     if (saving) return;
-    setSaving(true);
     setError('');
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(submitError.message);
-    } finally {
-      setSaving(false);
-    }
+    await runSafe(
+      () => onSubmit(draft),
+      {
+        setLoading: setSaving,
+        onError: (_err, message) => setError(message),
+      }
+    );
   };
 
   return (
