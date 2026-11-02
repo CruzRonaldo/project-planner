@@ -9,6 +9,7 @@ import {
   USER_ROLES,
 } from '../config/navigation.config';
 import { useAuthController } from './useAuthController';
+import { useThemeController } from './useThemeController';
 
 // Importamos vistas desde el barrel centralizado
 import {
@@ -112,6 +113,14 @@ export function useAppController() {
     handleUpdateCurrentUser,
     handleSessionTokenChange,
   } = useAuthController({ users, setUsers });
+
+  // Controlador especializado de Apariencia, Temas y Accesibilidad Tipográfica
+  const {
+    theme,
+    setTheme,
+    fontScale,
+    setFontScale,
+  } = useThemeController();
 
   // Ruta normalizada del navegador
   const normalizedPath = useMemo(() => {
@@ -222,25 +231,6 @@ export function useAppController() {
   const [technicalTeamQuery, setTechnicalTeamQuery] = useState('');
   const [humanResourcesQuery, setHumanResourcesQuery] = useState('');
   const [integrationsQuery, setIntegrationsQuery] = useState('');
-
-  const [fontScale, setFontScale] = useState(() => {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
-      const savedScale = Number(storage ? storage.getItem('project-planner-font-scale') : 100);
-      return savedScale >= 85 && savedScale <= 120 ? savedScale : 100;
-    } catch {
-      return 100;
-    }
-  });
-
-  const [theme, setTheme] = useState(() => {
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
-      return (storage && storage.getItem('project-planner-theme')) || 'dark';
-    } catch {
-      return 'dark';
-    }
-  });
 
   // Navegación real por URL con guardia RBAC
   const setActiveView = useCallback(
@@ -806,22 +796,6 @@ export function useAppController() {
   useEffect(() => {
     window.localStorage.setItem('project-planner-users', JSON.stringify(users));
   }, [users]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      'project-planner-font-scale',
-      String(fontScale)
-    );
-    document.documentElement.style.fontSize = `${16 * (fontScale / 100)}px`;
-  }, [fontScale]);
-
-  useEffect(() => {
-    window.localStorage.setItem('project-planner-theme', theme);
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark', 'midnight');
-    root.classList.add(theme);
-    root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
-  }, [theme]);
 
   // Guardia de sincronización de rutas y sesión
   useEffect(() => {
