@@ -68,7 +68,7 @@ export default function PasswordInput({
   const isAuth = variant === 'auth';
 
   const actionBtnBase =
-    'h-7 w-7 flex items-center justify-center rounded-md transition-colors cursor-pointer select-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500';
+    'h-7 w-7 flex items-center justify-center rounded-md transition-colors cursor-pointer select-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 shrink-0';
 
   const actionBtnTheme = isAuth
     ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 active:bg-slate-800'
@@ -77,7 +77,7 @@ export default function PasswordInput({
   const actionBtnClass = `${actionBtnBase} ${actionBtnTheme}`;
 
   const rightActions = (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 shrink-0">
       {canClear && (
         <button
           type="button"
@@ -87,7 +87,7 @@ export default function PasswordInput({
           title="Borrar contraseña"
           className={actionBtnClass}
         >
-          <X size={16} />
+          <X size={16} strokeWidth={2} className="shrink-0" />
         </button>
       )}
       <button
@@ -98,7 +98,11 @@ export default function PasswordInput({
         title={visible ? hidePasswordLabel : showPasswordLabel}
         className={actionBtnClass}
       >
-        {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        {visible ? (
+          <EyeOff size={16} strokeWidth={2} className="shrink-0" />
+        ) : (
+          <Eye size={16} strokeWidth={2} className="shrink-0" />
+        )}
       </button>
     </div>
   );
@@ -128,7 +132,7 @@ export default function PasswordInput({
       variant={variant}
       containerClassName={containerClassName}
       rightContent={rightActions}
-      className={`${paddingRightClass} ${className}`.trim()}
+      className={`${className} ${paddingRightClass}`.trim()}
       {...rest}
     />
   );

@@ -115,7 +115,7 @@ const Input = forwardRef(function Input(
         />
 
         {rightContent && (
-          <div className="absolute inset-y-0 right-2.5 flex items-center z-10">
+          <div className="absolute inset-y-0 right-2 flex items-center z-10">
             {rightContent}
           </div>
         )}

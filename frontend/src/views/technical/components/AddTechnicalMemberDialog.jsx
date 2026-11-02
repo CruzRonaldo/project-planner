@@ -180,7 +180,6 @@ export default function AddTechnicalMemberDialog({
               value={draft.password}
               onChange={changeField('password')}
               placeholder="Mínimo 8 caracteres"
-              className={`${inputClass} !mt-0`}
             />
           </div>
         </label>
@@ -195,7 +194,6 @@ export default function AddTechnicalMemberDialog({
               value={draft.passwordConfirm}
               onChange={changeField('passwordConfirm')}
               placeholder="Repita la contraseña"
-              className={`${inputClass} !mt-0`}
               showPasswordLabel="Ver confirmación de contraseña"
               hidePasswordLabel="Ocultar confirmación de contraseña"
             />

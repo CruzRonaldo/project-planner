@@ -205,3 +205,52 @@ test('Pagination renderiza navegacion accesible, rango de elementos y estados di
     await server.close();
   }
 });
+
+test('PasswordInput alinea simétricamente botones X y Ojo y aísla variante auth de temas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: PasswordInput } = await server.ssrLoadModule('/src/components/common/PasswordInput.jsx');
+
+    // 1. PasswordInput vacío: solo botón de visibilidad con padding estándar
+    const emptyHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: '',
+        onChange: () => {},
+      })
+    );
+    assert.ok(emptyHtml.includes('aria-label="Ver contraseña"'));
+    assert.ok(emptyHtml.includes('pr-11'));
+    assert.ok(!emptyHtml.includes('aria-label="Borrar contraseña"'));
+
+    // 2. PasswordInput con texto: botón X y Ojo con tamaños exactos parejos h-7 w-7
+    const filledHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: 'claveSegura2026',
+        onChange: () => {},
+      })
+    );
+    assert.ok(filledHtml.includes('aria-label="Borrar contraseña"'));
+    assert.ok(filledHtml.includes('aria-label="Ver contraseña"'));
+    assert.ok(filledHtml.includes('pr-20'));
+    assert.ok(filledHtml.includes('h-7 w-7'));
+    assert.ok(filledHtml.includes('gap-1'));
+
+    // 3. PasswordInput con variant="auth": no reactivo a temas, estrictamente oscuro
+    const authHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        variant: 'auth',
+        value: 'claveLogin',
+        onChange: () => {},
+      })
+    );
+    assert.ok(authHtml.includes('bg-[#080E1C]'));
+    assert.ok(authHtml.includes('border-slate-800'));
+    assert.ok(authHtml.includes('text-slate-200'));
+    assert.ok(!authHtml.includes('dark:'));
+    assert.ok(!authHtml.includes('midnight:'));
+    assert.ok(!authHtml.includes('bg-white'));
+    assert.ok(!authHtml.includes('text-slate-900'));
+  } finally {
+    await server.close();
+  }
+});

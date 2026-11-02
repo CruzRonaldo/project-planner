@@ -82,7 +82,6 @@ export default function ChangePasswordModal({
                 placeholder="••••••••"
                 showPasswordLabel="Mostrar contraseña actual"
                 hidePasswordLabel="Ocultar contraseña actual"
-                className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
               />
             </div>
           )}
@@ -107,7 +106,6 @@ export default function ChangePasswordModal({
                   autoComplete="new-password"
                   showPasswordLabel="Mostrar nueva contraseña"
                   hidePasswordLabel="Ocultar nueva contraseña"
-                  className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
                 />
               </div>
 
@@ -123,7 +121,6 @@ export default function ChangePasswordModal({
                   autoComplete="new-password"
                   showPasswordLabel="Mostrar confirmación de contraseña"
                   hidePasswordLabel="Ocultar confirmación de contraseña"
-                  className="w-full rounded-lg border px-3 py-2 text-xs transition-colors bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 dark:bg-[#0d1117] dark:border-[#30363d] dark:text-white dark:placeholder-slate-500 dark:focus:border-cyan-400 midnight:bg-[#050B14] midnight:border-cyan-900/60 midnight:text-cyan-100"
                 />
               </div>
             </>
