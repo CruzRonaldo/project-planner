@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { USER_ROLES } from '../config/navigation.config';
 import { projectsApi } from '../services/projectsApi';
+import { useCrossTabListener } from '../utils/useCrossTabListener';
 
 /**
  * Genera un nombre presentable a partir del correo si no se proporciona uno explícito.
@@ -360,32 +361,23 @@ export function useAuthController({
   );
 
   // Sincronización de sesión en tiempo real entre múltiples pestañas (Cross-Tab Session Sync)
-  useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key !== 'project_planner_user' && event.key !== null) return;
-
-      if (!event.newValue) {
-        // Sesión cerrada o removida en otra pestaña
-        clearLocalSession();
-      } else {
-        // Sesión cambiada/iniciada en otra pestaña
-        try {
-          const updatedUser = JSON.parse(event.newValue);
-          if (updatedUser && typeof updatedUser === 'object') {
-            setCurrentUser(updatedUser);
-            setIsAuthenticated(true);
-          }
-        } catch {
-          clearLocalSession();
+  useCrossTabListener('project_planner_user', (newValue) => {
+    if (!newValue) {
+      // Sesión cerrada o removida en otra pestaña
+      clearLocalSession();
+    } else {
+      // Sesión cambiada/iniciada en otra pestaña
+      try {
+        const updatedUser = JSON.parse(newValue);
+        if (updatedUser && typeof updatedUser === 'object') {
+          setCurrentUser(updatedUser);
+          setIsAuthenticated(true);
         }
+      } catch {
+        clearLocalSession();
       }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [clearLocalSession]);
+    }
+  });
 
   // Latido periódico de validación de sesión (Heartbeat contra Django)
   useEffect(() => {

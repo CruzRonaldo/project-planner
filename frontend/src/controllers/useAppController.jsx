@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  hasViewAccess,
-  getSearchPlaceholder,
-  getAllowedSidebarItems,
-  getAllowedMobileItems,
-  NAVIGATION_ITEMS,
-  USER_ROLES,
-} from '../config/navigation.config';
 import { useAuthController } from './useAuthController';
 import { useThemeController } from './useThemeController';
+import { useNavigationController } from './useNavigationController';
 
 // Importamos vistas desde el barrel centralizado
 import {
@@ -65,9 +57,6 @@ function getApiErrorMessage(error, fallback) {
 }
 
 export function useAppController() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
   // Detección de entorno: en producción o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
   const isProduction =
     import.meta.env.PROD ||
@@ -122,18 +111,19 @@ export function useAppController() {
     setFontScale,
   } = useThemeController();
 
-  // Ruta normalizada del navegador
-  const normalizedPath = useMemo(() => {
-    return location.pathname.replace(/\/$/, '') || '/';
-  }, [location.pathname]);
-
-    // Derivar activeView a partir de la URL real
-  const activeView = useMemo(() => {
-    if (normalizedPath === '/login') return 'login';
-    if (normalizedPath === '/' || normalizedPath === '/dashboard') return 'dashboard';
-    const matched = NAVIGATION_ITEMS.find((item) => item.path === normalizedPath);
-    return matched ? matched.id : 'dashboard';
-  }, [normalizedPath]);
+  // Controlador especializado de Navegación, Rutas y Control de Acceso (RBAC)
+  const {
+    normalizedPath,
+    activeView,
+    setActiveView,
+    allowedSidebarItems,
+    allowedMobileItems,
+    searchPlaceholder,
+  } = useNavigationController({
+    currentUser: displayedCurrentUser,
+    isAuthenticated,
+    isInitializing,
+  });
 
   // Estados de datos (en producción se inicializan vacíos por defecto)
   const [strategicPlanningData, setStrategicPlanningData] = useState(() =>
@@ -231,29 +221,6 @@ export function useAppController() {
   const [technicalTeamQuery, setTechnicalTeamQuery] = useState('');
   const [humanResourcesQuery, setHumanResourcesQuery] = useState('');
   const [integrationsQuery, setIntegrationsQuery] = useState('');
-
-  // Navegación real por URL con guardia RBAC
-  const setActiveView = useCallback(
-    (target) => {
-      if (target === 'login') {
-        navigate('/login');
-        return;
-      }
-      const item = NAVIGATION_ITEMS.find(
-        (n) => n.id === target || n.path === target
-      );
-      if (item) {
-        if (hasViewAccess(item.id, displayedCurrentUser)) {
-          navigate(item.path);
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      } else {
-        navigate('/dashboard');
-      }
-    },
-    [displayedCurrentUser, navigate]
-  );
 
   const handleToggleSubAdmin = useCallback((userId) => {
     setUsers((currentUsers) => {
@@ -796,36 +763,6 @@ export function useAppController() {
   useEffect(() => {
     window.localStorage.setItem('project-planner-users', JSON.stringify(users));
   }, [users]);
-
-  // Guardia de sincronización de rutas y sesión
-  useEffect(() => {
-    if (isInitializing) return;
-
-    if (!isAuthenticated) {
-      if (normalizedPath !== '/login') {
-        navigate('/login', { replace: true });
-      }
-    } else {
-      if (normalizedPath === '/login' || normalizedPath === '/') {
-        navigate('/dashboard', { replace: true });
-      } else if (!hasViewAccess(activeView, displayedCurrentUser)) {
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [isInitializing, isAuthenticated, normalizedPath, activeView, displayedCurrentUser, navigate]);
-
-  // Items de navegación permitidos
-  const allowedSidebarItems = useMemo(() => {
-    return getAllowedSidebarItems(displayedCurrentUser);
-  }, [displayedCurrentUser]);
-
-  const allowedMobileItems = useMemo(() => {
-    return getAllowedMobileItems(displayedCurrentUser);
-  }, [displayedCurrentUser]);
-
-  const searchPlaceholder = useMemo(() => {
-    return getSearchPlaceholder(activeView);
-  }, [activeView]);
 
   // Valor y manejador de búsqueda según vista activa
   const searchValue = useMemo(() => {

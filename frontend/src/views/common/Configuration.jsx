@@ -5,7 +5,6 @@ import {
   ProfileCard,
   PreferencesCard,
   ProjectParametersCard,
-  TechnicalTeamCard,
   SecurityPoliciesCard,
   BackupAndSecurityCard,
   AuditLogCard,
@@ -376,7 +375,6 @@ export default function Configuration({
           />
 
           {isAdmin && <ProjectParametersCard />}
-          {isAdmin && <TechnicalTeamCard />}
           {!isAdmin && <SecurityPoliciesCard currentUser={currentUser} />}
         </div>
 

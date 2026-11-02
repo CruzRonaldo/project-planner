@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCrossTabListener } from '../utils/useCrossTabListener';
 
 export const THEMES = Object.freeze({
   LIGHT: 'light',
@@ -133,7 +134,22 @@ export function useThemeController({
     }
   }, [theme]);
 
-  // 5. Mutación segura de escala tipográfica con validación de límites
+  // 5. Sincronización en tiempo real entre múltiples pestañas / ventanas abiertas (Cross-Tab Sync)
+  useCrossTabListener(
+    [THEME_STORAGE_KEYS.THEME, THEME_STORAGE_KEYS.FONT_SCALE],
+    (newValue, key) => {
+      if (key === THEME_STORAGE_KEYS.THEME && isValidTheme(newValue)) {
+        setThemeState(newValue);
+      } else if (key === THEME_STORAGE_KEYS.FONT_SCALE && newValue !== null) {
+        setFontScaleState(sanitizeFontScale(newValue));
+      } else if (key === null) {
+        setThemeState(defaultTheme);
+        setFontScaleState(sanitizeFontScale(defaultFontScale));
+      }
+    }
+  );
+
+  // 6. Mutación segura de escala tipográfica con validación de límites
   const setFontScale = useCallback((nextScale) => {
     setFontScaleState((prev) => {
       const target =

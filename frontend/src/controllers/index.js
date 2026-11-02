@@ -8,3 +8,4 @@ export {
   sanitizeFontScale,
   isValidTheme,
 } from './useThemeController';
+export { useNavigationController } from './useNavigationController';

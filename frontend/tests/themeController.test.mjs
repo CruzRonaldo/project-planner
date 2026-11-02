@@ -54,6 +54,17 @@ test('useThemeController se carga limpiamente y expone la API de preferencias vi
   }
 });
 
+test('useThemeController exporta constantes de almacenamiento para sincronizacion cross-tab', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { THEME_STORAGE_KEYS } = await server.ssrLoadModule('/src/controllers/useThemeController.js');
+    assert.equal(THEME_STORAGE_KEYS.THEME, 'project-planner-theme');
+    assert.equal(THEME_STORAGE_KEYS.FONT_SCALE, 'project-planner-font-scale');
+  } finally {
+    await server.close();
+  }
+});
+
 test('useAppController integra useThemeController sin romper su API publica', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {

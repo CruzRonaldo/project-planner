@@ -41,7 +41,6 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(adminHtml.includes('Teléfono de Contacto'));
     assert.ok(adminHtml.includes('Preferencias del Sistema'));
     assert.ok(adminHtml.includes('Parámetros del Proyecto'));
-    assert.ok(adminHtml.includes('Directorio y Equipo Técnico'));
     assert.ok(adminHtml.includes('Respaldo y Seguridad'));
     assert.ok(adminHtml.includes('Exportar Datos'));
     assert.ok(adminHtml.includes('Bitácora de Auditoría'));
@@ -73,7 +72,7 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(techHtml.includes('Preferencias del Sistema'));
     assert.ok(!techHtml.includes('Respaldo y Seguridad'));
     assert.ok(!techHtml.includes('Exportar Datos'));
-    assert.ok(!techHtml.includes('Directorio y Equipo Técnico'));
+    assert.ok(!techHtml.includes('Bitácora de Auditoría'));
   } finally {
     await server.close();
   }
