@@ -5,69 +5,11 @@ import {
   createStrategicPlanningData,
   createPortfolioData,
   createOperationsData,
-  createIntegrationsData,
 } from '../mocks';
 
 /**
- * Plantilla de integraciones offline para modo producción / sin mocks.
- */
-function createEmptyIntegrations() {
-  return {
-    integrations: [
-      {
-        id: 'drive',
-        name: 'Google Drive',
-        icon: 'cloud',
-        status: 'offline',
-        description: 'Sincronización de documentación y planos en la nube.',
-        endpoint: 'Carpeta /Project Planner',
-        frequency: 'Cada 10 min',
-        errors: 0,
-        lastActivity: 'Sin actividad',
-        metrics: [
-          { key: 'files', value: 0, label: 'archivos' },
-          { key: 'projects', value: 0, label: 'proyectos' },
-        ],
-      },
-      {
-        id: 'revit',
-        name: 'Revit / BIM Data',
-        icon: 'model',
-        status: 'offline',
-        description: 'Importación de datos de modelado 3D BIM.',
-        endpoint: 'BIM 360 / Modelos',
-        frequency: 'Cada hora',
-        errors: 0,
-        lastActivity: 'Sin actividad',
-        metrics: [
-          { key: 'models', value: 0, label: 'modelos' },
-          { key: 'sync', value: '-', label: 'última sync' },
-        ],
-      },
-      {
-        id: 'make',
-        name: 'Make (Integromat)',
-        icon: 'automation',
-        status: 'offline',
-        description: 'Automatización de procesos y conexión con servicios de terceros.',
-        endpoint: 'Escenarios / Operaciones',
-        frequency: 'Cada 30 min',
-        errors: 0,
-        lastActivity: 'Sin actividad',
-        metrics: [
-          { key: 'scenarios', value: 0, label: 'escenarios' },
-          { key: 'errors', value: 0, label: 'con error' },
-        ],
-      },
-    ],
-    activities: [],
-    uptime: 0,
-  };
-}
-
-/**
- * Controlador de Dominio para Portafolio, Planificación Estratégica (Gantt),
- * Operaciones e Integraciones.
+ * Controlador de Dominio para Portafolio, Planificación Estratégica (Gantt)
+ * y Gestión Operativa.
  *
  * @param {Object} [options]
  * @param {boolean} [options.hideMocks=false] - Si es true, inicia colecciones vacías
@@ -99,16 +41,11 @@ export function useProjectsController({
       : createOperationsData()
   );
 
-  const [integrationsData, setIntegrationsData] = useState(() =>
-    hideMocks ? createEmptyIntegrations() : createIntegrationsData()
-  );
-
   const [remoteAssignments, setRemoteAssignments] = useState([]);
 
   // 2. Filtros de búsqueda específicos de cada vista
   const [portfolioQuery, setPortfolioQuery] = useState('');
   const [operationsQuery, setOperationsQuery] = useState('');
-  const [integrationsQuery, setIntegrationsQuery] = useState('');
 
   // 3. Sincronización global con la API de Django al inicializar
   useEffect(() => {
@@ -414,14 +351,10 @@ export function useProjectsController({
     setPortfolioData,
     operationsData,
     setOperationsData,
-    integrationsData,
-    setIntegrationsData,
     portfolioQuery,
     setPortfolioQuery,
     operationsQuery,
     setOperationsQuery,
-    integrationsQuery,
-    setIntegrationsQuery,
     projectOptions,
     remoteAssignments,
   };

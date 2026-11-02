@@ -11,3 +11,10 @@ export {
 export { useNavigationController } from './useNavigationController';
 export { useTeamController } from './useTeamController';
 export { useProjectsController } from './useProjectsController';
+export {
+  useIntegrationsController,
+  createEmptyIntegrations,
+  formatRelativeTime,
+  updateGoogleDriveStatus,
+  updateRevitStatus,
+} from './useIntegrationsController';

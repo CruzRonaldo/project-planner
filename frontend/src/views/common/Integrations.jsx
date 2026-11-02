@@ -27,6 +27,7 @@ import {
 import api, { baseURL as apiBaseUrl } from '../../services/api';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
+import { runSafe } from '../../utils/asyncHandler';
 import RevitModal from './components/RevitModal';
 
 
@@ -798,41 +799,49 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
   const selected = selectedId && data.integrations.find((integration) => integration.id === selectedId);
 
   const refreshGoogleDrive = async (showFeedback = true) => {
-    try {
-      const response = await api.get('/integrations/google-drive/status/');
-      const driveStatus = response.data;
-
-      onChange(updateGoogleDriveStatus(data, driveStatus));
-
-      if (showFeedback) {
-        setFeedback(
-          driveStatus.connected
-            ? `Google Drive conectado correctamente${driveStatus.email ? `: ${driveStatus.email}` : '.'}`
-            : 'Google Drive todavía no está conectado.',
-        );
+    setTestingDrive(true);
+    const [response, error] = await runSafe(
+      () => api.get('/integrations/google-drive/status/'),
+      {
+        fallbackError: 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
       }
+    );
+    setTestingDrive(false);
 
-      return Boolean(driveStatus.connected);
-    } catch (requestError) {
+    if (error || !response?.data) {
       onChange(updateGoogleDriveStatus(data, { connected: false }));
-
       if (showFeedback) {
         setFeedback(
-          requestError.response?.data?.message
-          || 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
+          error?.friendlyMessage
+          || 'No se pudo consultar Google Drive. Verifica que Django esté encendido.'
         );
       }
-
       return false;
     }
+
+    const driveStatus = response.data;
+    onChange(updateGoogleDriveStatus(data, driveStatus));
+    if (showFeedback) {
+      setFeedback(
+        driveStatus.connected
+          ? `Google Drive conectado correctamente${driveStatus.email ? `: ${driveStatus.email}` : '.'}`
+          : 'Google Drive todavía no está conectado.'
+      );
+    }
+    return Boolean(driveStatus.connected);
   };
 
   const refreshRevitStatus = async () => {
-    try {
-      const response = await api.get('/integrations/aps/status/');
-      onChange(updateRevitStatus(data, response.data));
-    } catch (err) {
+    const [response, error] = await runSafe(
+      () => api.get('/integrations/aps/status/'),
+      {
+        fallbackError: 'No se pudo consultar el estado de Autodesk APS.',
+      }
+    );
+    if (error || !response?.data) {
       onChange(updateRevitStatus(data, { connected: false }));
+    } else {
+      onChange(updateRevitStatus(data, response.data));
     }
   };
 
@@ -857,31 +866,25 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
   const test = async (integrationId, customEndpoint) => {
     // Prueba real de Google Drive contra el backend
     if (integrationId === 'drive') {
-      setTestingDrive(true);
       await refreshGoogleDrive(true);
-      setTestingDrive(false);
       return;
     }
 
     // Prueba real de Make vía webhook
     if (integrationId === 'make') {
-      try {
-        const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
-        const res = await makeApi.testConnection(webhookUrl);
+      const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
+      const [res, error] = await runSafe(
+        () => makeApi.testConnection(webhookUrl),
+        {
+          showToast,
+          successTitle: 'Conexión con Make Exitosa',
+          successMessage: (r) => r?.message || 'El webhook de Make respondió correctamente.',
+          fallbackError: 'Error de conexión con el webhook de Make.',
+        }
+      );
+      if (!error && res) {
         onChange(testIntegration(data, integrationId));
         setSelectedId(null);
-        showToast({
-          title: 'Conexión con Make Exitosa',
-          message: res.data?.message || 'El webhook de Make respondió correctamente.',
-          type: 'success',
-        });
-      } catch (err) {
-        const errorMsg = err.response?.data?.data?.message || err.response?.data?.message || err.message;
-        showToast({
-          title: 'Error de Conexión con Make',
-          message: errorMsg,
-          type: 'error',
-        });
       }
       return;
     }

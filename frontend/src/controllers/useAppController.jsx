@@ -4,6 +4,7 @@ import { useThemeController } from './useThemeController';
 import { useNavigationController } from './useNavigationController';
 import { useTeamController } from './useTeamController';
 import { useProjectsController } from './useProjectsController';
+import { useIntegrationsController } from './useIntegrationsController';
 
 // Importamos vistas desde el barrel centralizado
 import {
@@ -21,12 +22,13 @@ import {
 /**
  * Controlador Principal y Orquestador de la Aplicación (Patrón Facade).
  *
- * Desacopla la lógica de negocio en cinco controladores atómicos:
- * 1. useProjectsController: Proyectos, Gantt, Operaciones e Integraciones
+ * Desacopla la lógica de negocio en seis controladores atómicos:
+ * 1. useProjectsController: Proyectos, Gantt y Gestión Operativa
  * 2. useTeamController: Directorio técnico, nómina, historial e incidencias
  * 3. useAuthController: Sesión, tokens, RBAC y perfil de usuario
  * 4. useThemeController: Paleta multitema y escala de accesibilidad tipográfica
  * 5. useNavigationController: Rutas, navegación y barra de búsqueda
+ * 6. useIntegrationsController: Conectores externos (Google Drive, Make, Revit APS)
  *
  * Expone el contrato público unificado para App.jsx y los componentes de vista.
  */
@@ -38,7 +40,7 @@ export function useAppController() {
       !['localhost', '127.0.0.1'].includes(window.location.hostname));
   const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
 
-  // 1. Dominio de Proyectos, Portafolio, Planificación Operativa e Integraciones
+  // 1. Dominio de Proyectos, Portafolio y Planificación Operativa
   const projects = useProjectsController({ hideMocks });
 
   // 2. Dominio de Personal, Directorio Técnico y Recursos Humanos
@@ -62,6 +64,9 @@ export function useAppController() {
     isAuthenticated: auth.isAuthenticated,
     isInitializing: auth.isInitializing,
   });
+
+  // 6. Dominio de Conectores Externos e Integraciones (Google Drive, Make, Revit)
+  const integrations = useIntegrationsController({ hideMocks });
 
   // Sincronizar asignaciones remotas de proyectos al equipo técnico si se reciben del backend
   useEffect(() => {
@@ -101,7 +106,7 @@ export function useAppController() {
       case 'human-resources':
         return team.humanResourcesQuery;
       case 'integrations':
-        return projects.integrationsQuery;
+        return integrations.integrationsQuery;
       default:
         return undefined;
     }
@@ -111,7 +116,7 @@ export function useAppController() {
     projects.operationsQuery,
     team.technicalTeamQuery,
     team.humanResourcesQuery,
-    projects.integrationsQuery,
+    integrations.integrationsQuery,
   ]);
 
   // Enrutar despachador de búsqueda según la vista activa
@@ -126,7 +131,7 @@ export function useAppController() {
       case 'human-resources':
         return team.setHumanResourcesQuery;
       case 'integrations':
-        return projects.setIntegrationsQuery;
+        return integrations.setIntegrationsQuery;
       default:
         return undefined;
     }
@@ -136,7 +141,7 @@ export function useAppController() {
     projects.setOperationsQuery,
     team.setTechnicalTeamQuery,
     team.setHumanResourcesQuery,
-    projects.setIntegrationsQuery,
+    integrations.setIntegrationsQuery,
   ]);
 
   // Lista de responsables derivada del equipo técnico para selección en órdenes operativas
@@ -227,10 +232,10 @@ export function useAppController() {
     if (navigation.activeView === 'integrations') {
       return (
         <Integrations
-          data={projects.integrationsData}
-          onChange={projects.setIntegrationsData}
-          query={projects.integrationsQuery}
-          onQueryChange={projects.setIntegrationsQuery}
+          data={integrations.integrationsData}
+          onChange={integrations.setIntegrationsData}
+          query={integrations.integrationsQuery}
+          onQueryChange={integrations.setIntegrationsQuery}
         />
       );
     }
@@ -277,10 +282,10 @@ export function useAppController() {
     projects.setOperationsData,
     projects.operationsQuery,
     projects.setOperationsQuery,
-    projects.integrationsData,
-    projects.setIntegrationsData,
-    projects.integrationsQuery,
-    projects.setIntegrationsQuery,
+    integrations.integrationsData,
+    integrations.setIntegrationsData,
+    integrations.integrationsQuery,
+    integrations.setIntegrationsQuery,
     projects.projectOptions,
     team.technicalTeamData,
     team.setTechnicalTeamData,

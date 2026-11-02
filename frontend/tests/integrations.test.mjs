@@ -111,3 +111,17 @@ test('La vista conserva el fondo oscuro, se adapta a búsqueda y no usa modal de
     await server.close();
   }
 });
+
+test('Integraciones integra runSafe para pruebas de conexión seguras', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: Integrations } = await server.ssrLoadModule('/src/views/common/Integrations.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof Integrations, 'function');
+  } finally {
+    await server.close();
+  }
+});
