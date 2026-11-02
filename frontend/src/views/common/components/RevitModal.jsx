@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Eye, RotateCw, Trash2, X, UploadCloud, Edit2, Check, XCircle, Download } from 'lucide-react';
-import ForgeViewer from '../../../components/ForgeViewer';
+import ForgeViewer from './ForgeViewer';
 import { revitApi } from '../../../services/revitService';
 import { useToast } from '../../../context/ToastContext';
 

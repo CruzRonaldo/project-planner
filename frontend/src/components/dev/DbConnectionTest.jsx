@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../services/api';
+import api from '../../services/api';
 import { Database, CheckCircle2, XCircle, Loader2, RefreshCw, Server, Cpu } from 'lucide-react';
 
 export default function DbConnectionTest() {
