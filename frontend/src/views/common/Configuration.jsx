@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PageHeader from '../../components/common/PageHeader';
 import projectsApi from '../../services/projectsApi';
 import { optimizeAvatarImage } from '../../utils/imageOptimizer';
 import {
@@ -347,14 +348,11 @@ export default function Configuration({
   return (
     <div className="p-6 sm:p-10 h-full overflow-y-auto w-full transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
       {/* Cabecera */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 transition-colors duration-300 text-slate-900 dark:text-white midnight:text-cyan-50">
-          Configuración del Sistema
-        </h1>
-        <p className="transition-colors duration-300 text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-          Gestione las preferencias del sistema, perfiles de usuarios y directivas de seguridad global.
-        </p>
-      </header>
+      <PageHeader
+        title="Configuración del Sistema"
+        subtitle="Gestione las preferencias del sistema, perfiles de usuarios y directivas de seguridad global."
+        className="mb-8"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* Columna Izquierda */}

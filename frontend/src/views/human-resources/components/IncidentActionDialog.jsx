@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-100 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:focus:border-cyan-500';
@@ -91,9 +92,9 @@ export function IncidentActionDialog({ incident, action, onSubmit, onClose, isOp
       </label>
 
       {error && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+        <InlineAlert variant="error">
           {error}
-        </p>
+        </InlineAlert>
       )}
     </ModalDialog>
   );

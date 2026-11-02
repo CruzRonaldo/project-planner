@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
 
 export default function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
@@ -47,12 +48,9 @@ export default function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
         </p>
 
         {error && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300"
-          >
+          <InlineAlert variant="error" className="mt-3">
             {error}
-          </p>
+          </InlineAlert>
         )}
       </div>
     </ModalDialog>

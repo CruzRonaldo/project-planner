@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
 import { personnelStatuses, personnelIncidentTypes } from '../../../constants/humanResources';
 import { getIncidentDuration } from '../../../utils/humanResources';
@@ -210,9 +211,9 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
       )}
 
       {error && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300">
+        <InlineAlert variant="error">
           {error}
-        </p>
+        </InlineAlert>
       )}
     </ModalDialog>
   );

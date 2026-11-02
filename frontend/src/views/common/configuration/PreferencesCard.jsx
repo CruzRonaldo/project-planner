@@ -1,6 +1,8 @@
 import React from 'react';
 import { Sun, Moon, MoonStar } from 'lucide-react';
 import Button from '../../../components/common/Button';
+import ReadOnlyField from '../../../components/common/ReadOnlyField';
+import { cardClass } from '../../../constants/themeClasses';
 
 /**
  * Tarjeta de Preferencias del Sistema: Idioma, Zona horaria,
@@ -15,7 +17,7 @@ export default function PreferencesCard({
   return (
     <section
       aria-labelledby="preferences-card-title"
-      className="border rounded-xl p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30"
+      className={`${cardClass} p-6`}
     >
       <h2
         id="preferences-card-title"
@@ -25,14 +27,8 @@ export default function PreferencesCard({
       </h2>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div>
-          <p className="text-sm mb-1 text-slate-500 dark:text-slate-400 midnight:text-cyan-600">Idioma</p>
-          <p className="text-slate-900 dark:text-slate-200 midnight:text-cyan-100">Español (ES)</p>
-        </div>
-        <div>
-          <p className="text-sm mb-1 text-slate-500 dark:text-slate-400 midnight:text-cyan-600">Zona Horaria</p>
-          <p className="text-slate-900 dark:text-slate-200 midnight:text-cyan-100">GMT-5 (Lima)</p>
-        </div>
+        <ReadOnlyField label="Idioma" value="Español (ES)" />
+        <ReadOnlyField label="Zona Horaria" value="GMT-5 (Lima)" />
       </div>
 
       {/* Control de Escala de Letra */}

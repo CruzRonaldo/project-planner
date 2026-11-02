@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Camera, UserPlus, Users } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
+import { FootnoteText, InlineAlert } from '../../../components/common';
 import {
   technicalAreas,
   technicalProjects,
@@ -95,9 +96,7 @@ export default function AddTechnicalMemberDialog({
 
   const membersCount = existingData?.members?.length ?? 0;
   const footnote = (
-    <p className={`text-[10px] ${mutedClass}`}>
-      * Campos requeridos para el alta técnica. Actualmente hay {membersCount} integrantes.
-    </p>
+    <FootnoteText text={`Campos requeridos para el alta técnica. Actualmente hay ${membersCount} integrantes.`} />
   );
 
   return (
@@ -256,7 +255,7 @@ export default function AddTechnicalMemberDialog({
         </label>
       </div>
 
-      {error && <p role="alert" className={errorClass}>{error}</p>}
+      {error && <InlineAlert variant="error" className="mt-4">{error}</InlineAlert>}
     </ModalDialog>
   );
 }

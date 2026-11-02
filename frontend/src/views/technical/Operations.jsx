@@ -10,6 +10,7 @@ import {
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import Select from '../../components/common/Select';
+import PageHeader from '../../components/common/PageHeader';
 import { useToast } from '../../context/ToastContext';
 import NewWorkOrderDialog from './components/NewWorkOrderDialog';
 import CriticalScheduleSection from './components/CriticalScheduleSection';
@@ -177,15 +178,10 @@ export default function Operations({
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>
-              Gestión Operativa de Campo
-            </h1>
-            <p className={`mt-1 text-sm ${mutedClass}`}>
-              Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad
-            </p>
-          </div>
+        <PageHeader
+          title="Gestión Operativa de Campo"
+          subtitle="Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <Select
               value={projectFilter}
@@ -215,7 +211,7 @@ export default function Operations({
               </>
             )}
           </div>
-        </header>
+        </PageHeader>
 
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>
           {feedback}

@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { formatMoney, formatDateInput, formatDate, formatPercentage, getYearOptions } from '../src/utils/format.js';
+import { formatMoney, formatDateInput, formatPercentage, getYearOptions } from '../src/utils/format.js';
 
 test('formatMoney formatea cantidades a M, K y unidades legibles', () => {
   assert.equal(formatMoney(1500000), '$1.5M');

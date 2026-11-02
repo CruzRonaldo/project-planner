@@ -1,7 +1,8 @@
 import React from 'react';
-import { UserPen, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UserPen } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import Input from '../../../components/common/Input';
+import InlineAlert from '../../../components/common/InlineAlert';
 
 /**
  * Modal de Edición de Perfil de Usuario con validación accesible.
@@ -46,13 +47,9 @@ export default function EditProfileModal({
       ) : (
         <div className="space-y-4">
           {error && (
-            <div
-              role="alert"
-              className="p-2.5 rounded-lg text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 midnight:bg-red-950/40 midnight:border-red-500/30"
-            >
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
+            <InlineAlert variant="error" showIcon>
+              {error}
+            </InlineAlert>
           )}
 
           <Input

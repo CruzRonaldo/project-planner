@@ -1,4 +1,5 @@
 import React from 'react';
+import EmptyState from '../../../components/common/EmptyState';
 import { getBarGeometry } from '../../../utils/gantt';
 
 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
@@ -128,9 +129,7 @@ export default function CriticalScheduleSection({
               );
             })}
             {!activitiesList.length && (
-              <p className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                No hay actividades críticas registradas.
-              </p>
+              <EmptyState description="No hay actividades críticas registradas." />
             )}
           </div>
         </div>

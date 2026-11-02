@@ -1,4 +1,5 @@
 import React from 'react';
+import { cardClass } from '../../../constants/themeClasses';
 
 /**
  * Tarjeta de Seguridad y Asignación Operativa (para usuarios no-administradores)
@@ -7,7 +8,7 @@ export default function SecurityPoliciesCard({ currentUser }) {
   return (
     <section
       aria-labelledby="security-policies-title"
-      className="border rounded-xl p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30"
+      className={`${cardClass} p-6`}
     >
       <h2
         id="security-policies-title"

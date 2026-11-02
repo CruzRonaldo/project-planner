@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Check, SlidersHorizontal } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
 import {
-  errorClass,
   inputClass,
   labelClass,
   nestedClass,
@@ -137,7 +137,7 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
         </p>
       </fieldset>
 
-      {error && <p role="alert" className={errorClass}>{error}</p>}
+      {error && <InlineAlert variant="error" className="mt-4">{error}</InlineAlert>}
     </ModalDialog>
   );
 }

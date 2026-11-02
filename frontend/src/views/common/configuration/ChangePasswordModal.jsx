@@ -1,8 +1,9 @@
 import React from 'react';
-import { KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
+import { KeyRound, CheckCircle2 } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
 import Button from '../../../components/common/Button';
+import InlineAlert from '../../../components/common/InlineAlert';
 
 /**
  * Modal de Cambio de Contraseña en dos pasos:
@@ -127,13 +128,9 @@ export default function ChangePasswordModal({
           )}
 
           {error && (
-            <div
-              role="alert"
-              className="p-2.5 rounded-lg text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 midnight:bg-red-950/40 midnight:border-red-500/30"
-            >
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
+            <InlineAlert variant="error" showIcon>
+              {error}
+            </InlineAlert>
           )}
 
           <div className="flex gap-2.5 pt-3 border-t border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30">

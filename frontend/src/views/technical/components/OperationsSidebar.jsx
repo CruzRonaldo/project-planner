@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
+import EmptyState from '../../../components/common/EmptyState';
 
 export default function OperationsSidebar({
   alertsList = [],
@@ -61,9 +62,7 @@ export default function OperationsSidebar({
             </article>
           ))}
           {!alertsList.length && (
-            <p className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-              Sin alertas operativas activas.
-            </p>
+            <EmptyState description="Sin alertas operativas activas." className="py-4" />
           )}
         </div>
       </aside>
@@ -103,9 +102,7 @@ export default function OperationsSidebar({
             </article>
           ))}
           {!qualityList.length && (
-            <p className="py-4 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-              Sin controles de calidad registrados.
-            </p>
+            <EmptyState description="Sin controles de calidad registrados." className="py-4" />
           )}
         </div>
       </aside>

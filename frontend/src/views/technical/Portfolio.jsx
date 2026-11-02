@@ -6,6 +6,14 @@ import { projectStatuses } from "../../constants/portfolio";
 import { filterPortfolio } from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
 import Pagination from "../../components/common/Pagination";
+import {
+  PageHeader,
+  EmptyState,
+  ClearFiltersButton,
+  Table,
+  TableHead,
+  TableRow,
+} from "../../components/common";
 import { cardClass } from "../../constants/themeClasses";
 import ProjectDetail from "../projects/ProjectDetail";
 import {
@@ -382,15 +390,10 @@ export default function Portfolio({
     <main className="flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-8">
         <section className="flex flex-col gap-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white midnight:text-cyan-50 md:text-[28px]">
-                Repositorio de Proyectos
-              </h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                Control presupuestal en tiempo real y supervisión financiera de obra
-              </p>
-            </div>
+          <PageHeader
+            title="Repositorio de Proyectos"
+            subtitle="Control presupuestal en tiempo real y supervisión financiera de obra"
+          >
             {canManage && (
               <button
                 type="button"
@@ -400,7 +403,7 @@ export default function Portfolio({
                 <FolderPlus size={17} /> Crear Proyecto
               </button>
             )}
-          </div>
+          </PageHeader>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
@@ -418,16 +421,12 @@ export default function Portfolio({
             </div>
             <div className="flex shrink-0 gap-3">
               {(query || activeFilter !== "all") && (
-                <button
-                  type="button"
+                <ClearFiltersButton
                   onClick={() => {
                     setActiveFilter("all");
                     onQueryChange("");
                   }}
-                  className="text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-                >
-                  Limpiar filtros
-                </button>
+                />
               )}
               <button
                 type="button"
@@ -490,11 +489,10 @@ export default function Portfolio({
             />
           </>
         ) : (
-            <div
-              className={`${cardClass} p-10 text-center text-sm text-slate-500 midnight:text-cyan-500/70`}
-            >
-              No hay proyectos que coincidan con los filtros.
-            </div>
+            <EmptyState
+              description="No hay proyectos que coincidan con los filtros."
+              className={`${cardClass} p-10 text-sm`}
+            />
           )}
         </section>
 
@@ -506,21 +504,20 @@ export default function Portfolio({
             Altas de proyectos, notificaciones despachadas a Make y
             modificaciones presupuestales
           </p>
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[820px] border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-[10px] text-slate-500 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-                  <th className="px-3 py-3 font-medium">Fecha</th>
-                  <th className="px-3 py-3 font-medium">Proyecto</th>
-                  <th className="px-3 py-3 font-medium">Cambio</th>
-                  <th className="px-3 py-3 text-right font-medium">Usuario</th>
-                </tr>
-              </thead>
+          <div className="mt-5">
+            <Table className="min-w-[820px] border-collapse">
+              <TableHead
+                columns={[
+                  { label: "Fecha", className: "px-3 py-3 font-medium" },
+                  { label: "Proyecto", className: "px-3 py-3 font-medium" },
+                  { label: "Cambio", className: "px-3 py-3 font-medium" },
+                  { label: "Usuario", align: "right", className: "px-3 py-3 font-medium" },
+                ]}
+              />
               <tbody>
                 {paginatedChanges.map((change) => (
-                  <tr
+                  <TableRow
                     key={change.id}
-                    className="border-b border-slate-200 last:border-0 dark:border-[#30363d] midnight:border-cyan-900/30"
                   >
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                       {new Date(`${change.date}T12:00:00`).toLocaleDateString(
@@ -537,20 +534,20 @@ export default function Portfolio({
                     <td className="whitespace-nowrap px-3 py-3 text-right text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                       {change.user}
                     </td>
-                  </tr>
+                  </TableRow>
                 ))}
                 {!visible.changes.length && (
-                  <tr>
+                  <TableRow>
                     <td
                       colSpan={4}
                       className="py-10 text-center text-sm text-slate-500 midnight:text-cyan-500/70"
                     >
                       No hay cambios que coincidan con la búsqueda.
                     </td>
-                  </tr>
+                  </TableRow>
                 )}
               </tbody>
-            </table>
+            </Table>
           </div>
           <Pagination
             currentPage={safeChangePage}

@@ -6,7 +6,6 @@ import {
   Download,
   Pencil,
   RefreshCw,
-  RotateCcw,
 } from 'lucide-react';
 import { personnelStatuses } from '../../constants/humanResources';
 import {
@@ -25,6 +24,15 @@ import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import Pagination from '../../components/common/Pagination';
 import MemberAvatar from '../../components/common/MemberAvatar';
+import {
+  PageHeader,
+  StatusBadge as CommonStatusBadge,
+  Table,
+  TableHead,
+  TableRow,
+  EmptyState,
+  ClearFiltersButton,
+} from '../../components/common';
 
 export { PersonnelIncidentDialog };
 
@@ -83,16 +91,11 @@ const workflowStatuses = {
 
 
 function StatusBadge({ status }) {
-  const details = personnelStatuses.find((item) => item.id === status) || {
-    label: status || 'Sin estado',
-    className: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400',
-  };
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold ${details.className}`}>{details.label}</span>;
+  return <CommonStatusBadge status={status} items={personnelStatuses} />;
 }
 
 function WorkflowBadge({ status }) {
-  const details = workflowStatuses[status] || workflowStatuses.pending;
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold ${details.className}`}>{details.label}</span>;
+  return <CommonStatusBadge status={status} statusMap={workflowStatuses} />;
 }
 
 function formatDisplayDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
@@ -338,11 +341,10 @@ export default function HumanResources({
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 md:text-[28px]">Recursos Humanos y Estados</h1>
-            <p className="mt-1 text-sm text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Administración de disponibilidad y asignación del personal</p>
-          </div>
+        <PageHeader
+          title="Recursos Humanos y Estados"
+          subtitle="Administración de disponibilidad y asignación del personal"
+        >
           <div className="flex flex-wrap items-center gap-2">
             {onRefreshRecords && (
               <button
@@ -394,7 +396,7 @@ export default function HumanResources({
               </span>
             )}
           </div>
-        </header>
+        </PageHeader>
 
         <section aria-label="Resumen de personal" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {summaryCards.map((card) => {
@@ -434,20 +436,21 @@ export default function HumanResources({
                   </span>
                 )}
                 {(query || !isAll) && (
-                  <button type="button" onClick={() => { setSelectedStatuses([]); onQueryChange(''); }} className="inline-flex items-center gap-1.5 text-[10px] text-cyan-700 transition-colors duration-300 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-200">
-                    <RotateCcw size={12} /> Limpiar filtros
-                  </button>
+                  <ClearFiltersButton
+                    onClick={() => { setSelectedStatuses([]); onQueryChange(''); }}
+                    showIcon
+                  />
                 )}
               </div>
             </div>
-            <div className="mt-3 overflow-x-auto px-4 sm:px-5">
-              <table className="w-full min-w-[700px] border-collapse text-left text-xs">
-                <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-                  {['Nombre', 'Área Técnica', 'Proyecto Asignado', 'Estado', 'Disponibilidad', 'Acción'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}
-                </tr></thead>
+            <div className="mt-3 px-4 sm:px-5">
+              <Table className="min-w-[700px] border-collapse">
+                <TableHead
+                  columns={['Nombre', 'Área Técnica', 'Proyecto Asignado', 'Estado', 'Disponibilidad', 'Acción']}
+                />
                 <tbody>
                   {visibleMembers.map((member) => (
-                    <tr key={member.id} className="border-b border-slate-200 last:border-b-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20">
+                    <TableRow key={member.id}>
                       <td className="whitespace-nowrap py-3.5 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50"><span className="flex items-center gap-2"><MemberAvatar member={member} sizeClass="h-7 w-7" textClass="text-[9px]" /><span>{member.name}</span></span></td>
                       <td className="whitespace-nowrap px-2 py-3.5 text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{member.area}</td>
                       <td className="max-w-[180px] truncate px-2 py-3.5 text-[11px] text-slate-700 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100" title={member.project}>{member.project}</td>
@@ -463,11 +466,17 @@ export default function HumanResources({
                           <span className="text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">Solo lectura</span>
                         )}
                       </td>
-                    </tr>
+                    </TableRow>
                   ))}
-                  {!visibleMembers.length && <tr><td colSpan={6} className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No se encontró personal con estos filtros.</td></tr>}
+                  {!visibleMembers.length && (
+                    <TableRow>
+                      <td colSpan={6} className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                        <EmptyState description="No se encontró personal con estos filtros." />
+                      </td>
+                    </TableRow>
+                  )}
                 </tbody>
-              </table>
+              </Table>
             </div>
             <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-5">
               <Pagination

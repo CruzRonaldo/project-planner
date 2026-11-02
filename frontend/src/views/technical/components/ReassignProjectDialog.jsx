@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeftRight, Check } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
 import MemberAvatar from './MemberAvatar';
 import {
   technicalProjects,
@@ -177,7 +178,7 @@ export default function ReassignProjectDialog({
         </select>
       </label>
 
-      {error && <p role="alert" className={errorClass}>{error}</p>}
+      {error && <InlineAlert variant="error" className="mt-4">{error}</InlineAlert>}
     </ModalDialog>
   );
 }

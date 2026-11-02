@@ -1,5 +1,6 @@
 import React from 'react';
 import BackupExportButton from '../../../components/common/BackupExportButton';
+import { cardClass } from '../../../constants/themeClasses';
 
 /**
  * Tarjeta de Respaldo y Seguridad de Base de Datos (exclusivo para Administrador)
@@ -12,7 +13,7 @@ export default function BackupAndSecurityCard({
   return (
     <section
       aria-labelledby="backup-security-title"
-      className="border rounded-xl p-6 shadow-sm transition-colors duration-300 bg-white border-slate-200 dark:bg-[#161b22] dark:border-[#30363d] midnight:bg-[#0a1120] midnight:border-cyan-900/30"
+      className={`${cardClass} p-6`}
     >
       <h2
         id="backup-security-title"

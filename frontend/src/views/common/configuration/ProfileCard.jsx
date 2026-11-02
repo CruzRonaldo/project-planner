@@ -1,6 +1,7 @@
 import React from 'react';
 import { Camera, Trash2, UserPen, KeyRound, AlertCircle } from 'lucide-react';
 import Button from '../../../components/common/Button';
+import ReadOnlyField from '../../../components/common/ReadOnlyField';
 
 /**
  * Tarjeta de Perfil de Usuario:
@@ -123,27 +124,26 @@ export default function ProfileCard({
 
       {/* Credenciales y estado de cuenta */}
       <div className="mt-6 pt-6 border-t border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-600">Correo Electrónico</p>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 midnight:text-cyan-100 truncate">
-            {userEmail || currentUser?.email || currentUser?.username || 'Sin correo registrado'}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-600">Teléfono de Contacto</p>
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-            {userPhone || 'No registrado'}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-600">Estado de Cuenta</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
-              Activo / En línea
-            </span>
-          </div>
-        </div>
+        <ReadOnlyField
+          label="Correo Electrónico"
+          value={userEmail || currentUser?.email || currentUser?.username || 'Sin correo registrado'}
+          valueClassName="truncate"
+        />
+        <ReadOnlyField
+          label="Teléfono de Contacto"
+          value={userPhone || 'No registrado'}
+        />
+        <ReadOnlyField
+          label="Estado de Cuenta"
+          value={
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
+                Activo / En línea
+              </span>
+            </div>
+          }
+        />
       </div>
 
       {/* Badge para SubAdministrador */}
