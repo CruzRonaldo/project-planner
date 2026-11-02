@@ -80,7 +80,17 @@ export function useAppController() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Estado de carga real: true mientras se valida la sesión persistida contra el backend.
+  const [isInitializing, setIsInitializing] = useState(() => {
+    try {
+      const saved = localStorage.getItem('project_planner_user');
+      if (!saved || saved === 'null' || saved === 'undefined') return false;
+      const parsed = JSON.parse(saved);
+      return Boolean(parsed && typeof parsed === 'object');
+    } catch {
+      return false;
+    }
+  });
 
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -753,14 +763,6 @@ export function useAppController() {
     }
   }, [refreshHumanResourcesRecords, refreshTeamMembers]);
 
-  // Efectos de inicialización y persistencia
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Sincronización de sesión en tiempo real entre múltiples pestañas (Cross-Tab Session Sync)
   useEffect(() => {
     const handleStorageChange = (event) => {
@@ -790,6 +792,7 @@ export function useAppController() {
   }, [clearLocalSession]);
 
   // Verifica periódicamente la sesión para cerrar otros dispositivos cuando cambie la contraseña.
+  // Mientras se resuelve la sesión persistida (token válido, expirado o backend en frío en Render) se mantiene el estado de carga real.
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
@@ -802,6 +805,8 @@ export function useAppController() {
         if (isActive && (statusCode === 401 || statusCode === 403)) {
           clearLocalSession();
         }
+      } finally {
+        if (isActive) setIsInitializing(false);
       }
     };
 
@@ -1153,7 +1158,7 @@ export function useAppController() {
 
   // Guardia de sincronización de rutas y sesión
   useEffect(() => {
-    if (isLoading) return;
+    if (isInitializing) return;
 
     if (!isAuthenticated) {
       if (normalizedPath !== '/login') {
@@ -1166,7 +1171,7 @@ export function useAppController() {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [isLoading, isAuthenticated, normalizedPath, activeView, displayedCurrentUser, navigate]);
+  }, [isInitializing, isAuthenticated, normalizedPath, activeView, displayedCurrentUser, navigate]);
 
   // Items de navegación permitidos
   const allowedSidebarItems = useMemo(() => {
@@ -1382,7 +1387,7 @@ export function useAppController() {
   ]);
 
   return {
-    isLoading,
+    isInitializing,
     isAuthenticated,
     displayedCurrentUser,
     activeView,
