@@ -8,6 +8,7 @@ import {
   NAVIGATION_ITEMS,
   USER_ROLES,
 } from '../config/navigation.config';
+import { useAuthController } from './useAuthController';
 
 // Importamos vistas desde el barrel centralizado
 import {
@@ -49,20 +50,6 @@ import {
   initialUsers,
 } from '../mocks';
 
-function createNameFromEmail(email) {
-  const baseName = email
-    .split('@')[0]
-    .replace(/[._-]+/g, ' ')
-    .trim();
-  return (
-    baseName
-      .split(' ')
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ') || 'Usuario Técnico'
-  );
-}
-
 function getApiErrorMessage(error, fallback) {
   const responseData = error?.response?.data;
   if (typeof responseData?.detail === 'string') return responseData.detail;
@@ -80,39 +67,51 @@ export function useAppController() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Estado de carga real: true mientras se valida la sesión persistida contra el backend.
-  const [isInitializing, setIsInitializing] = useState(() => {
+  // Detección de entorno: en producción o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
+  const isProduction =
+    import.meta.env.PROD ||
+    (typeof window !== 'undefined' &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
+
+  const [users, setUsers] = useState(() => {
+    if (hideMocks) {
+      return [];
+    }
     try {
-      const saved = localStorage.getItem('project_planner_user');
-      if (!saved || saved === 'null' || saved === 'undefined') return false;
-      const parsed = JSON.parse(saved);
-      return Boolean(parsed && typeof parsed === 'object');
+      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
+      const savedUsers = storage ? storage.getItem('project-planner-users') : null;
+      const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
+      if (
+        Array.isArray(parsedUsers) &&
+        parsedUsers.length >= 4 &&
+        parsedUsers.every((u) => u && typeof u === 'object' && u.name)
+      ) {
+        return parsedUsers;
+      }
+      return initialUsers;
     } catch {
-      return false;
+      return initialUsers;
     }
   });
 
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('project_planner_user');
-      if (!saved || saved === 'null' || saved === 'undefined') return null;
-      const parsed = JSON.parse(saved);
-      return parsed && typeof parsed === 'object' ? parsed : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try {
-      const saved = localStorage.getItem('project_planner_user');
-      if (!saved || saved === 'null' || saved === 'undefined') return false;
-      const parsed = JSON.parse(saved);
-      return Boolean(parsed && typeof parsed === 'object');
-    } catch {
-      return false;
-    }
-  });
+  // Controlador especializado de Autenticación, Sesión y Perfil
+  const {
+    isInitializing,
+    isAuthenticated,
+    sessionToken,
+    currentUser,
+    displayedCurrentUser,
+    registeredCurrentUser,
+    isAdmin,
+    isSubAdmin,
+    canManage,
+    handleLogin,
+    handleLogout,
+    clearLocalSession,
+    handleUpdateCurrentUser,
+    handleSessionTokenChange,
+  } = useAuthController({ users, setUsers });
 
   // Ruta normalizada del navegador
   const normalizedPath = useMemo(() => {
@@ -126,13 +125,6 @@ export function useAppController() {
     const matched = NAVIGATION_ITEMS.find((item) => item.path === normalizedPath);
     return matched ? matched.id : 'dashboard';
   }, [normalizedPath]);
-
-  // Detección de entorno: en producción o con VITE_HIDE_MOCKS no se cargan datos simulados por defecto
-  const isProduction =
-    import.meta.env.PROD ||
-    (typeof window !== 'undefined' &&
-      !['localhost', '127.0.0.1'].includes(window.location.hostname));
-  const hideMocks = isProduction || import.meta.env.VITE_HIDE_MOCKS === 'true';
 
   // Estados de datos (en producción se inicializan vacíos por defecto)
   const [strategicPlanningData, setStrategicPlanningData] = useState(() =>
@@ -231,27 +223,6 @@ export function useAppController() {
   const [humanResourcesQuery, setHumanResourcesQuery] = useState('');
   const [integrationsQuery, setIntegrationsQuery] = useState('');
 
-  const [users, setUsers] = useState(() => {
-    if (hideMocks) {
-      return [];
-    }
-    try {
-      const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
-      const savedUsers = storage ? storage.getItem('project-planner-users') : null;
-      const parsedUsers = savedUsers ? JSON.parse(savedUsers) : null;
-      if (
-        Array.isArray(parsedUsers) &&
-        parsedUsers.length >= 4 &&
-        parsedUsers.every((u) => u && typeof u === 'object' && u.name)
-      ) {
-        return parsedUsers;
-      }
-      return initialUsers;
-    } catch {
-      return initialUsers;
-    }
-  });
-
   const [fontScale, setFontScale] = useState(() => {
     try {
       const storage = typeof window !== 'undefined' ? window.localStorage : (typeof localStorage !== 'undefined' ? localStorage : null);
@@ -270,54 +241,6 @@ export function useAppController() {
       return 'dark';
     }
   });
-
-  const registeredCurrentUser = useMemo(() => {
-    if (currentUser?.accountType !== USER_ROLES.USER) return null;
-    return users.find(
-      (user) =>
-        user.id === currentUser.id ||
-        (user.email &&
-          currentUser.email &&
-          user.email.toLowerCase() === currentUser.email.toLowerCase())
-    ) || null;
-  }, [currentUser, users]);
-
-  const displayedCurrentUser = useMemo(() => {
-    if (!currentUser) return null;
-    return {
-      ...currentUser,
-      photo:
-        currentUser.photo ||
-        currentUser.avatar ||
-        registeredCurrentUser?.avatar ||
-        registeredCurrentUser?.photo ||
-        null,
-      phone: currentUser.phone || registeredCurrentUser?.phone || '',
-      name:
-        currentUser.name ||
-        (currentUser.first_name
-          ? `${currentUser.first_name} ${currentUser.last_name || ''}`.trim()
-          : currentUser.username ||
-            registeredCurrentUser?.name ||
-            'Usuario'),
-      roleLabel:
-        currentUser.role === USER_ROLES.ADMIN ||
-        currentUser.is_superuser ||
-        currentUser.accountType === USER_ROLES.ADMIN
-          ? 'Project Manager'
-          : registeredCurrentUser?.isSubAdmin
-            ? 'SubAdministrador'
-            : 'Equipo Técnico',
-    };
-  }, [currentUser, registeredCurrentUser]);
-
-  const isAdmin =
-    displayedCurrentUser?.accountType === USER_ROLES.ADMIN ||
-    displayedCurrentUser?.role === USER_ROLES.ADMIN ||
-    Boolean(displayedCurrentUser?.is_superuser);
-
-  const canManage =
-    isAdmin || displayedCurrentUser?.roleLabel === 'SubAdministrador';
 
   // Navegación real por URL con guardia RBAC
   const setActiveView = useCallback(
@@ -342,67 +265,6 @@ export function useAppController() {
     [displayedCurrentUser, navigate]
   );
 
-  const handleLogin = useCallback(
-    (userData) => {
-      const accountType =
-        userData?.role === USER_ROLES.ADMIN ||
-        userData?.is_superuser ||
-        userData?.accountType === USER_ROLES.ADMIN
-          ? USER_ROLES.ADMIN
-          : USER_ROLES.USER;
-
-      const identifier = (userData?.email || userData?.username || '').toLowerCase();
-      let cachedProfile = null;
-      try {
-        const raw = localStorage.getItem(`project_planner_profile_${identifier}`);
-        if (raw) cachedProfile = JSON.parse(raw);
-      } catch {}
-
-      const userPhoto =
-        userData?.photo ||
-        userData?.avatar ||
-        cachedProfile?.photo ||
-        cachedProfile?.avatar ||
-        null;
-      const userPhone = userData?.phone || cachedProfile?.phone || '';
-
-      const userToSave = {
-        ...userData,
-        accountType,
-        photo: userPhoto,
-        avatar: userPhoto,
-        phone: userPhone,
-        name:
-          userData?.name ||
-          cachedProfile?.name ||
-          (userData?.first_name
-            ? `${userData.first_name} ${userData.last_name || ''}`.trim()
-            : userData?.username ||
-              (userData?.email ? createNameFromEmail(userData.email) : 'Usuario')),
-      };
-
-      try {
-        localStorage.setItem('project_planner_user', JSON.stringify(userToSave));
-        if (identifier) {
-          localStorage.setItem(
-            `project_planner_profile_${identifier}`,
-            JSON.stringify({
-              photo: userPhoto,
-              avatar: userPhoto,
-              phone: userPhone,
-              name: userToSave.name,
-            })
-          );
-        }
-      } catch {}
-
-      setCurrentUser(userToSave);
-      setIsAuthenticated(true);
-      navigate('/dashboard');
-    },
-    [navigate]
-  );
-
   const handleToggleSubAdmin = useCallback((userId) => {
     setUsers((currentUsers) => {
       const targetUser = currentUsers.find((u) => u.id === userId);
@@ -419,139 +281,6 @@ export function useAppController() {
   const handleAddMember = useCallback((newMember) => {
     setUsers((currentUsers) => [newMember, ...currentUsers]);
   }, []);
-
-  const handleUpdateCurrentUser = useCallback(async (updatedData) => {
-    let resolvedUser = null;
-    setCurrentUser((prev) => {
-      const merged = { ...prev, ...updatedData };
-      resolvedUser = merged;
-      try {
-        localStorage.setItem('project_planner_user', JSON.stringify(merged));
-        const identifier = (merged.email || merged.username || '').toLowerCase();
-        if (identifier) {
-          localStorage.setItem(
-            `project_planner_profile_${identifier}`,
-            JSON.stringify({
-              photo: merged.photo,
-              avatar: merged.avatar,
-              phone: merged.phone,
-              name: merged.name,
-            })
-          );
-        }
-      } catch (err) {
-        console.error('Error saving user to localStorage:', err);
-      }
-      return merged;
-    });
-
-    // Guardar en la Base de Datos mediante API de Django
-    const targetUser = resolvedUser || currentUser;
-    if (targetUser) {
-      const activeId = targetUser.db_id || targetUser.id;
-      const activeIdentifier = targetUser.email || targetUser.username;
-      try {
-        await projectsApi.updateProfile({
-          userId: activeId,
-          identifier: activeIdentifier,
-          name: updatedData.name,
-          email: updatedData.email,
-          photo: updatedData.photo !== undefined ? updatedData.photo : targetUser.photo,
-          phone: updatedData.phone !== undefined ? updatedData.phone : targetUser.phone,
-        });
-      } catch (err) {
-        console.warn('Sincronización de perfil en BD:', err);
-      }
-    }
-
-    if (
-      updatedData.name ||
-      updatedData.email ||
-      updatedData.photo !== undefined ||
-      updatedData.avatar !== undefined ||
-      updatedData.phone !== undefined
-    ) {
-      setUsers((prevUsers) => {
-        const nextUsers = prevUsers.map((u) => {
-          if (
-            (currentUser?.id && u.id === currentUser.id) ||
-            (currentUser?.email &&
-              u.email &&
-              u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-            (currentUser?.username &&
-              u.username &&
-              u.username.toLowerCase() === currentUser.username.toLowerCase())
-          ) {
-            return {
-              ...u,
-              ...(updatedData.name ? { name: updatedData.name } : {}),
-              ...(updatedData.email ? { email: updatedData.email } : {}),
-              ...(updatedData.photo !== undefined
-                ? { avatar: updatedData.photo, photo: updatedData.photo }
-                : {}),
-              ...(updatedData.phone !== undefined ? { phone: updatedData.phone } : {}),
-            };
-          }
-          return u;
-        });
-        try {
-          localStorage.setItem('project-planner-users', JSON.stringify(nextUsers));
-        } catch {}
-        return nextUsers;
-      });
-    }
-  }, [currentUser]);
-
-  const handleSessionTokenChange = useCallback((sessionToken) => {
-    if (!sessionToken) return;
-
-    let storedUser = null;
-    try {
-      storedUser = JSON.parse(localStorage.getItem('project_planner_user') || 'null');
-      if (storedUser) {
-        localStorage.setItem(
-          'project_planner_user',
-          JSON.stringify({ ...storedUser, session_token: sessionToken })
-        );
-      }
-    } catch {}
-
-    setCurrentUser((previousUser) => {
-      const activeUser = previousUser || storedUser;
-      return activeUser ? { ...activeUser, session_token: sessionToken } : previousUser;
-    });
-  }, []);
-
-  const clearLocalSession = useCallback(() => {
-    try {
-      localStorage.removeItem('project_planner_user');
-      localStorage.removeItem('project_planner_token');
-    } catch {}
-
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    navigate('/login', { replace: true });
-  }, [navigate]);
-
-  const handleLogout = useCallback(() => {
-    // 1. Notificar al backend de forma asíncrona sin bloquear la UI
-    if (currentUser?.username || currentUser?.email) {
-      projectsApi
-        .logoutUser({
-          username: currentUser.username,
-          email: currentUser.email,
-        })
-        .catch(() => {});
-    }
-
-    // 2. Limpieza inmediata del almacenamiento local y estados
-    try {
-      // Mantiene el comportamiento previo del cierre manual sin borrar este
-      // directorio cuando la invalidación provenga de otro dispositivo.
-      localStorage.removeItem('project-planner-users');
-    } catch {}
-    clearLocalSession();
-  }, [clearLocalSession, currentUser]);
 
   const refreshTeamMembers = useCallback(async () => {
     setTeamMembersLoading(true);
@@ -765,71 +494,6 @@ export function useAppController() {
       console.warn('La incidencia cambió de estado, pero no se pudo refrescar toda la vista.');
     }
   }, [refreshHumanResourcesRecords, refreshTeamMembers]);
-
-  // Sincronización de sesión en tiempo real entre múltiples pestañas (Cross-Tab Session Sync)
-  useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key !== 'project_planner_user' && event.key !== null) return;
-
-      if (!event.newValue) {
-        // Sesión cerrada o removida en otra pestaña: desalojar memoria y volver a login de inmediato
-        clearLocalSession();
-      } else {
-        // Sesión cambiada/iniciada en otra pestaña: sincronizar usuario activo en tiempo real
-        try {
-          const updatedUser = JSON.parse(event.newValue);
-          if (updatedUser && typeof updatedUser === 'object') {
-            setCurrentUser(updatedUser);
-            setIsAuthenticated(true);
-          }
-        } catch {
-          clearLocalSession();
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [clearLocalSession]);
-
-  // Verifica periódicamente la sesión para cerrar otros dispositivos cuando cambie la contraseña.
-  // Mientras se resuelve la sesión persistida (token válido, expirado o backend en frío en Render) se mantiene el estado de carga real.
-  useEffect(() => {
-    if (!isAuthenticated) return undefined;
-
-    let isActive = true;
-    const validateCurrentSession = async () => {
-      try {
-        await projectsApi.validateSession();
-      } catch (error) {
-        const statusCode = error?.response?.status;
-        if (isActive && (statusCode === 401 || statusCode === 403)) {
-          clearLocalSession();
-        }
-      } finally {
-        if (isActive) setIsInitializing(false);
-      }
-    };
-
-    validateCurrentSession();
-    const intervalId = window.setInterval(validateCurrentSession, 15000);
-    const handleFocus = () => validateCurrentSession();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') validateCurrentSession();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      isActive = false;
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [clearLocalSession, isAuthenticated, currentUser?.session_token]);
 
   // Sincronizar usuarios reales y presencia (En línea / Desconectado) desde la Base de Datos al recargar la app
   useEffect(() => {
