@@ -51,6 +51,7 @@ from .views import (
     CreateTechnicianView,
 )
 
+from .chatbot_views import ChatbotView, RAGChatbotView
 from .views_make import (
     make_incoming_webhook_view,
     make_status_view,
@@ -268,6 +269,24 @@ urlpatterns = [
         CreateTechnicianView.as_view(),
         name='create-technician',
     ),
+
+    # Asistente de IA (Chatbot)
+    path(
+        'chatbot/',
+        ChatbotView.as_view(),
+        name='chatbot',
+    ),
+    path(
+        'chatbot/rag/',
+        RAGChatbotView.as_view(),
+        name='chatbot_rag',
+    ),
+    path(
+        'chatbot/search/',
+        RAGChatbotView.as_view(),
+        name='chatbot_search',
+    ),
+
 
     # Rutas generadas por el router
     path("", include(router.urls)),

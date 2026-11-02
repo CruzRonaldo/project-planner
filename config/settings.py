@@ -248,3 +248,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 
+# ==========================================================
+# GOOGLE GEMINI AI ASSISTANT
+# ==========================================================
+GEMINI_API_KEY = env('GEMINI_API_KEY', default=os.environ.get('GEMINI_API_KEY', '')).strip()

@@ -3,6 +3,8 @@ import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import { LoadingScreen, LoginScreen } from './views';
 import { useAppController } from './controllers';
+import ChatWidget from './components/common/ChatWidget';
+
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -172,6 +174,7 @@ export default function App() {
           />
           {renderActiveView()}
         </div>
+        <ChatWidget currentUser={displayedCurrentUser} />
       </div>
     );
   }

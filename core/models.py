@@ -1,3 +1,4 @@
+from pgvector.django import VectorField
 import datetime
 from django.utils import timezone
 from django.db import models
@@ -759,3 +760,22 @@ class TwoFactorProfile(models.Model):
     def __str__(self):
         status = "activo" if self.is_enabled else "inactivo"
         return f"2FA ({status}) para {self.user.username}"
+
+
+class DocumentEmbedding(models.Model):
+    """
+    Representación vectorial de fragmentos de documentación, manuales operativos
+    y guías técnicas de Project Planner para búsquedas semánticas y RAG.
+    """
+    title = models.CharField(max_length=255, verbose_name="Título del documento")
+    content = models.TextField(verbose_name="Contenido o fragmento")
+    embedding = VectorField(dimensions=768, verbose_name="Vector de embedding (Gemini)")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de creación")
+
+    class Meta:
+        verbose_name = "Embedding de Documento"
+        verbose_name_plural = "Embeddings de Documentos"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title

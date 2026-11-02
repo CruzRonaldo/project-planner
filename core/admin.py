@@ -135,3 +135,12 @@ class DriveLinkAdmin(admin.ModelAdmin):
     list_display = ('title', 'task', 'file_type', 'drive_url', 'created_at')
     list_filter = ('file_type', 'task__project')
     search_fields = ('title', 'task__title', 'task__project__name', 'task__project__code')
+
+
+from .models import DocumentEmbedding
+
+@admin.register(DocumentEmbedding)
+class DocumentEmbeddingAdmin(admin.ModelAdmin):
+    list_display = ('title', 'created_at')
+    search_fields = ('title', 'content')
+    readonly_fields = ('created_at',)
