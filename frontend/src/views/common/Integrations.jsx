@@ -13,8 +13,12 @@ import api, { baseURL as apiBaseUrl } from '../../services/api';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
 import { runSafe } from '../../utils/asyncHandler';
+import ModalDialog from '../../components/common/ModalDialog';
+import PageHeader from '../../components/common/PageHeader';
 import RevitModal from './components/RevitModal';
 import {
+  GoogleDriveModal,
+  MakeModal,
   IntegrationCard,
   IntegrationEditor,
   IntegrationActivityList,
@@ -37,11 +41,19 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
   const visible = filterIntegrations(data, query);
   const selected = selectedId && data.integrations.find((integration) => integration.id === selectedId);
 
-  const refreshGoogleDrive = async (showFeedback = true) => {
+  const refreshGoogleDrive = async (showToastFeedback = false) => {
     setTestingDrive(true);
     const [response, error] = await runSafe(
       () => api.get('/integrations/google-drive/status/'),
       {
+        showToast: showToastFeedback ? showToast : undefined,
+        successTitle: 'Estado de Google Drive',
+        successMessage: (res) => {
+          const driveStatus = res?.data;
+          return driveStatus?.connected
+            ? `Google Drive conectado correctamente${driveStatus?.email ? `: ${driveStatus.email}` : '.'}`
+            : 'Google Drive todavía no está conectado.';
+        },
         fallbackError: 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
       }
     );
@@ -49,23 +61,11 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
 
     if (error || !response?.data) {
       onChange(updateGoogleDriveStatus(data, { connected: false }));
-      if (showFeedback) {
-        setFeedback(
-          error?.friendlyMessage || 'No se pudo consultar Google Drive. Verifica que Django esté encendido.'
-        );
-      }
       return false;
     }
 
     const driveStatus = response.data;
     onChange(updateGoogleDriveStatus(data, driveStatus));
-    if (showFeedback) {
-      setFeedback(
-        driveStatus.connected
-          ? `Google Drive conectado correctamente${driveStatus.email ? `: ${driveStatus.email}` : '.'}`
-          : 'Google Drive todavía no está conectado.'
-      );
-    }
     return Boolean(driveStatus.connected);
   };
 
@@ -143,27 +143,24 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
       '_blank',
       'noopener,noreferrer,width=720,height=820',
     );
-    setFeedback(
-      'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
-    );
+    showToast({
+      title: 'Autorización Iniciada',
+      message: 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
+      type: 'info',
+    });
   };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 md:text-[28px]">
-              Integraciones
-            </h1>
-            <p className="mt-1 text-sm text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-              Conexiones con servicios externos y automatizaciones
-            </p>
-          </div>
+        <PageHeader
+          title="Integraciones"
+          subtitle="Conexiones con servicios externos y automatizaciones"
+        >
           <span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">
             Google Drive real · Otras integraciones en demostración
           </span>
-        </header>
+        </PageHeader>
 
         <p
           role="status"
@@ -172,16 +169,45 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
           {feedback}
         </p>
 
-        {selected && (
-          <IntegrationEditor
-            key={selected.id}
+        {/* ── Modales de Configuración Dedicados ── */}
+        {selected && selected.id === 'drive' && (
+          <GoogleDriveModal
+            isOpen={Boolean(selected)}
+            onClose={() => setSelectedId(null)}
+            integration={selected}
+            onConnect={connectGoogleDrive}
+            onTest={() => refreshGoogleDrive(true)}
+            testing={testingDrive}
+          />
+        )}
+
+        {selected && selected.id === 'make' && (
+          <MakeModal
+            isOpen={Boolean(selected)}
+            onClose={() => setSelectedId(null)}
             integration={selected}
             onSave={save}
-            onTest={test}
-            onConnect={connectGoogleDrive}
-            onCancel={() => setSelectedId(null)}
-            testing={selected.id === 'drive' && testingDrive}
           />
+        )}
+
+        {selected && selected.id !== 'drive' && selected.id !== 'make' && selected.id !== 'revit' && (
+          <ModalDialog
+            isOpen={Boolean(selected)}
+            onClose={() => setSelectedId(null)}
+            title={`Configurar ${selected.name}`}
+            subtitle="Ajustes de integración"
+            showFooter={false}
+          >
+            <IntegrationEditor
+              key={selected.id}
+              integration={selected}
+              onSave={save}
+              onTest={test}
+              onConnect={connectGoogleDrive}
+              onCancel={() => setSelectedId(null)}
+              testing={false}
+            />
+          </ModalDialog>
         )}
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
@@ -224,6 +250,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
         </div>
       </div>
 
+      {/* ── Modal de Revit — se monta solo cuando isRevitModalOpen es true ── */}
       {isRevitModalOpen && (
         <RevitModal
           onClose={() => {

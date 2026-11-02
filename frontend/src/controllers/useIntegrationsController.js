@@ -176,11 +176,19 @@ export function useIntegrationsController({
   const [testingMake, setTestingMake] = useState(false);
 
   // 1. Refrescar estado de Google Drive
-  const refreshGoogleDrive = useCallback(async (withFeedback = true) => {
+  const refreshGoogleDrive = useCallback(async (withFeedback = false) => {
     setTestingDrive(true);
     const [response, error] = await runSafe(
       () => api.get('/integrations/google-drive/status/'),
       {
+        showToast: withFeedback && showToast ? showToast : undefined,
+        successTitle: 'Estado de Google Drive',
+        successMessage: (res) => {
+          const driveStatus = res?.data;
+          return driveStatus?.connected
+            ? `Google Drive conectado correctamente${driveStatus?.email ? `: ${driveStatus.email}` : '.'}`
+            : 'Google Drive todavía no está conectado.';
+        },
         fallbackError: 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
       }
     );
@@ -204,7 +212,7 @@ export function useIntegrationsController({
       );
     }
     return Boolean(driveStatus.connected);
-  }, []);
+  }, [showToast]);
 
   // 2. Refrescar estado de Autodesk Revit APS
   const refreshRevitStatus = useCallback(async () => {
@@ -290,8 +298,15 @@ export function useIntegrationsController({
   const connectGoogleDrive = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.open(googleDriveConnectUrl, '_blank', 'noopener,noreferrer');
+      if (showToast) {
+        showToast({
+          title: 'Autorización Iniciada',
+          message: 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
+          type: 'info',
+        });
+      }
     }
-  }, [googleDriveConnectUrl]);
+  }, [googleDriveConnectUrl, showToast]);
 
   // Verificación inicial de conectores al montar
   useEffect(() => {

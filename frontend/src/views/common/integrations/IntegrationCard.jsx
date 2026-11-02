@@ -1,5 +1,6 @@
 import React from 'react';
 import { Settings2 } from 'lucide-react';
+import Button from '../../../components/common/Button';
 import { cardClass, iconMap } from './constants';
 import IntegrationStatus from './IntegrationStatus';
 
@@ -20,7 +21,7 @@ export default function IntegrationCard({ integration, onConfigure }) {
         <IntegrationStatus status={integration.status} />
       </header>
 
-      <p className="mt-4 min-h-10 text-xs leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
+      <p className="mt-4 min-h-10 text-xs leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-300/80">
         {integration.description}
       </p>
 
@@ -36,7 +37,7 @@ export default function IntegrationCard({ integration, onConfigure }) {
             >
               {metric.value}
             </strong>
-            <p className="mt-0.5 text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600">
+            <p className="mt-0.5 text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-400/80">
               {metric.label}
             </p>
           </div>
@@ -44,17 +45,18 @@ export default function IntegrationCard({ integration, onConfigure }) {
       </div>
 
       <footer className="mt-auto flex items-end justify-between gap-3 pt-4">
-        <span className="text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600">
+        <span className="text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-400/80">
           Actividad: {integration.lastActivity}
         </span>
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
+          icon={Settings2}
           onClick={() => onConfigure(integration.id)}
           aria-label={`Configurar ${integration.name}`}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors duration-300 hover:bg-slate-800 dark:bg-blue-500/25 dark:text-blue-100 dark:hover:bg-blue-500/35 midnight:bg-cyan-500/20 midnight:text-cyan-100 midnight:hover:bg-cyan-500/30"
         >
-          <Settings2 size={14} /> Configurar
-        </button>
+          Configurar
+        </Button>
       </footer>
     </article>
   );

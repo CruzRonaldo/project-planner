@@ -1,4 +1,5 @@
 import React from 'react';
+import EmptyState from '../../../components/common/EmptyState';
 import { cardClass, nestedClass } from './constants';
 
 export default function StatusPanel({ summary, hasActivities = false }) {
@@ -121,14 +122,11 @@ export default function StatusPanel({ summary, hasActivities = false }) {
               </div>
             </>
           ) : (
-            <div className="flex h-28 flex-col items-center justify-center text-center">
-              <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                Sin peticiones registradas
-              </p>
-              <span className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-700">
-                No hay actividad reciente en los conectores
-              </span>
-            </div>
+            <EmptyState
+              title="Sin peticiones registradas"
+              description="No hay actividad reciente en los conectores"
+              className="h-28 flex flex-col items-center justify-center py-0"
+            />
           )}
         </div>
       </div>

@@ -12,7 +12,10 @@ import {
 } from 'lucide-react';
 import api from '../../../services/api';
 import { runSafe } from '../../../utils/asyncHandler';
-import { inputClass, nestedClass } from './constants';
+import { useToast } from '../../../context/ToastContext';
+import Button from '../../../components/common/Button';
+import Input from '../../../components/common/Input';
+import { nestedClass } from './constants';
 
 function formatFileSize(bytes) {
   if (bytes === null || bytes === undefined) return 'Carpeta';
@@ -22,21 +25,19 @@ function formatFileSize(bytes) {
 }
 
 export default function GoogleDriveFileManager({ connected }) {
+  const { showToast } = useToast();
   const [files, setFiles] = useState([]);
   const [folderStack, setFolderStack] = useState([]);
   const [folderName, setFolderName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const currentFolder = folderStack[folderStack.length - 1] || null;
 
   const loadFolder = async (folder = null, navigation = 'initial') => {
     if (!connected) return;
 
-    setError('');
     const [response, err] = await runSafe(
       () =>
         api.get('/integrations/google-drive/files/', {
@@ -44,15 +45,12 @@ export default function GoogleDriveFileManager({ connected }) {
         }),
       {
         setLoading,
+        showToast,
         fallbackError: 'No se pudieron cargar los archivos de Google Drive.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
-    }
+    if (err || !response?.data) return;
 
     const result = response.data;
     setFiles(result.files || []);
@@ -77,7 +75,6 @@ export default function GoogleDriveFileManager({ connected }) {
   }, [connected]);
 
   const refreshCurrentFolder = async (showFeedback = true) => {
-    setError('');
     const [response, err] = await runSafe(
       () =>
         api.get('/integrations/google-drive/files/', {
@@ -85,18 +82,16 @@ export default function GoogleDriveFileManager({ connected }) {
         }),
       {
         setLoading,
+        showToast: showFeedback ? showToast : undefined,
+        successTitle: 'Bóveda Actualizada',
+        successMessage: 'El contenido de la carpeta se actualizó con éxito.',
         fallbackError: 'No se pudo actualizar el contenido de Google Drive.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
+    if (!err && response?.data) {
+      setFiles(response.data.files || []);
     }
-
-    setFiles(response.data.files || []);
-    if (showFeedback) setMessage('Contenido actualizado.');
   };
 
   const goBack = async () => {
@@ -108,11 +103,14 @@ export default function GoogleDriveFileManager({ connected }) {
   const createDriveFolder = async () => {
     const cleanName = folderName.trim();
     if (!cleanName) {
-      setError('Escribe un nombre para la carpeta.');
+      showToast({
+        title: 'Nombre Requerido',
+        message: 'Escribe un nombre para la carpeta.',
+        type: 'warning',
+      });
       return;
     }
 
-    setError('');
     const [, err] = await runSafe(
       () =>
         api.post('/integrations/google-drive/folders/', {
@@ -121,24 +119,26 @@ export default function GoogleDriveFileManager({ connected }) {
         }),
       {
         setLoading: setWorking,
+        showToast,
+        successTitle: 'Carpeta Creada',
+        successMessage: `Carpeta "${cleanName}" creada correctamente.`,
         fallbackError: 'No se pudo crear la carpeta de Google Drive.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
+    if (!err) {
+      setFolderName('');
+      await refreshCurrentFolder(false);
     }
-
-    setFolderName('');
-    setMessage(`Carpeta "${cleanName}" creada correctamente.`);
-    await refreshCurrentFolder(false);
   };
 
   const uploadDriveFile = async () => {
     if (!selectedFile) {
-      setError('Selecciona un archivo para subir.');
+      showToast({
+        title: 'Archivo Requerido',
+        message: 'Selecciona un archivo para subir a Google Drive.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -148,7 +148,6 @@ export default function GoogleDriveFileManager({ connected }) {
       formData.append('folder_id', currentFolder.id);
     }
 
-    setError('');
     const [, err] = await runSafe(
       () =>
         api.post('/integrations/google-drive/upload/', formData, {
@@ -156,26 +155,23 @@ export default function GoogleDriveFileManager({ connected }) {
         }),
       {
         setLoading: setWorking,
+        showToast,
+        successTitle: 'Archivo Subido',
+        successMessage: `"${selectedFile.name}" subido con éxito a Google Drive.`,
         fallbackError: 'No se pudo subir el archivo a Google Drive.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
+    if (!err) {
+      setSelectedFile(null);
+      await refreshCurrentFolder(false);
     }
-
-    setMessage(`Archivo "${selectedFile.name}" subido correctamente.`);
-    setSelectedFile(null);
-    await refreshCurrentFolder(false);
   };
 
   const renameDriveItem = async (item) => {
     const newName = window.prompt('Nuevo nombre:', item.name)?.trim();
     if (!newName || newName === item.name) return;
 
-    setError('');
     const [, err] = await runSafe(
       () =>
         api.patch(`/integrations/google-drive/files/${item.id}/`, {
@@ -183,18 +179,16 @@ export default function GoogleDriveFileManager({ connected }) {
         }),
       {
         setLoading: setWorking,
+        showToast,
+        successTitle: 'Elemento Renombrado',
+        successMessage: `Se actualizó el nombre a "${newName}".`,
         fallbackError: 'No se pudo cambiar el nombre del elemento.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
+    if (!err) {
+      await refreshCurrentFolder(false);
     }
-
-    setMessage('Nombre actualizado correctamente.');
-    await refreshCurrentFolder(false);
   };
 
   const deleteDriveItem = async (item) => {
@@ -203,31 +197,28 @@ export default function GoogleDriveFileManager({ connected }) {
     );
     if (!confirmed) return;
 
-    setError('');
     const [, err] = await runSafe(
       () => api.delete(`/integrations/google-drive/files/${item.id}/`),
       {
         setLoading: setWorking,
+        showToast,
+        successTitle: 'Elemento Eliminado',
+        successMessage: `"${item.name}" fue enviado a la papelera.`,
         fallbackError: 'No se pudo eliminar el elemento de Google Drive.',
       }
     );
 
-    if (err) {
-      setError(err.friendlyMessage);
-      setMessage('');
-      return;
+    if (!err) {
+      await refreshCurrentFolder(false);
     }
-
-    setMessage(`"${item.name}" fue enviado a la papelera.`);
-    await refreshCurrentFolder(false);
   };
 
   if (!connected) {
     return (
       <div
-        className={`mt-4 p-4 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 ${nestedClass}`}
+        className={`mt-4 p-4 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80 ${nestedClass}`}
       >
-        Conecta Google Drive para administrar carpetas y archivos.
+        Conecta Google Drive para administrar carpetas y archivos de la bóveda.
       </div>
     );
   }
@@ -242,53 +233,58 @@ export default function GoogleDriveFileManager({ connected }) {
           >
             Archivos de Project Planner
           </h3>
-          <p className="mt-1 truncate text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
+          <p className="mt-1 truncate text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
             {folderStack.map((folder) => folder.name).join(' / ') || 'Project Planner'}
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={ArrowLeft}
             disabled={loading || folderStack.length <= 1}
             onClick={goBack}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
-            <ArrowLeft size={13} /> Atrás
-          </button>
-          <button
-            type="button"
-            disabled={loading}
+            Atrás
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={RotateCw}
+            isLoading={loading}
             onClick={() => refreshCurrentFolder(true)}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-[11px] text-slate-600 hover:text-slate-900 disabled:opacity-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
-            <RotateCw size={13} className={loading ? 'animate-spin' : ''} /> Actualizar
-          </button>
+            Actualizar
+          </Button>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="flex gap-2">
-          <input
+        <div className="flex gap-2 items-center">
+          <Input
             value={folderName}
             maxLength={200}
             onChange={(event) => setFolderName(event.target.value)}
             placeholder="Nombre de la carpeta"
-            className={`${inputClass} mt-0 min-w-0 flex-1`}
+            containerClassName="flex-1"
+            className="text-xs py-2"
           />
-          <button
-            type="button"
-            disabled={working}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={FolderPlus}
+            isLoading={working}
             onClick={createDriveFolder}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-cyan-500 px-3 py-2 text-[11px] font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+            className="shrink-0"
           >
-            <FolderPlus size={14} /> Crear
-          </button>
+            Crear
+          </Button>
         </div>
 
-        <div className="flex min-w-0 gap-2">
-          <label className="flex min-w-0 flex-1 cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-200">
+        <div className="flex min-w-0 gap-2 items-center">
+          <label className="flex min-w-0 flex-1 cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-200">
             <span className="truncate">
-              {selectedFile?.name || 'Seleccionar archivo'}
+              {selectedFile?.name || 'Seleccionar archivo local'}
             </span>
             <input
               type="file"
@@ -296,31 +292,23 @@ export default function GoogleDriveFileManager({ connected }) {
               onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
             />
           </label>
-          <button
-            type="button"
-            disabled={working || !selectedFile}
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Upload}
+            isLoading={working}
+            disabled={!selectedFile}
             onClick={uploadDriveFile}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-cyan-500 px-3 py-2 text-[11px] font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0"
           >
-            <Upload size={14} /> Subir
-          </button>
+            Subir
+          </Button>
         </div>
       </div>
 
-      {error && (
-        <p role="alert" className="mt-3 text-xs text-red-600 dark:text-red-400 midnight:text-red-300">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p role="status" className="mt-3 text-xs text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
-          {message}
-        </p>
-      )}
-
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40">
         <table className="w-full min-w-[620px] text-left text-xs">
-          <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400 midnight:bg-cyan-950/30 midnight:text-cyan-600">
+          <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400 midnight:bg-cyan-950/30 midnight:text-cyan-400">
             <tr>
               <th className="px-3 py-2 font-medium">Nombre</th>
               <th className="px-3 py-2 font-medium">Tamaño</th>
@@ -331,7 +319,7 @@ export default function GoogleDriveFileManager({ connected }) {
           <tbody className="divide-y divide-slate-200 dark:divide-[#30363d] midnight:divide-cyan-900/30">
             {loading && (
               <tr>
-                <td colSpan="4" className="px-3 py-8 text-center text-slate-500">
+                <td colSpan="4" className="px-3 py-8 text-center text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
                   Cargando archivos...
                 </td>
               </tr>
@@ -345,7 +333,7 @@ export default function GoogleDriveFileManager({ connected }) {
                       disabled={!item.is_folder}
                       onClick={() => item.is_folder && loadFolder(item, 'push')}
                       className={`flex max-w-[300px] items-center gap-2 text-left ${
-                        item.is_folder ? 'hover:text-cyan-600 dark:hover:text-cyan-300' : 'cursor-default'
+                        item.is_folder ? 'hover:text-cyan-600 dark:hover:text-cyan-300 midnight:hover:text-cyan-300' : 'cursor-default'
                       }`}
                     >
                       {item.is_folder ? (
@@ -356,10 +344,10 @@ export default function GoogleDriveFileManager({ connected }) {
                       <span className="truncate">{item.name}</span>
                     </button>
                   </td>
-                  <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
+                  <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
                     {formatFileSize(item.size)}
                   </td>
-                  <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
+                  <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
                     {item.modified_time ? new Date(item.modified_time).toLocaleString() : '—'}
                   </td>
                   <td className="px-3 py-3">
@@ -370,7 +358,7 @@ export default function GoogleDriveFileManager({ connected }) {
                           target="_blank"
                           rel="noreferrer"
                           title="Abrir en Google Drive"
-                          className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 midnight:text-cyan-600 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
+                          className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
                         >
                           <ExternalLink size={14} />
                         </a>
@@ -380,7 +368,7 @@ export default function GoogleDriveFileManager({ connected }) {
                         disabled={working}
                         title="Cambiar nombre"
                         onClick={() => renameDriveItem(item)}
-                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 disabled:opacity-40 dark:hover:bg-white/5 midnight:text-cyan-600 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
+                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 disabled:opacity-40 dark:hover:bg-white/5 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
                       >
                         <Pencil size={14} />
                       </button>
@@ -389,7 +377,7 @@ export default function GoogleDriveFileManager({ connected }) {
                         disabled={working}
                         title="Eliminar"
                         onClick={() => deleteDriveItem(item)}
-                        className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-500/10 midnight:text-cyan-600 midnight:hover:bg-red-500/10 midnight:hover:text-red-300"
+                        className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-500/10 midnight:text-cyan-400 midnight:hover:bg-red-500/20 midnight:hover:text-red-300"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -399,7 +387,7 @@ export default function GoogleDriveFileManager({ connected }) {
               ))}
             {!loading && files.length === 0 && (
               <tr>
-                <td colSpan="4" className="px-3 py-8 text-center text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
+                <td colSpan="4" className="px-3 py-8 text-center text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80">
                   Esta carpeta está vacía.
                 </td>
               </tr>

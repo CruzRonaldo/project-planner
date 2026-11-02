@@ -1,4 +1,5 @@
 import React from 'react';
+import { ClearFiltersButton, EmptyState } from '../../../components/common';
 import { activityStyles, cardClass, iconMap, nestedClass } from './constants';
 
 export default function IntegrationActivityList({
@@ -17,13 +18,10 @@ export default function IntegrationActivityList({
           Registro de Actividad de Integraciones
         </h2>
         {query && onClearQuery && (
-          <button
-            type="button"
+          <ClearFiltersButton
             onClick={onClearQuery}
-            className="text-[10px] text-cyan-700 transition-colors duration-300 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-          >
-            Limpiar búsqueda
-          </button>
+            label="Limpiar búsqueda"
+          />
         )}
       </div>
 
@@ -57,9 +55,7 @@ export default function IntegrationActivityList({
         })}
 
         {!activities.length && (
-          <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-            No hay actividad que coincida con la búsqueda.
-          </p>
+          <EmptyState description="No hay actividad que coincida con la búsqueda." />
         )}
       </div>
     </section>
