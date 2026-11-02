@@ -17,6 +17,7 @@ import {
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
 import { useToast } from '../../context/ToastContext';
+import { runSafe } from '../../utils/asyncHandler';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
@@ -208,96 +209,130 @@ export default function HumanResources({
     }
 
     onChange({ ...updatedData, history });
-    try {
-      if (onPersistMember) await onPersistMember(memberId, draft);
-      setEditing(null);
-      setFeedbackType('success');
-      setFeedback('Cambio guardado correctamente en el sistema.');
-      showToast({
-        title: 'Personal Actualizado',
-        message: 'Los datos del integrante se guardaron correctamente en el sistema.',
-        type: 'success',
-      });
-    } catch (error) {
-      onChange(previousData);
+    const [, error] = await runSafe(
+      async () => {
+        if (onPersistMember) await onPersistMember(memberId, draft);
+      },
+      {
+        showToast,
+        successTitle: 'Personal Actualizado',
+        successMessage: 'Los datos del integrante se guardaron correctamente en el sistema.',
+        fallbackError: 'No se pudo guardar el cambio en el sistema.',
+        onSuccess: () => {
+          setEditing(null);
+          setFeedbackType('success');
+          setFeedback('Cambio guardado correctamente en el sistema.');
+        },
+        onError: (_err, message) => {
+          onChange(previousData);
+          setFeedbackType('error');
+          setFeedback(message);
+        },
+      }
+    );
+
+    if (error) {
       throw error;
     }
   };
 
   const saveIncident = async (draft) => {
-    if (!onCreateIncident) throw new Error('No se configuró la conexión para registrar incidencias.');
-    await onCreateIncident(draft);
     const member = members.find((item) => item.id === draft.memberId);
-    setIncidentDialogOpen(false);
-    setEditing(null);
     const incidentMsg = `Incidencia registrada${member ? ` para ${member.name}` : ''} y enviada a revisión.`;
-    setFeedbackType('success');
-    setFeedback(incidentMsg);
-    showToast({
-      title: 'Incidencia Registrada',
-      message: incidentMsg,
-      type: 'success',
-    });
+
+    const [, error] = await runSafe(
+      async () => {
+        if (!onCreateIncident) throw new Error('No se configuró la conexión para registrar incidencias.');
+        await onCreateIncident(draft);
+      },
+      {
+        showToast,
+        successTitle: 'Incidencia Registrada',
+        successMessage: incidentMsg,
+        fallbackError: 'No se pudo registrar la incidencia.',
+        onSuccess: () => {
+          setIncidentDialogOpen(false);
+          setEditing(null);
+          setFeedbackType('success');
+          setFeedback(incidentMsg);
+        },
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
   };
 
   const submitIncidentAction = async (incidentId, action, comment) => {
-    if (!onTransitionIncident) throw new Error('No se configuró el flujo de aprobación de incidencias.');
-    await onTransitionIncident(incidentId, action, comment);
-    setIncidentAction(null);
-    setFeedbackType('success');
     const labels = { approve: 'aprobada', reject: 'rechazada', finalize: 'finalizada' };
     const actionMsg = `Incidencia ${labels[action] || 'actualizada'} correctamente.`;
-    setFeedback(actionMsg);
-    showToast({
-      title: 'Flujo de Incidencias',
-      message: actionMsg,
-      type: 'success',
-    });
+
+    const [, error] = await runSafe(
+      async () => {
+        if (!onTransitionIncident) throw new Error('No se configuró el flujo de aprobación de incidencias.');
+        await onTransitionIncident(incidentId, action, comment);
+      },
+      {
+        showToast,
+        successTitle: 'Flujo de Incidencias',
+        successMessage: actionMsg,
+        fallbackError: 'No se pudo procesar la acción sobre la incidencia.',
+        onSuccess: () => {
+          setIncidentAction(null);
+          setFeedbackType('success');
+          setFeedback(actionMsg);
+        },
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
   };
 
   const refreshRecords = async () => {
     if (!onRefreshRecords || isRefreshingRecords) return;
-    setIsRefreshingRecords(true);
     setRefreshState('loading');
-    try {
-      await onRefreshRecords();
-      setRefreshState('success');
-      setTimeout(() => setRefreshState('idle'), 2500);
-    } catch (error) {
-      setRefreshState('error');
-      setTimeout(() => setRefreshState('idle'), 3500);
-    } finally {
-      setIsRefreshingRecords(false);
-    }
+    await runSafe(
+      () => onRefreshRecords(),
+      {
+        setLoading: setIsRefreshingRecords,
+        onSuccess: () => {
+          setRefreshState('success');
+          setTimeout(() => setRefreshState('idle'), 2500);
+        },
+        onError: () => {
+          setRefreshState('error');
+          setTimeout(() => setRefreshState('idle'), 3500);
+        },
+      }
+    );
   };
 
   const exportMatrix = async () => {
     if (isExportingMatrix) return;
-    setIsExportingMatrix(true);
     setFeedback('');
     setFeedbackType('success');
-    try {
-      await downloadPersonnelWorkbook(members);
-      const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
-      setFeedback(exportMsg);
-      showToast({
-        title: 'Matriz Exportada',
-        message: exportMsg,
-        type: 'success',
-      });
-    } catch (error) {
-      console.error('Error al exportar matriz de personal:', error);
-      const errMsg = 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.';
-      setFeedbackType('error');
-      setFeedback(errMsg);
-      showToast({
-        title: 'Error de Exportación',
-        message: errMsg,
-        type: 'error',
-      });
-    } finally {
-      setIsExportingMatrix(false);
-    }
+    const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
+
+    await runSafe(
+      () => downloadPersonnelWorkbook(members),
+      {
+        setLoading: setIsExportingMatrix,
+        showToast,
+        successTitle: 'Matriz Exportada',
+        successMessage: exportMsg,
+        fallbackError: 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.',
+        onSuccess: () => {
+          setFeedback(exportMsg);
+        },
+        onError: (_err, message) => {
+          setFeedbackType('error');
+          setFeedback(message);
+        },
+      }
+    );
   };
 
   return (

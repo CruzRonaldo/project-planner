@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 import { personnelStatuses, personnelIncidentTypes } from '../../../constants/humanResources';
 import { getIncidentDuration } from '../../../utils/humanResources';
 
@@ -8,19 +9,6 @@ const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3
 
 function formatDateInput(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function getRequestErrorMessage(error) {
-  const responseData = error?.response?.data;
-  if (typeof responseData?.message === 'string') return responseData.message;
-  if (typeof responseData?.detail === 'string') return responseData.detail;
-  if (responseData && typeof responseData === 'object') {
-    const messages = Object.values(responseData).flatMap((value) =>
-      Array.isArray(value) ? value : [value]
-    );
-    if (messages.length) return messages.join(' ');
-  }
-  return error?.message || 'No se pudo guardar la incidencia en el sistema.';
 }
 
 export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen = true }) {
@@ -52,14 +40,13 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
 
   const submitDraft = async () => {
     setError('');
-    setIsSubmitting(true);
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(getRequestErrorMessage(submitError));
-    } finally {
-      setIsSubmitting(false);
-    }
+    await runSafe(
+      () => onSubmit(draft),
+      {
+        setLoading: setIsSubmitting,
+        onError: (_submitError, message) => setError(message),
+      }
+    );
   };
 
   const footnote = (

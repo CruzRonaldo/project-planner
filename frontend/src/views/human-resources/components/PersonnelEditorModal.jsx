@@ -1,22 +1,10 @@
 import React, { useState } from 'react';
 import { Briefcase, UserRoundCog } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 import { personnelStatuses } from '../../../constants/humanResources';
 
 const inputClass = 'mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors duration-300 focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-100 dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50 midnight:focus:border-cyan-500';
-
-function getRequestErrorMessage(error) {
-  const responseData = error?.response?.data;
-  if (typeof responseData?.message === 'string') return responseData.message;
-  if (typeof responseData?.detail === 'string') return responseData.detail;
-  if (responseData && typeof responseData === 'object') {
-    const messages = Object.values(responseData).flatMap((value) =>
-      Array.isArray(value) ? value : [value]
-    );
-    if (messages.length) return messages.join(' ');
-  }
-  return error?.message || 'No se pudo guardar el cambio en el sistema.';
-}
 
 export function PersonnelEditorModal({
   member,
@@ -48,14 +36,13 @@ export function PersonnelEditorModal({
 
   const submitDraft = async () => {
     setError('');
-    setIsSubmitting(true);
-    try {
-      await onSave(member.id, draft);
-    } catch (saveError) {
-      setError(getRequestErrorMessage(saveError));
-    } finally {
-      setIsSubmitting(false);
-    }
+    await runSafe(
+      () => onSave(member.id, draft),
+      {
+        setLoading: setIsSubmitting,
+        onError: (_saveError, message) => setError(message),
+      }
+    );
   };
 
   return (

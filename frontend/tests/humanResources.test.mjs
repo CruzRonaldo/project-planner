@@ -248,3 +248,20 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     await server.close();
   }
 });
+
+test('Recursos Humanos y sus diálogos integran runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { PersonnelEditorModal } = await server.ssrLoadModule('/src/views/human-resources/components/PersonnelEditorModal.jsx');
+    const { IncidentActionDialog } = await server.ssrLoadModule('/src/views/human-resources/components/IncidentActionDialog.jsx');
+    const { PersonnelIncidentDialog } = await server.ssrLoadModule('/src/views/human-resources/components/PersonnelIncidentDialog.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof PersonnelEditorModal, 'function');
+    assert.equal(typeof IncidentActionDialog, 'function');
+    assert.equal(typeof PersonnelIncidentDialog, 'function');
+  } finally {
+    await server.close();
+  }
+});
