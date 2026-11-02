@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Pencil, Save } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 import {
   projectAreas,
   projectLeaders,
@@ -75,19 +76,22 @@ export default function EditProjectDialog({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await onSubmit(project.id, {
-        ...draft,
-        leaderId: !isAdmin
-          ? project.leaderId || draft.leaderId
-          : draft.leaderId,
-        totalBudget: numericBudget,
-      });
-    } catch (submitError) {
-      setError(submitError.message);
-      setIsSubmitting(false);
-    }
+    await runSafe(
+      () =>
+        onSubmit(project.id, {
+          ...draft,
+          leaderId: !isAdmin
+            ? project.leaderId || draft.leaderId
+            : draft.leaderId,
+          totalBudget: numericBudget,
+        }),
+      {
+        setLoading: setIsSubmitting,
+        onError: (_submitError, message) => {
+          setError(message || 'Error al guardar los cambios del proyecto.');
+        },
+      }
+    );
   };
 
   return (

@@ -105,3 +105,17 @@ test('Portafolio conserva sus tarjetas y muestra el alta solo a administradores'
     await server.close();
   }
 });
+
+test('Portafolio integra runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { EditProjectDialog, ConfirmDeleteDialog } = await server.ssrLoadModule('/src/views/technical/Portfolio.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof EditProjectDialog, 'function');
+    assert.equal(typeof ConfirmDeleteDialog, 'function');
+  } finally {
+    await server.close();
+  }
+});

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarDays, FolderPlus, Save } from "lucide-react";
 import ModalDialog from "../../../components/common/ModalDialog";
+import { runSafe } from "../../../utils/asyncHandler";
 import {
   projectAreas,
   projectLeaders,
@@ -66,16 +67,13 @@ export default function NewProjectDialog({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setError("");
-    try {
-      await onSubmit(draft);
-    } catch (submitError) {
-      setError(
-        submitError.message || "Error al procesar la creación del proyecto",
-      );
-      setIsSubmitting(false);
-    }
+    await runSafe(() => onSubmit(draft), {
+      setLoading: setIsSubmitting,
+      onError: (_submitError, message) => {
+        setError(message || "Error al procesar la creación del proyecto");
+      },
+    });
   };
 
   const footnote = (

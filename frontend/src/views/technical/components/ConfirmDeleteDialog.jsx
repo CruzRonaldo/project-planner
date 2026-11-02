@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { runSafe } from '../../../utils/asyncHandler';
 
 export default function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -8,13 +9,12 @@ export default function ConfirmDeleteDialog({ project, onConfirm, onClose }) {
 
   const handleConfirm = async () => {
     setError('');
-    setIsDeleting(true);
-    try {
-      await onConfirm(project.id);
-    } catch (err) {
-      setError(err.message || 'Error al eliminar el proyecto.');
-      setIsDeleting(false);
-    }
+    await runSafe(() => onConfirm(project.id), {
+      setLoading: setIsDeleting,
+      onError: (_err, message) => {
+        setError(message || 'Error al eliminar el proyecto.');
+      },
+    });
   };
 
   return (
