@@ -131,16 +131,33 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const { default: LoginScreen } = await server.ssrLoadModule('/src/views/auth/LoginScreen.jsx');
+    const { default: PasswordInput } = await server.ssrLoadModule('/src/components/common/PasswordInput.jsx');
     const { AddTechnicalMemberDialog } = await server.ssrLoadModule('/src/views/technical/TechnicalTeam.jsx');
     const { default: projectsApi } = await server.ssrLoadModule('/src/services/projectsApi.js');
 
-    // 1. LoginScreen tiene botón de visualización de contraseña con icono
+    // 1. LoginScreen tiene botón de visualización de contraseña con icono y aislamiento de temas
     const loginHtml = renderToStaticMarkup(
       React.createElement(LoginScreen, { onLogin: () => {} })
     );
     assert.ok(loginHtml.includes('aria-label="Ver contraseña"'));
+    // El campo de contraseña en LoginScreen debe tener fondo fijo #080E1C y no ser reactivo a temas
+    assert.ok(loginHtml.includes('id="login-password"'));
+    assert.ok(loginHtml.includes('bg-[#080E1C]'));
+    assert.ok(!loginHtml.includes('bg-white'));
 
-    // 2. AddTechnicalMemberDialog tiene botones de visualización de contraseña para ambas claves
+    // 2. PasswordInput con contenido renderiza X y Ojo parejos, con dimensiones consistentes
+    const passwordInputHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: 'MiClaveSecreta123',
+        onChange: () => {},
+      })
+    );
+    assert.ok(passwordInputHtml.includes('aria-label="Borrar contraseña"'));
+    assert.ok(passwordInputHtml.includes('aria-label="Ver contraseña"'));
+    // Ambos botones deben tener dimensiones consistentes h-7 w-7 flex items-center justify-center
+    assert.ok(passwordInputHtml.includes('h-7 w-7 flex items-center justify-center'));
+
+    // 3. AddTechnicalMemberDialog tiene botones de visualización de contraseña para ambas claves
     const techDialogHtml = renderToStaticMarkup(
       React.createElement(AddTechnicalMemberDialog, {
         existingData: { members: [] },
@@ -153,7 +170,7 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
     assert.ok(techDialogHtml.includes('aria-label="Ver contraseña"'));
     assert.ok(techDialogHtml.includes('aria-label="Ver confirmación de contraseña"'));
 
-    // 3. projectsApi permite verificar primero la clave actual y luego cambiarla
+    // 4. projectsApi permite verificar primero la clave actual y luego cambiarla
     assert.equal(typeof projectsApi.verifyCurrentPassword, 'function');
     assert.equal(typeof projectsApi.changePassword, 'function');
     assert.equal(typeof projectsApi.validateSession, 'function');

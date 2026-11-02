@@ -41,6 +41,23 @@ test('Input renderiza label, error accesible y clases multitema con Vite SSR', a
     assert.ok(html.includes('role="alert"'));
     assert.ok(html.includes('aria-invalid="true"'));
     assert.ok(html.includes('border-red-500'));
+    // En el modo default se remueve mt-2 del input para centrado vertical exacto de iconos
+    assert.ok(!html.includes('class="mt-2 '));
+
+    // Modo variant="auth" para pantallas de autenticación sin reactividad a temas globales
+    const authHtml = renderToStaticMarkup(
+      React.createElement(Input, {
+        variant: 'auth',
+        label: 'Correo de acceso',
+        placeholder: 'admin@empresa.com',
+      })
+    );
+    assert.ok(authHtml.includes('bg-[#080E1C]'));
+    assert.ok(authHtml.includes('border-slate-800'));
+    assert.ok(authHtml.includes('text-slate-200'));
+    assert.ok(!authHtml.includes('dark:'));
+    assert.ok(!authHtml.includes('midnight:'));
+    assert.ok(!authHtml.includes('bg-white'));
   } finally {
     await server.close();
   }
