@@ -2,14 +2,15 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 
 /**
- * Componente atómico de ordenamiento desplegable con dirección integrada (A–Z ↔ Z–A / Mayor ↔ Menor).
+ * Componente atómico de ordenamiento desplegable compacto con dirección integrada.
  *
  * Características:
- * - Menú flotante accesible con role="listbox" y role="option".
- * - Alternancia direccional en el mismo espacio al pulsar la opción ya activa.
+ * - Menú flotante compacto y limpio con 1 opción por categoría (idéntico al estilo de Equipo Técnico).
+ * - Alternancia direccional en el mismo espacio al pulsar la opción activa.
  * - Soporte multitema (Claro, Oscuro y Midnight).
  * - Cierre con clic exterior y tecla Escape.
  * - Navegación accesible por teclado (Flechas Arriba/Abajo, Enter y Espacio).
+ * - Mapeo dinámico y robusto del targetId sin asumir convenciones fijas.
  *
  * @param {Object} props
  * @param {string} props.value - ID de la opción de ordenamiento activa actual
@@ -70,14 +71,17 @@ export default function SortDropdown({
   const currentDirectionText = currentSort.direction === 'asc' ? 'ascendente' : 'descendente';
   const triggerAriaLabel = `${ariaLabel}. Criterio actual: ${currentSort.label}, orden ${currentDirectionText}`;
 
-  // Selección o alternancia direccional en el mismo espacio
+  // Selección o alternancia direccional
   const handleSelectCategory = (cat) => {
     if (!cat) return;
     if (currentSort.category === cat.id) {
+      // Si la categoría ya está activa, alternar la dirección
       const nextId = currentSort.direction === 'desc' ? cat.ascId : cat.descId;
       onChange(nextId);
     } else {
-      onChange(cat.defaultId || cat.descId || cat.ascId);
+      // Si se cambia a una nueva categoría, activar su defaultId (evita invertir opciones)
+      const targetId = cat.defaultId || cat.ascId || cat.descId;
+      onChange(targetId);
     }
     setIsOpen(false);
     triggerRef.current?.focus();
@@ -110,7 +114,8 @@ export default function SortDropdown({
       event.preventDefault();
       if (!isOpen) {
         setIsOpen(true);
-        setHighlightedIndex(0);
+        const activeIdx = categories.findIndex((c) => c.id === currentSort.category);
+        setHighlightedIndex(activeIdx >= 0 ? activeIdx : 0);
       } else {
         setHighlightedIndex((prev) => (prev + 1) % categories.length);
       }
@@ -121,7 +126,8 @@ export default function SortDropdown({
       event.preventDefault();
       if (!isOpen) {
         setIsOpen(true);
-        setHighlightedIndex(categories.length - 1);
+        const activeIdx = categories.findIndex((c) => c.id === currentSort.category);
+        setHighlightedIndex(activeIdx >= 0 ? activeIdx : categories.length - 1);
       } else {
         setHighlightedIndex((prev) => (prev - 1 + categories.length) % categories.length);
       }
@@ -173,56 +179,60 @@ export default function SortDropdown({
           id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute right-0 top-full z-30 mt-1.5 min-w-[220px] rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/40 midnight:bg-[#050B14]"
+          className="absolute right-0 top-full z-30 mt-2 min-w-[210px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:shadow-black/50 midnight:border-cyan-900/50 midnight:bg-[#050B14]"
         >
-          <div className="px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
+          <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
             Criterio de orden
           </div>
-          {categories.map((cat, index) => {
-            const isActive = currentSort.category === cat.id;
-            const isHighlighted = highlightedIndex === index;
-            const itemLabel = isActive
-              ? currentSort.label
-              : cat.id === 'name'
-                ? cat.ascLabel
-                : cat.descLabel || cat.defaultLabel;
-            const isAsc = isActive && currentSort.direction === 'asc';
-            const optionAriaLabel = isActive
-              ? `${itemLabel}, orden ${isAsc ? 'ascendente' : 'descendente'}. Presione para alternar dirección.`
-              : `${itemLabel}.`;
+          <div className="space-y-0.5">
+            {categories.map((cat, index) => {
+              const isActive = currentSort.category === cat.id;
+              const isHighlighted = highlightedIndex === index;
+              
+              // Resuelve dinámicamente la etiqueta según el defaultId de la categoría (elimina el bug de 'Fecha más lejana')
+              const defaultTargetId = cat.defaultId || cat.ascId || cat.descId;
+              const itemLabel = isActive
+                ? currentSort.label
+                : (optionsMap[defaultTargetId]?.label || cat.defaultLabel || cat.name);
+              const isAsc = isActive && currentSort.direction === 'asc';
+              const optionAriaLabel = isActive
+                ? `${itemLabel}, orden ${isAsc ? 'ascendente' : 'descendente'}. Presione para alternar dirección.`
+                : `${itemLabel}.`;
 
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                role="option"
-                aria-selected={isActive}
-                aria-label={optionAriaLabel}
-                onClick={() => handleSelectCategory(cat)}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                className={`cursor-pointer flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left text-xs transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-cyan-500/10 dark:text-cyan-300 midnight:bg-cyan-900/30 midnight:text-cyan-200'
-                    : isHighlighted
-                      ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white midnight:bg-cyan-900/40 midnight:text-cyan-100'
-                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20'
-                }`}
-              >
-                <span>{itemLabel}</span>
-                <span className="flex items-center gap-1.5">
-                  {isActive ? (
-                    isAsc ? (
-                      <ArrowUp size={13} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  aria-label={optionAriaLabel}
+                  onClick={() => handleSelectCategory(cat)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  title={isActive ? 'Activo. Haz clic para alternar dirección' : `Ordenar por ${itemLabel}`}
+                  className={`cursor-pointer flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left text-xs transition-colors duration-200 ${
+                    isActive
+                      ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-cyan-500/10 dark:text-cyan-300 midnight:bg-cyan-900/30 midnight:text-cyan-200'
+                      : isHighlighted
+                        ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white midnight:bg-cyan-900/40 midnight:text-cyan-100'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20'
+                  }`}
+                >
+                  <span className="truncate">{itemLabel}</span>
+                  <span className="flex items-center shrink-0">
+                    {isActive ? (
+                      isAsc ? (
+                        <ArrowUp size={13} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />
+                      ) : (
+                        <ArrowDown size={13} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />
+                      )
                     ) : (
-                      <ArrowDown size={13} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />
-                    )
-                  ) : (
-                    <span className="text-[11px] text-slate-300 dark:text-slate-600 midnight:text-cyan-900">⇅</span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 midnight:text-cyan-700">⇅</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

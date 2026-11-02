@@ -8,6 +8,8 @@ import {
 } from './components';
 import Select from '../../components/common/Select';
 import Pagination from '../../components/common/Pagination';
+import PageHeader from '../../components/common/PageHeader';
+import SortDropdown from '../../components/common/SortDropdown';
 import { getYearOptions } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
 import { runSafe } from '../../utils/asyncHandler';
@@ -21,11 +23,14 @@ import {
 import {
   planningMonths,
   milestoneStatuses,
+  milestoneSortCategories,
+  milestoneSortOptionsMap,
 } from '../../constants/strategicPlanning';
 import {
   adjustProjectSchedule,
   createGlobalMilestone,
   formatMilestoneDate,
+  sortMilestones,
 } from '../../utils/strategicPlanning';
 import { getBarGeometry, legacyMonthRangeToDates } from '../../utils/gantt';
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
@@ -93,15 +98,21 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     );
   }, [milestones, activeProject]);
 
+  const [milestoneSortOrder, setMilestoneSortOrder] = useState('date-asc');
+
+  const sortedMilestones = useMemo(() => {
+    return sortMilestones(filteredMilestones, milestoneSortOrder);
+  }, [filteredMilestones, milestoneSortOrder]);
+
   const milestonePageSize = 5;
-  const totalMilestonePages = Math.max(1, Math.ceil(filteredMilestones.length / milestonePageSize));
+  const totalMilestonePages = Math.max(1, Math.ceil(sortedMilestones.length / milestonePageSize));
   const currentMilestonePage = Math.min(milestonePage, totalMilestonePages);
   const visibleMilestones = useMemo(() => {
-    return filteredMilestones.slice(
+    return sortedMilestones.slice(
       (currentMilestonePage - 1) * milestonePageSize,
       currentMilestonePage * milestonePageSize
     );
-  }, [filteredMilestones, currentMilestonePage]);
+  }, [sortedMilestones, currentMilestonePage, milestonePageSize]);
 
   const displayedAdjustments = useMemo(() => {
     if (!activeProject) return adjustments;
@@ -366,12 +377,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
         {/* ENCABEZADO INTERACTIVO EN PANTALLA */}
         <section className="flex flex-col gap-4 no-print print:hidden">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Calendario Maestro 2026</h1>
-              <p className={`mt-1 text-sm ${mutedClass}`}>Planificación de ruta crítica y cronograma de infraestructura anual</p>
-            </div>
-
+          <PageHeader
+            title="Calendario Maestro 2026"
+            subtitle="Planificación de ruta crítica y cronograma de infraestructura anual"
+          >
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); }} className={secondaryButtonClass}>
@@ -388,7 +397,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </button>
               </div>
             )}
-          </div>
+          </PageHeader>
 
           {/* BARRA DE FILTROS SUPERIOR (PROYECTO Y AÑO) */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30">
@@ -465,15 +474,27 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </p>
               </div>
 
-              {/* INDICADOR DE PROYECTO ACTIVO (SINCRONIZADO CON EL CRONOGRAMA SUPERIOR) */}
-              <div className="no-print print:hidden">
+              {/* CONTROLES DE ORDENAMIENTO E INDICADOR DE PROYECTO ACTIVO */}
+              <div className="flex flex-wrap items-center gap-2.5 no-print print:hidden">
+                <SortDropdown
+                  value={milestoneSortOrder}
+                  onChange={(nextSort) => {
+                    setMilestoneSortOrder(nextSort);
+                    setMilestonePage(1);
+                  }}
+                  categories={milestoneSortCategories}
+                  optionsMap={milestoneSortOptionsMap}
+                  label="Ordenar:"
+                  ariaLabel="Ordenar hitos globales"
+                />
+
                 {activeProject ? (
                   <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
                     {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
                   </span>
                 ) : (
                   <span className={`text-xs ${mutedClass}`}>
-                    {milestones.length} {milestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
+                    {filteredMilestones.length} {filteredMilestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
                   </span>
                 )}
               </div>
@@ -566,7 +587,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                     })}
                   </div>
                   <div className="hidden print:block space-y-2.5">
-                    {filteredMilestones.map((milestone) => {
+                    {sortedMilestones.map((milestone) => {
                       const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
                       const associatedProject = projects.find(
                         (p) => String(p.id) === String(milestone.projectId || milestone.project)
@@ -605,7 +626,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             <Pagination
               currentPage={currentMilestonePage}
               totalPages={totalMilestonePages}
-              totalItems={filteredMilestones.length}
+              totalItems={sortedMilestones.length}
               pageSize={milestonePageSize}
               itemLabel="hitos"
               onPageChange={setMilestonePage}

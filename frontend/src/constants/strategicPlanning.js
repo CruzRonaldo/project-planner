@@ -34,3 +34,31 @@ export const milestoneValidators = [
   'Lucía Gómez (Arquitecta BIM)',
   'Javier Vega (Ingeniero Estructural)',
 ];
+
+export const milestoneSortCategories = [
+  {
+    id: 'date',
+    defaultId: 'date-asc',
+    defaultLabel: 'Fecha más próxima',
+    descId: 'date-desc',
+    ascId: 'date-asc',
+    descLabel: 'Fecha más lejana',
+    ascLabel: 'Fecha más próxima',
+  },
+  {
+    id: 'status',
+    defaultId: 'status-asc',
+    defaultLabel: 'Por resolver primero',
+    descId: 'status-desc',
+    ascId: 'status-asc',
+    descLabel: 'Completados primero',
+    ascLabel: 'Por resolver primero',
+  },
+];
+
+export const milestoneSortOptionsMap = {
+  'date-asc': { id: 'date-asc', label: 'Fecha más próxima', category: 'date', direction: 'asc' },
+  'date-desc': { id: 'date-desc', label: 'Fecha más lejana', category: 'date', direction: 'desc' },
+  'status-asc': { id: 'status-asc', label: 'Por resolver primero', category: 'status', direction: 'asc' },
+  'status-desc': { id: 'status-desc', label: 'Completados primero', category: 'status', direction: 'desc' },
+};

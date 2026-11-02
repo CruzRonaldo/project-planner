@@ -267,3 +267,62 @@ export function syncPortfolioSchedule(portfolio, scheduleProjects) {
   });
   return changed ? { ...portfolio, projects } : portfolio;
 }
+
+/**
+ * Ordena una colección de hitos estratégicos según criterio de fecha o estado.
+ *
+ * @param {Array<Object>} milestones - Colección de hitos
+ * @param {string} [sortOrder='date-asc'] - Criterio ('date-asc' | 'date-desc' | 'status-asc' | 'status-desc')
+ * @returns {Array<Object>} Nueva colección ordenada (inmutable)
+ */
+export function sortMilestones(milestones = [], sortOrder = 'date-asc') {
+  const items = [...(milestones || [])];
+
+  const parseTime = (val) => {
+    if (!val) return 0;
+    const parsed = parsePlanningDate(val);
+    if (parsed) return parsed.getTime();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+
+  const getStatusWeight = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s === 'in_progress' || s === 'upcoming') return 1;
+    if (s === 'pending') return 2;
+    if (s === 'completed') return 3;
+    return 4;
+  };
+
+  if (sortOrder === 'date-asc') {
+    return items.sort((a, b) => {
+      const diff = parseTime(a.targetDate || a.target_date || a.date) - parseTime(b.targetDate || b.target_date || b.date);
+      return diff !== 0 ? diff : (a.title || '').localeCompare(b.title || '', 'es');
+    });
+  }
+
+  if (sortOrder === 'date-desc') {
+    return items.sort((a, b) => {
+      const diff = parseTime(b.targetDate || b.target_date || b.date) - parseTime(a.targetDate || a.target_date || a.date);
+      return diff !== 0 ? diff : (a.title || '').localeCompare(b.title || '', 'es');
+    });
+  }
+
+  if (sortOrder === 'status-asc') {
+    return items.sort((a, b) => {
+      const diff = getStatusWeight(a.status) - getStatusWeight(b.status);
+      if (diff !== 0) return diff;
+      return parseTime(a.targetDate || a.target_date || a.date) - parseTime(b.targetDate || b.target_date || b.date);
+    });
+  }
+
+  if (sortOrder === 'status-desc') {
+    return items.sort((a, b) => {
+      const diff = getStatusWeight(b.status) - getStatusWeight(a.status);
+      if (diff !== 0) return diff;
+      return parseTime(a.targetDate || a.target_date || a.date) - parseTime(b.targetDate || b.target_date || b.date);
+    });
+  }
+
+  return items;
+}
