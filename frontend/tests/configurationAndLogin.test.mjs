@@ -196,3 +196,32 @@ test('LoadingScreen renderiza logotipo, mensaje de inicialización y barra anima
     await server.close();
   }
 });
+
+test('optimizeAvatarImage valida extensiones JPG/PNG/WEBP, tolera tamaños grandes y rechaza tipos no válidos', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { optimizeAvatarImage } = await server.ssrLoadModule('/src/utils/imageOptimizer.js');
+
+    // 1. Rechazar tipo de archivo no soportado
+    const invalidFile = new File(['fake content'], 'documento.pdf', { type: 'application/pdf' });
+    await assert.rejects(
+      async () => await optimizeAvatarImage(invalidFile),
+      /La foto debe ser en formato PNG, JPG o WEBP/
+    );
+
+    // 2. Rechazar archivo que supere el límite configurado
+    const oversizedFile = new File([new Uint8Array(15 * 1024 * 1024)], 'foto_pesada.jpg', { type: 'image/jpeg' });
+    await assert.rejects(
+      async () => await optimizeAvatarImage(oversizedFile, { maxFileBytes: 10 * 1024 * 1024 }),
+      /La foto original no debe superar los 10 MB/
+    );
+
+    // 3. Procesar archivo .jpg válido correctamente
+    const validJpgFile = new File(['fake jpeg data'], 'perfil.jpg', { type: 'image/jpeg' });
+    const result = await optimizeAvatarImage(validJpgFile);
+    assert.ok(typeof result === 'string');
+    assert.ok(result.startsWith('data:'));
+  } finally {
+    await server.close();
+  }
+});

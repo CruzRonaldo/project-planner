@@ -420,9 +420,11 @@ export function useAppController() {
     setUsers((currentUsers) => [newMember, ...currentUsers]);
   }, []);
 
-  const handleUpdateCurrentUser = useCallback((updatedData) => {
+  const handleUpdateCurrentUser = useCallback(async (updatedData) => {
+    let resolvedUser = null;
     setCurrentUser((prev) => {
       const merged = { ...prev, ...updatedData };
+      resolvedUser = merged;
       try {
         localStorage.setItem('project_planner_user', JSON.stringify(merged));
         const identifier = (merged.email || merged.username || '').toLowerCase();
@@ -444,21 +446,22 @@ export function useAppController() {
     });
 
     // Guardar en la Base de Datos mediante API de Django
-    if (currentUser) {
-      const activeId = currentUser.db_id || currentUser.id;
-      const activeIdentifier = currentUser.email || currentUser.username;
-      projectsApi
-        .updateProfile({
+    const targetUser = resolvedUser || currentUser;
+    if (targetUser) {
+      const activeId = targetUser.db_id || targetUser.id;
+      const activeIdentifier = targetUser.email || targetUser.username;
+      try {
+        await projectsApi.updateProfile({
           userId: activeId,
           identifier: activeIdentifier,
           name: updatedData.name,
           email: updatedData.email,
-          photo: updatedData.photo !== undefined ? updatedData.photo : currentUser.photo,
-          phone: updatedData.phone !== undefined ? updatedData.phone : currentUser.phone,
-        })
-        .catch((err) => {
-          console.warn('Sincronización de perfil en BD:', err);
+          photo: updatedData.photo !== undefined ? updatedData.photo : targetUser.photo,
+          phone: updatedData.phone !== undefined ? updatedData.phone : targetUser.phone,
         });
+      } catch (err) {
+        console.warn('Sincronización de perfil en BD:', err);
+      }
     }
 
     if (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import projectsApi from '../../services/projectsApi';
+import { optimizeAvatarImage } from '../../utils/imageOptimizer';
 import {
   ProfileCard,
   PreferencesCard,
@@ -115,44 +116,33 @@ export default function Configuration({
     }
   }, [isAdmin, fetchAuditLogs]);
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setPhotoError('La foto debe ser en formato PNG, JPG o WEBP.');
-      e.target.value = '';
-      return;
-    }
+    setPhotoError('');
 
-    if (file.size > 2 * 1024 * 1024) {
-      setPhotoError('La foto no debe superar los 2 MB.');
-      e.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Data = String(reader.result);
-      setUserPhoto(base64Data);
-      setPhotoError('');
+    try {
+      const optimizedBase64 = await optimizeAvatarImage(file);
+      setUserPhoto(optimizedBase64);
 
       if (onUpdateCurrentUser) {
-        onUpdateCurrentUser({ photo: base64Data, avatar: base64Data });
+        await onUpdateCurrentUser({ photo: optimizedBase64, avatar: optimizedBase64 });
       } else {
         try {
           const stored = JSON.parse(localStorage.getItem('project_planner_user') || '{}');
-          stored.photo = base64Data;
-          stored.avatar = base64Data;
+          stored.photo = optimizedBase64;
+          stored.avatar = optimizedBase64;
           localStorage.setItem('project_planner_user', JSON.stringify(stored));
         } catch {}
       }
-    };
-    reader.onerror = () => {
-      setPhotoError('No se pudo procesar la imagen seleccionada.');
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    } catch (err) {
+      setPhotoError(err.message || 'No se pudo procesar la imagen seleccionada.');
+    } finally {
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
   };
 
   const handleRemovePhoto = () => {
