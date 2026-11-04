@@ -4,7 +4,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from unittest.mock import patch, MagicMock
 from core.authentication import issue_session_token
-from core.services.gemini_service import get_embedding, generate_rag_response
+from core.services.ai_service import get_embedding, generate_rag_response
 
 User = get_user_model()
 
@@ -107,26 +107,37 @@ class ChatbotEndpointTests(TestCase):
         self.assertEqual(response.data.get('response'), 'Respuesta RAG estructurada con contexto de proyecto')
         self.assertIn('context_chunks', response.data)
 
-    @patch('core.services.gemini_service.genai.embed_content')
-    def test_gemini_service_get_embedding(self, mock_embed_content):
-        mock_embed_content.return_value = {'embedding': [0.123] * 768}
-        vector = get_embedding("Texto de prueba para embedding")
-        self.assertEqual(len(vector), 768)
-        self.assertEqual(vector[0], 0.123)
+    @patch('core.services.ai_service.genai.Client')
+    def test_ai_service_get_embedding(self, mock_client_cls):
+        mock_client = MagicMock()
+        mock_resp = MagicMock()
+        mock_emb = MagicMock()
+        mock_emb.values = [0.123] * 768
+        mock_resp.embeddings = [mock_emb]
+        mock_client.models.embed_content.return_value = mock_resp
+        mock_client_cls.return_value = mock_client
 
-    @patch('core.services.gemini_service.genai.GenerativeModel')
-    def test_gemini_service_generate_rag_response_text(self, mock_model_class):
-        mock_instance = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = "Respuesta técnica fundamentada en contexto"
-        mock_instance.generate_content.return_value = mock_response
-        mock_model_class.return_value = mock_instance
+        with patch('core.services.ai_service._get_gemini_api_key', return_value='fake_gemini_key'):
+            vector = get_embedding("Texto de prueba para embedding")
+            self.assertEqual(len(vector), 768)
+            self.assertEqual(vector[0], 0.123)
 
-        result = generate_rag_response(
-            user_query="¿Cuál es el procedimiento de backup?",
-            context_chunks=["Fragmento de manual: Backups automáticos cada 24h."],
-            user_role="Admin",
-            stream=False,
-        )
+    @patch('core.services.ai_service._get_openrouter_client')
+    def test_ai_service_generate_rag_response_text(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Respuesta técnica fundamentada en contexto"
+        mock_completion = MagicMock()
+        mock_completion.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_completion
+        mock_get_client.return_value = mock_client
+
+        with patch('core.services.ai_service._get_openrouter_api_key', return_value='fake_openrouter_key'):
+            result = generate_rag_response(
+                user_query="¿Cuál es el procedimiento de backup?",
+                context_chunks=["Fragmento de manual: Backups automáticos cada 24h."],
+                user_role="Admin",
+                stream=False,
+            )
 
         self.assertEqual(result, "Respuesta técnica fundamentada en contexto")

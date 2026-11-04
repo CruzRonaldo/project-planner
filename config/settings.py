@@ -249,6 +249,8 @@ SPECTACULAR_SETTINGS = {
 
 
 # ==========================================================
-# GOOGLE GEMINI AI ASSISTANT
+# AI ASSISTANT (OPENROUTER + GOOGLE GEMINI EMBEDDINGS)
 # ==========================================================
+OPENROUTER_API_KEY = env('OPENROUTER_API_KEY', default=os.environ.get('OPENROUTER_API_KEY', '')).strip()
 GEMINI_API_KEY = env('GEMINI_API_KEY', default=os.environ.get('GEMINI_API_KEY', '')).strip()
+HUGGINGFACE_API_KEY = env('HUGGINGFACE_API_KEY', default=os.environ.get('HUGGINGFACE_API_KEY', '')).strip()

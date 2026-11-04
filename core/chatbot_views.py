@@ -10,7 +10,7 @@ from .authentication import PasswordBoundAuthentication
 
 SimpleUserAuthentication = PasswordBoundAuthentication
 from .models import DocumentEmbedding
-from .services.gemini_service import get_embedding, generate_rag_response, get_chat_response
+from .services.ai_service import get_embedding, generate_rag_response, get_chat_response
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +61,16 @@ class RAGChatbotView(APIView):
         top_chunks = []
         try:
             query_vector = get_embedding(message)
+            qs = DocumentEmbedding.objects.all()
+            # Directiva RBAC Zero-Leakage: Excluir fragmentos de Administrador para usuarios estándar
+            if str(user_role).strip().lower() not in ('admin', 'administrador', 'project manager'):
+                qs = qs.exclude(title__icontains="[Rol: Administrador]").exclude(content__icontains="[DESTINATARIO: ADMINISTRADOR]")
+
             top_chunks = list(
-                DocumentEmbedding.objects
-                .annotate(distance=CosineDistance('embedding', query_vector))
+                qs.annotate(distance=CosineDistance('embedding', query_vector))
                 .order_by('distance')[:3]
             )
-            logger.info("RAG recuperó %d fragmentos de contexto para: %s", len(top_chunks), message[:50])
+            logger.info("RAG recuperó %d fragmentos de contexto (rol=%s) para: %s", len(top_chunks), user_role, message[:50])
         except Exception as exc:
             logger.warning("No se pudo completar la búsqueda vectorial en pgvector: %s. Procediendo sin contexto.", exc)
 
@@ -81,7 +85,7 @@ class RAGChatbotView(APIView):
                 )
                 response = StreamingHttpResponse(
                     stream_generator,
-                    content_type='text/plain; charset=utf-8',
+                    content_type='text/event-stream',
                 )
                 response['Cache-Control'] = 'no-cache'
                 response['X-Accel-Buffering'] = 'no'
@@ -152,9 +156,13 @@ class ChatbotView(APIView):
         top_chunks = []
         try:
             query_vector = get_embedding(message)
+            qs = DocumentEmbedding.objects.all()
+            # Directiva RBAC Zero-Leakage: Excluir fragmentos de Administrador para usuarios estándar
+            if str(user_role).strip().lower() not in ('admin', 'administrador', 'project manager'):
+                qs = qs.exclude(title__icontains="[Rol: Administrador]").exclude(content__icontains="[DESTINATARIO: ADMINISTRADOR]")
+
             top_chunks = list(
-                DocumentEmbedding.objects
-                .order_by(CosineDistance('embedding', query_vector))[:3]
+                qs.order_by(CosineDistance('embedding', query_vector))[:3]
             )
         except Exception as exc:
             logger.debug("Búsqueda RAG en ChatbotView omitida o en fallback: %s", exc)
@@ -168,17 +176,26 @@ class ChatbotView(APIView):
             )
             response = StreamingHttpResponse(
                 stream_generator,
-                content_type='text/plain; charset=utf-8',
+                content_type='text/event-stream',
             )
             response['Cache-Control'] = 'no-cache'
             response['X-Accel-Buffering'] = 'no'
             return response
         except Exception as exc:
             logger.exception("Error en ChatbotView: %s", exc)
-            return Response(
-                {
-                    'status': 'error',
-                    'message': f"Error al procesar la solicitud con el asistente: {str(exc)}",
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            err_str = str(exc)
+            err_lower = err_str.lower()
+            if "429" in err_str or "resourceexhausted" in err_lower or "quota" in err_lower or "rate limit" in err_lower:
+                err_msg = (
+                    "⚠️ Se ha alcanzado temporalmente el límite de cuota del Asistente de IA (Error 429). "
+                    "Por favor, espera unos instantes antes de volver a intentar."
+                )
+            else:
+                err_msg = f"Error al procesar la solicitud con el asistente: {err_str}"
+            response = StreamingHttpResponse(
+                iter([err_msg]),
+                content_type='text/event-stream',
             )
+            response['Cache-Control'] = 'no-cache'
+            response['X-Accel-Buffering'] = 'no'
+            return response

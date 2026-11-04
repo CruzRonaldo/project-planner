@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, X, Sparkles, Loader2, Trash2 } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { baseURL } from '../../services/api';
+import FormattedAuditText from './FormattedAuditText';
+
 
 export default function ChatWidget({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -46,50 +48,74 @@ export default function ChatWidget({ currentUser }) {
     setInputMessage('');
     setIsStreaming(true);
 
-    let timerId;
-
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('No se encontró la variable VITE_GEMINI_API_KEY configurada.');
+      // Extraer token de autenticación si está disponible
+      let sessionToken = null;
+      try {
+        const savedUser = JSON.parse(
+          window.localStorage.getItem('project_planner_user') || 'null'
+        );
+        sessionToken = savedUser?.session_token;
+      } catch {
+        // Ignorar si hay problema al leer localStorage
       }
 
-      // 1. Instanciación del cliente Gemini y modelo dentro del bloque try...catch
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-3.8-flash',
-        systemInstruction:
-          'Asistente Técnico de Project Planner, proporcionando respuestas precisas y usando listas Markdown.',
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
+
+      // POST hacia el endpoint seguro de Django (/api/chatbot/)
+      const endpoint = `${baseURL}/chatbot/`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message: trimmed }),
       });
 
-      // 2. Temporizador de 8 segundos para evitar bloqueos de red
-      const timeout = new Promise((_, reject) => {
-        timerId = setTimeout(
-          () =>
-            reject(
-              new Error(
-                'La red tardó demasiado en responder (Timeout). Revisa tu conexión, VPN o bloqueadores de anuncios.'
-              )
-            ),
-          8000
+      if (!response.ok) {
+        let serverError = '';
+        try {
+          const errorJson = await response.json();
+          serverError = errorJson?.message || errorJson?.error || '';
+        } catch {
+          try {
+            serverError = await response.text();
+          } catch {
+            // Ignorar error al leer texto
+          }
+        }
+
+        if (response.status === 429) {
+          throw new Error(
+            serverError ||
+              'Se ha alcanzado temporalmente el límite de cuota del Asistente de IA (Error 429). Por favor, intenta de nuevo en unos momentos.'
+          );
+        }
+
+        throw new Error(
+          serverError ||
+            `Error en el servidor (${response.status}: ${response.statusText || 'Error de procesamiento'}).`
         );
-      });
+      }
 
-      // 3. Ejecución del stream compitiendo contra el temporizador
-      const prompt = [{ role: 'user', parts: [{ text: trimmed }] }];
-      const result = await Promise.race([
-        model.generateContentStream({ contents: prompt }),
-        timeout,
-      ]);
+      if (!response.body) {
+        throw new Error('El servidor backend no retornó un flujo de datos legible.');
+      }
 
-      if (timerId) clearTimeout(timerId);
-
+      // Lectura del flujo en tiempo real (Server-Sent Events / SSE)
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
       let accumulatedText = '';
       let isFirstChunk = true;
 
-      // Iterar asíncronamente sobre el stream en tiempo real (efecto máquina de escribir)
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunkText = decoder.decode(value, { stream: true });
         if (!chunkText) continue;
 
         if (isFirstChunk) {
@@ -110,25 +136,57 @@ export default function ChatWidget({ currentUser }) {
           return updated;
         });
       }
-    } catch (error) {
-      console.error('Error al comunicarse con Gemini:', error);
-      const errorMsg = error?.message || 'Error desconocido';
 
-      // En catch (error), actualiza el último mensaje (la burbuja optimista)
-      // quitándole el animate-pulse y reemplazando su texto temporal
+      // Decodificar posibles bytes residuales al completar el stream
+      const finalResidual = decoder.decode();
+      if (finalResidual) {
+        accumulatedText += finalResidual;
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: 'ai',
+            text: accumulatedText,
+            isOptimistic: false,
+          };
+          return updated;
+        });
+      }
+
+      if (!accumulatedText.trim()) {
+        setMessages((prev) => {
+          if (prev.length === 0) return prev;
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: 'ai',
+            text: 'No se recibió contenido de respuesta del asistente.',
+            isOptimistic: false,
+          };
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error('Error al comunicarse con el chatbot backend:', error);
+      const isNetworkFailure =
+        error?.name === 'TypeError' ||
+        /failed to fetch|network|load failed|refused/i.test(error?.message || '');
+
+      const displayMessage = isNetworkFailure
+        ? 'No se pudo conectar con el servidor backend (Django). Verifica que el servicio esté activo y accesible.'
+        : error?.message || 'Error de comunicación con el asistente.';
+
       setMessages((prev) => {
         if (prev.length === 0) return prev;
         const updated = [...prev];
         const lastIndex = updated.length - 1;
         updated[lastIndex] = {
           role: 'ai',
-          text: `❌ Error de conexión: ${errorMsg}`,
+          text: `❌ ${displayMessage}`,
           isOptimistic: false,
         };
         return updated;
       });
     } finally {
-      if (timerId) clearTimeout(timerId);
       setIsStreaming(false);
     }
   };
@@ -179,7 +237,7 @@ export default function ChatWidget({ currentUser }) {
                 <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
                   <span>Asistente AI</span>
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/40">
-                    Gemini 3.8
+                    Gemini SSE
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
@@ -235,7 +293,7 @@ export default function ChatWidget({ currentUser }) {
                         }`
                   }`}
                 >
-                  {msg.text}
+                  <FormattedAuditText text={msg.text} />
                 </div>
               </div>
             ))}
@@ -276,4 +334,3 @@ export default function ChatWidget({ currentUser }) {
     </>
   );
 }
-
