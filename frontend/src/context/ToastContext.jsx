@@ -39,7 +39,7 @@ export function ToastProvider({ children }) {
   );
 }
 
-function ToastContainer({ toast, onClose }) {
+export function ToastContainer({ toast, onClose }) {
   const isError = toast.type === 'error';
   const isWarning = toast.type === 'warning';
   const isInfo = toast.type === 'info';
@@ -116,9 +116,9 @@ function ToastContainer({ toast, onClose }) {
               <h4 className="text-sm font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
                 {toast.title}
               </h4>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/80">
+              <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90">
                 <FormattedAuditText text={toast.message} />
-              </p>
+              </div>
             </div>
 
             <button

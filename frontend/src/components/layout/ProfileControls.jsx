@@ -300,9 +300,9 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                        <div className="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 midnight:text-cyan-500/80">
                           <FormattedAuditText text={notification.detail} />
-                        </p>
+                        </div>
                         <div className="mt-1.5 flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-600 midnight:text-cyan-500/50">
                           <span>{notification.time}</span>
                           {notification.type === 'project_assignment' && (

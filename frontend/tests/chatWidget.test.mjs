@@ -82,4 +82,54 @@ const status = "RELEASE";
   }
 });
 
+test('FormattedAuditText hereda colores con text-inherit para garantizar legibilidad en modo claro y oscuro', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: FormattedAuditText } = await server.ssrLoadModule('/src/components/common/FormattedAuditText.jsx');
+    const html = renderToStaticMarkup(
+      React.createElement(FormattedAuditText, { text: 'Mensaje informativo de prueba' })
+    );
+
+    assert.ok(html.includes('text-inherit'), 'Debe utilizar text-inherit para adaptarse al contenedor');
+    assert.ok(!html.includes('text-slate-200 '), 'No debe forzar text-slate-200 en el contenedor raíz');
+  } finally {
+    await server.close();
+  }
+});
+
+test('ToastContainer renderiza título y mensaje secundario con contraste accesible en tema claro y oscuro', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { ToastContainer } = await server.ssrLoadModule('/src/context/ToastContext.jsx');
+    const sampleToast = {
+      id: 12345,
+      title: 'Proyecto Reasignado',
+      message: 'El técnico Carlos Pérez fue reasignado al **Proyecto Metro** exitosamente.',
+      type: 'success',
+      duration: 4000,
+    };
+
+    const html = renderToStaticMarkup(
+      React.createElement(ToastContainer, { toast: sampleToast, onClose: () => {} })
+    );
+
+    // Accesibilidad
+    assert.ok(html.includes('role="status"'), 'Debe tener role="status"');
+    assert.ok(html.includes('aria-live="polite"'), 'Debe tener aria-live="polite"');
+
+    // Título con alto contraste
+    assert.ok(html.includes('text-slate-900'), 'Título debe tener text-slate-900 en tema claro');
+    assert.ok(html.includes('dark:text-white'), 'Título debe tener dark:text-white en tema oscuro');
+    assert.ok(html.includes('midnight:text-cyan-50'), 'Título debe tener midnight:text-cyan-50');
+
+    // Mensaje secundario con color diferenciado y contrastado
+    assert.ok(html.includes('text-slate-600'), 'Mensaje debe usar text-slate-600 en tema claro para lectura nítida');
+    assert.ok(html.includes('dark:text-slate-300'), 'Mensaje debe usar dark:text-slate-300 en tema oscuro');
+    assert.ok(html.includes('midnight:text-cyan-200/90'), 'Mensaje debe usar midnight:text-cyan-200/90');
+    assert.ok(html.includes('Proyecto Metro</strong>'), 'Debe formatear el texto con Markdown');
+  } finally {
+    await server.close();
+  }
+});
+
 

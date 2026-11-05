@@ -56,9 +56,9 @@ export default function AuditLogCard({
                     {log.actionDisplay || log.action}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 midnight:text-cyan-300/80 mt-0.5 break-words">
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 midnight:text-cyan-300/80 mt-0.5 break-words">
                   <FormattedAuditText text={log.description} />
-                </p>
+                </div>
               </div>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600 shrink-0 whitespace-nowrap">
                 {log.dateFormatted || log.createdAt}
