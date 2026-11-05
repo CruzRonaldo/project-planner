@@ -265,3 +265,23 @@ class ProjectSignalsAuditTest(TestCase):
 
         # 3. Sin request
         self.assertIsNone(get_client_ip(None))
+
+    def test_admin_audit_logs_registered_and_read_only(self):
+        from django.contrib import admin
+        from core.models import ProjectChangeLog, SecurityAuditLog
+
+        # Verificar que ambos modelos estén registrados en el sitio de administración
+        self.assertIn(ProjectChangeLog, admin.site._registry)
+        self.assertIn(SecurityAuditLog, admin.site._registry)
+
+        proj_admin = admin.site._registry[ProjectChangeLog]
+        sec_admin = admin.site._registry[SecurityAuditLog]
+
+        # Verificar inmutabilidad (permisos estrictos de solo lectura)
+        self.assertFalse(proj_admin.has_add_permission(None))
+        self.assertFalse(proj_admin.has_change_permission(None))
+        self.assertFalse(proj_admin.has_delete_permission(None))
+
+        self.assertFalse(sec_admin.has_add_permission(None))
+        self.assertFalse(sec_admin.has_change_permission(None))
+        self.assertFalse(sec_admin.has_delete_permission(None))

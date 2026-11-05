@@ -11,6 +11,8 @@ from .models import (
     Task,
     PerformanceMetric,
     DriveLink,
+    ProjectChangeLog,
+    SecurityAuditLog,
 )
 
 
@@ -88,6 +90,48 @@ class TeamMemberChangeLogAdmin(admin.ModelAdmin):
     list_filter = ('action', 'source', 'created_at')
     search_fields = ('member_name', 'member_email', 'comment')
     readonly_fields = [field.name for field in TeamMemberChangeLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ProjectChangeLog)
+class ProjectChangeLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'get_project_display', 'action_type', 'user_name')
+    list_filter = ('action_type', 'created_at')
+    search_fields = ('project_code', 'project_name', 'user_name', 'description')
+    readonly_fields = [field.name for field in ProjectChangeLog._meta.fields]
+
+    def get_project_display(self, obj):
+        code = (obj.project.code if obj.project else None) or obj.project_code
+        name = (obj.project.name if obj.project else None) or obj.project_name
+        if code or name:
+            return f"[{code or 'S/C'}] {name or ''}".strip()
+        return "Proyecto Eliminado"
+    get_project_display.short_description = "Proyecto"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SecurityAuditLog)
+class SecurityAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'user', 'action', 'ip_address')
+    list_filter = ('action', 'created_at')
+    search_fields = ('user__username', 'user__email', 'description', 'ip_address')
+    readonly_fields = [field.name for field in SecurityAuditLog._meta.fields]
 
     def has_add_permission(self, request):
         return False
