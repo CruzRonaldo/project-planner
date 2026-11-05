@@ -113,9 +113,9 @@ test('Planificación contiene calendario, acciones restringidas, hitos, presupue
     assert.equal((viewer.match(/aria-label="Ajustar calendario de /g) ?? []).length, 0);
 
     const dialog = renderToStaticMarkup(React.createElement(AdjustScheduleDialog, { data, initialProjectId: 'planning-puente', onSubmit: () => {}, onClose: () => {} }));
-    for (const field of ['Ajustar Calendario de Proyecto', 'Proyecto a reprogramar', 'Fecha de inicio', 'Fecha de fin', 'Vista previa del cronograma resultante', 'Motivo del reajuste', 'Guardar ajustes']) assert.ok(dialog.includes(field));
+    for (const field of ['Ajustar Calendario de Proyecto', 'Proyecto a reprogramar', 'Mes de inicio', 'Duración total', 'Vista previa del cronograma resultante', 'Ruta Crítica Activa', 'Motivo del reajuste / historial de auditoría', 'Guardar ajustes']) assert.ok(dialog.includes(field));
     assert.ok(dialog.includes('Puente Industrial — Infraestructura Vial'));
-    assert.ok(dialog.includes('Selecciona un rango válido.'));
+    assert.ok(dialog.includes('Feb - Ago (7 Meses)'));
 
     const milestoneDialog = renderToStaticMarkup(React.createElement(NewGlobalMilestoneDialog, { data, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Nuevo Hito Global', 'Proyecto asociado', 'Estado inicial', 'Nombre del hito / entrega crítica', 'Fecha límite programada', 'Responsable de validación', 'Descripción y entregables clave', 'Hito bloqueante', 'Registrar Hito Global']) assert.ok(milestoneDialog.includes(field));
