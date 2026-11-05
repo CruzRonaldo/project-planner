@@ -1011,9 +1011,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
     def create(self, request, *args, **kwargs):
+        user = getattr(request, 'user', None)
+        actor_name = "Administrador"
+        if user and user.is_authenticated:
+            actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        elif request.data.get('userName') or request.data.get('user'):
+            actor_name = request.data.get('userName') or request.data.get('user')
+
         serializer = self.get_serializer(data=request.data)
+        serializer._actor_name = actor_name
         serializer.is_valid(raise_exception=True)
-        project = serializer.save()
+        project = serializer.save(_actor_name=actor_name)
+        project._actor_name = actor_name
+        ProjectChangeLog.objects.filter(project=project, description__startswith="Alta del proyecto").update(user_name=actor_name)
 
         # Asignar líder técnico si fue seleccionado en el frontend
         leader_val = request.data.get('leaderId') or request.data.get('leader_id')
@@ -1078,9 +1088,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if first_m:
                 request_data['leaderId'] = first_m.id
 
+        actor_name = "Administrador"
+        if user and user.is_authenticated:
+            actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        elif request_data.get('userName') or request_data.get('user'):
+            actor_name = request_data.get('userName') or request_data.get('user')
+        instance._actor_name = actor_name
+
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
+        serializer._actor_name = actor_name
         serializer.is_valid(raise_exception=True)
-        project = serializer.save()
+        project = serializer.save(_actor_name=actor_name)
 
         # Actualizar asignación del líder técnico solo si el usuario es administrador (o cliente no autenticado de prueba)
         if is_admin_user or not (user and user.is_authenticated):

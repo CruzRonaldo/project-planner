@@ -29,6 +29,18 @@ export { NewProjectDialog, EditProjectDialog, ConfirmDeleteDialog, ProjectCard }
 const PROJECTS_PER_PAGE = 6;
 const CHANGES_PER_PAGE = 5;
 
+const mapBackendChangeLogs = (logs) => {
+  const list = Array.isArray(logs) ? logs : logs?.results;
+  if (!Array.isArray(list)) return null;
+  return list.map((c) => ({
+    id: c.id,
+    date: c.date,
+    project: c.project_name || c.project_code || "Proyecto",
+    change: c.change,
+    user: c.user,
+  }));
+};
+
 const filters = [
   { id: "all", label: "Todos" },
   ...projectStatuses.map((status) => ({ id: status.id, label: status.label })),
@@ -103,8 +115,9 @@ export default function Portfolio({
 
   // Creación del proyecto conectado a DRF y Make
   const createProject = async (draft) => {
+    const payload = currentUserName && !draft.userName ? { ...draft, userName: currentUserName } : draft;
     const [created, error] = await runSafe(
-      () => projectsApi.createProject(draft),
+      () => projectsApi.createProject(payload),
       {
         showToast,
         successTitle: "¡Proyecto Creado con Éxito!",
@@ -128,14 +141,6 @@ export default function Portfolio({
       throw new Error(error?.friendlyMessage || error?.message || "Error al procesar la creación del proyecto");
     }
 
-    const makeInfo = created.make_notification;
-    let makeMsg = "";
-    if (makeInfo?.success) {
-      makeMsg = " · Notificación enviada a Make.";
-    } else if (makeInfo) {
-      makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-    }
-
     const newProject = {
       id: created.id || `project-${Date.now()}`,
       code: created.code || draft.code,
@@ -153,13 +158,8 @@ export default function Portfolio({
       members: created.members || ["PM"],
     };
 
-    const newChange = {
-      id: `change-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      project: newProject.name,
-      change: `Alta de nuevo proyecto${makeMsg}`,
-      user: currentUserName || "Admin",
-    };
+    const backendLogs = await projectsApi.getProjectChangeLogs().catch(() => null);
+    const mappedLogs = mapBackendChangeLogs(backendLogs);
 
     onChange((currentData) => {
       const base =
@@ -174,7 +174,7 @@ export default function Portfolio({
           newProject,
           ...currentProjects.filter((p) => p.code !== newProject.code),
         ],
-        changes: [newChange, ...currentChanges],
+        changes: mappedLogs ?? currentChanges,
       };
     });
 
@@ -184,8 +184,9 @@ export default function Portfolio({
 
   // Actualización del proyecto conectado a DRF (PATCH) y Make
   const updateProject = async (projectId, draft) => {
+    const payload = currentUserName && !draft.userName ? { ...draft, userName: currentUserName } : draft;
     const [updated, error] = await runSafe(
-      () => projectsApi.updateProject(projectId, draft),
+      () => projectsApi.updateProject(projectId, payload),
       {
         showToast,
         successTitle: "¡Proyecto Actualizado!",
@@ -207,21 +208,8 @@ export default function Portfolio({
       throw new Error(error?.friendlyMessage || error?.message || "Error al actualizar el proyecto.");
     }
 
-    const makeInfo = updated.make_notification;
-    let makeMsg = "";
-    if (makeInfo?.success) {
-      makeMsg = " · Notificación enviada a Make.";
-    } else if (makeInfo) {
-      makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-    }
-
-    const newChange = {
-      id: `change-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      project: updated.name || draft.name,
-      change: `Edición de proyecto${makeMsg}`,
-      user: currentUserName || "Admin",
-    };
+    const backendLogs = await projectsApi.getProjectChangeLogs().catch(() => null);
+    const mappedLogs = mapBackendChangeLogs(backendLogs);
 
     onChange((currentData) => {
       const base =
@@ -248,7 +236,7 @@ export default function Portfolio({
               }
             : p
         ),
-        changes: [newChange, ...currentChanges],
+        changes: mappedLogs ?? currentChanges,
       };
     });
 
@@ -274,13 +262,8 @@ export default function Portfolio({
       throw new Error(error?.friendlyMessage || error?.message || "Error al eliminar el proyecto.");
     }
 
-    const newChange = {
-      id: `change-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      project: projectName,
-      change: "Eliminación permanente del proyecto",
-      user: currentUserName || "Admin",
-    };
+    const backendLogs = await projectsApi.getProjectChangeLogs().catch(() => null);
+    const mappedLogs = mapBackendChangeLogs(backendLogs);
 
     onChange((currentData) => {
       const base =
@@ -292,7 +275,7 @@ export default function Portfolio({
       return {
         ...base,
         projects: currentProjects.filter((p) => p.id !== projectId),
-        changes: [newChange, ...currentChanges],
+        changes: mappedLogs ?? currentChanges,
       };
     });
 

@@ -629,6 +629,20 @@ class ProjectSerializer(serializers.ModelSerializer):
     def get_drive_links_count(self, obj):
         return DriveLink.objects.filter(task__project=obj).count()
 
+    def create(self, validated_data):
+        actor_name = validated_data.pop('_actor_name', getattr(self, '_actor_name', None))
+        instance = self.Meta.model(**validated_data)
+        if actor_name:
+            instance._actor_name = actor_name
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        actor_name = validated_data.pop('_actor_name', getattr(self, '_actor_name', None))
+        if actor_name:
+            instance._actor_name = actor_name
+        return super().update(instance, validated_data)
+
     def to_internal_value(self, data):
         data = data.copy() if hasattr(data, 'copy') else dict(data)
 
