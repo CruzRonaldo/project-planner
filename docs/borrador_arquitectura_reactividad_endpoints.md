@@ -115,8 +115,55 @@ Al arrancar la aplicación, se disparaban simultáneamente:
 
 ---
 
-## 5. Próximos Pasos para el Documento Final
+## 5. Auditoría Autónoma y Desacoplada (Backend-Driven Auditing)
+
+### 5.1 Principio de Inversión de Control en Auditoría
+**El Frontend nunca debe ser responsable de generar o redactar las bitácoras de auditoría.** Delegar la auditoría al cliente web o móvil genera tres riesgos arquitectónicos críticos:
+1. **Vulnerabilidad de Integridad (No Repudio):** Un cliente comprometido o una llamada directa de API (vía Postman, cURL o integración externa como Make/N8N) podría modificar fechas o presupuestos sin registrar el log.
+2. **Inconsistencia de Estados:** El Frontend solo conoce los datos que el usuario escribió en el formulario, mientras que el Backend/BD conoce el estado exacto **anterior (`BEFORE`)** y **posterior (`AFTER`)** registrado a nivel transaccional.
+3. **Violación del Principio DRY:** Si mañana se crea una app móvil, un bot de Telegram o un webhook de Make, habría que duplicar la lógica de creación de logs en cada uno de ellos.
+
+### 5.2 Arquitectura del Trigger / Signal en Backend
+El Backend actúa como el único guardián de la bitácora mediante interceptores del ciclo de vida del modelo (`pre_save` / `post_save` de Django o Triggers de PostgreSQL):
+
+```
+┌─────────────────────────────────┐
+│     Cliente (Frontend / API)    │  Envía únicamente:
+│      PATCH /api/projects/1/     │  { "budget": 1500000, "status": "IN_PROGRESS" }
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│     Django Backend / ORM        │  1. Recupera estado previo (old_instance: budget=1200000)
+│     (Interceptor pre/post save) │  2. Compara deltas: Δbudget = +$300,000
+└────────────────┬────────────────┘  3. Identifica usuario autenticado del request (request.user)
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+┌───────────────┐ ┌───────────────────────────┐
+│ UPDATE en     │ │ INSERT automático en      │
+│ core_project  │ │ core_projectchangelog     │
+└───────────────┘ │ "Presupuesto incrementado │
+                  │ de $1.2M a $1.5M por Admin"│
+                  └───────────────────────────┘
+```
+
+### 5.3 Eventos Críticos a Auditar Automáticamente
+* **En Proyectos (`ProjectChangeLog`):**
+  - Variación de Presupuesto (`budget`).
+  - Reprogramación de Cronograma (`start_date`, `end_date`, `duration_months`).
+  - Transiciones de Estado (`status`: de `PLANNING` a `IN_PROGRESS`, `RISK` o `COMPLETED`).
+  - Cambio de Líder o Director de Proyecto.
+* **En Personal Técnico (`TeamMemberChangeLog`):**
+  - Reasignación de Proyecto (`previous_project` ➔ `new_project`).
+  - Variaciones en Carga de Trabajo (`allocation_percentage`) o Disponibilidad (`availability`).
+  - Cambios de Estado Operativo (`Activo`, `Stand-by`, `Licencia`).
+
+---
+
+## 6. Próximos Pasos para el Documento Final
 
 1. Integrar diagramas de secuencia en formato SVG/Mermaid para el flujo de emisión y cumplimiento de órdenes de trabajo.
 2. Añadir métricas comparativas de tiempo de respuesta (antes y después de la optimización de llamadas).
-3. Consolidar el documento formal en PDF o Markdown profesional bajo `docs/arquitectura_relacional_y_optimizacion_api.md`.
+3. Documentar la implementación de las señales `signals.py` para la auditoría automática desacoplada del frontend.
+4. Consolidar el documento formal en PDF o Markdown profesional bajo `docs/arquitectura_relacional_y_optimizacion_api.md`.
