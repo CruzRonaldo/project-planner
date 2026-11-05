@@ -8,8 +8,11 @@ import {
 } from './components';
 import Select from '../../components/common/Select';
 import Pagination from '../../components/common/Pagination';
+import PageHeader from '../../components/common/PageHeader';
+import SortDropdown from '../../components/common/SortDropdown';
 import { getYearOptions } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
+import { runSafe } from '../../utils/asyncHandler';
 import {
   cardClass,
   closeBtnClass,
@@ -20,11 +23,14 @@ import {
 import {
   planningMonths,
   milestoneStatuses,
+  milestoneSortCategories,
+  milestoneSortOptionsMap,
 } from '../../constants/strategicPlanning';
 import {
   adjustProjectSchedule,
   createGlobalMilestone,
   formatMilestoneDate,
+  sortMilestones,
 } from '../../utils/strategicPlanning';
 import { getBarGeometry, legacyMonthRangeToDates } from '../../utils/gantt';
 import { createStrategicPlanningData } from '../../mocks/strategicPlanningData';
@@ -92,15 +98,21 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     );
   }, [milestones, activeProject]);
 
+  const [milestoneSortOrder, setMilestoneSortOrder] = useState('date-asc');
+
+  const sortedMilestones = useMemo(() => {
+    return sortMilestones(filteredMilestones, milestoneSortOrder);
+  }, [filteredMilestones, milestoneSortOrder]);
+
   const milestonePageSize = 5;
-  const totalMilestonePages = Math.max(1, Math.ceil(filteredMilestones.length / milestonePageSize));
+  const totalMilestonePages = Math.max(1, Math.ceil(sortedMilestones.length / milestonePageSize));
   const currentMilestonePage = Math.min(milestonePage, totalMilestonePages);
   const visibleMilestones = useMemo(() => {
-    return filteredMilestones.slice(
+    return sortedMilestones.slice(
       (currentMilestonePage - 1) * milestonePageSize,
       currentMilestonePage * milestonePageSize
     );
-  }, [filteredMilestones, currentMilestonePage]);
+  }, [sortedMilestones, currentMilestonePage, milestonePageSize]);
 
   const displayedAdjustments = useMemo(() => {
     if (!activeProject) return adjustments;
@@ -162,38 +174,41 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       (!isNaN(Number(draft.projectId)) && String(Number(draft.projectId)) === String(draft.projectId));
 
     let auditSaved = true;
-    if (isBackendProject && updatedProject) {
-      try {
-        await projectsApi.updateProject(draft.projectId, {
-          start_date: updatedProject.startDate,
-          end_date: updatedProject.endDate,
-          duration_months: updatedProject.duration,
-        });
 
-        // Registrar auditoría de reajuste en backend Django
-        try {
+    if (isBackendProject && updatedProject) {
+      const [, error] = await runSafe(
+        async () => {
+          await projectsApi.updateProject(draft.projectId, {
+            start_date: updatedProject.startDate,
+            end_date: updatedProject.endDate,
+            duration_months: updatedProject.duration,
+          });
+
           if (projectsApi.createScheduleAdjustment) {
-            const createdAdj = await projectsApi.createScheduleAdjustment({
-              project: Number(draft.projectId),
-              previousPeriod: previousProject?.period || '',
-              nextPeriod: updatedProject.period,
-              reason: draft.reason,
-            });
-            if (createdAdj?.id && updated.adjustments?.length > 0) {
-              updated.adjustments[0].id = createdAdj.id;
+            try {
+              const createdAdj = await projectsApi.createScheduleAdjustment({
+                project: Number(draft.projectId),
+                previousPeriod: previousProject?.period || '',
+                nextPeriod: updatedProject.period,
+                reason: draft.reason,
+              });
+              if (createdAdj?.id && updated.adjustments?.length > 0) {
+                updated.adjustments[0].id = createdAdj.id;
+              }
+            } catch (adjErr) {
+              console.warn('Reajuste de fecha aplicado pero falló el registro en auditoría remota:', adjErr);
+              auditSaved = false;
             }
           }
-        } catch (adjErr) {
-          console.warn('Reajuste de fecha aplicado pero falló el registro en auditoría remota:', adjErr);
-          auditSaved = false;
+        },
+        {
+          showToast,
+          fallbackError: 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.',
+          errorTitle: 'Error de Sincronización',
         }
-      } catch (apiErr) {
-        console.error('Error al actualizar el cronograma en backend:', apiErr);
-        showToast({
-          title: 'Error de Sincronización',
-          message: 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.',
-          type: 'danger',
-        });
+      );
+
+      if (error) {
         return;
       }
     }
@@ -209,81 +224,89 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       type: auditSaved ? 'success' : 'warning',
     });
   };
+
   const saveMilestone = async (draft) => {
     setMilestonePage(1);
-    try {
-      const createdBackend = await projectsApi.createMilestone({
-        projectId: draft.projectId,
-        title: draft.title,
-        description: draft.description,
-        targetDate: draft.targetDate,
-        status: draft.status,
-      });
-      if (createdBackend?.id) {
-        draft.id = createdBackend.id;
-      }
-    } catch (apiErr) {
-      console.warn('Hito registrado localmente:', apiErr);
-    }
-    const updated = createGlobalMilestone(data, draft);
-    onChange(updated);
-    setMilestoneDialogOpen(false);
     const targetProject = projects.find((p) => String(p.id) === String(draft.projectId));
     const projectLabel = targetProject ? ` para el proyecto '${targetProject.name}'` : '';
-    const msg = `Hito “${updated.milestones[0].title}” registrado${projectLabel} en el calendario global.`;
-    showToast({
-      title: 'Hito Creado',
-      message: msg,
-      type: 'success',
-    });
+    const updated = createGlobalMilestone(data, draft);
+
+    await runSafe(
+      async () => {
+        const createdBackend = await projectsApi.createMilestone({
+          projectId: draft.projectId,
+          title: draft.title,
+          description: draft.description,
+          targetDate: draft.targetDate,
+          status: draft.status,
+        });
+        if (createdBackend?.id) {
+          draft.id = createdBackend.id;
+        }
+      },
+      {
+        showToast,
+        successTitle: 'Hito Creado',
+        successMessage: `Hito “${updated.milestones[0].title}” registrado${projectLabel} en el calendario global.`,
+        fallbackError: 'No se pudo guardar el hito en el servidor.',
+      }
+    );
+
+    onChange(updated);
+    setMilestoneDialogOpen(false);
   };
 
   const handleStatusChange = async (milestoneId, newStatus) => {
-    try {
-      if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
-        await projectsApi.updateMilestone(milestoneId, { status: newStatus });
-      }
-    } catch (err) {
-      console.warn('Error al actualizar estado del hito en backend:', err);
-    }
-    const updatedMilestones = (data?.milestones || []).map((m) =>
-      String(m.id) === String(milestoneId) ? { ...m, status: newStatus } : m
-    );
-    const updated = { ...data, milestones: updatedMilestones };
-    onChange(updated);
     const currentMilestone = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
     const statusLabel = milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus;
     const titleLabel = currentMilestone ? ` “${currentMilestone.title}”` : '';
     const msg = `Estado del hito${titleLabel} actualizado a “${statusLabel}”.`;
-    showToast({
-      title: 'Hito Actualizado',
-      message: msg,
-      type: 'info',
-    });
+
+    await runSafe(
+      async () => {
+        if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
+          await projectsApi.updateMilestone(milestoneId, { status: newStatus });
+        }
+      },
+      {
+        showToast,
+        successTitle: 'Hito Actualizado',
+        successMessage: msg,
+        fallbackError: 'No se pudo actualizar el estado del hito en el servidor.',
+      }
+    );
+
+    const updatedMilestones = (data?.milestones || []).map((m) =>
+      String(m.id) === String(milestoneId) ? { ...m, status: newStatus } : m
+    );
+    onChange({ ...data, milestones: updatedMilestones });
   };
 
   const handleDeleteMilestone = async (milestoneId, title) => {
-    try {
-      if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
-        await projectsApi.deleteMilestone(milestoneId);
-      }
-    } catch (err) {
-      console.warn('Error al eliminar hito en backend:', err);
-    }
     const milestoneToDelete = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
     const associatedProject = projects.find((p) => String(p.id) === String(milestoneToDelete?.projectId));
     const projectLabel = associatedProject ? ` del proyecto '${associatedProject.name}'` : '';
+    const msg = `Hito “${title}”${projectLabel} eliminado.`;
+
+    await runSafe(
+      async () => {
+        if (typeof milestoneId === 'number' || (!isNaN(Number(milestoneId)) && String(Number(milestoneId)) === String(milestoneId))) {
+          await projectsApi.deleteMilestone(milestoneId);
+        }
+      },
+      {
+        showToast,
+        successTitle: 'Hito Eliminado',
+        successMessage: msg,
+        fallbackError: 'No se pudo eliminar el hito en el servidor.',
+      }
+    );
+
     const updated = {
       ...data,
       milestones: (data?.milestones || []).filter((m) => String(m.id) !== String(milestoneId)),
     };
     onChange(updated);
-    const msg = `Hito “${title}”${projectLabel} eliminado.`;
-    showToast({
-      title: 'Hito Eliminado',
-      message: msg,
-      type: 'info',
-    });
   };
 
   const exportToPdf = () => {
@@ -354,12 +377,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
         {/* ENCABEZADO INTERACTIVO EN PANTALLA */}
         <section className="flex flex-col gap-4 no-print print:hidden">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Calendario Maestro 2026</h1>
-              <p className={`mt-1 text-sm ${mutedClass}`}>Planificación de ruta crítica y cronograma de infraestructura anual</p>
-            </div>
-
+          <PageHeader
+            title="Calendario Maestro 2026"
+            subtitle="Planificación de ruta crítica y cronograma de infraestructura anual"
+          >
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); }} className={secondaryButtonClass}>
@@ -376,7 +397,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </button>
               </div>
             )}
-          </div>
+          </PageHeader>
 
           {/* BARRA DE FILTROS SUPERIOR (PROYECTO Y AÑO) */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30">
@@ -453,15 +474,28 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </p>
               </div>
 
-              {/* INDICADOR DE PROYECTO ACTIVO (SINCRONIZADO CON EL CRONOGRAMA SUPERIOR) */}
-              <div className="no-print print:hidden">
+              {/* CONTROLES DE ORDENAMIENTO E INDICADOR DE PROYECTO ACTIVO */}
+              <div className="flex flex-wrap items-center gap-2.5 no-print print:hidden">
+                <SortDropdown
+                  value={milestoneSortOrder}
+                  onChange={(nextSort) => {
+                    setMilestoneSortOrder(nextSort);
+                    setMilestonePage(1);
+                  }}
+                  categories={milestoneSortCategories}
+                  optionsMap={milestoneSortOptionsMap}
+                  label="Ordenar:"
+                  buttonClassName="w-[225px]"
+                  ariaLabel="Ordenar hitos globales"
+                />
+
                 {activeProject ? (
                   <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
                     {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
                   </span>
                 ) : (
                   <span className={`text-xs ${mutedClass}`}>
-                    {milestones.length} {milestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
+                    {filteredMilestones.length} {filteredMilestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
                   </span>
                 )}
               </div>
@@ -554,7 +588,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                     })}
                   </div>
                   <div className="hidden print:block space-y-2.5">
-                    {filteredMilestones.map((milestone) => {
+                    {sortedMilestones.map((milestone) => {
                       const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
                       const associatedProject = projects.find(
                         (p) => String(p.id) === String(milestone.projectId || milestone.project)
@@ -593,7 +627,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
             <Pagination
               currentPage={currentMilestonePage}
               totalPages={totalMilestonePages}
-              totalItems={filteredMilestones.length}
+              totalItems={sortedMilestones.length}
               pageSize={milestonePageSize}
               itemLabel="hitos"
               onPageChange={setMilestonePage}

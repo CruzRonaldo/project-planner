@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { formatMoney, formatDateInput, formatDate, formatPercentage, getYearOptions } from '../src/utils/format.js';
+import { formatMoney, formatDateInput, formatPercentage, getYearOptions } from '../src/utils/format.js';
 
 test('formatMoney formatea cantidades a M, K y unidades legibles', () => {
   assert.equal(formatMoney(1500000), '$1.5M');
@@ -41,6 +41,23 @@ test('Input renderiza label, error accesible y clases multitema con Vite SSR', a
     assert.ok(html.includes('role="alert"'));
     assert.ok(html.includes('aria-invalid="true"'));
     assert.ok(html.includes('border-red-500'));
+    // En el modo default se remueve mt-2 del input para centrado vertical exacto de iconos
+    assert.ok(!html.includes('class="mt-2 '));
+
+    // Modo variant="auth" para pantallas de autenticación sin reactividad a temas globales
+    const authHtml = renderToStaticMarkup(
+      React.createElement(Input, {
+        variant: 'auth',
+        label: 'Correo de acceso',
+        placeholder: 'admin@empresa.com',
+      })
+    );
+    assert.ok(authHtml.includes('bg-[#080E1C]'));
+    assert.ok(authHtml.includes('border-slate-800'));
+    assert.ok(authHtml.includes('text-slate-200'));
+    assert.ok(!authHtml.includes('dark:'));
+    assert.ok(!authHtml.includes('midnight:'));
+    assert.ok(!authHtml.includes('bg-white'));
   } finally {
     await server.close();
   }
@@ -184,6 +201,55 @@ test('Pagination renderiza navegacion accesible, rango de elementos y estados di
       })
     );
     assert.equal(htmlHiddenSingle, '');
+  } finally {
+    await server.close();
+  }
+});
+
+test('PasswordInput alinea simétricamente botones X y Ojo y aísla variante auth de temas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: PasswordInput } = await server.ssrLoadModule('/src/components/common/PasswordInput.jsx');
+
+    // 1. PasswordInput vacío: solo botón de visibilidad con padding estándar
+    const emptyHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: '',
+        onChange: () => {},
+      })
+    );
+    assert.ok(emptyHtml.includes('aria-label="Ver contraseña"'));
+    assert.ok(emptyHtml.includes('pr-11'));
+    assert.ok(!emptyHtml.includes('aria-label="Borrar contraseña"'));
+
+    // 2. PasswordInput con texto: botón X y Ojo con tamaños exactos parejos h-7 w-7
+    const filledHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: 'claveSegura2026',
+        onChange: () => {},
+      })
+    );
+    assert.ok(filledHtml.includes('aria-label="Borrar contraseña"'));
+    assert.ok(filledHtml.includes('aria-label="Ver contraseña"'));
+    assert.ok(filledHtml.includes('pr-20'));
+    assert.ok(filledHtml.includes('h-7 w-7'));
+    assert.ok(filledHtml.includes('gap-1'));
+
+    // 3. PasswordInput con variant="auth": no reactivo a temas, estrictamente oscuro
+    const authHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        variant: 'auth',
+        value: 'claveLogin',
+        onChange: () => {},
+      })
+    );
+    assert.ok(authHtml.includes('bg-[#080E1C]'));
+    assert.ok(authHtml.includes('border-slate-800'));
+    assert.ok(authHtml.includes('text-slate-200'));
+    assert.ok(!authHtml.includes('dark:'));
+    assert.ok(!authHtml.includes('midnight:'));
+    assert.ok(!authHtml.includes('bg-white'));
+    assert.ok(!authHtml.includes('text-slate-900'));
   } finally {
     await server.close();
   }

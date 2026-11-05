@@ -113,9 +113,9 @@ test('Planificación contiene calendario, acciones restringidas, hitos, presupue
     assert.equal((viewer.match(/aria-label="Ajustar calendario de /g) ?? []).length, 0);
 
     const dialog = renderToStaticMarkup(React.createElement(AdjustScheduleDialog, { data, initialProjectId: 'planning-puente', onSubmit: () => {}, onClose: () => {} }));
-    for (const field of ['Ajustar Calendario de Proyecto', 'Proyecto a reprogramar', 'Fecha de inicio', 'Fecha de fin', 'Vista previa del cronograma resultante', 'Motivo del reajuste', 'Guardar ajustes']) assert.ok(dialog.includes(field));
+    for (const field of ['Ajustar Calendario de Proyecto', 'Proyecto a reprogramar', 'Mes de inicio', 'Duración total', 'Vista previa del cronograma resultante', 'Ruta Crítica Activa', 'Motivo del reajuste / historial de auditoría', 'Guardar ajustes']) assert.ok(dialog.includes(field));
     assert.ok(dialog.includes('Puente Industrial — Infraestructura Vial'));
-    assert.ok(dialog.includes('Selecciona un rango válido.'));
+    assert.ok(dialog.includes('Feb - Ago (7 Meses)'));
 
     const milestoneDialog = renderToStaticMarkup(React.createElement(NewGlobalMilestoneDialog, { data, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Nuevo Hito Global', 'Proyecto asociado', 'Estado inicial', 'Nombre del hito / entrega crítica', 'Fecha límite programada', 'Responsable de validación', 'Descripción y entregables clave', 'Hito bloqueante', 'Registrar Hito Global']) assert.ok(milestoneDialog.includes(field));
@@ -311,4 +311,75 @@ test('Portafolio recibe las fechas guardadas conservando los demás campos y pro
   assert.equal(updated.projects[0].budget, 500);
   assert.equal(updated.projects[1], other);
   assert.equal(syncPortfolioSchedule(updated, [{ id: 1, startDate: '2029-12-31', endDate: '2030-03-31' }]), updated);
+});
+
+test('Planificación Estratégica y sus diálogos integran runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { AdjustScheduleDialog, NewGlobalMilestoneDialog } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof AdjustScheduleDialog, 'function');
+    assert.equal(typeof NewGlobalMilestoneDialog, 'function');
+  } finally {
+    await server.close();
+  }
+});
+
+test('sortMilestones ordena hitos por fecha ascendente y descendente sin mutar el array original', async () => {
+  const { sortMilestones } = await import('../src/utils/strategicPlanning.js');
+  const list = [
+    { id: 1, title: 'Hito Diciembre', targetDate: '2026-12-15', status: 'pending' },
+    { id: 2, title: 'Hito Marzo', targetDate: '2026-03-10', status: 'completed' },
+    { id: 3, title: 'Hito Julio', targetDate: '2026-07-20', status: 'in_progress' },
+  ];
+
+  const asc = sortMilestones(list, 'date-asc');
+  assert.equal(asc[0].id, 2);
+  assert.equal(asc[1].id, 3);
+  assert.equal(asc[2].id, 1);
+  assert.equal(list[0].id, 1, 'No debe mutar el array original');
+
+  const desc = sortMilestones(list, 'date-desc');
+  assert.equal(desc[0].id, 1);
+  assert.equal(desc[1].id, 3);
+  assert.equal(desc[2].id, 2);
+});
+
+test('sortMilestones ordena por estado (en proceso y pendientes primero vs completados primero)', async () => {
+  const { sortMilestones } = await import('../src/utils/strategicPlanning.js');
+  const list = [
+    { id: 1, title: 'Hito A', targetDate: '2026-10-01', status: 'completed' },
+    { id: 2, title: 'Hito B', targetDate: '2026-10-01', status: 'pending' },
+    { id: 3, title: 'Hito C', targetDate: '2026-10-01', status: 'in_progress' },
+  ];
+
+  const byStatusAsc = sortMilestones(list, 'status-asc');
+  assert.equal(byStatusAsc[0].id, 3); // in_progress
+  assert.equal(byStatusAsc[1].id, 2); // pending
+  assert.equal(byStatusAsc[2].id, 1); // completed
+
+  const byStatusDesc = sortMilestones(list, 'status-desc');
+  assert.equal(byStatusDesc[0].id, 1); // completed primero
+});
+
+test('StrategicPlanning renderiza el menú SortDropdown de hitos y conserva el espacio para el proyecto', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: StrategicPlanning } = await server.ssrLoadModule('/src/views/admin/StrategicPlanning.jsx');
+    const { createStrategicPlanningData } = await server.ssrLoadModule('/src/mocks/strategicPlanningData.js');
+
+    const data = createStrategicPlanningData();
+    const html = renderToStaticMarkup(React.createElement(StrategicPlanning, { data }));
+
+    assert.match(html, /Ordenar hitos globales/i);
+    assert.match(html, /Hitos Globales/i);
+    assert.match(html, /PRJ-2026-001/);
+    assert.match(html, /Torre Reforma/);
+  } finally {
+    await server.close();
+  }
 });

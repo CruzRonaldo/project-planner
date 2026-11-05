@@ -21,6 +21,7 @@ import api, {
   request2FAReset,
   verify2FAReset,
 } from "../../services/api";
+import Input from "../../components/common/Input";
 import PasswordInput from "../../components/common/PasswordInput";
 
 export default function LoginScreen({ onLogin }) {
@@ -692,36 +693,34 @@ export default function LoginScreen({ onLogin }) {
 
               {/* Input Email */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">
+                <label htmlFor="login-email" className="text-xs font-medium text-slate-300">
                   Correo electrónico
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nombre@empresa.com"
-                    required
-                    className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
-                  />
-                </div>
+                <Input
+                  id="login-email"
+                  variant="auth"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nombre@empresa.com"
+                  required
+                  icon={<Mail className="w-4 h-4" />}
+                />
               </div>
 
               {/* Input Password */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">
+                <label htmlFor="login-password" className="text-xs font-medium text-slate-300">
                   Contraseña
                 </label>
                 <PasswordInput
+                  id="login-password"
+                  variant="auth"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  leftIcon={<Lock className="w-4 h-4" />}
-                  className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
+                  icon={<Lock className="w-4 h-4" />}
                 />
               </div>
 
@@ -861,20 +860,16 @@ export default function LoginScreen({ onLogin }) {
                     <label htmlFor="forgot-email" className="text-xs font-medium text-slate-300">
                       Correo electrónico corporativo
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      <input
-                        id="forgot-email"
-                        type="email"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="nombre@empresa.com"
-                        required
-                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
-                      />
-                    </div>
+                    <Input
+                      id="forgot-email"
+                      variant="auth"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="nombre@empresa.com"
+                      required
+                      icon={<Mail className="w-4 h-4" />}
+                    />
                   </div>
                 </>
               )}
@@ -915,33 +910,16 @@ export default function LoginScreen({ onLogin }) {
                     <label htmlFor="forgot-new-password" className="text-xs font-medium text-slate-300">
                       Nueva Contraseña
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input
-                        id="forgot-new-password"
-                        type={showForgotNewPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        value={forgotNewPassword}
-                        onChange={(e) => setForgotNewPassword(e.target.value)}
-                        placeholder="Mínimo 8 caracteres"
-                        required
-                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
-                        aria-label={showForgotNewPassword ? "Ocultar contraseña" : "Ver contraseña"}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                      >
-                        {showForgotNewPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="forgot-new-password"
+                      variant="auth"
+                      autoComplete="new-password"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      required
+                      icon={<Lock className="w-4 h-4" />}
+                    />
                   </div>
 
                   {/* Input Confirmar Contraseña */}
@@ -949,33 +927,18 @@ export default function LoginScreen({ onLogin }) {
                     <label htmlFor="forgot-confirm-password" className="text-xs font-medium text-slate-300">
                       Confirmar Nueva Contraseña
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input
-                        id="forgot-confirm-password"
-                        type={showForgotConfirmPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        value={forgotConfirmPassword}
-                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                        placeholder="Repite la nueva contraseña"
-                        required
-                        className="w-full bg-[#080E1C] border border-slate-800 rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
-                        aria-label={showForgotConfirmPassword ? "Ocultar contraseña" : "Ver contraseña"}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                      >
-                        {showForgotConfirmPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      id="forgot-confirm-password"
+                      variant="auth"
+                      autoComplete="new-password"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      placeholder="Repite la nueva contraseña"
+                      required
+                      icon={<Lock className="w-4 h-4" />}
+                      showPasswordLabel="Ver confirmación de contraseña"
+                      hidePasswordLabel="Ocultar confirmación de contraseña"
+                    />
                   </div>
                 </>
               )}

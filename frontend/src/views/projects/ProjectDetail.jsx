@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
+import { EmptyState, InlineAlert } from '../../components/common';
 
 /**
  * Componente ProjectDetail / Detalle del Proyecto y Videoconferencias
@@ -289,15 +290,14 @@ export default function ProjectDetail({
           {/* Listado de Reuniones del Proyecto */}
           <div className="space-y-2.5">
             {meetings.length > 0 && (
-              <div className="mb-4 p-4 rounded-xl bg-cyan-950/20 border border-cyan-900/50 flex items-start gap-3 text-sm text-slate-300 shadow-sm">
-                <Info className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5"/>
-                <div>
-                  <span className="text-cyan-100 font-medium block mb-1">Optimización de red y duración de sesiones</span>
-                  <p className="leading-relaxed">
-                    Para garantizar la estabilidad del servicio, las sesiones operan en ciclos continuos de 95 minutos. Si la transmisión concluye automáticamente al llegar al límite, simplemente haz clic de nuevo en <strong className="text-white font-semibold">Entrar a Sala</strong> para reiniciar la reunión al instante manteniendo el mismo enlace.
-                  </p>
-                </div>
-              </div>
+              <InlineAlert
+                variant="info"
+                title="Optimización de red y duración de sesiones"
+                showIcon
+                className="mb-4 text-sm"
+              >
+                Para garantizar la estabilidad del servicio, las sesiones operan en ciclos continuos de 95 minutos. Si la transmisión concluye automáticamente al llegar al límite, simplemente haz clic de nuevo en <strong className="text-white font-semibold">Entrar a Sala</strong> para reiniciar la reunión al instante manteniendo el mismo enlace.
+              </InlineAlert>
             )}
             {isLoading && meetings.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-xs text-slate-400">
@@ -305,29 +305,28 @@ export default function ProjectDetail({
                 <span>Consultando salas activas...</span>
               </div>
             ) : meetings.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-[#30363d] midnight:border-cyan-900/40">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 midnight:bg-cyan-950 midnight:text-cyan-600">
-                  <Video size={20} />
-                </div>
-                <h4 className="mt-3 text-xs font-medium text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-                  No hay videollamadas registradas
-                </h4>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 max-w-sm mx-auto">
-                  {isUserAdmin
+              <EmptyState
+                icon={Video}
+                title="No hay videollamadas registradas"
+                description={
+                  isUserAdmin
                     ? 'Crea una sala de reunión instantánea para que los ingenieros y técnicos puedan coordinar avances en vivo.'
-                    : 'Aún no se han generado videollamadas para este proyecto.'}
-                </p>
-                {isUserAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => setIsCreating(true)}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-500/20 dark:text-cyan-300 midnight:text-cyan-300"
-                  >
-                    <Plus size={13} />
-                    <span>Iniciar primera videollamada</span>
-                  </button>
-                )}
-              </div>
+                    : 'Aún no se han generado videollamadas para este proyecto.'
+                }
+                bordered
+                action={
+                  isUserAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreating(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-500/20 dark:text-cyan-300 midnight:text-cyan-300"
+                    >
+                      <Plus size={13} />
+                      <span>Iniciar primera videollamada</span>
+                    </button>
+                  ) : null
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 gap-2.5">
                 {meetings.map((meeting) => (

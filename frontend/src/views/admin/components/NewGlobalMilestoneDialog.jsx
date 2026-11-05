@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Flag, Plus } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import { FootnoteText, InlineAlert } from '../../../components/common';
+import { runSafe } from '../../../utils/asyncHandler';
 import {
   errorClass,
   inputClass,
@@ -49,17 +51,17 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
   }, [onClose]);
 
   const footnote = (
-    <p className={`text-[10px] ${mutedClass}`}>
-      * Campos requeridos para dar de alta el hito.
-    </p>
+    <FootnoteText text="Campos requeridos para dar de alta el hito." />
   );
 
-  const handleSubmit = () => {
-    try {
-      onSubmit(draft);
-    } catch (submitError) {
-      setError(submitError.message);
-    }
+  const handleSubmit = async () => {
+    setError('');
+    await runSafe(
+      () => onSubmit(draft),
+      {
+        onError: (_submitError, message) => setError(message),
+      }
+    );
   };
 
   return (
@@ -158,7 +160,7 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
         </span>
       </label>
 
-      {error && <p role="alert" className={errorClass}>{error}</p>}
+      {error && <InlineAlert variant="error" className="mt-4">{error}</InlineAlert>}
     </ModalDialog>
   );
 }

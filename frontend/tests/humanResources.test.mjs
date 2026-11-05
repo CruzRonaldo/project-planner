@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, getUpcomingIncidentAlerts, normalizePersonnelIncidents, normalizeTeamMemberHistory, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel } from '../src/mocks/humanResourcesData.js';
+import { buildPersonnelCsv, createHumanResourcesData, filterPersonnel, getIncidentDuration, getUpcomingIncidentAlerts, normalizePersonnelIncidents, normalizeTeamMemberHistory, personnelIncidentTypes, registerPersonnelIncident, summarizePersonnel, updatePersonnel, sortPersonnelMembers } from '../src/mocks/humanResourcesData.js';
 
 test('Los totales coinciden con los 18 registros de demostración', () => {
   const { members } = createHumanResourcesData();
@@ -34,6 +34,22 @@ test('La búsqueda tolera tildes y mayúsculas y combina filtros', () => {
   assert.equal(filterPersonnel(members, '', ['standby', 'support']).length, 6);
   assert.equal(filterPersonnel(members, '', ['active', 'standby', 'support']).length, 18);
   assert.equal(filterPersonnel(members, '', []).length, 18);
+});
+
+test('sortPersonnelMembers ordena integrantes por disponibilidad, nombre y área', () => {
+  const { members } = createHumanResourcesData();
+  const byAvailDesc = sortPersonnelMembers(members, 'avail_desc');
+  assert.equal(byAvailDesc[0].availability, 100);
+  assert.ok(byAvailDesc[byAvailDesc.length - 1].availability <= 20);
+
+  const byAvailAsc = sortPersonnelMembers(members, 'avail_asc');
+  assert.ok(byAvailAsc[0].availability <= 20);
+
+  const byNameAsc = sortPersonnelMembers(members, 'name_asc');
+  assert.equal(byNameAsc[0].name, 'Adriana Vega');
+
+  const byAreaAsc = sortPersonnelMembers(members, 'area_asc');
+  assert.equal(byAreaAsc[0].area, 'Arquitectura');
 });
 
 test('La matriz de Recursos Humanos se puede exportar como CSV', () => {
@@ -190,6 +206,7 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     for (const title of ['Recursos Humanos y Estados', 'Asignación de Personal', 'Estado de Equipos', 'Incidencias y Licencias', 'Próximas reincorporaciones', 'Historial de Cambios de Estado']) assert.ok(html.includes(title));
     assert.match(html, /<main class="[^"]*bg-\[#0d1117\]/);
     assert.ok(html.includes('Total personal: 18'));
+    assert.ok(html.includes('Ordenar asignación de personal'));
     assert.ok(html.includes('Registrar Incidencia / Licencia'));
     assert.ok(html.includes('Exportar Matriz'));
     assert.ok(html.includes('Pendiente de sincronización'));
@@ -244,6 +261,23 @@ test('La pantalla se renderiza con fondo oscuro y las cuatro secciones esperadas
     const desktopHR = sidebar.match(/<button\b[\s\S]*?<\/button>/g).find((button) => button.includes('Recursos Humanos'));
     assert.ok(!desktopHR.includes('disabled=""'));
     assert.ok(desktopHR.includes('aria-current="page"'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('Recursos Humanos y sus diálogos integran runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { PersonnelEditorModal } = await server.ssrLoadModule('/src/views/human-resources/components/PersonnelEditorModal.jsx');
+    const { IncidentActionDialog } = await server.ssrLoadModule('/src/views/human-resources/components/IncidentActionDialog.jsx');
+    const { PersonnelIncidentDialog } = await server.ssrLoadModule('/src/views/human-resources/components/PersonnelIncidentDialog.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof PersonnelEditorModal, 'function');
+    assert.equal(typeof IncidentActionDialog, 'function');
+    assert.equal(typeof PersonnelIncidentDialog, 'function');
   } finally {
     await server.close();
   }

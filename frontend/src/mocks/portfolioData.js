@@ -7,6 +7,8 @@ export {
   filterPortfolio,
   formatMoney,
   formatProjectTerm,
+  portfolioSortCategories,
+  sortPortfolioProjects,
 } from '../utils/portfolio.js';
 
 const initialProjects = [

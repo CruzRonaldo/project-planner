@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, UserCog, Users, Wifi, WifiOff } from 'lucide-react';
+import PageHeader from '../../components/common/PageHeader';
 
 const cardClass = 'rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] dark:shadow-none midnight:border-cyan-900/30 midnight:bg-[#0a1120]';
 
@@ -20,19 +21,15 @@ export default function RolesManagement({ users, onToggleSubAdmin }) {
   return (
     <main className="flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">
-              <UserCog size={21} />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">Control de acceso</span>
-            </div>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 sm:text-3xl">Administración de roles</h1>
-            <p className="mt-1 text-sm text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Gestiona el permiso de SubAdministrador y revisa el estado de cada usuario.</p>
-          </div>
+        <PageHeader
+          title="Administración de roles"
+          subtitle="Gestiona el permiso de SubAdministrador y revisa el estado de cada usuario."
+          className="mb-6"
+        >
           <span className="inline-flex w-fit items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-700 transition-colors duration-300 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-300 midnight:border-cyan-800/40 midnight:bg-cyan-500/15 midnight:text-cyan-300">
             <ShieldCheck size={16} /> Acceso exclusivo del Administrador
           </span>
-        </header>
+        </PageHeader>
 
         <section className="mb-6 grid gap-4 sm:grid-cols-3" aria-label="Resumen de usuarios y roles">
           <article className={cardClass}>

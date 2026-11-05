@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, Zap } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import Input from '../../../components/common/Input';
+import { FootnoteText, InlineAlert } from '../../../components/common';
 import {
   inputClass,
   labelClass,
@@ -61,9 +62,7 @@ export default function NewWorkOrderDialog({
   };
 
   const footnote = (
-    <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
-      * Campos obligatorios para emitir la orden operativa.
-    </p>
+    <FootnoteText text="Campos obligatorios para emitir la orden operativa." />
   );
 
   return (
@@ -219,9 +218,9 @@ export default function NewWorkOrderDialog({
       </label>
 
       {error && (
-        <p role="alert" className={errorClass}>
+        <InlineAlert variant="error" className="mt-4">
           {error}
-        </p>
+        </InlineAlert>
       )}
     </ModalDialog>
   );

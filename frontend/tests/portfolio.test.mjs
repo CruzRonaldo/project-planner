@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { addPortfolioProject, createPortfolioData, createProjectCode, filterPortfolio, formatMoney, getProjectDuration } from '../src/mocks/portfolioData.js';
+import { addPortfolioProject, createPortfolioData, createProjectCode, filterPortfolio, formatMoney, getProjectDuration, sortPortfolioProjects } from '../src/mocks/portfolioData.js';
 
 const validDraft = {
   code: 'PRJ-2026-005', area: 'Edificaciones Comerciales', name: 'Torre Reforma Corporativa',
@@ -79,6 +79,26 @@ test('Los presupuestos se muestran en un formato compacto', () => {
   assert.equal(formatMoney(500), '$500');
 });
 
+test('sortPortfolioProjects ordena proyectos por presupuesto, nombre, avance y fecha de fin', () => {
+  const data = createPortfolioData();
+  const byBudgetDesc = sortPortfolioProjects(data.projects, 'budget_desc');
+  assert.equal(byBudgetDesc[0].name, 'Centro Comercial Norte'); // 1.5M
+  assert.equal(byBudgetDesc[byBudgetDesc.length - 1].name, 'Puente Industrial'); // 900K
+
+  const byBudgetAsc = sortPortfolioProjects(data.projects, 'budget_asc');
+  assert.equal(byBudgetAsc[0].name, 'Puente Industrial'); // 900K
+
+  const byNameAsc = sortPortfolioProjects(data.projects, 'name_asc');
+  assert.equal(byNameAsc[0].name, 'Centro Comercial Norte');
+  assert.equal(byNameAsc[byNameAsc.length - 1].name, 'Torre Reforma');
+
+  const byProgressDesc = sortPortfolioProjects(data.projects, 'progress_desc');
+  assert.equal(byProgressDesc[0].progress, 100);
+
+  const byEndDateAsc = sortPortfolioProjects(data.projects, 'end_date_asc');
+  assert.equal(byEndDateAsc[0].name, 'Torre Reforma'); // 2026-06-30
+});
+
 test('Portafolio conserva sus tarjetas y muestra el alta solo a administradores', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
@@ -89,6 +109,7 @@ test('Portafolio conserva sus tarjetas y muestra el alta solo a administradores'
     const html = renderToStaticMarkup(React.createElement(ToastProvider, null, React.createElement(Portfolio, props)));
     assert.ok(html.includes('Repositorio de Proyectos'));
     assert.ok(html.includes('Crear Proyecto'));
+    assert.ok(html.includes('Ordenar proyectos del portafolio'));
     assert.equal((html.match(/aria-label="\d+ integrantes"/g) ?? []).length, 4);
     assert.ok(html.includes('Historial de Cambios Reciente'));
 
@@ -101,6 +122,20 @@ test('Portafolio conserva sus tarjetas y muestra el alta solo a administradores'
     for (const field of ['Código del proyecto', 'Área técnica', 'Nombre del proyecto', 'Fecha de inicio', 'Fecha final estimada', 'Presupuesto estimado', 'Estado inicial', 'Líder de obra', 'Carpeta de Google Drive', 'Descripción / alcance']) assert.ok(dialog.includes(field));
     assert.ok(dialog.includes('Autogenerado'));
     assert.ok(dialog.includes('PRJ-'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('Portafolio integra runSafe para el manejo seguro de operaciones asíncronas', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { EditProjectDialog, ConfirmDeleteDialog } = await server.ssrLoadModule('/src/views/technical/Portfolio.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof EditProjectDialog, 'function');
+    assert.equal(typeof ConfirmDeleteDialog, 'function');
   } finally {
     await server.close();
   }

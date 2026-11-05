@@ -258,3 +258,55 @@ export function registerPersonnelIncident(data, draft, date = new Date()) {
     incidents: [incident, ...(data?.incidents ?? [])],
   };
 }
+
+export const personnelSortCategories = [
+  {
+    id: 'availability',
+    defaultId: 'avail_desc',
+    defaultLabel: 'Mayor disponibilidad',
+    descId: 'avail_desc',
+    ascId: 'avail_asc',
+    descLabel: 'Mayor disponibilidad',
+    ascLabel: 'Menor disponibilidad',
+  },
+  {
+    id: 'name',
+    defaultId: 'name_asc',
+    defaultLabel: 'Nombre (A-Z)',
+    descId: 'name_desc',
+    ascId: 'name_asc',
+    descLabel: 'Nombre (Z-A)',
+    ascLabel: 'Nombre (A-Z)',
+  },
+  {
+    id: 'area',
+    defaultId: 'area_asc',
+    defaultLabel: 'Área (A-Z)',
+    descId: 'area_desc',
+    ascId: 'area_asc',
+    descLabel: 'Área (Z-A)',
+    ascLabel: 'Área (A-Z)',
+  },
+];
+
+export function sortPersonnelMembers(members = [], sortOrder = 'avail_desc') {
+  if (!Array.isArray(members) || members.length === 0) return [];
+  const copy = [...members];
+
+  switch (sortOrder) {
+    case 'avail_desc':
+      return copy.sort((a, b) => (Number(b.availability) || 0) - (Number(a.availability) || 0));
+    case 'avail_asc':
+      return copy.sort((a, b) => (Number(a.availability) || 0) - (Number(b.availability) || 0));
+    case 'name_asc':
+      return copy.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'));
+    case 'name_desc':
+      return copy.sort((a, b) => String(b.name || '').localeCompare(String(a.name || ''), 'es'));
+    case 'area_asc':
+      return copy.sort((a, b) => String(a.area || '').localeCompare(String(b.area || ''), 'es'));
+    case 'area_desc':
+      return copy.sort((a, b) => String(b.area || '').localeCompare(String(a.area || ''), 'es'));
+    default:
+      return copy;
+  }
+}

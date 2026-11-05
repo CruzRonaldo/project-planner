@@ -4,6 +4,8 @@ export {
   scheduleAdjustmentReasons,
   milestoneStatuses,
   milestoneValidators,
+  milestoneSortCategories,
+  milestoneSortOptionsMap,
 } from '../constants/strategicPlanning.js';
 
 export {
@@ -12,6 +14,7 @@ export {
   createGlobalMilestone,
   adjustProjectSchedule,
   mapToGanttProject,
+  sortMilestones,
 } from '../utils/strategicPlanning.js';
 
 import { milestoneValidators } from '../constants/strategicPlanning.js';

@@ -89,3 +89,68 @@ export function formatProjectTerm(startDate, endDate) {
   const month = new Intl.DateTimeFormat('es-PE', { month: 'short' });
   return `${start.getDate()} ${month.format(start)} ${start.getFullYear()} - ${end.getDate()} ${month.format(end)} ${end.getFullYear()}`;
 }
+
+export const portfolioSortCategories = [
+  {
+    id: 'budget',
+    defaultId: 'budget_desc',
+    defaultLabel: 'Mayor presupuesto',
+    descId: 'budget_desc',
+    ascId: 'budget_asc',
+    descLabel: 'Mayor presupuesto',
+    ascLabel: 'Menor presupuesto',
+  },
+  {
+    id: 'name',
+    defaultId: 'name_asc',
+    defaultLabel: 'Nombre (A-Z)',
+    descId: 'name_desc',
+    ascId: 'name_asc',
+    descLabel: 'Nombre (Z-A)',
+    ascLabel: 'Nombre (A-Z)',
+  },
+  {
+    id: 'progress',
+    defaultId: 'progress_desc',
+    defaultLabel: 'Mayor avance',
+    descId: 'progress_desc',
+    ascId: 'progress_asc',
+    descLabel: 'Mayor avance',
+    ascLabel: 'Menor avance',
+  },
+  {
+    id: 'end_date',
+    defaultId: 'end_date_asc',
+    defaultLabel: 'Entrega más próxima',
+    descId: 'end_date_desc',
+    ascId: 'end_date_asc',
+    descLabel: 'Fecha más lejana',
+    ascLabel: 'Entrega más próxima',
+  },
+];
+
+export function sortPortfolioProjects(projects = [], sortOrder = 'budget_desc') {
+  if (!Array.isArray(projects) || projects.length === 0) return [];
+  const copy = [...projects];
+
+  switch (sortOrder) {
+    case 'budget_desc':
+      return copy.sort((a, b) => (Number(b.totalBudget) || 0) - (Number(a.totalBudget) || 0));
+    case 'budget_asc':
+      return copy.sort((a, b) => (Number(a.totalBudget) || 0) - (Number(b.totalBudget) || 0));
+    case 'name_asc':
+      return copy.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'));
+    case 'name_desc':
+      return copy.sort((a, b) => String(b.name || '').localeCompare(String(a.name || ''), 'es'));
+    case 'progress_desc':
+      return copy.sort((a, b) => (Number(b.progress) || 0) - (Number(a.progress) || 0));
+    case 'progress_asc':
+      return copy.sort((a, b) => (Number(a.progress) || 0) - (Number(b.progress) || 0));
+    case 'end_date_asc':
+      return copy.sort((a, b) => new Date(a.endDate || '9999-12-31') - new Date(b.endDate || '9999-12-31'));
+    case 'end_date_desc':
+      return copy.sort((a, b) => new Date(b.endDate || '1970-01-01') - new Date(a.endDate || '1970-01-01'));
+    default:
+      return copy;
+  }
+}

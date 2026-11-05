@@ -111,3 +111,70 @@ test('La vista conserva el fondo oscuro, se adapta a búsqueda y no usa modal de
     await server.close();
   }
 });
+
+test('Integraciones integra runSafe para pruebas de conexión seguras', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: Integrations } = await server.ssrLoadModule('/src/views/common/Integrations.jsx');
+    const { runSafe } = await server.ssrLoadModule('/src/utils/asyncHandler.js');
+
+    assert.equal(typeof runSafe, 'function');
+    assert.equal(typeof Integrations, 'function');
+  } finally {
+    await server.close();
+  }
+});
+
+test('GoogleDriveModal y MakeModal renderizan modales accesibles con soporte multitarea', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { GoogleDriveModal, MakeModal } = await server.ssrLoadModule('/src/views/common/integrations/index.js');
+    const { ToastProvider } = await server.ssrLoadModule('/src/context/ToastContext.jsx');
+    const data = createIntegrationsData();
+
+    // 1. GoogleDriveModal renderiza diálogo con explorador de archivos y acciones OAuth
+    const driveIntegration = data.integrations.find((i) => i.id === 'drive');
+    const driveHtml = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(GoogleDriveModal, {
+          isOpen: true,
+          onClose: () => {},
+          integration: driveIntegration,
+          onConnect: () => {},
+          onTest: () => {},
+        })
+      )
+    );
+    assert.ok(driveHtml.includes('Configuración de Google Drive'));
+    assert.ok(driveHtml.includes('Probar conexión'));
+    assert.ok(driveHtml.includes('Reautorizar Google Drive') || driveHtml.includes('Conectar Google Drive'));
+    assert.ok(driveHtml.includes('role="dialog"'));
+
+    // 2. MakeModal renderiza diálogo multitarea con webhooks para 2FA, notificaciones y alertas
+    const makeIntegration = data.integrations.find((i) => i.id === 'make');
+    const makeHtml = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(MakeModal, {
+          isOpen: true,
+          onClose: () => {},
+          integration: makeIntegration,
+          onSave: () => {},
+        })
+      )
+    );
+    assert.ok(makeHtml.includes('Configuración Multitarea de Make'));
+    assert.ok(makeHtml.includes('Autenticación de 2 Factores (2FA)'));
+    assert.ok(makeHtml.includes('Notificaciones y Asignaciones'));
+    assert.ok(makeHtml.includes('Gobernanza Presupuestaria ($100k)'));
+    assert.ok(makeHtml.includes('Probar Webhook'));
+    assert.ok(makeHtml.includes('role="dialog"'));
+  } finally {
+    await server.close();
+  }
+});

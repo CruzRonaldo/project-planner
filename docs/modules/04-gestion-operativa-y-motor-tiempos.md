@@ -2,10 +2,10 @@
 
 > **Ruta en la aplicación:** `/operations`  
 > **Componente principal:** `Operations.jsx`  
-> **Subcomponentes:** `NewOrderModal.jsx` (Modal de orden de trabajo)  
+> **Subcomponentes:** `NewWorkOrderDialog.jsx` (Emisión de orden), `WorkOrderDetailDialog.jsx` (Ficha técnica y continuidad), `WorkOrdersSection.jsx` (Tabla y filtros), `CriticalScheduleSection.jsx` (Gantt crítico), `OperationsSidebar.jsx` (Alertas y calidad)  
 > **Controlador:** `useAppController.jsx`  
 > **Historias de Usuario:** HU-07 (Órdenes de Trabajo) y HU-08 (Motor de Optimización y Holgura 7d)  
-> **Estado:** 🟡 85% (Endpoints y motor matemático listos; integración de botón UI en curso)  
+> **Estado:** 🟢 100% (Filtros tolerantes, ficha técnica con Drive, completado rápido y flujo inteligente de continuidad)  
 
 ---
 

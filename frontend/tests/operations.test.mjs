@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration } from '../src/mocks/operationsData.js';
+import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration, sortWorkOrders } from '../src/mocks/operationsData.js';
 
 const validDraft = {
   project: 'Torre Reforma (PRJ-2026-001)', type: 'Inspección técnica', title: 'Vaciado de losa Nivel 4',
@@ -28,6 +28,10 @@ test('La búsqueda y filtros de órdenes se combinan', () => {
   assert.equal(filterWorkOrders(orders, '', 'high').length, 2);
   assert.equal(filterWorkOrders(orders, '', 'in-progress').length, 2);
   assert.equal(filterWorkOrders(orders, '', 'all', 'Puente Industrial (PRJ-2026-002)').length, 1);
+  // Soporta coincidencia tolerante por nombre base con y sin código
+  assert.equal(filterWorkOrders(orders, '', 'all', 'Puente Industrial').length, 1);
+  assert.equal(filterWorkOrders(orders, '', 'all', 'Torre Reforma').length, 1);
+  assert.equal(filterWorkOrders(orders, '', 'all', 'Subestación Eléctrica').length, 1);
   assert.equal(filterWorkOrders(orders, 'no existe').length, 0);
 });
 
@@ -68,14 +72,31 @@ test('El reporte operativo contiene todas las órdenes', () => {
   assert.equal(csv.split('\n').length, 5);
 });
 
+test('sortWorkOrders ordena órdenes por prioridad, fecha límite y título', () => {
+  const { orders } = createOperationsData();
+  const byPrioDesc = sortWorkOrders(orders, 'prio_desc');
+  assert.equal(byPrioDesc[0].priority, 'high');
+  assert.equal(byPrioDesc[byPrioDesc.length - 1].priority, 'low');
+
+  const byPrioAsc = sortWorkOrders(orders, 'prio_asc');
+  assert.equal(byPrioAsc[0].priority, 'low');
+
+  const byDueAsc = sortWorkOrders(orders, 'due_asc');
+  assert.equal(byDueAsc[0].endDate, '2026-02-22');
+
+  const byTitleAsc = sortWorkOrders(orders, 'title_asc');
+  assert.equal(byTitleAsc[0].title, 'Corrección de acabados');
+});
+
 test('La vista operativa y su modal están disponibles y son responsive', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
-    const { default: Operations, NewWorkOrderDialog } = await server.ssrLoadModule('/src/views/technical/Operations.jsx');
+    const { default: Operations, NewWorkOrderDialog, WorkOrderDetailDialog } = await server.ssrLoadModule('/src/views/technical/Operations.jsx');
     const data = createOperationsData();
     const props = { data, onChange: () => {}, onQueryChange: () => {}, canManage: true, projectOptions: ['Proyecto Nuevo (PRJ-2026-005)'], responsibleOptions: [{ id: 'tech-sofia', name: 'Sofía Torres', specialty: 'Arquitecta Principal' }] };
     const html = renderToStaticMarkup(React.createElement(Operations, props));
     for (const title of ['Gestión Operativa de Campo', 'Nueva Orden de Trabajo', 'Generar Reporte Diario', 'Cronograma de Actividades Críticas', 'Órdenes de Trabajo Activas', 'Alertas Críticas de Operación', 'Aseguramiento de Calidad']) assert.ok(html.includes(title));
+    assert.ok(html.includes('Ordenar órdenes de trabajo'));
     assert.match(html, /<main class="[^"]*bg-\[#0d1117\]/);
     assert.ok(html.includes('Proyecto Nuevo (PRJ-2026-005)'));
 
@@ -85,6 +106,27 @@ test('La vista operativa y su modal están disponibles y son responsive', async 
 
     const dialog = renderToStaticMarkup(React.createElement(NewWorkOrderDialog, { projectOptions: ['Torre Reforma (PRJ-2026-001)'], responsibleOptions: props.responsibleOptions, onSubmit: () => {}, onClose: () => {} }));
     for (const field of ['Nueva Orden de Trabajo', 'Proyecto asociado', 'Tipo de operación', 'Título de la tarea / orden', 'Área técnica', 'Responsable asignado', 'Fecha de inicio', 'Fecha de fin / límite', 'Nivel de prioridad', 'Parámetro de ruta crítica', 'Documento o plano vinculado', 'Descripción e instrucciones', 'Emitir Orden de Trabajo']) assert.ok(dialog.includes(field));
+
+    const sampleOrder = data.orders[0];
+    const detailDialog = renderToStaticMarkup(
+      React.createElement(WorkOrderDetailDialog, {
+        order: sampleOrder,
+        onClose: () => {},
+        onUpdateStatus: () => {},
+        canManage: true,
+      })
+    );
+    for (const text of [
+      'Orden #104: Inspección de cimentación',
+      'Proyecto Asociado',
+      'Responsable de Campo',
+      'Instrucciones y Especificaciones de Campo',
+      'Ruta Crítica Activa',
+      'Marcar como Completada',
+      'Cerrar Ficha',
+    ]) {
+      assert.ok(detailDialog.includes(text), `Debe contener: ${text}`);
+    }
 
     const { default: Sidebar } = await server.ssrLoadModule('/src/components/layout/Sidebar.jsx');
     const sidebar = renderToStaticMarkup(React.createElement(Sidebar, { activeView: 'operations', onNavigate: () => {}, fontScale: 100, onFontScaleChange: () => {} }));

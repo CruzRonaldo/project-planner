@@ -898,3 +898,14 @@ class ScheduleAdjustmentSerializer(serializers.ModelSerializer):
             'id', 'project', 'projectId', 'projectCode', 'projectName',
             'previousPeriod', 'nextPeriod', 'reason', 'date', 'created_at'
         ]
+
+
+from .models import DocumentEmbedding
+
+class DocumentEmbeddingSerializer(serializers.ModelSerializer):
+    """Serializador para fragmentos documentales y embeddings semánticos."""
+    distance = serializers.FloatField(read_only=True, required=False)
+
+    class Meta:
+        model = DocumentEmbedding
+        fields = ['id', 'title', 'content', 'distance', 'created_at']

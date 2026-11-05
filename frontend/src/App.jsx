@@ -3,6 +3,8 @@ import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import { LoadingScreen, LoginScreen } from './views';
 import { useAppController } from './controllers';
+import ChatWidget from './components/common/ChatWidget';
+
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -26,7 +28,7 @@ export default function App() {
   }, []);
 
   const {
-    isLoading,
+    isInitializing,
     isAuthenticated,
     displayedCurrentUser,
     activeView,
@@ -144,6 +146,15 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Mientras se resuelve la sesión inicial contra el backend (token persistido o backend en frío en Render): Mostramos carga real.
+  if (isInitializing) {
+    return (
+      <div className="relative z-10 flex min-h-screen w-full items-center justify-center">
+        <LoadingScreen />
+      </div>
+    );
+  }
+
   // Si está autenticado: Mostramos el Dashboard completo
   if (isAuthenticated) {
     return (
@@ -172,11 +183,12 @@ export default function App() {
           />
           {renderActiveView()}
         </div>
+        <ChatWidget currentUser={displayedCurrentUser} />
       </div>
     );
   }
 
-  // Si no está autenticado: Mostramos Carga o Login
+  // Si no está autenticado: Mostramos el Login
   return (
     <div className="min-h-screen w-full bg-[#050B14] text-slate-100 flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden font-sans select-none">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#111e33_1px,transparent_1px),linear-gradient(to_bottom,#111e33_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_40%_50%,#000_70%,transparent_100%)] pointer-events-none opacity-40" />
@@ -186,7 +198,7 @@ export default function App() {
         </div>
       </div>
 
-      {isLoading ? <LoadingScreen /> : <LoginScreen onLogin={handleLogin} />}
+      <LoginScreen onLogin={handleLogin} />
     </div>
   );
 }

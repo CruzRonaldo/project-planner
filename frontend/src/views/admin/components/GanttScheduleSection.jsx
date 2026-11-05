@@ -1,5 +1,6 @@
 import React from 'react';
 import { SlidersHorizontal, Flag } from 'lucide-react';
+import EmptyState from '../../../components/common/EmptyState';
 import {
   getBarGeometry,
   legacyMonthRangeToDates,
@@ -38,9 +39,10 @@ export default function GanttScheduleSection({
 
           <div className="space-y-4 pt-4">
             {displayedProjects.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                No hay proyectos registrados en el calendario anual para la selección actual.
-              </div>
+              <EmptyState
+                description="No hay proyectos registrados en el calendario anual para la selección actual."
+                className="py-10"
+              />
             ) : (
               displayedProjects.map((project) => {
                 const gov = evaluateProjectGovernance(project.totalBudget || project.budget);

@@ -1,38 +1,30 @@
 import React from 'react';
 import { MoreVertical } from 'lucide-react';
 import Pagination from '../../../components/common/Pagination';
+import {
+  StatusBadge,
+  Table,
+  TableHead,
+  TableRow,
+  EmptyState,
+  ClearFiltersButton,
+  SortDropdown,
+  Select,
+} from '../../../components/common';
 import { workOrderPriorities, workOrderStatuses } from '../../../constants/operations';
-
-function PriorityBadge({ priority }) {
-  const details = workOrderPriorities.find((item) => item.id === priority) || {
-    label: priority,
-    className: 'border-slate-200 text-slate-600',
-  };
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[9px] font-semibold ${details.className}`}>
-      {details.label}
-    </span>
-  );
-}
-
-function OrderStatusBadge({ status }) {
-  const details = workOrderStatuses.find((item) => item.id === status) || {
-    label: status,
-    className: 'border-slate-200 text-slate-600',
-  };
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[9px] font-semibold ${details.className}`}>
-      {details.label}
-    </span>
-  );
-}
 
 export default function WorkOrdersSection({
   orders = [],
   ordersList = [],
   paginatedOrders = [],
+  availableProjects = [],
+  projectFilter = 'all',
+  setProjectFilter,
   orderFilter = 'all',
   setOrderFilter,
+  sortOrder = 'prio_desc',
+  onSortChange,
+  sortCategories = [],
   onViewOrder,
   safeOrderPage = 1,
   totalOrderPages = 1,
@@ -61,41 +53,61 @@ export default function WorkOrdersSection({
             Últimas órdenes de operación en terreno
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">
-          {filterOptions.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => setOrderFilter(filter.id)}
-              aria-pressed={orderFilter === filter.id}
-              className={`rounded px-3 py-1.5 text-[9px] font-medium transition-colors duration-300 ${
-                orderFilter === filter.id
-                  ? 'bg-blue-600 text-white midnight:bg-cyan-600'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {availableProjects.length > 0 && setProjectFilter && (
+            <Select
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+              aria-label="Filtrar por proyecto operativo"
+              className="w-[190px] py-1.5 text-xs"
+              options={[
+                { value: 'all', label: 'Todos los proyectos' },
+                ...availableProjects.map((project) => ({
+                  value: project,
+                  label: project.split(' (')[0],
+                })),
+              ]}
+            />
+          )}
+          {sortCategories.length > 0 && onSortChange && (
+            <SortDropdown
+              value={sortOrder}
+              onChange={onSortChange}
+              categories={sortCategories}
+              label="Ordenar:"
+              buttonClassName="w-[225px]"
+              ariaLabel="Ordenar órdenes de trabajo"
+            />
+          )}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">
+            {filterOptions.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setOrderFilter(filter.id)}
+                aria-pressed={orderFilter === filter.id}
+                className={`rounded px-3 py-1.5 text-[9px] font-medium transition-colors duration-300 ${
+                  orderFilter === filter.id
+                    ? 'bg-blue-600 text-white midnight:bg-cyan-600'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <div className="mt-3 overflow-x-auto px-4 sm:px-5">
-        <table className="w-full min-w-[760px] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-slate-200 text-[9px] uppercase text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-              {['ID', 'Proyecto', 'Tipo', 'Responsable', 'Prioridad', 'Estado', 'Acción'].map((label) => (
-                <th key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      <div className="mt-3 px-4 sm:px-5">
+        <Table className="min-w-[760px] border-collapse">
+          <TableHead
+            columns={['ID', 'Proyecto', 'Tarea / Operación', 'Responsable', 'Prioridad', 'Estado', 'Acción']}
+          />
           <tbody>
             {paginatedOrders.map((order) => (
-              <tr
+              <TableRow
                 key={order.id}
-                className="border-b border-slate-200 last:border-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20"
               >
                 <td className={`py-3.5 pr-2 font-mono text-[10px] font-bold ${headingClass}`}>
                   {order.code}
@@ -106,17 +118,22 @@ export default function WorkOrdersSection({
                 >
                   {order.project.split(' (')[0]}
                 </td>
-                <td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
-                  {order.type}
+                <td className="px-2 py-3.5">
+                  <div className={`font-semibold text-xs truncate max-w-[220px] ${headingClass}`} title={order.title}>
+                    {order.title || order.type}
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ${mutedClass}`}>
+                    {order.type} • {order.area}
+                  </div>
                 </td>
                 <td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                   {order.responsible}
                 </td>
                 <td className="px-2 py-3.5">
-                  <PriorityBadge priority={order.priority} />
+                  <StatusBadge status={order.priority} items={workOrderPriorities} size="xs" />
                 </td>
                 <td className="px-2 py-3.5">
-                  <OrderStatusBadge status={order.status} />
+                  <StatusBadge status={order.status} items={workOrderStatuses} size="xs" />
                 </td>
                 <td className="py-3.5 pl-2 text-right">
                   <button
@@ -128,17 +145,17 @@ export default function WorkOrdersSection({
                     <MoreVertical size={15} />
                   </button>
                 </td>
-              </tr>
+              </TableRow>
             ))}
             {!orders.length && (
-              <tr>
+              <TableRow>
                 <td colSpan={7} className="py-12 text-center text-sm text-slate-500 midnight:text-cyan-500/70">
                   No se encontraron órdenes con estos filtros.
                 </td>
-              </tr>
+              </TableRow>
             )}
           </tbody>
-        </table>
+        </Table>
       </div>
 
       <footer className="mt-2 flex flex-col gap-2 border-t border-slate-200 px-4 py-3 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600 sm:px-5">
@@ -155,13 +172,7 @@ export default function WorkOrdersSection({
             />
           </div>
           {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={onClearFilters}
-              className="shrink-0 text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-            >
-              Limpiar filtros
-            </button>
+            <ClearFiltersButton onClick={onClearFilters} />
           )}
         </div>
       </footer>

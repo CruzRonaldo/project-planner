@@ -27,7 +27,6 @@ import {
   cardClass,
   nestedClass,
   secondaryButtonClass,
-  errorClass,
   primaryBtnClass,
   closeBtnClass,
 } from '../../constants/themeClasses';
@@ -36,6 +35,12 @@ import ReassignProjectDialog from './components/ReassignProjectDialog';
 import MemberAvatar from './components/MemberAvatar';
 import SortDropdown from '../../components/common/SortDropdown';
 import Pagination from '../../components/common/Pagination';
+import {
+  PageHeader,
+  ClearFiltersButton,
+  StatusBadge,
+  InlineAlert,
+} from '../../components/common';
 
 export { AddTechnicalMemberDialog, ReassignProjectDialog, MemberAvatar };
 
@@ -62,14 +67,11 @@ function getFilterBadgeClass(areaId) {
   }
 }
 
-function StatusBadge({ status }) {
-  const details = technicalStatuses.find((item) => item.id === status);
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${details.className}`}>{details.shortLabel}</span>;
-}
 
 const sortCategories = [
   {
     id: 'availability',
+    name: 'Disponibilidad',
     defaultId: 'availability-desc',
     defaultLabel: 'Mayor disponibilidad',
     descId: 'availability-desc',
@@ -79,6 +81,7 @@ const sortCategories = [
   },
   {
     id: 'name',
+    name: 'Nombre',
     defaultId: 'name',
     defaultLabel: 'Nombre (A–Z)',
     descId: 'name-desc',
@@ -88,6 +91,7 @@ const sortCategories = [
   },
   {
     id: 'recent',
+    name: 'Fecha de ingreso',
     defaultId: 'recent',
     defaultLabel: 'Incorporación reciente',
     descId: 'recent',
@@ -281,10 +285,35 @@ export default function TechnicalTeam({
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h1 className={`text-2xl font-bold tracking-tight ${headingClass} md:text-[28px]`}>Gestión del Equipo Técnico</h1><p className={`mt-1 text-sm ${mutedClass}`}>Coordinación de equipos especializados por área técnica</p></div><div className="flex flex-wrap items-center gap-2">{canManage ? <><button type="button" onClick={exportReport} className={secondaryButtonClass}><Download size={15} /> Exportar Nómina / Reporte</button><button type="button" onClick={() => { setDialogOpen(true); setFeedback(''); }} className={primaryBtnClass}><UserPlus size={16} /> Añadir Técnico</button></> : <span className="w-fit rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]">Vista de consulta</span>}</div></header>
+        <PageHeader
+          title="Gestión del Equipo Técnico"
+          subtitle="Coordinación de equipos especializados por área técnica"
+        >
+          {canManage ? (
+            <>
+              <button type="button" onClick={exportReport} className={secondaryButtonClass}>
+                <Download size={15} /> Exportar Nómina / Reporte
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDialogOpen(true);
+                  setFeedback('');
+                }}
+                className={primaryBtnClass}
+              >
+                <UserPlus size={16} /> Añadir Técnico
+              </button>
+            </>
+          ) : (
+            <span className="w-fit rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]">
+              Vista de consulta
+            </span>
+          )}
+        </PageHeader>
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
         {syncLoading && <p className={`text-xs ${mutedClass}`}>Sincronizando con el servidor...</p>}
-        {syncError && <p role="alert" className={errorClass}>{syncError}</p>}
+        {syncError && <InlineAlert variant="error" showIcon>{syncError}</InlineAlert>}
         <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between">
           {/* Píldoras de filtro por especialidad */}
           <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
@@ -325,21 +354,18 @@ export default function TechnicalTeam({
               categories={sortCategories}
               optionsMap={sortOptionsMap}
               label="Ordenar por:"
+              buttonClassName="w-[225px]"
               ariaLabel="Ordenar equipo técnico"
             />
 
             {(query || areaFilter !== 'all') && (
-              <button
-                type="button"
+              <ClearFiltersButton
                 onClick={() => {
                   setAreaFilter('all');
                   setPage(1);
                   onQueryChange('');
                 }}
-                className="shrink-0 text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-300"
-              >
-                Limpiar filtros
-              </button>
+              />
             )}
           </div>
         </section>
@@ -350,7 +376,7 @@ export default function TechnicalTeam({
               {visibleMembers.map((member) => <article key={member.id} className={`${cardClass} relative flex min-h-[286px] min-w-0 flex-col p-4 transition-transform hover:-translate-y-0.5 hover:border-cyan-400/40 dark:hover:border-blue-400/25 midnight:hover:border-cyan-500/50`}>
                 <header className="flex min-w-0 items-start gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><MemberAvatar member={member} sizeClass="h-11 w-11" /><div className="min-w-0 flex-1"><h3 className={`line-clamp-2 text-sm font-semibold leading-tight ${headingClass}`}>{member.area === 'architecture' ? 'Arq.' : 'Ing.'} {getMemberFullName(member)}</h3><p className={`mt-1 truncate text-[10px] ${mutedClass}`} title={member.specialty}>{member.specialty}</p></div><button type="button" onClick={() => setOpenMenuId((current) => current === member.id ? null : member.id)} aria-label={`Abrir acciones de ${getMemberFullName(member)}`} className={closeBtnClass}><MoreVertical size={15} /></button></header>
                 {openMenuId === member.id && <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">{canManage && <button type="button" onClick={() => openReassignment(member.id)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><ArrowLeftRight size={13} /> Reasignar proyecto</button>}<a href={`mailto:${member.email}`} onClick={() => setOpenMenuId(null)} className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><Mail size={13} /> Enviar correo</a></div>}
-                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>Proyecto asignado</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} /></div></div>
+                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>Proyecto asignado</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
                 <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>Progreso de tarea</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={`Progreso de ${getMemberFullName(member)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
                 <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>Enlaces de trabajo</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={`Ver proyecto de ${getMemberFullName(member)}`} title="Ver proyecto asignado" className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={`Reasignar a ${getMemberFullName(member)}`} title="Reasignar proyecto" className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
               </article>)}

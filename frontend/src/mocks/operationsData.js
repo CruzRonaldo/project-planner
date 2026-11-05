@@ -12,6 +12,8 @@ export {
   filterWorkOrders,
   createWorkOrder,
   buildWorkOrdersCsv,
+  operationsSortCategories,
+  sortWorkOrders,
 } from '../utils/operations.js';
 
 import { operationalProjects } from '../constants/operations.js';

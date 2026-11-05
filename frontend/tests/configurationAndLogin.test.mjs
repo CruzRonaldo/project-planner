@@ -41,7 +41,6 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(adminHtml.includes('Teléfono de Contacto'));
     assert.ok(adminHtml.includes('Preferencias del Sistema'));
     assert.ok(adminHtml.includes('Parámetros del Proyecto'));
-    assert.ok(adminHtml.includes('Directorio y Equipo Técnico'));
     assert.ok(adminHtml.includes('Respaldo y Seguridad'));
     assert.ok(adminHtml.includes('Exportar Datos'));
     assert.ok(adminHtml.includes('Bitácora de Auditoría'));
@@ -73,7 +72,7 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(techHtml.includes('Preferencias del Sistema'));
     assert.ok(!techHtml.includes('Respaldo y Seguridad'));
     assert.ok(!techHtml.includes('Exportar Datos'));
-    assert.ok(!techHtml.includes('Directorio y Equipo Técnico'));
+    assert.ok(!techHtml.includes('Bitácora de Auditoría'));
   } finally {
     await server.close();
   }
@@ -131,16 +130,33 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const { default: LoginScreen } = await server.ssrLoadModule('/src/views/auth/LoginScreen.jsx');
+    const { default: PasswordInput } = await server.ssrLoadModule('/src/components/common/PasswordInput.jsx');
     const { AddTechnicalMemberDialog } = await server.ssrLoadModule('/src/views/technical/TechnicalTeam.jsx');
     const { default: projectsApi } = await server.ssrLoadModule('/src/services/projectsApi.js');
 
-    // 1. LoginScreen tiene botón de visualización de contraseña con icono
+    // 1. LoginScreen tiene botón de visualización de contraseña con icono y aislamiento de temas
     const loginHtml = renderToStaticMarkup(
       React.createElement(LoginScreen, { onLogin: () => {} })
     );
     assert.ok(loginHtml.includes('aria-label="Ver contraseña"'));
+    // El campo de contraseña en LoginScreen debe tener fondo fijo #080E1C y no ser reactivo a temas
+    assert.ok(loginHtml.includes('id="login-password"'));
+    assert.ok(loginHtml.includes('bg-[#080E1C]'));
+    assert.ok(!loginHtml.includes('bg-white'));
 
-    // 2. AddTechnicalMemberDialog tiene botones de visualización de contraseña para ambas claves
+    // 2. PasswordInput con contenido renderiza X y Ojo parejos, con dimensiones consistentes
+    const passwordInputHtml = renderToStaticMarkup(
+      React.createElement(PasswordInput, {
+        value: 'MiClaveSecreta123',
+        onChange: () => {},
+      })
+    );
+    assert.ok(passwordInputHtml.includes('aria-label="Borrar contraseña"'));
+    assert.ok(passwordInputHtml.includes('aria-label="Ver contraseña"'));
+    // Ambos botones deben tener dimensiones consistentes h-7 w-7 flex items-center justify-center
+    assert.ok(passwordInputHtml.includes('h-7 w-7 flex items-center justify-center'));
+
+    // 3. AddTechnicalMemberDialog tiene botones de visualización de contraseña para ambas claves
     const techDialogHtml = renderToStaticMarkup(
       React.createElement(AddTechnicalMemberDialog, {
         existingData: { members: [] },
@@ -153,7 +169,7 @@ test('Campos de contraseña incluyen botones con icono de ojo para alternar visi
     assert.ok(techDialogHtml.includes('aria-label="Ver contraseña"'));
     assert.ok(techDialogHtml.includes('aria-label="Ver confirmación de contraseña"'));
 
-    // 3. projectsApi permite verificar primero la clave actual y luego cambiarla
+    // 4. projectsApi permite verificar primero la clave actual y luego cambiarla
     assert.equal(typeof projectsApi.verifyCurrentPassword, 'function');
     assert.equal(typeof projectsApi.changePassword, 'function');
     assert.equal(typeof projectsApi.validateSession, 'function');
@@ -175,6 +191,35 @@ test('LoadingScreen renderiza logotipo, mensaje de inicialización y barra anima
     assert.ok(html.includes('Logo LS Empresa'));
     assert.ok(html.includes('loadingTrack'));
     assert.ok(html.includes('animate-loading-bar'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('optimizeAvatarImage valida extensiones JPG/PNG/WEBP, tolera tamaños grandes y rechaza tipos no válidos', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { optimizeAvatarImage } = await server.ssrLoadModule('/src/utils/imageOptimizer.js');
+
+    // 1. Rechazar tipo de archivo no soportado
+    const invalidFile = new File(['fake content'], 'documento.pdf', { type: 'application/pdf' });
+    await assert.rejects(
+      async () => await optimizeAvatarImage(invalidFile),
+      /La foto debe ser en formato PNG, JPG o WEBP/
+    );
+
+    // 2. Rechazar archivo que supere el límite configurado
+    const oversizedFile = new File([new Uint8Array(15 * 1024 * 1024)], 'foto_pesada.jpg', { type: 'image/jpeg' });
+    await assert.rejects(
+      async () => await optimizeAvatarImage(oversizedFile, { maxFileBytes: 10 * 1024 * 1024 }),
+      /La foto original no debe superar los 10 MB/
+    );
+
+    // 3. Procesar archivo .jpg válido correctamente
+    const validJpgFile = new File(['fake jpeg data'], 'perfil.jpg', { type: 'image/jpeg' });
+    const result = await optimizeAvatarImage(validJpgFile);
+    assert.ok(typeof result === 'string');
+    assert.ok(result.startsWith('data:'));
   } finally {
     await server.close();
   }

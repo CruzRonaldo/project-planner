@@ -261,7 +261,7 @@ def users_status_view(request):
 
     if request.method == 'GET':
         users_list = []
-        for u in User.objects.all().order_by('id'):
+        for u in User.objects.all().select_related('profile').order_by('id'):
             is_admin_user = bool(u.is_superuser)
             is_online = False
             if u.last_login:
@@ -274,6 +274,8 @@ def users_status_view(request):
             else:
                 display_name = name_mapping.get(u.username.lower(), f"{u.first_name} {u.last_name}".strip() or u.username)
 
+            user_avatar = getattr(u, 'profile', None).avatar if hasattr(u, 'profile') and u.profile else None
+
             users_list.append({
                 'id': user_id,
                 'db_id': u.id,
@@ -283,6 +285,8 @@ def users_status_view(request):
                 'isAdmin': is_admin_user,
                 'isSubAdmin': bool(u.is_staff and not is_admin_user),
                 'isOnline': is_online,
+                'photo': user_avatar,
+                'avatar': user_avatar,
                 'last_login': u.last_login.isoformat() if u.last_login else None,
             })
         return Response(users_list, status=status.HTTP_200_OK)
@@ -442,10 +446,15 @@ def user_profile_view(request):
     user_id = data.get('user_id') or data.get('userId') or data.get('id')
 
     user = None
-    if user_id:
-        user = User.objects.filter(id=user_id).first()
+    if user_id and str(user_id).isdigit():
+        user = User.objects.filter(id=int(user_id)).first()
     if not user and identifier:
-        user = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
+        clean_id = str(identifier).replace('usr-', '').strip()
+        user = User.objects.filter(
+            Q(username__iexact=identifier) | Q(email__iexact=identifier) | Q(username__iexact=clean_id)
+        ).first()
+    if not user and request.user and request.user.is_authenticated:
+        user = request.user
 
     if not user:
         return Response({
@@ -2434,3 +2443,7 @@ class Verify2FAResetView(APIView):
             'status': 'success',
             'message': '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.',
         }, status=status.HTTP_200_OK)
+
+
+# Asistente de IA (Chatbot)
+from .chatbot_views import ChatbotView, RAGChatbotView

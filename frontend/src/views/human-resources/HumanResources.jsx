@@ -6,7 +6,6 @@ import {
   Download,
   Pencil,
   RefreshCw,
-  RotateCcw,
 } from 'lucide-react';
 import { personnelStatuses } from '../../constants/humanResources';
 import {
@@ -14,9 +13,12 @@ import {
   getUpcomingIncidentAlerts,
   summarizePersonnel,
   updatePersonnel,
+  sortPersonnelMembers,
+  personnelSortCategories,
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
 import { useToast } from '../../context/ToastContext';
+import { runSafe } from '../../utils/asyncHandler';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
@@ -24,6 +26,16 @@ import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import Pagination from '../../components/common/Pagination';
 import MemberAvatar from '../../components/common/MemberAvatar';
+import {
+  PageHeader,
+  StatusBadge as CommonStatusBadge,
+  Table,
+  TableHead,
+  TableRow,
+  EmptyState,
+  ClearFiltersButton,
+  SortDropdown,
+} from '../../components/common';
 
 export { PersonnelIncidentDialog };
 
@@ -82,16 +94,11 @@ const workflowStatuses = {
 
 
 function StatusBadge({ status }) {
-  const details = personnelStatuses.find((item) => item.id === status) || {
-    label: status || 'Sin estado',
-    className: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-500/25 dark:bg-slate-500/10 dark:text-slate-400',
-  };
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold ${details.className}`}>{details.label}</span>;
+  return <CommonStatusBadge status={status} items={personnelStatuses} />;
 }
 
 function WorkflowBadge({ status }) {
-  const details = workflowStatuses[status] || workflowStatuses.pending;
-  return <span className={`inline-flex whitespace-nowrap rounded border px-2 py-1 text-[10px] font-semibold ${details.className}`}>{details.label}</span>;
+  return <CommonStatusBadge status={status} statusMap={workflowStatuses} />;
 }
 
 function formatDisplayDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
@@ -144,7 +151,8 @@ export default function HumanResources({
     });
   };
 
-  const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', page: 1 });
+  const [sortOrder, setSortOrder] = useState('avail_desc');
+  const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', sort: 'avail_desc', page: 1 });
   const [incidentPageSelection, setIncidentPageSelection] = useState({ query: '', page: 1 });
   const [historyPageSelection, setHistoryPageSelection] = useState({ query: '', page: 1 });
   const [editing, setEditing] = useState(null);
@@ -159,9 +167,10 @@ export default function HumanResources({
 
   const summary = summarizePersonnel(members);
   const filteredMembers = filterPersonnel(members, query, isAll ? 'all' : selectedStatuses);
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
-  const page = pageSelection.query === query && pageSelection.status === statusFilterKey ? Math.min(pageSelection.page, totalPages) : 1;
-  const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
+  const sortedMembers = sortPersonnelMembers(filteredMembers, sortOrder);
+  const totalPages = Math.max(1, Math.ceil(sortedMembers.length / pageSize));
+  const page = pageSelection.query === query && pageSelection.status === statusFilterKey && pageSelection.sort === sortOrder ? Math.min(pageSelection.page, totalPages) : 1;
+  const visibleMembers = sortedMembers.slice((page - 1) * pageSize, page * pageSize);
   const editingMember = editing && members.find((member) => member.id === editing.id);
 
   const totalIncidentPages = Math.max(1, Math.ceil(incidents.length / INCIDENTS_PAGE_SIZE));
@@ -208,106 +217,139 @@ export default function HumanResources({
     }
 
     onChange({ ...updatedData, history });
-    try {
-      if (onPersistMember) await onPersistMember(memberId, draft);
-      setEditing(null);
-      setFeedbackType('success');
-      setFeedback('Cambio guardado correctamente en el sistema.');
-      showToast({
-        title: 'Personal Actualizado',
-        message: 'Los datos del integrante se guardaron correctamente en el sistema.',
-        type: 'success',
-      });
-    } catch (error) {
-      onChange(previousData);
+    const [, error] = await runSafe(
+      async () => {
+        if (onPersistMember) await onPersistMember(memberId, draft);
+      },
+      {
+        showToast,
+        successTitle: 'Personal Actualizado',
+        successMessage: 'Los datos del integrante se guardaron correctamente en el sistema.',
+        fallbackError: 'No se pudo guardar el cambio en el sistema.',
+        onSuccess: () => {
+          setEditing(null);
+          setFeedbackType('success');
+          setFeedback('Cambio guardado correctamente en el sistema.');
+        },
+        onError: (_err, message) => {
+          onChange(previousData);
+          setFeedbackType('error');
+          setFeedback(message);
+        },
+      }
+    );
+
+    if (error) {
       throw error;
     }
   };
 
   const saveIncident = async (draft) => {
-    if (!onCreateIncident) throw new Error('No se configuró la conexión para registrar incidencias.');
-    await onCreateIncident(draft);
     const member = members.find((item) => item.id === draft.memberId);
-    setIncidentDialogOpen(false);
-    setEditing(null);
     const incidentMsg = `Incidencia registrada${member ? ` para ${member.name}` : ''} y enviada a revisión.`;
-    setFeedbackType('success');
-    setFeedback(incidentMsg);
-    showToast({
-      title: 'Incidencia Registrada',
-      message: incidentMsg,
-      type: 'success',
-    });
+
+    const [, error] = await runSafe(
+      async () => {
+        if (!onCreateIncident) throw new Error('No se configuró la conexión para registrar incidencias.');
+        await onCreateIncident(draft);
+      },
+      {
+        showToast,
+        successTitle: 'Incidencia Registrada',
+        successMessage: incidentMsg,
+        fallbackError: 'No se pudo registrar la incidencia.',
+        onSuccess: () => {
+          setIncidentDialogOpen(false);
+          setEditing(null);
+          setFeedbackType('success');
+          setFeedback(incidentMsg);
+        },
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
   };
 
   const submitIncidentAction = async (incidentId, action, comment) => {
-    if (!onTransitionIncident) throw new Error('No se configuró el flujo de aprobación de incidencias.');
-    await onTransitionIncident(incidentId, action, comment);
-    setIncidentAction(null);
-    setFeedbackType('success');
     const labels = { approve: 'aprobada', reject: 'rechazada', finalize: 'finalizada' };
     const actionMsg = `Incidencia ${labels[action] || 'actualizada'} correctamente.`;
-    setFeedback(actionMsg);
-    showToast({
-      title: 'Flujo de Incidencias',
-      message: actionMsg,
-      type: 'success',
-    });
+
+    const [, error] = await runSafe(
+      async () => {
+        if (!onTransitionIncident) throw new Error('No se configuró el flujo de aprobación de incidencias.');
+        await onTransitionIncident(incidentId, action, comment);
+      },
+      {
+        showToast,
+        successTitle: 'Flujo de Incidencias',
+        successMessage: actionMsg,
+        fallbackError: 'No se pudo procesar la acción sobre la incidencia.',
+        onSuccess: () => {
+          setIncidentAction(null);
+          setFeedbackType('success');
+          setFeedback(actionMsg);
+        },
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
   };
 
   const refreshRecords = async () => {
     if (!onRefreshRecords || isRefreshingRecords) return;
-    setIsRefreshingRecords(true);
     setRefreshState('loading');
-    try {
-      await onRefreshRecords();
-      setRefreshState('success');
-      setTimeout(() => setRefreshState('idle'), 2500);
-    } catch (error) {
-      setRefreshState('error');
-      setTimeout(() => setRefreshState('idle'), 3500);
-    } finally {
-      setIsRefreshingRecords(false);
-    }
+    await runSafe(
+      () => onRefreshRecords(),
+      {
+        setLoading: setIsRefreshingRecords,
+        onSuccess: () => {
+          setRefreshState('success');
+          setTimeout(() => setRefreshState('idle'), 2500);
+        },
+        onError: () => {
+          setRefreshState('error');
+          setTimeout(() => setRefreshState('idle'), 3500);
+        },
+      }
+    );
   };
 
   const exportMatrix = async () => {
     if (isExportingMatrix) return;
-    setIsExportingMatrix(true);
     setFeedback('');
     setFeedbackType('success');
-    try {
-      await downloadPersonnelWorkbook(members);
-      const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
-      setFeedback(exportMsg);
-      showToast({
-        title: 'Matriz Exportada',
-        message: exportMsg,
-        type: 'success',
-      });
-    } catch (error) {
-      console.error('Error al exportar matriz de personal:', error);
-      const errMsg = 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.';
-      setFeedbackType('error');
-      setFeedback(errMsg);
-      showToast({
-        title: 'Error de Exportación',
-        message: errMsg,
-        type: 'error',
-      });
-    } finally {
-      setIsExportingMatrix(false);
-    }
+    const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
+
+    await runSafe(
+      () => downloadPersonnelWorkbook(members),
+      {
+        setLoading: setIsExportingMatrix,
+        showToast,
+        successTitle: 'Matriz Exportada',
+        successMessage: exportMsg,
+        fallbackError: 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.',
+        onSuccess: () => {
+          setFeedback(exportMsg);
+        },
+        onError: (_err, message) => {
+          setFeedbackType('error');
+          setFeedback(message);
+        },
+      }
+    );
   };
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 md:text-[28px]">Recursos Humanos y Estados</h1>
-            <p className="mt-1 text-sm text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Administración de disponibilidad y asignación del personal</p>
-          </div>
+        <PageHeader
+          title="Recursos Humanos y Estados"
+          subtitle="Administración de disponibilidad y asignación del personal"
+        >
           <div className="flex flex-wrap items-center gap-2">
             {onRefreshRecords && (
               <button
@@ -359,7 +401,7 @@ export default function HumanResources({
               </span>
             )}
           </div>
-        </header>
+        </PageHeader>
 
         <section aria-label="Resumen de personal" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {summaryCards.map((card) => {
@@ -391,7 +433,18 @@ export default function HumanResources({
           <section className={panelClass} aria-labelledby="personnel-assignment-title">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-5">
               <h2 id="personnel-assignment-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Asignación de Personal</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <SortDropdown
+                  value={sortOrder}
+                  onChange={(nextSort) => {
+                    setSortOrder(nextSort);
+                    setPageSelection((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  categories={personnelSortCategories}
+                  label="Ordenar:"
+                  buttonClassName="w-[225px]"
+                  ariaLabel="Ordenar asignación de personal"
+                />
                 {(!syncedAt || syncLoading || syncError) && (
                   <span className="inline-flex items-center gap-1.5 text-[9px] text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">
                     <i className={`h-1.5 w-1.5 rounded-full ${syncError ? 'bg-red-400' : syncLoading ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
@@ -399,20 +452,21 @@ export default function HumanResources({
                   </span>
                 )}
                 {(query || !isAll) && (
-                  <button type="button" onClick={() => { setSelectedStatuses([]); onQueryChange(''); }} className="inline-flex items-center gap-1.5 text-[10px] text-cyan-700 transition-colors duration-300 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 midnight:text-cyan-400 midnight:hover:text-cyan-200">
-                    <RotateCcw size={12} /> Limpiar filtros
-                  </button>
+                  <ClearFiltersButton
+                    onClick={() => { setSelectedStatuses([]); onQueryChange(''); }}
+                    showIcon
+                  />
                 )}
               </div>
             </div>
-            <div className="mt-3 overflow-x-auto px-4 sm:px-5">
-              <table className="w-full min-w-[700px] border-collapse text-left text-xs">
-                <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-                  {['Nombre', 'Área Técnica', 'Proyecto Asignado', 'Estado', 'Disponibilidad', 'Acción'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}
-                </tr></thead>
+            <div className="mt-3 px-4 sm:px-5">
+              <Table className="min-w-[700px] border-collapse">
+                <TableHead
+                  columns={['Nombre', 'Área Técnica', 'Proyecto Asignado', 'Estado', 'Disponibilidad', 'Acción']}
+                />
                 <tbody>
                   {visibleMembers.map((member) => (
-                    <tr key={member.id} className="border-b border-slate-200 last:border-b-0 transition-colors duration-300 hover:bg-slate-50 dark:border-[#30363d]/70 dark:hover:bg-white/[0.02] midnight:border-cyan-900/30 midnight:hover:bg-cyan-900/20">
+                    <TableRow key={member.id}>
                       <td className="whitespace-nowrap py-3.5 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50"><span className="flex items-center gap-2"><MemberAvatar member={member} sizeClass="h-7 w-7" textClass="text-[9px]" /><span>{member.name}</span></span></td>
                       <td className="whitespace-nowrap px-2 py-3.5 text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{member.area}</td>
                       <td className="max-w-[180px] truncate px-2 py-3.5 text-[11px] text-slate-700 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100" title={member.project}>{member.project}</td>
@@ -428,11 +482,17 @@ export default function HumanResources({
                           <span className="text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">Solo lectura</span>
                         )}
                       </td>
-                    </tr>
+                    </TableRow>
                   ))}
-                  {!visibleMembers.length && <tr><td colSpan={6} className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No se encontró personal con estos filtros.</td></tr>}
+                  {!visibleMembers.length && (
+                    <TableRow>
+                      <td colSpan={6} className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                        <EmptyState description="No se encontró personal con estos filtros." />
+                      </td>
+                    </TableRow>
+                  )}
                 </tbody>
-              </table>
+              </Table>
             </div>
             <div className="border-t border-slate-200 px-4 py-3 dark:border-[#30363d] midnight:border-cyan-900/30 sm:px-5">
               <Pagination

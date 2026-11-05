@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import FormattedAuditText from '../components/common/FormattedAuditText';
 
 const ToastContext = createContext(null);
@@ -39,24 +39,31 @@ export function ToastProvider({ children }) {
   );
 }
 
-function ToastContainer({ toast, onClose }) {
+export function ToastContainer({ toast, onClose }) {
   const isError = toast.type === 'error';
+  const isWarning = toast.type === 'warning';
   const isInfo = toast.type === 'info';
 
   const borderColor = isError
     ? 'border-red-500/30 dark:border-red-500/30 midnight:border-red-500/40'
+    : isWarning
+    ? 'border-amber-500/30 dark:border-amber-500/30 midnight:border-amber-500/40'
     : isInfo
     ? 'border-cyan-500/30 dark:border-cyan-500/30 midnight:border-cyan-500/40'
     : 'border-emerald-500/30 dark:border-emerald-500/30 midnight:border-cyan-500/40';
 
   const iconBg = isError
     ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/20 midnight:text-red-300'
+    : isWarning
+    ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/20 midnight:text-amber-300'
     : isInfo
     ? 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400 midnight:bg-cyan-500/20 midnight:text-cyan-300'
     : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-cyan-500/15 midnight:text-cyan-300 shadow-sm';
 
   const progressBarColor = isError
     ? 'bg-red-500'
+    : isWarning
+    ? 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500'
     : isInfo
     ? 'bg-gradient-to-r from-blue-500 via-cyan-400 to-cyan-500'
     : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500';
@@ -96,6 +103,8 @@ function ToastContainer({ toast, onClose }) {
             >
               {isError ? (
                 <AlertCircle size={22} />
+              ) : isWarning ? (
+                <AlertTriangle size={22} />
               ) : isInfo ? (
                 <Info size={22} />
               ) : (
@@ -107,9 +116,9 @@ function ToastContainer({ toast, onClose }) {
               <h4 className="text-sm font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
                 {toast.title}
               </h4>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/80">
+              <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90">
                 <FormattedAuditText text={toast.message} />
-              </p>
+              </div>
             </div>
 
             <button

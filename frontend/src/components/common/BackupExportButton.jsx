@@ -215,7 +215,6 @@ export default function BackupExportButton({ onCreated, currentUser }) {
                       disabled={busy}
                       required
                       onChange={(event) => setPassword(event.target.value)}
-                      className={input}
                     />
                   </div>
                 </label>

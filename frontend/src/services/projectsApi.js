@@ -292,15 +292,17 @@ export const projectsApi = {
    * Actualiza la foto de perfil, correo electrónico y datos de contacto en la Base de Datos.
    */
   updateProfile: async ({ userId, identifier, name, email, photo, phone }) => {
-    const response = await api.patch('/auth/profile/', {
+    const payload = {
       userId,
       identifier,
       name,
       email,
-      photo,
-      avatar: photo,
       phone,
-    });
+    };
+    if (photo !== undefined) {
+      payload.photo = photo;
+    }
+    const response = await api.patch('/auth/profile/', payload);
     return response.data;
   },
 

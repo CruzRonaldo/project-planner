@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Lock, Pencil, Save } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
+import InlineAlert from '../../../components/common/InlineAlert';
+import { runSafe } from '../../../utils/asyncHandler';
 import {
   projectAreas,
   projectLeaders,
@@ -75,19 +77,22 @@ export default function EditProjectDialog({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      await onSubmit(project.id, {
-        ...draft,
-        leaderId: !isAdmin
-          ? project.leaderId || draft.leaderId
-          : draft.leaderId,
-        totalBudget: numericBudget,
-      });
-    } catch (submitError) {
-      setError(submitError.message);
-      setIsSubmitting(false);
-    }
+    await runSafe(
+      () =>
+        onSubmit(project.id, {
+          ...draft,
+          leaderId: !isAdmin
+            ? project.leaderId || draft.leaderId
+            : draft.leaderId,
+          totalBudget: numericBudget,
+        }),
+      {
+        setLoading: setIsSubmitting,
+        onError: (_submitError, message) => {
+          setError(message || 'Error al guardar los cambios del proyecto.');
+        },
+      }
+    );
   };
 
   return (
@@ -300,12 +305,9 @@ export default function EditProjectDialog({
       </div>
 
       {error && (
-        <p
-          role="alert"
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:border-red-500/20 midnight:bg-red-500/10 midnight:text-red-300"
-        >
+        <InlineAlert variant="error" className="mt-4">
           {error}
-        </p>
+        </InlineAlert>
       )}
     </ModalDialog>
   );
