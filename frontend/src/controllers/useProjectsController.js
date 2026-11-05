@@ -57,7 +57,6 @@ export function useProjectsController({
           backendProjects,
           backendMilestones,
           backendTasks,
-          historyResult,
           backendProjectChanges,
           backendAdjustments,
         ] = await Promise.all([
@@ -71,10 +70,6 @@ export function useProjectsController({
           }),
           projectsApi.getTasks().catch((err) => {
             console.warn('Error al sincronizar tareas operativas de la Base de Datos:', err);
-            return null;
-          }),
-          projectsApi.getTeamMemberHistory().catch((err) => {
-            console.warn('Error al sincronizar historial de personal:', err);
             return null;
           }),
           projectsApi.getProjectChangeLogs().catch((err) => {
@@ -243,24 +238,6 @@ export function useProjectsController({
             alerts: prev.alerts?.length > 0 ? prev.alerts : [],
             qualityChecks: prev.qualityChecks?.length > 0 ? prev.qualityChecks : [],
           }));
-        }
-
-        // Propagar historial de asignaciones si existe un receptor
-        if (Array.isArray(historyResult) && historyResult.length > 0) {
-          const mappedAssignments = historyResult.map((log) => ({
-            id: `assign-${log.id}`,
-            date: (log.date || log.created_at || '').split('T')[0] || '2026-10-24',
-            memberPrefix: (log.member_name || log.name || '').toLowerCase().includes('arq')
-              ? 'Arq.'
-              : 'Ing.',
-            memberName: log.member_name || log.name || 'Especialista',
-            project: log.new_project_name || log.previous_project_name || 'Proyecto Asignado',
-            reason: log.comment || 'Asignación técnica de responsabilidades',
-          }));
-          setRemoteAssignments(mappedAssignments);
-          if (typeof onAssignmentsLoaded === 'function') {
-            onAssignmentsLoaded(mappedAssignments);
-          }
         }
       } catch (err) {
         console.error('Error al sincronizar datos de la Base de Datos:', err);

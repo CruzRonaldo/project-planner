@@ -187,3 +187,17 @@ test('normalizeCriticalActivities normaliza camelCase, snake_case, formato legad
   assert.equal(overflowGeom.clippedLeft, false);
   assert.equal(overflowGeom.clippedRight, true);
 });
+
+test('projectsApi expone los métodos createTask, updateTask y deleteTask para el CRUD operativo', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: projectsApi } = await server.ssrLoadModule('/src/services/projectsApi.js');
+    assert.equal(typeof projectsApi.getTasks, 'function');
+    assert.equal(typeof projectsApi.createTask, 'function');
+    assert.equal(typeof projectsApi.updateTask, 'function');
+    assert.equal(typeof projectsApi.deleteTask, 'function');
+  } finally {
+    await server.close();
+  }
+});

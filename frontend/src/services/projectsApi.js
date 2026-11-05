@@ -104,6 +104,34 @@ export const projectsApi = {
   },
 
   /**
+   * Registra una nueva tarea / orden operativa en el Backend.
+   * @param {Object} taskData
+   */
+  createTask: async (taskData) => {
+    const response = await api.post('/tasks/', taskData);
+    return response.data;
+  },
+
+  /**
+   * Actualiza parcialmente una tarea / orden operativa existente (PATCH).
+   * @param {string|number} id ID de la tarea
+   * @param {Object} taskData
+   */
+  updateTask: async (id, taskData) => {
+    const response = await api.patch(`/tasks/${id}/`, taskData);
+    return response.data;
+  },
+
+  /**
+   * Elimina una tarea / orden operativa por ID (DELETE).
+   * @param {string|number} id ID de la tarea
+   */
+  deleteTask: async (id) => {
+    const response = await api.delete(`/tasks/${id}/`);
+    return response.data;
+  },
+
+  /**
    * Obtiene el historial de cambios y auditoria de proyectos (Portafolio).
    */
   getProjectChangeLogs: async (params = {}) => {

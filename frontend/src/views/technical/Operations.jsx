@@ -25,14 +25,26 @@ import {
   normalizeCriticalActivities,
   sortWorkOrders,
   operationsSortCategories,
+  getWorkOrderDuration,
 } from '../../utils/operations';
 import { createOperationsData } from '../../mocks/operationsData';
+import projectsApi from '../../services/projectsApi';
+import { runSafe } from '../../utils/asyncHandler';
 
 export { NewWorkOrderDialog, WorkOrderDetailDialog };
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600';
 const ORDERS_PER_PAGE = 6;
+
+const mapCategoryToTechnicalAreaId = (category) => {
+  if (!category) return 2;
+  const str = String(category).toLowerCase();
+  if (str.includes('arquitectura')) return 3;
+  if (str.includes('civil') || str.includes('estructuras')) return 2;
+  if (str.includes('sistemas') || str.includes('instalaciones')) return 1;
+  return 2;
+};
 
 export default function Operations({
   data = {},
@@ -42,6 +54,7 @@ export default function Operations({
   canManage = false,
   projectOptions = [],
   responsibleOptions = [],
+  projects = [],
 }) {
   const isProduction =
     import.meta.env.PROD ||
@@ -91,7 +104,33 @@ export default function Operations({
   const [feedback, setFeedback] = useState('');
   const { showToast } = useToast();
 
+  const resolveProjectId = (projectStr) => {
+    if (!projectStr) return projects[0]?.id || 1;
+    const found = projects.find(
+      (p) =>
+        p.code === projectStr ||
+        `${p.name} (${p.code})` === projectStr ||
+        p.name === projectStr ||
+        String(p.id) === String(projectStr)
+    );
+    return found?.id || projects[0]?.id || 1;
+  };
+
   const handleUpdateOrderStatus = (orderId, nextStatus) => {
+    const numericId = String(orderId).replace(/^order-/, '');
+    const statusMap = {
+      completed: 'DONE',
+      'in-progress': 'IN_PROGRESS',
+      planned: 'TODO',
+    };
+    const backendStatus = statusMap[nextStatus] || 'IN_PROGRESS';
+    projectsApi
+      .updateTask(numericId, {
+        status: backendStatus,
+        progress: nextStatus === 'completed' ? 100 : 50,
+      })
+      .catch(console.warn);
+
     const prevOrder = (ordersList || []).find((o) => o.id === orderId);
     const wasCompleted = prevOrder?.status === 'completed';
     const isNowCompleted = nextStatus === 'completed';
@@ -139,6 +178,14 @@ export default function Operations({
   };
 
   const handleCompleteAndNext = (currentOrderId, nextOrderId) => {
+    const currentNumericId = String(currentOrderId).replace(/^order-/, '');
+    const nextNumericId = String(nextOrderId).replace(/^order-/, '');
+
+    projectsApi.updateTask(currentNumericId, { status: 'DONE', progress: 100 }).catch(console.warn);
+    if (nextNumericId) {
+      projectsApi.updateTask(nextNumericId, { status: 'IN_PROGRESS', progress: 15 }).catch(console.warn);
+    }
+
     const currentOrder = (ordersList || []).find((o) => o.id === currentOrderId);
     const nextOrderObj = (ordersList || []).find((o) => o.id === nextOrderId);
 
@@ -234,19 +281,84 @@ export default function Operations({
     },
   ];
 
-  const saveOrder = (draft) => {
-    const updated = createWorkOrder(data, draft);
+  const saveOrder = async (draft) => {
+    const projectId = resolveProjectId(draft.project);
+    const categoryId = mapCategoryToTechnicalAreaId(draft.area);
+    const foundResp = responsibleOptions.find((r) => r.name === draft.responsible);
+    const assignedToId = foundResp?.dbId ?? (typeof foundResp?.id === 'number' ? foundResp.id : null);
+    const duration = getWorkOrderDuration(draft.startDate, draft.endDate) || 1;
+
+    const payload = {
+      project: projectId,
+      category: categoryId,
+      assigned_to: assignedToId || null,
+      title: draft.title,
+      description: draft.description || '',
+      start_date: draft.startDate,
+      end_date: draft.endDate,
+      duration_days: duration,
+      is_critical_path: Boolean(draft.critical),
+      tolerance_days: Number(draft.tolerance) || 7,
+      status: 'TODO',
+      progress: 0,
+    };
+
+    const [createdTask] = await runSafe(
+      () => projectsApi.createTask(payload),
+      {
+        showToast,
+        successTitle: 'Orden Emitida',
+        successMessage: `Orden ${draft.title} guardada en el servidor.`,
+      }
+    );
+
+    let updated;
+    if (createdTask) {
+      const currentOrders = data?.orders || [];
+      const newOrder = {
+        id: `order-${createdTask.id}`,
+        code: `#${100 + Number(createdTask.id)}`,
+        project: draft.project,
+        type: draft.type || (createdTask.category_name ? `Inspección ${createdTask.category_name}` : 'Operación técnica'),
+        title: createdTask.title || draft.title,
+        area: draft.area || createdTask.category_name || 'Operaciones',
+        responsible: draft.responsible || createdTask.assigned_to_name || 'Personal Técnico',
+        startDate: createdTask.start_date || draft.startDate,
+        endDate: createdTask.end_date || draft.endDate,
+        priority: draft.priority || (createdTask.is_critical_path ? 'high' : 'medium'),
+        status: 'planned',
+        critical: Boolean(draft.critical),
+        tolerance: Number(draft.tolerance) || 7,
+        documentUrl: draft.documentUrl || '',
+        description: draft.description || '',
+        progress: 0,
+        duration,
+      };
+      updated = {
+        ...(data || {}),
+        orders: [newOrder, ...currentOrders],
+        metrics: {
+          ...(data?.metrics || {}),
+          inProgress: data?.metrics?.inProgress ?? 0,
+        },
+      };
+    } else {
+      updated = createWorkOrder(data, draft);
+    }
+
     onChange(updated);
     setDialogOpen(false);
     setOrderFilter('all');
     setProjectFilter('all');
     const msg = `Orden ${updated.orders[0].code} emitida y añadida al panel operativo.`;
     setFeedback(msg);
-    showToast({
-      title: 'Orden Emitida',
-      message: msg,
-      type: 'success',
-    });
+    if (!createdTask) {
+      showToast({
+        title: 'Orden Emitida',
+        message: msg,
+        type: 'success',
+      });
+    }
   };
 
   const exportReport = () => {

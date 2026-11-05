@@ -148,6 +148,7 @@ export function useAppController() {
   const responsibleOptions = useMemo(() => {
     return (team.technicalTeamData?.members || []).map((member) => ({
       id: member.id,
+      dbId: member.dbId ?? (typeof member.id === 'number' ? member.id : null),
       name: member.firstNames
         ? `${member.firstNames} ${member.lastNames}`.trim()
         : member.name || 'Sin nombre',
@@ -190,6 +191,7 @@ export function useAppController() {
           canManage={auth.canManage}
           projectOptions={projects.projectOptions}
           responsibleOptions={responsibleOptions}
+          projects={projects.portfolioData?.projects || []}
         />
       );
     }
