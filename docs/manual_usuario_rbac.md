@@ -36,12 +36,15 @@ Esta sección describe las herramientas, pantallas y flujos de trabajo habilitad
 ---
 
 ### 1.2 Vista de Tareas y Gestión Operativa (`/operations`)
-- **Consulta de Órdenes de Trabajo:** Acceso al backlog operativo de tareas asignadas al equipo.
-- **Seguimiento de Avance:**
-  - Los técnicos pueden monitorear el porcentaje de ejecución de las órdenes de trabajo.
-  - Consulta de alertas operativas, fechas de inicio y fechas compromiso de entrega.
-  - Verificación de especificaciones y estándares de control de calidad vinculados a cada tarea.
-- **Restricción:** La emisión de nuevas órdenes de trabajo de alta prioridad o la modificación de cronogramas base está restringida al Administrador.
+- **Consulta de Órdenes de Trabajo:** Acceso al backlog operativo de tareas asignadas al equipo con tabla interactiva que expone código (`ID`), Proyecto, Tarea / Operación (mostrando título en negrita y área técnica), Responsable, Prioridad y Estado.
+- **Ficha Técnica de Terreno (`WorkOrderDetailDialog`):**
+  - Al presionar el botón de acción (`...`) de cualquier orden, el técnico puede consultar la ficha completa: fechas de ejecución, duración calculada en días, porcentaje de avance (`progress %`), badge de **Ruta Crítica** e instrucciones técnicas detalladas de terreno.
+  - **Acceso a Planos y Documentación:** Botón directo *«Abrir en Drive ↗»* para consultar planos de ingeniería o carpetas en Google Drive sin exponer credenciales ni requerir permisos de edición.
+- **Filtrado y Búsqueda Operativa:**
+  - Filtrado tolerante por proyecto integrado en la barra de herramientas de la tabla (coincidencia inteligente de nombres con y sin código entre paréntesis).
+  - Ordenamiento multivariante por Prioridad, Fecha límite más próxima y Título alfabético (A-Z / Z-A) con visualización transparente en la tabla.
+  - Pestañas rápidas de urgencia (*«Todas»*, *«Alta prioridad»*, *«En curso»*).
+- **Restricción de Rol Técnico:** El personal técnico opera la ficha técnica en modo de solo lectura, impidiendo alteraciones accidentales de estados o fechas maestras.
 
 ---
 
@@ -120,19 +123,33 @@ Esta sección detalla los módulos privilegiados de gobernanza, auditoría, gest
 
 ---
 
-### 2.5 Alta de Técnicos y Control de Credenciales
+### 2.5 Gestión Operativa de Campo y Control de Órdenes (`/operations`)
+- **Emisión de Órdenes de Trabajo (`NewWorkOrderDialog`):** Registro de nuevas tareas asignando código correlativo, proyecto operativo, responsable de campo, área técnica, plazos de inicio y fin, nivel de prioridad, tolerancia de holgura e instrucciones técnicas.
+- **Generación de Reportes Diarios:** Exportación inmediata del reporte operativo consolidado en formato CSV con un solo clic.
+- **Ciclo de Vida y Transición Rápida de Estados (`WorkOrderDetailDialog`):**
+  - **Marcar como Completada:** Transiciona la orden a estado `completed`, fija el progreso al 100%, actualiza los contadores de las tarjetas KPI en vivo (restando tareas en progreso y sumando a completadas) y dispara notificación toast.
+  - **Reapertura de Órdenes:** Si una orden finalizada requiere ajustes, el botón *«Reabrir Orden»* la devuelve a `in-progress` (50% de avance) y actualiza las métricas KPI automáticamente.
+- **Flujo Inteligente de Continuidad y Activación en Cascada:**
+  - Si una orden tiene tareas posteriores programadas en cola para el **mismo trabajador** o en el **mismo proyecto**, el modal muestra la tarjeta informativa de la siguiente tarea y habilita el botón:
+    - **«Completar y pasar a siguiente →»:** Da por finalizada la orden actual e inicia automáticamente la siguiente tarea en terreno (pasándola de `planned` a `in-progress`) abriendo su ficha técnica sin salir de la pantalla.
+    - **«Solo completar»:** Permite cerrar la tarea actual sin activar la siguiente si aún no corresponde comenzar.
+  - Si no existen tareas en cola para ese responsable o proyecto, el sistema simplifica la interfaz mostrando únicamente la acción estándar de finalización.
+
+---
+
+### 2.6 Alta de Técnicos y Control de Credenciales
 - **Creación de Personal Técnico (`CreateTechnicianView`):** Endpoint administrativo `/api/technical-team/create/` que registra al integrante en `TeamMember`, crea la cuenta en `auth_user` con contraseña provisional y asigna el área técnica y cargo correspondiente.
 - **Exportación de Nóminas y Reportes:** Generación de hojas de cálculo completas en formato Excel (`.xlsx`) y CSV con datos detallados de dedicación, proyectos, áreas y estados operativos.
 
 ---
 
-### 2.6 Auditoría Avanzada y Bitácoras de Seguridad
+### 2.7 Auditoría Avanzada y Bitácoras de Seguridad
 - **Historial Permanente de Personal (`TeamMemberChangeLog`):** Registro inmutable de cada cambio de proyecto, estado o disponibilidad, capturando usuario ejecutor, fecha y detalles del cambio.
 - **Auditoría Forense (`SecurityAuditLog`):** Monitoreo en tiempo real de inicios de sesión, cambios de contraseña, intentos de acceso denegados y alteraciones de configuración.
 
 ---
 
-### 2.7 Gestión de Respaldos de Base de Datos (Disaster Recovery)
+### 2.8 Gestión de Respaldos de Base de Datos (Disaster Recovery)
 - **Acceso Superusuario Exclusivo:** Endpoints en `/api/database/` protegidos con `IsSuperUser` y autenticación segura con token de respaldo.
 - **Funcionalidades de Respaldo:**
   - `export_database_view`: Generación y descarga inmediata de respaldo comprimido de PostgreSQL (`pg_dump`).
@@ -142,7 +159,7 @@ Esta sección detalla los módulos privilegiados de gobernanza, auditoría, gest
 
 ---
 
-### 2.8 Configuración del Asistente RAG y Políticas de IA
+### 2.9 Configuración del Asistente RAG y Políticas de IA
 - **Instrucción de Sistema para Administradores:** El modelo de lenguaje responde con enfoque ejecutivo y estratégico, integrando métricas financieras, gobernanza de hitos y recomendaciones de asignación de recursos.
 - **Actualización de Base Vectorial:** Capacidad de ejecutar scripts de reindexación semántica (`vectorizar_manual_real.py`) para actualizar la base de conocimientos con nuevos manuales de gobernanza.
 

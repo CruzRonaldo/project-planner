@@ -9,10 +9,10 @@ import {
 } from 'lucide-react';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
-import Select from '../../components/common/Select';
 import PageHeader from '../../components/common/PageHeader';
 import { useToast } from '../../context/ToastContext';
 import NewWorkOrderDialog from './components/NewWorkOrderDialog';
+import WorkOrderDetailDialog from './components/WorkOrderDetailDialog';
 import CriticalScheduleSection from './components/CriticalScheduleSection';
 import WorkOrdersSection from './components/WorkOrdersSection';
 import OperationsSidebar from './components/OperationsSidebar';
@@ -28,7 +28,7 @@ import {
 } from '../../utils/operations';
 import { createOperationsData } from '../../mocks/operationsData';
 
-export { NewWorkOrderDialog };
+export { NewWorkOrderDialog, WorkOrderDetailDialog };
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600';
@@ -96,11 +96,105 @@ export default function Operations({
     page: 1,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState(null);
   const [feedback, setFeedback] = useState('');
   const { showToast } = useToast();
 
-  const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : operationalProjects;
-  const availableProjects = Array.from(new Set(baseProjects));
+  const handleUpdateOrderStatus = (orderId, nextStatus) => {
+    const prevOrder = (ordersList || []).find((o) => o.id === orderId);
+    const wasCompleted = prevOrder?.status === 'completed';
+    const isNowCompleted = nextStatus === 'completed';
+
+    const updatedOrders = (ordersList || []).map((order) =>
+      order.id === orderId
+        ? {
+            ...order,
+            status: nextStatus,
+            progress: nextStatus === 'completed' ? 100 : (order.progress === 100 ? 50 : order.progress),
+          }
+        : order
+    );
+
+    let nextMetrics = { ...(metrics || {}) };
+    if (!wasCompleted && isNowCompleted) {
+      nextMetrics = {
+        ...nextMetrics,
+        inProgress: Math.max(0, (nextMetrics.inProgress || 0) - 1),
+        completed: (nextMetrics.completed || 0) + 1,
+      };
+    } else if (wasCompleted && !isNowCompleted) {
+      nextMetrics = {
+        ...nextMetrics,
+        inProgress: (nextMetrics.inProgress || 0) + 1,
+        completed: Math.max(0, (nextMetrics.completed || 0) - 1),
+      };
+    }
+
+    const updated = { ...(data || {}), orders: updatedOrders, metrics: nextMetrics };
+    onChange(updated);
+    if (selectedDetailOrder && selectedDetailOrder.id === orderId) {
+      setSelectedDetailOrder((prev) => ({
+        ...prev,
+        status: nextStatus,
+        progress: nextStatus === 'completed' ? 100 : (prev.progress === 100 ? 50 : prev.progress),
+      }));
+    }
+    const label = nextStatus === 'completed' ? 'Completada' : 'En progreso';
+    showToast({
+      title: 'Orden Actualizada',
+      message: `La orden fue actualizada a **${label}**.`,
+      type: 'success',
+    });
+  };
+
+  const handleCompleteAndNext = (currentOrderId, nextOrderId) => {
+    const currentOrder = (ordersList || []).find((o) => o.id === currentOrderId);
+    const nextOrderObj = (ordersList || []).find((o) => o.id === nextOrderId);
+
+    const updatedOrders = (ordersList || []).map((order) => {
+      if (order.id === currentOrderId) {
+        return { ...order, status: 'completed', progress: 100 };
+      }
+      if (order.id === nextOrderId) {
+        return {
+          ...order,
+          status: 'in-progress',
+          progress: order.progress > 0 ? order.progress : 15,
+        };
+      }
+      return order;
+    });
+
+    const nextMetrics = {
+      ...(metrics || {}),
+      completed: (metrics?.completed || 0) + 1,
+    };
+
+    const updated = { ...(data || {}), orders: updatedOrders, metrics: nextMetrics };
+    onChange(updated);
+
+    if (nextOrderObj) {
+      setSelectedDetailOrder({
+        ...nextOrderObj,
+        status: 'in-progress',
+        progress: nextOrderObj.progress > 0 ? nextOrderObj.progress : 15,
+      });
+    } else {
+      setSelectedDetailOrder(null);
+    }
+
+    showToast({
+      title: 'Flujo de Tareas Actualizado',
+      message: `Orden **${currentOrder?.code || ''}** completada. Se activó la siguiente orden **${nextOrderObj?.code || ''}** (${nextOrderObj?.title || ''}).`,
+      type: 'success',
+    });
+  };
+
+  const availableProjects = useMemo(() => {
+    const fromOrders = (ordersList || []).map((order) => order.project).filter(Boolean);
+    const fromProps = projectOptions.length > 0 || hideMocks ? projectOptions : operationalProjects;
+    return Array.from(new Set([...fromOrders, ...fromProps]));
+  }, [ordersList, projectOptions, hideMocks]);
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
   const sortedOrders = sortWorkOrders(orders, sortOrder);
 
@@ -188,35 +282,23 @@ export default function Operations({
           title="Gestión Operativa de Campo"
           subtitle="Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad"
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={projectFilter}
-              onChange={(event) => setProjectFilter(event.target.value)}
-              aria-label="Filtrar por proyecto operativo"
-              className="py-2.5"
-              options={[
-                { value: 'all', label: 'Todos los proyectos' },
-                ...availableProjects.map((project) => ({ value: project, label: project })),
-              ]}
-            />
-            {canManage && (
-              <>
-                <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>
-                  Generar Reporte Diario
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setDialogOpen(true);
-                    setFeedback('');
-                  }}
-                  icon={Plus}
-                >
-                  Nueva Orden de Trabajo
-                </Button>
-              </>
-            )}
-          </div>
+          {canManage && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>
+                Generar Reporte Diario
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setDialogOpen(true);
+                  setFeedback('');
+                }}
+                icon={Plus}
+              >
+                Nueva Orden de Trabajo
+              </Button>
+            </div>
+          )}
         </PageHeader>
 
         <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>
@@ -249,6 +331,9 @@ export default function Operations({
             orders={orders}
             ordersList={ordersList}
             paginatedOrders={paginatedOrders}
+            availableProjects={availableProjects}
+            projectFilter={projectFilter}
+            setProjectFilter={setProjectFilter}
             orderFilter={orderFilter}
             setOrderFilter={setOrderFilter}
             sortOrder={sortOrder}
@@ -257,7 +342,7 @@ export default function Operations({
               setOrderPageSelection((prev) => ({ ...prev, page: 1 }));
             }}
             sortCategories={operationsSortCategories}
-            onViewOrder={(order) => setFeedback(`${order.code}: ${order.title}. ${order.description}`)}
+            onViewOrder={(order) => setSelectedDetailOrder(order)}
             safeOrderPage={safeOrderPage}
             totalOrderPages={totalOrderPages}
             pageSize={ORDERS_PER_PAGE}
@@ -290,6 +375,17 @@ export default function Operations({
           responsibleOptions={responsibleOptions}
           onSubmit={saveOrder}
           onClose={() => setDialogOpen(false)}
+        />
+      )}
+
+      {selectedDetailOrder && (
+        <WorkOrderDetailDialog
+          order={selectedDetailOrder}
+          ordersList={ordersList}
+          onClose={() => setSelectedDetailOrder(null)}
+          onUpdateStatus={handleUpdateOrderStatus}
+          onCompleteAndNext={handleCompleteAndNext}
+          canManage={canManage}
         />
       )}
     </main>

@@ -15,9 +15,33 @@ export function getWorkOrderDuration(startDate, endDate) {
 export function filterWorkOrders(orders = [], query = '', filter = 'all', project = 'all') {
   const normalizedQuery = normalizeText(query);
   return (orders || []).filter((order) => {
-    const matchesQuery = normalizeText(`${order.code} ${order.project} ${order.type} ${order.title} ${order.area} ${order.responsible} ${order.description}`).includes(normalizedQuery);
-    const matchesFilter = filter === 'all' || (filter === 'high' && order.priority === 'high') || (filter === 'in-progress' && order.status === 'in-progress');
-    const matchesProject = project === 'all' || order.project === project;
+    const matchesQuery = normalizeText(
+      `${order.code} ${order.project} ${order.type} ${order.title} ${order.area} ${order.responsible} ${order.description}`
+    ).includes(normalizedQuery);
+
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'high' && order.priority === 'high') ||
+      (filter === 'in-progress' && order.status === 'in-progress');
+
+    const matchesProject =
+      project === 'all' ||
+      (() => {
+        if (!order.project) return false;
+        if (order.project === project) return true;
+        const normOrder = normalizeText(order.project);
+        const normSelected = normalizeText(project);
+        if (normOrder === normSelected) return true;
+
+        const baseOrder = normalizeText(order.project.split(' (')[0]);
+        const baseSelected = normalizeText(project.split(' (')[0]);
+        return (
+          baseOrder === baseSelected ||
+          normOrder.startsWith(baseSelected) ||
+          normSelected.startsWith(baseOrder)
+        );
+      })();
+
     return matchesQuery && matchesFilter && matchesProject;
   });
 }

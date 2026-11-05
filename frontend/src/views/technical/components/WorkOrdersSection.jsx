@@ -9,6 +9,7 @@ import {
   EmptyState,
   ClearFiltersButton,
   SortDropdown,
+  Select,
 } from '../../../components/common';
 import { workOrderPriorities, workOrderStatuses } from '../../../constants/operations';
 
@@ -16,6 +17,9 @@ export default function WorkOrdersSection({
   orders = [],
   ordersList = [],
   paginatedOrders = [],
+  availableProjects = [],
+  projectFilter = 'all',
+  setProjectFilter,
   orderFilter = 'all',
   setOrderFilter,
   sortOrder = 'prio_desc',
@@ -50,6 +54,21 @@ export default function WorkOrdersSection({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {availableProjects.length > 0 && setProjectFilter && (
+            <Select
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+              aria-label="Filtrar por proyecto operativo"
+              className="w-[190px] py-1.5 text-xs"
+              options={[
+                { value: 'all', label: 'Todos los proyectos' },
+                ...availableProjects.map((project) => ({
+                  value: project,
+                  label: project.split(' (')[0],
+                })),
+              ]}
+            />
+          )}
           {sortCategories.length > 0 && onSortChange && (
             <SortDropdown
               value={sortOrder}
@@ -83,7 +102,7 @@ export default function WorkOrdersSection({
       <div className="mt-3 px-4 sm:px-5">
         <Table className="min-w-[760px] border-collapse">
           <TableHead
-            columns={['ID', 'Proyecto', 'Tipo', 'Responsable', 'Prioridad', 'Estado', 'Acción']}
+            columns={['ID', 'Proyecto', 'Tarea / Operación', 'Responsable', 'Prioridad', 'Estado', 'Acción']}
           />
           <tbody>
             {paginatedOrders.map((order) => (
@@ -99,8 +118,13 @@ export default function WorkOrdersSection({
                 >
                   {order.project.split(' (')[0]}
                 </td>
-                <td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
-                  {order.type}
+                <td className="px-2 py-3.5">
+                  <div className={`font-semibold text-xs truncate max-w-[220px] ${headingClass}`} title={order.title}>
+                    {order.title || order.type}
+                  </div>
+                  <div className={`text-[10px] mt-0.5 ${mutedClass}`}>
+                    {order.type} • {order.area}
+                  </div>
                 </td>
                 <td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                   {order.responsible}
