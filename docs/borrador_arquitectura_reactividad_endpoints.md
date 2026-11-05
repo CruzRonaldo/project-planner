@@ -159,11 +159,18 @@ El Backend actúa como el único guardián de la bitácora mediante interceptore
   - Variaciones en Carga de Trabajo (`allocation_percentage`) o Disponibilidad (`availability`).
   - Cambios de Estado Operativo (`Activo`, `Stand-by`, `Licencia`).
 
+### 5.4 Implementación y Verificación (Rama `feat/audit-signals-and-changelog`)
+- **Señales registradas (`core/signals.py`):**
+  - `@receiver(pre_save, sender=Project)`: Captura en `_old_instance` el estado previo en la BD.
+  - `@receiver(post_save, sender=Project)`: Compara deltas de campos críticos e inserta registros en `ProjectChangeLog` con el nombre del actor real.
+- **Inyección del Actor (`core/views.py`):** `ProjectViewSet` extrae el usuario autenticado (`request.user`) o el payload `userName` y lo transmite a la instancia del modelo antes de guardar.
+- **Frontend desacoplado (`Portfolio.jsx`):** Eliminada la creación sintética de `newChange` en memoria. El cliente consulta directamente los logs generados por la BD vía `projectsApi.getProjectChangeLogs()`.
+- **Suite de Pruebas Automatizadas:** 87 pruebas de backend en Django (incluyendo `core/test_signals.py`) y 152 pruebas de frontend en Node/Vitest pasando al 100%.
+
 ---
 
 ## 6. Próximos Pasos para el Documento Final
 
 1. Integrar diagramas de secuencia en formato SVG/Mermaid para el flujo de emisión y cumplimiento de órdenes de trabajo.
 2. Añadir métricas comparativas de tiempo de respuesta (antes y después de la optimización de llamadas).
-3. Documentar la implementación de las señales `signals.py` para la auditoría automática desacoplada del frontend.
-4. Consolidar el documento formal en PDF o Markdown profesional bajo `docs/arquitectura_relacional_y_optimizacion_api.md`.
+3. Consolidar el documento formal en PDF o Markdown profesional bajo `docs/arquitectura_relacional_y_optimizacion_api.md`.
