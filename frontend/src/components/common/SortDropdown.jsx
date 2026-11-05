@@ -19,6 +19,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
  * @param {Object} [props.optionsMap] - Diccionario de mapeo { [id]: { id, label, category, direction } }
  * @param {string} [props.label='Ordenar por:'] - Etiqueta descriptiva previa
  * @param {string} [props.className=''] - Clases adicionales para el contenedor exterior
+ * @param {string} [props.buttonClassName=''] - Clases adicionales o de ancho para el botón disparador (ej. min-w-[220px] o w-full)
  * @param {string} [props.ariaLabel='Opciones de ordenamiento']
  */
 export default function SortDropdown({
@@ -28,6 +29,7 @@ export default function SortDropdown({
   optionsMap: customOptionsMap,
   label = 'Ordenar por:',
   className = '',
+  buttonClassName = '',
   ariaLabel = 'Ordenar registros',
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -161,11 +163,15 @@ export default function SortDropdown({
         aria-expanded={isOpen}
         aria-controls={listboxId}
         aria-label={triggerAriaLabel}
-        className="cursor-pointer flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors duration-300 hover:border-cyan-400 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 dark:hover:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 midnight:hover:border-cyan-600"
+        className={`cursor-pointer flex items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors duration-300 hover:border-cyan-400 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 dark:hover:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 midnight:hover:border-cyan-600 ${buttonClassName || 'min-w-[215px]'}`}
       >
-        {label && <span className="text-[10px] text-slate-400 midnight:text-cyan-600">{label}</span>}
-        <span className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-          {currentSort.label}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {label && <span className="text-[10px] text-slate-400 midnight:text-cyan-600 shrink-0">{label}</span>}
+          <span className="font-semibold text-slate-900 dark:text-white midnight:text-cyan-50 truncate">
+            {currentSort.label}
+          </span>
+        </div>
+        <span className="shrink-0 flex items-center">
           {currentSort.direction === 'asc' ? (
             <ArrowUp size={13} className="text-blue-600 dark:text-cyan-400 midnight:text-cyan-400" />
           ) : (
@@ -179,7 +185,7 @@ export default function SortDropdown({
           id={listboxId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute right-0 top-full z-30 mt-2 min-w-[210px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:shadow-black/50 midnight:border-cyan-900/50 midnight:bg-[#050B14]"
+          className="absolute right-0 top-full z-30 mt-2 w-full min-w-[215px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:shadow-black/50 midnight:border-cyan-900/50 midnight:bg-[#050B14]"
         >
           <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
             Criterio de orden

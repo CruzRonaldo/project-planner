@@ -485,6 +485,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                   categories={milestoneSortCategories}
                   optionsMap={milestoneSortOptionsMap}
                   label="Ordenar:"
+                  buttonClassName="w-[225px]"
                   ariaLabel="Ordenar hitos globales"
                 />
 

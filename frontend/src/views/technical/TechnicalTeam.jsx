@@ -354,6 +354,7 @@ export default function TechnicalTeam({
               categories={sortCategories}
               optionsMap={sortOptionsMap}
               label="Ordenar por:"
+              buttonClassName="w-[225px]"
               ariaLabel="Ordenar equipo técnico"
             />
 
