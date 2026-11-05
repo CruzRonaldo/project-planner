@@ -1,0 +1,18 @@
+name: Mirror Sync to InmobiliariaPolyline
+
+on:
+  push:
+    branches: [ "**" ]
+    tags: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar repositorio completo en espejo
+        run: |
+          git clone --bare https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git repo.git
+          cd repo.git
+          git push https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/InmobiliariaPolyline/project-planner.git "refs/heads/*:refs/heads/*" --force --prune
+          git push https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/InmobiliariaPolyline/project-planner.git "refs/tags/*:refs/tags/*" --force --tags
