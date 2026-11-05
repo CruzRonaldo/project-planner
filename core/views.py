@@ -53,6 +53,32 @@ from rest_framework.exceptions import ValidationError
 from .authentication import PasswordBoundAuthentication, issue_session_token
 
 SimpleUserAuthentication = PasswordBoundAuthentication
+
+
+def get_client_ip(request):
+    """
+    Obtiene la dirección IP real del cliente considerando proxies inversos.
+    Lee el primer valor de HTTP_X_FORWARDED_FOR (IP original del cliente)
+    con fallback a REMOTE_ADDR.
+
+    Nota de infraestructura (Render / Reverse Proxy):
+    Detrás de un proxy inverso como Render o Cloudflare, la fiabilidad de
+    X-Forwarded-For depende de que el proxy esté configurado para sobrescribir
+    o anteponer la IP real del cliente y no confiar ciegamente en cabeceras forjadas.
+    """
+    if not request:
+        return None
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+        if ip:
+            return ip[:45]
+    remote_addr = request.META.get('REMOTE_ADDR')
+    if remote_addr:
+        return remote_addr.strip()[:45]
+    return None
+
+
 from .serializers import (
     ProjectChangeLogSerializer,
     ScheduleAdjustmentSerializer,
@@ -414,9 +440,7 @@ def change_password_view(request):
     # Registrar en bitácora de auditoría
     try:
         actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
-        ip_addr = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR')
-        if ip_addr and ',' in ip_addr:
-            ip_addr = ip_addr.split(',')[0].strip()
+        ip_addr = get_client_ip(request)
         SecurityAuditLog.objects.create(
             user=user,
             action='password_change',
@@ -530,9 +554,7 @@ def user_profile_view(request):
                 # Registrar evento en la bitácora de auditoría
                 try:
                     actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
-                    ip_addr = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR')
-                    if ip_addr and ',' in ip_addr:
-                        ip_addr = ip_addr.split(',')[0].strip()
+                    ip_addr = get_client_ip(request)
                     SecurityAuditLog.objects.create(
                         user=user,
                         action='email_change',
@@ -1012,18 +1034,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         user = getattr(request, 'user', None)
-        actor_name = "Administrador"
+        # Seguridad y no repudio: El actor SOLO se extrae de request.user autenticado.
+        # Si no hay sesión autenticada, se registra 'system'. Nunca se confía en valores enviados por el cliente.
+        actor_name = "system"
         if user and user.is_authenticated:
-            actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
-        elif request.data.get('userName') or request.data.get('user'):
-            actor_name = request.data.get('userName') or request.data.get('user')
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            actor_name = full_name or user.username
 
         serializer = self.get_serializer(data=request.data)
         serializer._actor_name = actor_name
         serializer.is_valid(raise_exception=True)
         project = serializer.save(_actor_name=actor_name)
         project._actor_name = actor_name
-        ProjectChangeLog.objects.filter(project=project, description__startswith="Alta del proyecto").update(user_name=actor_name)
+        ProjectChangeLog.objects.filter(project=project, action_type='PROJECT_CREATED').update(user_name=actor_name)
 
         # Asignar líder técnico si fue seleccionado en el frontend
         leader_val = request.data.get('leaderId') or request.data.get('leader_id')
@@ -1088,11 +1111,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if first_m:
                 request_data['leaderId'] = first_m.id
 
-        actor_name = "Administrador"
+        # Seguridad y no repudio: El actor SOLO se extrae de request.user autenticado.
+        actor_name = "system"
         if user and user.is_authenticated:
-            actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
-        elif request_data.get('userName') or request_data.get('user'):
-            actor_name = request_data.get('userName') or request_data.get('user')
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            actor_name = full_name or user.username
         instance._actor_name = actor_name
 
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
@@ -1152,6 +1175,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         instance = self.get_object()
+        actor_name = "system"
+        if user and user.is_authenticated:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            actor_name = full_name or user.username
+        instance._actor_name = actor_name
+
         project_data = {
             'id': instance.id,
             'code': instance.code,

@@ -888,14 +888,73 @@ class ProjectMeetingSerializer(serializers.ModelSerializer):
 
 class ProjectChangeLogSerializer(serializers.ModelSerializer):
     """Serializador para el historial de cambios en proyectos (Portafolio)."""
-    project_name = serializers.ReadOnlyField(source='project.name')
-    project_code = serializers.ReadOnlyField(source='project.code')
-    change = serializers.CharField(source='description')
+    project_name = serializers.SerializerMethodField()
+    project_code = serializers.SerializerMethodField()
+    change = serializers.SerializerMethodField()
     user = serializers.CharField(source='user_name')
 
     class Meta:
         model = ProjectChangeLog
-        fields = ['id', 'project', 'project_name', 'project_code', 'change', 'user', 'date', 'created_at']
+        fields = [
+            'id',
+            'project',
+            'project_name',
+            'project_code',
+            'action_type',
+            'field_changes',
+            'change',
+            'user',
+            'date',
+            'created_at',
+        ]
+
+    def get_project_name(self, obj):
+        if obj.project:
+            return obj.project.name
+        return obj.project_name or "Proyecto Eliminado"
+
+    def get_project_code(self, obj):
+        if obj.project:
+            return obj.project.code
+        return obj.project_code or "S/C"
+
+    def get_change(self, obj):
+        # 1. Compatibilidad hacia atrás: si tiene descripción estática previa
+        if obj.description:
+            return obj.description
+
+        # 2. Generación dinámica de la descripción legible a partir de field_changes compactos
+        deltas = obj.field_changes or {}
+        if not deltas:
+            return "Actualización de proyecto"
+
+        parts = []
+        if 'budget' in deltas:
+            b_old = deltas['budget'].get('old')
+            b_new = deltas['budget'].get('new')
+            old_str = f"${b_old:,.2f}" if b_old is not None else "$0.00"
+            new_str = f"${b_new:,.2f}" if b_new is not None else "$0.00"
+            parts.append(f"Presupuesto ajustado de {old_str} a {new_str}")
+
+        if 'status' in deltas:
+            s_old = deltas['status'].get('old', '')
+            s_new = deltas['status'].get('new', '')
+            parts.append(f"Estado cambiado de '{s_old}' a '{s_new}'")
+
+        if 'start_date' in deltas or 'end_date' in deltas:
+            s_old = deltas.get('start_date', {}).get('old', '-')
+            s_new = deltas.get('start_date', {}).get('new', '-')
+            e_old = deltas.get('end_date', {}).get('old', '-')
+            e_new = deltas.get('end_date', {}).get('new', '-')
+            parts.append(f"Cronograma reprogramado ({s_old}..{e_old} ➔ {s_new}..{e_new})")
+
+        if 'name' in deltas:
+            parts.append(f"Nombre actualizado de '{deltas['name'].get('old')}' a '{deltas['name'].get('new')}'")
+
+        if 'description' in deltas:
+            parts.append("Descripción actualizada")
+
+        return " · ".join(parts) or "Actualización de metadatos"
 
 
 class ScheduleAdjustmentSerializer(serializers.ModelSerializer):

@@ -558,6 +558,10 @@ class SecurityAuditLog(models.Model):
         verbose_name = "Registro de Auditoría"
         verbose_name_plural = "Bitácora de Auditoría"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_at'], name='sec_audit_created_idx'),
+            models.Index(fields=['user', 'created_at'], name='sec_audit_user_created_idx'),
+        ]
 
     def __str__(self):
         return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.get_action_display()}"
@@ -675,22 +679,34 @@ class ProjectChangeLog(models.Model):
 
     project = models.ForeignKey(
         Project,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='project_change_logs',
         verbose_name="Proyecto"
     )
-    description = models.CharField(max_length=255, verbose_name="Descripcion del Cambio")
-    user_name = models.CharField(max_length=150, default="Administrador", verbose_name="Usuario")
+    project_code = models.CharField(max_length=50, blank=True, default="", verbose_name="Código Histórico")
+    project_name = models.CharField(max_length=200, blank=True, default="", verbose_name="Nombre Histórico")
+    action_type = models.CharField(max_length=40, blank=True, default='UPDATE', verbose_name="Tipo de Acción")
+    field_changes = models.JSONField(default=dict, blank=True, verbose_name="Deltas de Campos")
+    description = models.CharField(max_length=255, blank=True, default='', verbose_name="Descripcion del Cambio")
+    user_name = models.CharField(max_length=150, default="system", verbose_name="Usuario")
     date = models.DateField(default=datetime.date.today, verbose_name="Fecha")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Fecha de Creacion")
 
     class Meta:
         verbose_name = "Historial de Proyecto"
         verbose_name_plural = "Historial de Proyectos"
-        ordering = ['-date', '-created_at']
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['project', 'created_at'], name='proj_changelog_proj_created'),
+            models.Index(fields=['created_at'], name='proj_changelog_created'),
+        ]
 
     def __str__(self):
-        return f"[{self.project.code}] {self.description[:40]}"
+        code = (self.project.code if self.project else None) or self.project_code or "S/C"
+        desc = self.description or self.action_type
+        return f"[{code}] {desc[:40]}"
 
 
 class ScheduleAdjustment(models.Model):
