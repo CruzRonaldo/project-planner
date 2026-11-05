@@ -32,6 +32,7 @@ export function useProjectsController({
   const [operationsData, setOperationsData] = useState(() =>
     hideMocks
       ? {
+          hydrated: false,
           metrics: { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 },
           orders: [],
           activities: [],
@@ -218,6 +219,7 @@ export function useProjectsController({
 
           setOperationsData((prev) => ({
             ...prev,
+            hydrated: true,
             orders: mappedOrders,
             metrics: {
               inProgress: inProg,
@@ -225,13 +227,21 @@ export function useProjectsController({
               incidents: 2,
               efficiency: avgEff,
             },
-            activities:
-              prev.activities?.length > 0 ? prev.activities : createOperationsData().activities,
-            alerts: prev.alerts?.length > 0 ? prev.alerts : createOperationsData().alerts,
-            qualityChecks:
-              prev.qualityChecks?.length > 0
-                ? prev.qualityChecks
-                : createOperationsData().qualityChecks,
+            // Si no hay actividades del backend, dejar vacío — no inyectar mocks
+            activities: prev.activities?.length > 0 ? prev.activities : [],
+            alerts: prev.alerts?.length > 0 ? prev.alerts : [],
+            qualityChecks: prev.qualityChecks?.length > 0 ? prev.qualityChecks : [],
+          }));
+        } else if (backendTasks !== null) {
+          // El backend respondió pero no tiene tareas — marcar como hidratado con arrays vacíos
+          setOperationsData((prev) => ({
+            ...prev,
+            hydrated: true,
+            orders: prev.orders?.length > 0 ? prev.orders : [],
+            metrics: prev.metrics?.inProgress !== undefined ? prev.metrics : { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 },
+            activities: prev.activities?.length > 0 ? prev.activities : [],
+            alerts: prev.alerts?.length > 0 ? prev.alerts : [],
+            qualityChecks: prev.qualityChecks?.length > 0 ? prev.qualityChecks : [],
           }));
         }
 

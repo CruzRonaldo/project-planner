@@ -50,40 +50,31 @@ export default function Operations({
   const hideMocks = import.meta.env.VITE_HIDE_MOCKS === 'true' || isProduction;
 
   const defaultMockData = createOperationsData();
-  const metrics =
-    data?.metrics && (data.metrics.inProgress > 0 || data.metrics.completed > 0)
-      ? data.metrics
-      : hideMocks
-        ? { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 }
-        : defaultMockData.metrics;
-  const ordersList =
-    data?.orders && data.orders.length > 0
-      ? data.orders
-      : hideMocks
-        ? []
-        : defaultMockData.orders;
-  const rawActivities =
-    data?.activities && data.activities.length > 0
-      ? data.activities
-      : hideMocks
-        ? []
-        : defaultMockData.activities;
+
+  // Detectar si el controlador ya intentó hidratar los datos (campo hydrated)
+  const hasRealData = data?.hydrated === true;
+
+  const metrics = hasRealData
+    ? (data?.metrics ?? { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 })
+    : hideMocks
+      ? { inProgress: 0, completed: 0, incidents: 0, efficiency: 0 }
+      : defaultMockData.metrics;
+  const ordersList = hasRealData
+    ? (data?.orders ?? [])
+    : hideMocks ? [] : defaultMockData.orders;
+  const rawActivities = hasRealData
+    ? (data?.activities ?? [])
+    : hideMocks ? [] : defaultMockData.activities;
   const activitiesList = useMemo(
     () => normalizeCriticalActivities(rawActivities),
     [rawActivities]
   );
-  const alertsList =
-    data?.alerts && data.alerts.length > 0
-      ? data.alerts
-      : hideMocks
-        ? []
-        : defaultMockData.alerts;
-  const qualityList =
-    data?.qualityChecks && data.qualityChecks.length > 0
-      ? data.qualityChecks
-      : hideMocks
-        ? []
-        : defaultMockData.qualityChecks;
+  const alertsList = hasRealData
+    ? (data?.alerts ?? [])
+    : hideMocks ? [] : defaultMockData.alerts;
+  const qualityList = hasRealData
+    ? (data?.qualityChecks ?? [])
+    : hideMocks ? [] : defaultMockData.qualityChecks;
 
   const [projectFilter, setProjectFilter] = useState('all');
   const [orderFilter, setOrderFilter] = useState('all');

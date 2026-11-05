@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Cloud, FolderPlus } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { runSafe } from "../../utils/asyncHandler";
@@ -49,7 +49,6 @@ export default function Portfolio({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const { showToast } = useToast();
   const [sortOrder, setSortOrder] = useState('budget_desc');
@@ -57,6 +56,28 @@ export default function Portfolio({
   const sortedProjects = sortPortfolioProjects(visible.projects, sortOrder);
   const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", sort: "budget_desc", page: 1 });
   const [changePageSelection, setChangePageSelection] = useState({ query: "", page: 1 });
+
+  // Helper para mapear proyectos del backend al modelo del frontend (evita repetición)
+  function mapBackendProject(bp) {
+    return {
+      id: bp.id,
+      code: bp.code,
+      name: bp.name,
+      area: bp.area || 'Edificaciones Comerciales',
+      status: bp.status || 'planning',
+      progress: bp.progress ?? 0,
+      usedBudget: bp.usedBudget ?? 0,
+      totalBudget: bp.totalBudget || Number(bp.budget) || 0,
+      startDate: bp.startDate || bp.start_date,
+      endDate: bp.endDate || bp.end_date,
+      leaderId: bp.leaderId || 'carlos',
+      leaderName: bp.leaderName || '',
+      leaderEmail: bp.leaderEmail || '',
+      driveFolder: '',
+      description: bp.description || '',
+      members: bp.members || ['PM'],
+    };
+  }
 
   const totalProjectPages = Math.max(1, Math.ceil(sortedProjects.length / PROJECTS_PER_PAGE));
   const safeProjectPage =
@@ -79,65 +100,6 @@ export default function Portfolio({
     (safeChangePage - 1) * CHANGES_PER_PAGE,
     safeChangePage * CHANGES_PER_PAGE
   );
-
-  // Sincronizar proyectos y colaboradores reales de la base de datos al montar
-  useEffect(() => {
-    let isMounted = true;
-    const fetchBackendProjects = async () => {
-      try {
-        const [backendProjects, members] = await Promise.all([
-          projectsApi.getProjects(),
-          projectsApi.getTeamMembers().catch(() => []),
-        ]);
-
-        if (isMounted && Array.isArray(members) && members.length > 0) {
-          setTeamMembers(members);
-        }
-
-        if (
-          isMounted &&
-          Array.isArray(backendProjects)
-        ) {
-          const mapped = backendProjects.map((bp) => ({
-            id: bp.id,
-            code: bp.code,
-            name: bp.name,
-            area: bp.area || "Edificaciones Comerciales",
-            status: bp.status || "planning",
-            progress: bp.progress ?? 0,
-            usedBudget: bp.usedBudget ?? 0,
-            totalBudget: bp.totalBudget || Number(bp.budget) || 0,
-            startDate: bp.startDate || bp.start_date,
-            endDate: bp.endDate || bp.end_date,
-            leaderId: bp.leaderId || "carlos",
-            leaderName: bp.leaderName || "",
-            leaderEmail: bp.leaderEmail || "",
-            driveFolder: "",
-            description: bp.description || "",
-            members: bp.members || ["PM"],
-          }));
-
-          onChange((currentData) => {
-            const baseData =
-              typeof currentData === "function"
-                ? currentData(data)
-                : currentData || data;
-            return {
-              ...baseData,
-              projects: mapped,
-            };
-          });
-        }
-      } catch (err) {
-        console.warn("[Portfolio] Usando datos locales de proyectos:", err);
-      }
-    };
-
-    fetchBackendProjects();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Creación del proyecto conectado a DRF y Make
   const createProject = async (draft) => {
@@ -340,34 +302,10 @@ export default function Portfolio({
   const handleSync = async () => {
     await runSafe(
       async () => {
-        const [backendProjects, members] = await Promise.all([
-          projectsApi.getProjects(),
-          projectsApi.getTeamMembers().catch(() => []),
-        ]);
-
-        if (Array.isArray(members) && members.length > 0) {
-          setTeamMembers(members);
-        }
+        const backendProjects = await projectsApi.getProjects();
 
         if (Array.isArray(backendProjects)) {
-          const mapped = backendProjects.map((bp) => ({
-            id: bp.id,
-            code: bp.code,
-            name: bp.name,
-            area: bp.area || "Edificaciones Comerciales",
-            status: bp.status || "planning",
-            progress: bp.progress ?? 0,
-            usedBudget: bp.usedBudget ?? 0,
-            totalBudget: bp.totalBudget || Number(bp.budget) || 0,
-            startDate: bp.startDate || bp.start_date,
-            endDate: bp.endDate || bp.end_date,
-            leaderId: bp.leaderId || "carlos",
-            leaderName: bp.leaderName || "",
-            leaderEmail: bp.leaderEmail || "",
-            driveFolder: "",
-            description: bp.description || "",
-            members: bp.members || ["PM"],
-          }));
+          const mapped = backendProjects.map(mapBackendProject);
 
           onChange((currentData) => {
             const base =
@@ -583,7 +521,7 @@ export default function Portfolio({
           currentUserName={currentUserName}
           onSubmit={createProject}
           onClose={() => setDialogOpen(false)}
-          teamMembers={teamMembers}
+          teamMembers={[]}
         />
       )}
       {editingProject && (
@@ -591,7 +529,7 @@ export default function Portfolio({
           project={editingProject}
           onSubmit={updateProject}
           onClose={() => setEditingProject(null)}
-          teamMembers={teamMembers}
+          teamMembers={[]}
           isAdmin={isAdmin}
         />
       )}
