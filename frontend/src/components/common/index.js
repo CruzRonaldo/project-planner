@@ -26,3 +26,4 @@ export { default as FilterTabBar } from './FilterTabBar';
 export { default as ReadOnlyField } from './ReadOnlyField';
 export { default as FootnoteText } from './FootnoteText';
 export { default as ClearFiltersButton } from './ClearFiltersButton';
+export { default as ChatWidget } from './ChatWidget';

@@ -2443,3 +2443,7 @@ class Verify2FAResetView(APIView):
             'status': 'success',
             'message': '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.',
         }, status=status.HTTP_200_OK)
+
+
+# Asistente de IA (Chatbot)
+from .chatbot_views import ChatbotView, RAGChatbotView

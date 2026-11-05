@@ -252,3 +252,9 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 
+# ==========================================================
+# AI ASSISTANT (OPENROUTER + GOOGLE GEMINI EMBEDDINGS)
+# ==========================================================
+OPENROUTER_API_KEY = env('OPENROUTER_API_KEY', default=os.environ.get('OPENROUTER_API_KEY', '')).strip()
+GEMINI_API_KEY = env('GEMINI_API_KEY', default=os.environ.get('GEMINI_API_KEY', '')).strip()
+HUGGINGFACE_API_KEY = env('HUGGINGFACE_API_KEY', default=os.environ.get('HUGGINGFACE_API_KEY', '')).strip()
