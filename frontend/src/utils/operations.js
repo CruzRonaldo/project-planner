@@ -117,3 +117,57 @@ export function normalizeCriticalActivities(activities = [], year = new Date().g
     };
   });
 }
+
+const priorityWeight = { high: 3, medium: 2, low: 1 };
+
+export const operationsSortCategories = [
+  {
+    id: 'priority',
+    defaultId: 'prio_desc',
+    defaultLabel: 'Alta prioridad primero',
+    descId: 'prio_desc',
+    ascId: 'prio_asc',
+    descLabel: 'Alta prioridad primero',
+    ascLabel: 'Baja prioridad primero',
+  },
+  {
+    id: 'due_date',
+    defaultId: 'due_asc',
+    defaultLabel: 'Fecha más próxima',
+    descId: 'due_desc',
+    ascId: 'due_asc',
+    descLabel: 'Fecha más lejana',
+    ascLabel: 'Fecha más próxima',
+  },
+  {
+    id: 'title',
+    defaultId: 'title_asc',
+    defaultLabel: 'Título (A-Z)',
+    descId: 'title_desc',
+    ascId: 'title_asc',
+    descLabel: 'Título (Z-A)',
+    ascLabel: 'Título (A-Z)',
+  },
+];
+
+export function sortWorkOrders(orders = [], sortOrder = 'prio_desc') {
+  if (!Array.isArray(orders) || orders.length === 0) return [];
+  const copy = [...orders];
+
+  switch (sortOrder) {
+    case 'prio_desc':
+      return copy.sort((a, b) => (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0));
+    case 'prio_asc':
+      return copy.sort((a, b) => (priorityWeight[a.priority] || 0) - (priorityWeight[b.priority] || 0));
+    case 'due_asc':
+      return copy.sort((a, b) => new Date(a.endDate || '9999-12-31') - new Date(b.endDate || '9999-12-31'));
+    case 'due_desc':
+      return copy.sort((a, b) => new Date(b.endDate || '1970-01-01') - new Date(a.endDate || '1970-01-01'));
+    case 'title_asc':
+      return copy.sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'es'));
+    case 'title_desc':
+      return copy.sort((a, b) => String(b.title || '').localeCompare(String(a.title || ''), 'es'));
+    default:
+      return copy;
+  }
+}

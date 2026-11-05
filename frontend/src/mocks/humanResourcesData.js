@@ -10,6 +10,8 @@ export {
   normalizePersonnelIncidents,
   normalizeTeamMemberHistory,
   registerPersonnelIncident,
+  personnelSortCategories,
+  sortPersonnelMembers,
 } from '../utils/humanResources.js';
 
 const initialPersonnel = [

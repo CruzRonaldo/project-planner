@@ -13,6 +13,8 @@ import {
   getUpcomingIncidentAlerts,
   summarizePersonnel,
   updatePersonnel,
+  sortPersonnelMembers,
+  personnelSortCategories,
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
 import { useToast } from '../../context/ToastContext';
@@ -32,6 +34,7 @@ import {
   TableRow,
   EmptyState,
   ClearFiltersButton,
+  SortDropdown,
 } from '../../components/common';
 
 export { PersonnelIncidentDialog };
@@ -148,7 +151,8 @@ export default function HumanResources({
     });
   };
 
-  const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', page: 1 });
+  const [sortOrder, setSortOrder] = useState('avail_desc');
+  const [pageSelection, setPageSelection] = useState({ query: '', status: 'all', sort: 'avail_desc', page: 1 });
   const [incidentPageSelection, setIncidentPageSelection] = useState({ query: '', page: 1 });
   const [historyPageSelection, setHistoryPageSelection] = useState({ query: '', page: 1 });
   const [editing, setEditing] = useState(null);
@@ -163,9 +167,10 @@ export default function HumanResources({
 
   const summary = summarizePersonnel(members);
   const filteredMembers = filterPersonnel(members, query, isAll ? 'all' : selectedStatuses);
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
-  const page = pageSelection.query === query && pageSelection.status === statusFilterKey ? Math.min(pageSelection.page, totalPages) : 1;
-  const visibleMembers = filteredMembers.slice((page - 1) * pageSize, page * pageSize);
+  const sortedMembers = sortPersonnelMembers(filteredMembers, sortOrder);
+  const totalPages = Math.max(1, Math.ceil(sortedMembers.length / pageSize));
+  const page = pageSelection.query === query && pageSelection.status === statusFilterKey && pageSelection.sort === sortOrder ? Math.min(pageSelection.page, totalPages) : 1;
+  const visibleMembers = sortedMembers.slice((page - 1) * pageSize, page * pageSize);
   const editingMember = editing && members.find((member) => member.id === editing.id);
 
   const totalIncidentPages = Math.max(1, Math.ceil(incidents.length / INCIDENTS_PAGE_SIZE));
@@ -428,7 +433,18 @@ export default function HumanResources({
           <section className={panelClass} aria-labelledby="personnel-assignment-title">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-5">
               <h2 id="personnel-assignment-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Asignación de Personal</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <SortDropdown
+                  value={sortOrder}
+                  onChange={(nextSort) => {
+                    setSortOrder(nextSort);
+                    setPageSelection((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  categories={personnelSortCategories}
+                  label="Ordenar:"
+                  buttonClassName="w-[225px]"
+                  ariaLabel="Ordenar asignación de personal"
+                />
                 {(!syncedAt || syncLoading || syncError) && (
                   <span className="inline-flex items-center gap-1.5 text-[9px] text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">
                     <i className={`h-1.5 w-1.5 rounded-full ${syncError ? 'bg-red-400' : syncLoading ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />

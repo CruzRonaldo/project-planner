@@ -8,6 +8,7 @@ import {
   TableRow,
   EmptyState,
   ClearFiltersButton,
+  SortDropdown,
 } from '../../../components/common';
 import { workOrderPriorities, workOrderStatuses } from '../../../constants/operations';
 
@@ -17,6 +18,9 @@ export default function WorkOrdersSection({
   paginatedOrders = [],
   orderFilter = 'all',
   setOrderFilter,
+  sortOrder = 'prio_desc',
+  onSortChange,
+  sortCategories = [],
   onViewOrder,
   safeOrderPage = 1,
   totalOrderPages = 1,
@@ -45,22 +49,34 @@ export default function WorkOrdersSection({
             Últimas órdenes de operación en terreno
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">
-          {filterOptions.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              onClick={() => setOrderFilter(filter.id)}
-              aria-pressed={orderFilter === filter.id}
-              className={`rounded px-3 py-1.5 text-[9px] font-medium transition-colors duration-300 ${
-                orderFilter === filter.id
-                  ? 'bg-blue-600 text-white midnight:bg-cyan-600'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {sortCategories.length > 0 && onSortChange && (
+            <SortDropdown
+              value={sortOrder}
+              onChange={onSortChange}
+              categories={sortCategories}
+              label="Ordenar:"
+              buttonClassName="w-[225px]"
+              ariaLabel="Ordenar órdenes de trabajo"
+            />
+          )}
+          <div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">
+            {filterOptions.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setOrderFilter(filter.id)}
+                aria-pressed={orderFilter === filter.id}
+                className={`rounded px-3 py-1.5 text-[9px] font-medium transition-colors duration-300 ${
+                  orderFilter === filter.id
+                    ? 'bg-blue-600 text-white midnight:bg-cyan-600'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 

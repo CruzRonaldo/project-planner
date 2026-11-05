@@ -23,6 +23,8 @@ import {
   createWorkOrder,
   filterWorkOrders,
   normalizeCriticalActivities,
+  sortWorkOrders,
+  operationsSortCategories,
 } from '../../utils/operations';
 import { createOperationsData } from '../../mocks/operationsData';
 
@@ -85,10 +87,12 @@ export default function Operations({
 
   const [projectFilter, setProjectFilter] = useState('all');
   const [orderFilter, setOrderFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('prio_desc');
   const [orderPageSelection, setOrderPageSelection] = useState({
     query: '',
     orderFilter: 'all',
     projectFilter: 'all',
+    sort: 'prio_desc',
     page: 1,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -98,15 +102,17 @@ export default function Operations({
   const baseProjects = projectOptions.length > 0 || hideMocks ? projectOptions : operationalProjects;
   const availableProjects = Array.from(new Set(baseProjects));
   const orders = filterWorkOrders(ordersList, query, orderFilter, projectFilter);
+  const sortedOrders = sortWorkOrders(orders, sortOrder);
 
-  const totalOrderPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+  const totalOrderPages = Math.max(1, Math.ceil(sortedOrders.length / ORDERS_PER_PAGE));
   const safeOrderPage =
     orderPageSelection.query === query &&
     orderPageSelection.orderFilter === orderFilter &&
-    orderPageSelection.projectFilter === projectFilter
+    orderPageSelection.projectFilter === projectFilter &&
+    orderPageSelection.sort === sortOrder
       ? Math.min(orderPageSelection.page, totalOrderPages)
       : 1;
-  const paginatedOrders = orders.slice((safeOrderPage - 1) * ORDERS_PER_PAGE, safeOrderPage * ORDERS_PER_PAGE);
+  const paginatedOrders = sortedOrders.slice((safeOrderPage - 1) * ORDERS_PER_PAGE, safeOrderPage * ORDERS_PER_PAGE);
 
   const metricCards = [
     {
@@ -245,6 +251,12 @@ export default function Operations({
             paginatedOrders={paginatedOrders}
             orderFilter={orderFilter}
             setOrderFilter={setOrderFilter}
+            sortOrder={sortOrder}
+            onSortChange={(nextSort) => {
+              setSortOrder(nextSort);
+              setOrderPageSelection((prev) => ({ ...prev, page: 1 }));
+            }}
+            sortCategories={operationsSortCategories}
             onViewOrder={(order) => setFeedback(`${order.code}: ${order.title}. ${order.description}`)}
             safeOrderPage={safeOrderPage}
             totalOrderPages={totalOrderPages}

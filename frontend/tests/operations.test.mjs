@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration } from '../src/mocks/operationsData.js';
+import { buildWorkOrdersCsv, createOperationsData, createWorkOrder, filterWorkOrders, getWorkOrderDuration, sortWorkOrders } from '../src/mocks/operationsData.js';
 
 const validDraft = {
   project: 'Torre Reforma (PRJ-2026-001)', type: 'Inspección técnica', title: 'Vaciado de losa Nivel 4',
@@ -68,6 +68,22 @@ test('El reporte operativo contiene todas las órdenes', () => {
   assert.equal(csv.split('\n').length, 5);
 });
 
+test('sortWorkOrders ordena órdenes por prioridad, fecha límite y título', () => {
+  const { orders } = createOperationsData();
+  const byPrioDesc = sortWorkOrders(orders, 'prio_desc');
+  assert.equal(byPrioDesc[0].priority, 'high');
+  assert.equal(byPrioDesc[byPrioDesc.length - 1].priority, 'low');
+
+  const byPrioAsc = sortWorkOrders(orders, 'prio_asc');
+  assert.equal(byPrioAsc[0].priority, 'low');
+
+  const byDueAsc = sortWorkOrders(orders, 'due_asc');
+  assert.equal(byDueAsc[0].endDate, '2026-02-22');
+
+  const byTitleAsc = sortWorkOrders(orders, 'title_asc');
+  assert.equal(byTitleAsc[0].title, 'Corrección de acabados');
+});
+
 test('La vista operativa y su modal están disponibles y son responsive', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
@@ -76,6 +92,7 @@ test('La vista operativa y su modal están disponibles y son responsive', async 
     const props = { data, onChange: () => {}, onQueryChange: () => {}, canManage: true, projectOptions: ['Proyecto Nuevo (PRJ-2026-005)'], responsibleOptions: [{ id: 'tech-sofia', name: 'Sofía Torres', specialty: 'Arquitecta Principal' }] };
     const html = renderToStaticMarkup(React.createElement(Operations, props));
     for (const title of ['Gestión Operativa de Campo', 'Nueva Orden de Trabajo', 'Generar Reporte Diario', 'Cronograma de Actividades Críticas', 'Órdenes de Trabajo Activas', 'Alertas Críticas de Operación', 'Aseguramiento de Calidad']) assert.ok(html.includes(title));
+    assert.ok(html.includes('Ordenar órdenes de trabajo'));
     assert.match(html, /<main class="[^"]*bg-\[#0d1117\]/);
     assert.ok(html.includes('Proyecto Nuevo (PRJ-2026-005)'));
 

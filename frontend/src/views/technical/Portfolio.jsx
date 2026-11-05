@@ -3,13 +3,14 @@ import { Cloud, FolderPlus } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { runSafe } from "../../utils/asyncHandler";
 import { projectStatuses } from "../../constants/portfolio";
-import { filterPortfolio } from "../../utils/portfolio";
+import { filterPortfolio, sortPortfolioProjects, portfolioSortCategories } from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
 import Pagination from "../../components/common/Pagination";
 import {
   PageHeader,
   EmptyState,
   ClearFiltersButton,
+  SortDropdown,
   Table,
   TableHead,
   TableRow,
@@ -51,16 +52,20 @@ export default function Portfolio({
   const [teamMembers, setTeamMembers] = useState([]);
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const { showToast } = useToast();
+  const [sortOrder, setSortOrder] = useState('budget_desc');
   const visible = filterPortfolio(data, query, activeFilter);
-  const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", page: 1 });
+  const sortedProjects = sortPortfolioProjects(visible.projects, sortOrder);
+  const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", sort: "budget_desc", page: 1 });
   const [changePageSelection, setChangePageSelection] = useState({ query: "", page: 1 });
 
-  const totalProjectPages = Math.max(1, Math.ceil(visible.projects.length / PROJECTS_PER_PAGE));
+  const totalProjectPages = Math.max(1, Math.ceil(sortedProjects.length / PROJECTS_PER_PAGE));
   const safeProjectPage =
-    projectPageSelection.query === query && projectPageSelection.filter === activeFilter
+    projectPageSelection.query === query &&
+    projectPageSelection.filter === activeFilter &&
+    projectPageSelection.sort === sortOrder
       ? Math.min(projectPageSelection.page, totalProjectPages)
       : 1;
-  const paginatedProjects = visible.projects.slice(
+  const paginatedProjects = sortedProjects.slice(
     (safeProjectPage - 1) * PROJECTS_PER_PAGE,
     safeProjectPage * PROJECTS_PER_PAGE
   );
@@ -419,7 +424,18 @@ export default function Portfolio({
                 </button>
               ))}
             </div>
-            <div className="flex shrink-0 gap-3">
+            <div className="flex flex-wrap items-center shrink-0 gap-3">
+              <SortDropdown
+                value={sortOrder}
+                onChange={(nextSort) => {
+                  setSortOrder(nextSort);
+                  setProjectPageSelection((prev) => ({ ...prev, page: 1 }));
+                }}
+                categories={portfolioSortCategories}
+                label="Ordenar:"
+                buttonClassName="w-[225px]"
+                ariaLabel="Ordenar proyectos del portafolio"
+              />
               {(query || activeFilter !== "all") && (
                 <ClearFiltersButton
                   onClick={() => {
