@@ -69,14 +69,14 @@ class Command(BaseCommand):
 
         users_by_area = [
             # Sistemas
-            {"username": "admin_sistemas", "email": "admin.sistemas@projectplanner.com", "first_name": "Luis", "last_name": "Gonzales (Admin Sistemas)", "password": "password123", "role": "admin"},
-            {"username": "dev_sistemas", "email": "dev.sistemas@projectplanner.com", "first_name": "Javier", "last_name": "Peña (Dev Sistemas)", "password": "password123", "role": "team_member"},
+            {"username": "admin_sistemas", "email": "admin.sistemas@projectplanner.com", "first_name": "Luis", "last_name": "Gonzales (Admin Sistemas)", "password": "Demo-Segura-2026!", "role": "admin"},
+            {"username": "dev_sistemas", "email": "dev.sistemas@projectplanner.com", "first_name": "Javier", "last_name": "Peña (Dev Sistemas)", "password": "Demo-Segura-2026!", "role": "team_member"},
             # Civil
-            {"username": "admin_civil", "email": "admin.civil@projectplanner.com", "first_name": "Andrea", "last_name": "Rojas (Admin Civil)", "password": "password123", "role": "admin"},
-            {"username": "dev_civil", "email": "dev.civil@projectplanner.com", "first_name": "Mateo", "last_name": "Castro (Dev Civil)", "password": "password123", "role": "team_member"},
+            {"username": "admin_civil", "email": "admin.civil@projectplanner.com", "first_name": "Andrea", "last_name": "Rojas (Admin Civil)", "password": "Demo-Segura-2026!", "role": "admin"},
+            {"username": "dev_civil", "email": "dev.civil@projectplanner.com", "first_name": "Mateo", "last_name": "Castro (Dev Civil)", "password": "Demo-Segura-2026!", "role": "team_member"},
             # Arquitectura
-            {"username": "admin_arquitectura", "email": "admin.arquitectura@projectplanner.com", "first_name": "Carlos", "last_name": "Mendoza (Admin Arq)", "password": "password123", "role": "admin"},
-            {"username": "dev_arquitectura", "email": "dev.arquitectura@projectplanner.com", "first_name": "Sofía", "last_name": "Torres (Dev Arq)", "password": "password123", "role": "team_member"},
+            {"username": "admin_arquitectura", "email": "admin.arquitectura@projectplanner.com", "first_name": "Carlos", "last_name": "Mendoza (Admin Arq)", "password": "Demo-Segura-2026!", "role": "admin"},
+            {"username": "dev_arquitectura", "email": "dev.arquitectura@projectplanner.com", "first_name": "Sofía", "last_name": "Torres (Dev Arq)", "password": "Demo-Segura-2026!", "role": "team_member"},
         ]
 
         for udata in users_by_area:

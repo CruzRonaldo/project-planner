@@ -1,3 +1,4 @@
+import { validatePasswordPolicy } from '../../utils/passwordPolicy';
 import React, { useState } from 'react';
 import {
   ArrowLeftRight,
@@ -200,7 +201,11 @@ export default function TechnicalTeam({
   const availableProjects = Array.from(new Set(['Sin proyecto inicial', ...projectOptions]));
   const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] || 0 }))];
   const addMember = async (draft) => {
-    if (draft.password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+   const passwordPolicyError = validatePasswordPolicy(draft.password);
+
+if (passwordPolicyError) {
+  throw new Error(passwordPolicyError);
+}
     if (draft.password !== draft.passwordConfirm) throw new Error('Las contraseñas no coinciden.');
 
     const updated = addTechnicalMember(data, draft);

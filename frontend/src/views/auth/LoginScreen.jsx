@@ -1,3 +1,4 @@
+import { validatePasswordPolicy } from '../../utils/passwordPolicy';
 import React, { useState } from "react";
 import logoEmpresa from "../../assets/logoempresa1.png";
 import {
@@ -145,10 +146,14 @@ export default function LoginScreen({ onLogin }) {
         setForgotError("Por favor, ingresa una nueva contraseña.");
         return;
       }
-      if (forgotNewPassword.length < 8) {
-        setForgotError("La nueva contraseña debe tener al menos 8 caracteres.");
-        return;
-      }
+     const passwordPolicyError = validatePasswordPolicy(
+  forgotNewPassword
+);
+
+if (passwordPolicyError) {
+  setForgotError(passwordPolicyError);
+  return;
+}
       if (forgotNewPassword !== forgotConfirmPassword) {
         setForgotError("Las contraseñas no coinciden. Verifícalas e inténtalo nuevamente.");
         return;

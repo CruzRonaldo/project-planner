@@ -6,6 +6,8 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import update_last_login
 from django.db import connection, transaction
 from django.db.models import Q
@@ -382,12 +384,6 @@ def change_password_view(request):
             'message': 'Debe ingresar una nueva contraseña.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    if len(new_password) < 6:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña debe contener al menos 6 caracteres.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
     if current_password == new_password:
         return Response({
             'status': 'error',
@@ -406,9 +402,18 @@ def change_password_view(request):
             'message': 'La nueva contraseña y su confirmación no coinciden.'
         }, status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        validate_password(new_password, user=user)
+    except DjangoValidationError as error:
+        return Response({
+            'status': 'error',
+            'message': ' '.join(error.messages),
+            'errors': error.messages,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     # 4. Actualizar contraseña cifrada en la base de datos
     user.set_password(new_password)
-    user.save()
+    user.save(update_fields=['password'])
     new_session_token = issue_session_token(user)
 
     # Registrar en bitácora de auditoría
@@ -2054,12 +2059,6 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if len(new_password) < 8:
-            return Response(
-                {'status': 'error', 'message': 'La contrasena debe tener al menos 8 caracteres.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         user = User.objects.filter(email__iexact=email).first()
         if not user:
             return Response(
@@ -2087,6 +2086,18 @@ class PasswordResetConfirmView(APIView):
             reset_code.delete()
             return Response(
                 {'status': 'error', 'message': 'El codigo ha expirado. Solicita uno nuevo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as error:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': ' '.join(error.messages),
+                    'errors': error.messages,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -2447,3 +2458,6 @@ class Verify2FAResetView(APIView):
 
 # Asistente de IA (Chatbot)
 from .chatbot_views import ChatbotView, RAGChatbotView
+
+
+

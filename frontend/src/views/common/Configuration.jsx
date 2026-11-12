@@ -1,3 +1,4 @@
+import { validatePasswordPolicy } from '../../utils/passwordPolicy';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import projectsApi from '../../services/projectsApi';
@@ -11,7 +12,7 @@ import {
   AuditLogCard,
   EditProfileModal,
   ChangePasswordModal,
-} from './configuration';
+} from './configuration/index.js';
 
 /**
  * Vista unificada de Configuración del Sistema.
@@ -204,10 +205,14 @@ export default function Configuration({
       setPasswordError('Debe ingresar su contraseña actual.');
       return;
     }
-    if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
-      setPasswordError('La nueva contraseña debe contener al menos 6 caracteres.');
-      return;
-    }
+    const passwordPolicyError = validatePasswordPolicy(
+  passwordForm.newPassword
+);
+
+if (passwordPolicyError) {
+  setPasswordError(passwordPolicyError);
+  return;
+}
     if (passwordForm.newPassword === passwordForm.currentPassword) {
       setPasswordError('La nueva contraseña no puede ser idéntica a la contraseña actual.');
       return;
