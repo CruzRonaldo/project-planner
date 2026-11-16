@@ -8,6 +8,7 @@ import {
   UserCog,
   Code,
   Settings,
+  BookOpen,
   X,
   PanelLeftClose,
   Command,
@@ -23,6 +24,7 @@ const mainItems = [
   { id: 'technical-team', label: 'Equipo Técnico', icon: Users, shortcut: 'Shift + 5', enabled: true },
   { id: 'human-resources', label: 'Recursos Humanos', icon: UserCog, shortcut: 'Shift + 6', enabled: true },
   { id: 'integrations', label: 'Integraciones', icon: Code, shortcut: 'Shift + 7', enabled: true },
+  { id: 'manual', label: 'Manual de Usuario', icon: BookOpen, shortcut: 'Shift + 8', enabled: true },
 ];
 
 const VIEW_SHORTCUTS = {
@@ -33,6 +35,7 @@ const VIEW_SHORTCUTS = {
   'technical-team': 'Shift + 5',
   'human-resources': 'Shift + 6',
   integrations: 'Shift + 7',
+  manual: 'Shift + 8',
   configuracion: 'Shift + 9',
 };
 
@@ -165,7 +168,7 @@ export default function Sidebar({
             {items.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
-              const rawShortcut = VIEW_SHORTCUTS[item.id] || (index < 7 ? `Shift + ${index + 1}` : null);
+              const rawShortcut = VIEW_SHORTCUTS[item.id] || (index < 8 ? `Shift + ${index + 1}` : null);
               const formattedShortcut = !isMobile ? formatShortcut(rawShortcut) : null;
 
               return (

@@ -7,6 +7,7 @@ import {
   UserCog,
   Code,
   Settings,
+  BookOpen,
 } from 'lucide-react';
 
 export const USER_ROLES = {
@@ -102,6 +103,19 @@ export const NAVIGATION_ITEMS = [
     roles: [USER_ROLES.ADMIN, USER_ROLES.USER],
     category: 'common',
     searchPlaceholder: 'Buscar integración, actividad o estado...',
+    enabled: true,
+    showInSidebar: true,
+    showInMobile: true,
+  },
+  {
+    id: 'manual',
+    path: '/manual',
+    label: 'Manual de Usuario',
+    mobileLabel: 'Manual',
+    icon: BookOpen,
+    roles: [USER_ROLES.ADMIN, USER_ROLES.USER],
+    category: 'common',
+    searchPlaceholder: 'Buscar en el manual de usuario o atajos...',
     enabled: true,
     showInSidebar: true,
     showInMobile: true,

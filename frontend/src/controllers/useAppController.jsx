@@ -17,6 +17,7 @@ import {
   Integrations,
   RolesManagement,
   Configuration,
+  UserManualView,
 } from '../views';
 
 /**
@@ -68,6 +69,9 @@ export function useAppController() {
   // 6. Dominio de Conectores Externos e Integraciones (Google Drive, Make, Revit)
   const integrations = useIntegrationsController({ hideMocks });
 
+  // 7. Estado local para búsqueda en Manual de Usuario
+  const [manualQuery, setManualQuery] = React.useState('');
+
   // Sincronizar asignaciones remotas de proyectos al equipo técnico si se reciben del backend
   useEffect(() => {
     if (projects.remoteAssignments?.length > 0) {
@@ -107,6 +111,8 @@ export function useAppController() {
         return team.humanResourcesQuery;
       case 'integrations':
         return integrations.integrationsQuery;
+      case 'manual':
+        return manualQuery;
       default:
         return undefined;
     }
@@ -117,6 +123,7 @@ export function useAppController() {
     team.technicalTeamQuery,
     team.humanResourcesQuery,
     integrations.integrationsQuery,
+    manualQuery,
   ]);
 
   // Enrutar despachador de búsqueda según la vista activa
@@ -132,6 +139,8 @@ export function useAppController() {
         return team.setHumanResourcesQuery;
       case 'integrations':
         return integrations.setIntegrationsQuery;
+      case 'manual':
+        return setManualQuery;
       default:
         return undefined;
     }
@@ -262,6 +271,15 @@ export function useAppController() {
         />
       );
     }
+    if (navigation.activeView === 'manual') {
+      return (
+        <UserManualView
+          onNavigate={navigation.setActiveView}
+          isAdmin={auth.isAdmin}
+          initialQuery={manualQuery}
+        />
+      );
+    }
     return (
       <DashboardContent
         portfolioData={projects.portfolioData}
@@ -320,6 +338,7 @@ export function useAppController() {
     theme.theme,
     theme.setTheme,
     responsibleOptions,
+    manualQuery,
   ]);
 
   return {
