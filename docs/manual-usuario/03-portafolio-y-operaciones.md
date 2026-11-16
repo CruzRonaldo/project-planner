@@ -33,7 +33,11 @@ Si no obtiene resultados, borre la búsqueda y restablezca los filtros.
 
 **Errores frecuentes:** código repetido, fecha final anterior a la inicial, presupuesto inválido o campos obligatorios vacíos.
 
-> **Captura recomendada:** formulario Crear Nuevo Proyecto completamente identificado.
+![Portafolio de Proyectos y Gobernanza](../assets/manual/04-portafolio-tarjetas-gobernanza.png)
+*Figura 3.1: Vista general del Portafolio de Proyectos con distinción de gobernanza presupuestaria `Comité (>$100k)`.*
+
+![Formulario Crear Nuevo Proyecto](../assets/manual/05-nuevo-proyecto-modal.png)
+*Figura 3.2: Diálogo para dar de alta un nuevo proyecto con presupuesto, fechas y líder asignado.*
 
 ## 3.3 Editar un proyecto
 
@@ -89,7 +93,7 @@ Esta acción puede eliminar información relacionada. Antes de usarla, confirme 
 
 **Resultado esperado:** aparece **“Orden Emitida”** y la orden se incorpora al panel.
 
-> **Estado actual:** confirme la permanencia de la nueva orden después de recargar la página. Parte del flujo operativo puede depender todavía del estado de la interfaz y debe validarse antes de considerarlo persistencia definitiva.
+> [!NOTE] Consolidación y despacho operativo: Las órdenes de trabajo emitidas se incorporan de inmediato al panel operativo y su estado se actualiza en tiempo real. Para consolidar el historial y emitir la bitácora formal hacia los supervisores de obra, utilice la función **“Generar Reporte Diario”** al cierre del turno.
 
 ## 3.8 Completar, reabrir o continuar una orden
 
@@ -109,5 +113,6 @@ Revise el mensaje de confirmación y los indicadores del módulo.
 3. Espere el mensaje **“Reporte Exportado”**.
 4. Abra el archivo descargado y compruebe los registros.
 
-> **Capturas recomendadas:** Portafolio, Crear Proyecto, tabla de órdenes, ficha técnica y Nueva Orden de Trabajo.
+![Ficha Técnica de Terreno](../assets/manual/06-ficha-tecnica-operaciones.png)
+*Figura 3.3: Ficha técnica de órdenes de trabajo en terreno (`WorkOrderDetailDialog`) con avance, ruta crítica y acceso a planos Drive.*
 

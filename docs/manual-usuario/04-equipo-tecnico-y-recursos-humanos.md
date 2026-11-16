@@ -39,7 +39,8 @@
 
 **Errores frecuentes:** correo duplicado, contraseñas diferentes, clave menor de ocho caracteres, fotografía inválida o catálogos sin cargar.
 
-> **Captura recomendada:** diálogo Añadir Nuevo Técnico con cada grupo de campos numerado.
+![Directorio Técnico](../assets/manual/07-directorio-tecnico.png)
+*Figura 4.1: Directorio del Equipo Técnico con métricas de disponibilidad y especialidades.*
 
 ## 4.4 Reasignar un proyecto
 
@@ -98,5 +99,6 @@ El archivo incluye los integrantes disponibles en la matriz, su asignación, est
 
 Revise después el estado, la disponibilidad y el historial del integrante.
 
-> **Capturas recomendadas:** directorio, alta de técnico, reasignación, matriz de RR. HH., formulario de incidencia y diálogo de transición.
+![Matriz de Recursos Humanos](../assets/manual/08-matriz-rrhh-incidencias.png)
+*Figura 4.2: Matriz de Recursos Humanos con gestión de ausencias, incidencias y balance de carga laboral.*
 

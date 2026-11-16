@@ -16,7 +16,8 @@
 
 Si el Dashboard aparece vacío, abra **Portafolio** y confirme que existan proyectos registrados. También puede deberse a que el backend todavía está cargando.
 
-> **Captura recomendada:** Dashboard completo con las cuatro tarjetas y el calendario numerados.
+![Panel de Control y Métricas](../assets/manual/02-dashboard-kpis-gantt.png)
+*Figura 2.1: Panel de Control (Dashboard) con tarjetas de KPIs ejecutivos y Mini-Gantt semestral.*
 
 ## 2.2 Consultar el Calendario Maestro
 
@@ -47,19 +48,52 @@ Si el Dashboard aparece vacío, abra **Portafolio** y confirme que existan proye
 
 **Si no funciona:** confirme que el proyecto exista en la base de datos, que la duración sea válida y que la cuenta tenga permisos de gestión.
 
-> **Captura recomendada:** diálogo Ajustar Calendario con proyecto, duración, motivo y botón Guardar ajustes.
+![Diálogo de Ajuste de Calendario](../assets/manual/03-ajustar-calendario-modal.png)
+*Figura 2.2: Modal de Ajuste de Calendario con selección de proyecto, duración y motivo de auditoría obligatorio.*
 
-## 2.4 Analizar tiempos
+## 2.4 Motor de optimización y análisis de tiempos
 
 **Disponible para:** Administrador y Subadministrador.
 
-1. Presione **“Analizar tiempos”**.
-2. Seleccione el proyecto.
-3. Revise dependencias, responsables y tareas disponibles.
+### Procedimiento operativo
+1. En la parte superior de la Planificación, presione **“Analizar tiempos”**.
+2. Seleccione el proyecto que desea evaluar.
+3. El sistema carga las tareas, dependencias predecesoras y personal técnico asignado.
 4. Presione **“Calcular propuesta”**.
-5. Revise el resultado antes de modificar manualmente un cronograma.
+5. Revise la tabla comparativa con los resultados del análisis algorítmico:
+   - **Plazo guardado:** duración original del proyecto en días calendario.
+   - **Plazo propuesto:** nueva duración calculada considerando ruta crítica y disponibilidad real.
+   - **Margen frente al plazo guardado (días ganados):** tiempo neto que se puede comprimir el proyecto.
+   - **Exceso sobre el plazo guardado:** días de retraso en caso de cuellos de botella por sobreasignación de técnicos.
+   - **Mínimo por dependencias:** cota teórica mínima sin conflictos de personal.
+   - **Holgura por dependencias:** margen de días que una tarea puede retrasarse sin aplazar la entrega final.
+   - **Espera adicional por recurso:** días de atraso generados porque el especialista atiende múltiples tareas simultáneas.
 
-El análisis entrega una propuesta. No debe asumirse que cambia automáticamente todas las fechas del proyecto.
+### Cálculos internos y lógica matemática del motor
+Project Planner implementa un motor algorítmico determinístico basado en tres estándares de ingeniería de proyectos:
+
+1. **Método de la Ruta Crítica (CPM - Critical Path Method):**
+   - Construye un Grafo Dirigido Acíclico (DAG) y ejecuta un ordenamiento topológico para garantizar la ausencia de dependencias circulares.
+   - Realiza un pase hacia adelante (*Forward Pass*) para obtener el inicio y fin más tempranos (*Early Start / Early Finish*) y un pase hacia atrás (*Backward Pass*) para calcular los plazos más tardíos (*Late Start / Late Finish*).
+   - Calcula la **holgura total**:
+     $$\text{Holgura (Slack)} = \text{Inicio Tardío} - \text{Inicio Temprano}$$
+   - Las tareas con $\text{Holgura} = 0$ forman la **Ruta Crítica** (`is_critical_path = True`). Solo acelerando estas tareas se reduce el plazo de entrega del proyecto.
+
+2. **Ponderación por Disponibilidad Real de Personal:**
+   - La duración teórica de cada labor se ajusta según la dedicación efectiva del técnico asignado (80%, 60%, etc.):
+     $$\text{Duración Efectiva (días)} = \left\lceil \text{Duración Base} \times \frac{100}{\text{Disponibilidad (\%)}}\right\rceil$$
+
+3. **Nivelación y Resolución de Conflictos de Recursos (RCPSP):**
+   - Si un mismo especialista es asignado a varias tareas críticas en fechas coincidentes, el motor programa intervalos secuenciales y cuantifica la **Espera Adicional por Recurso** (`resource_delay_days`).
+
+4. **Compresión y Margen de Seguridad de 7 Días:**
+   - Para labores constructivas con rendimientos específicos ($m^2/\text{día}$, cuadrillas reforzadas), el factor de aceleración calcula:
+     $$\text{Días Ahorrados} = \text{round}\left(\frac{\text{Duración Original}}{5}\right)$$
+   - El sistema preserva siempre un **piso de seguridad de 7 días de holgura técnica** para absorber contingencias climáticas, inspecciones o demoras de proveedores.
+
+5. **Regla de Gobernanza Presupuestal ($100.000 USD):**
+   - Si el costo del proyecto optimizado es **$\le \$100.000$ USD**, la aprobación recae en el Líder Técnico.
+   - Si el presupuesto supera los **$\$100.000$ USD**, el sistema activa obligatoriamente la regla de gobernanza: requiere visto bueno del **Comité Directivo** y despacha un webhook automático a Make para alertar en el canal de Discord y por correo institucional.
 
 ## 2.5 Crear un Hito Global
 

@@ -41,15 +41,15 @@ Al registrar una ausencia médica o permiso, el sistema excluye automáticamente
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin as 👤 Administrador
-    participant UI as 💻 Frontend (/team)
-    participant API as ⚙️ Django API
-    participant DB as 🐘 PostgreSQL (Transacción Atómica)
+    actor Admin as Administrador
+    participant UI as Frontend Team
+    participant API as Django API
+    participant DB as PostgreSQL DB
 
     Admin->>UI: Ingresa nombres, especialidad, correo y contraseña
     UI->>API: POST /api/technicians/create/
     
-    critical Transacción Atómica (transaction.atomic)
+    critical Transaccion Atomica
         API->>DB: INSERT INTO auth_user (username, email, password_hash)
         API->>DB: INSERT INTO core_teammember (user_id, area_id, role_id)
     end

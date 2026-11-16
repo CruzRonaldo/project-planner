@@ -13,6 +13,9 @@
 
 La pantalla distingue Administrador, SubAdministrador y Equipo Técnico. El Administrador principal no debería mostrar un interruptor que permita degradarlo desde la interfaz.
 
+![Gestión de Roles y Permisos de Usuarios](../assets/manual/11-gestion-roles-usuarios.png)
+*Figura 7.1: Panel administrativo de Roles y Permisos con lista de usuarios, estados de conexión activa y asignación de Subadministrador.*
+
 ## 7.2 Activar un Subadministrador
 
 1. Localice un integrante de Equipo Técnico.
@@ -69,5 +72,6 @@ El sistema intenta generar una copia preventiva antes de restaurar.
 
 **Errores frecuentes:** credenciales incorrectas, falta de HTTPS en producción, PostgreSQL apagado, archivo inválido, nombre de base diferente o herramientas `pg_dump`/`pg_restore` no disponibles.
 
-> **Capturas recomendadas:** Roles y permisos, Bitácora, Administrar respaldos y confirmación previa a restaurar. No capture credenciales ni contenido sensible.
+![Panel de Configuración y Respaldos](../assets/manual/10-respaldos-postgresql-sha256.png)
+*Figura 7.2: Panel de Configuración y Respaldos con historial y verificación de sumas criptográficas SHA-256.*
 

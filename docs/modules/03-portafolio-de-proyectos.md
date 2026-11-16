@@ -36,11 +36,11 @@ Centraliza el repositorio maestro de iniciativas corporativas de la empresa. Per
 ```mermaid
 sequenceDiagram
     autonumber
-    actor PM as 👤 Project Manager
-    participant UI as 💻 Frontend (Portfolio)
-    participant API as ⚙️ Django API
-    participant DB as 🐘 PostgreSQL
-    participant MK as 🟣 Make / Discord
+    actor PM as Project Manager
+    participant UI as Frontend Portfolio
+    participant API as Django API
+    participant DB as PostgreSQL DB
+    participant MK as Make Webhook
 
     PM->>UI: Abre modal y llena datos del proyecto
     UI->>API: POST /api/projects/

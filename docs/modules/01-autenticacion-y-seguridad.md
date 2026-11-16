@@ -40,28 +40,28 @@ Cada cambio de URL o clic en la barra de navegación es evaluado por funciones d
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as 👤 Usuario
-    participant UI as 💻 Frontend
-    participant API as ⚙️ Django Auth
-    participant DB as 🐘 PostgreSQL
+    actor U as Usuario
+    participant UI as Frontend
+    participant API as Django Auth
+    participant DB as PostgreSQL
 
     Note over U,DB: 1. Inicio de Sesión
     U->>UI: Ingresa correo y contraseña
     UI->>API: POST /api/auth/login/
     API->>DB: Valida hash pbkdf2_sha256 y marca last_login
     API-->>UI: 200 OK (User Data + canManage)
-    UI->>UI: Guarda en localStorage ("project_planner_user")
+    UI->>UI: Guarda en localStorage (project_planner_user)
     UI-->>U: Redirige a /dashboard
 
     Note over U,DB: 2. Cierre de Sesión
-    U->>UI: Clic en "Cerrar Sesión"
+    U->>UI: Clic en Cerrar Sesión
     UI->>API: POST /api/auth/logout/
     API->>DB: Actualiza presencia (isOnline = false)
     UI->>UI: Limpia localStorage
     UI-->>U: Redirige a /login
 
     Note over U,DB: 3. Sincronización entre Pestañas (Cross-Tab Sync)
-    Note over UI: Evento 'storage' detecta logout/login en otra pestaña
+    Note over UI: Evento storage detecta logout o login en otra pestaña
     UI->>UI: Desaloja RAM y redirige a /login sin requerir F5
 ```
 

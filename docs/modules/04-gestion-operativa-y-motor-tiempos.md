@@ -40,17 +40,17 @@ Donde el divisor arquitectónico estándar es **5** (factor de reducción por Fa
 
 ```mermaid
 flowchart TD
-    Start([Project Manager solicita Optimización]) --> Consultar[Consultar Tareas y Rendimientos]
-    Consultar --> FiltroCritico{¿Tarea en<br/>Ruta Crítica?}
+    Start(["Project Manager solicita Optimización"]) --> Consultar["Consultar Tareas y Rendimientos"]
+    Consultar --> FiltroCritico{"¿Tarea en Ruta Crítica?"}
     
-    FiltroCritico -- No --> Mantener[Mantener Plazo Original]
-    FiltroCritico -- Sí --> Calcular[Calcular Reducción: Duración / 5]
+    FiltroCritico -- No --> Mantener["Mantener Plazo Original"]
+    FiltroCritico -- Sí --> Calcular["Calcular Reducción: Duración / 5"]
     
-    Calcular --> EvalTolerancia[Aplicar Tolerancia de Seguridad de 7 días]
-    EvalTolerancia --> GenerarPropuesta[Generar Propuesta: ej. 10m ➔ 9m]
+    Calcular --> EvalTolerancia["Aplicar Tolerancia de Seguridad de 7 días"]
+    EvalTolerancia --> GenerarPropuesta["Generar Propuesta de Ajuste de Cronograma"]
     Mantener --> GenerarPropuesta
     
-    GenerarPropuesta --> Presentar([Presentación y Confirmación por Líder])
+    GenerarPropuesta --> Presentar(["Presentación y Confirmación por Líder"])
 ```
 
 ---

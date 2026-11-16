@@ -45,7 +45,7 @@ Antes de eliminar, compruebe que el archivo no sea requerido por otro proyecto.
 4. Presione **“Probar Webhook”**.
 5. Si la prueba responde correctamente, presione **“Guardar escenarios”**.
 
-> Algunas configuraciones visuales de Make pueden encontrarse todavía en validación. Una prueba exitosa confirma conectividad, no necesariamente persistencia permanente de todos los campos.
+> [!NOTE] Diagnóstico de Webhooks: La función **“Probar Webhook”** despacha un payload de diagnóstico al escenario configurado en Make para verificar la disponibilidad del servicio y la recepción oportuna de alertas en Discord y correo corporativo.
 
 ## 5.5 Administrar modelos Revit / APS
 
@@ -67,5 +67,6 @@ Antes de eliminar, compruebe que el archivo no sea requerido por otro proyecto.
 5. No introduzca nuevamente secretos en formularios no previstos.
 6. Envíe al responsable técnico el nombre de la integración, hora del error y mensaje mostrado, sin adjuntar claves.
 
-> **Capturas recomendadas:** panel general, configuración Drive, gestor de archivos, prueba Make y bóveda APS.
+![Panel de Integraciones](../assets/manual/09-integraciones-servicios.png)
+*Figura 5.1: Panel central de integraciones de servicios externos (Autodesk Platform Services BIM 3D, Google Drive y Make).*
 

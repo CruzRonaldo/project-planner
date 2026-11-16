@@ -22,7 +22,8 @@
 - Si aparece un aviso de conexión con Django, confirme que el backend esté disponible.
 - Si la cuenta está desactivada, contacte al administrador.
 
-> **Captura recomendada:** pantalla de inicio con la tarjeta USUARIO y el botón Iniciar Sesión numerados.
+![Pantalla de inicio de sesión](../assets/manual/01-login-seleccion-roles.png)
+*Figura 1.1: Pantalla de inicio de sesión con selector de roles (Usuario / Administrador) y formulario de credenciales.*
 
 ## 1.2 Iniciar sesión como Administrador
 
@@ -43,7 +44,8 @@ Si es el primer acceso administrativo:
 
 **Resultado esperado:** se abre el Dashboard con las acciones administrativas habilitadas.
 
-> Nunca incluya el QR, el secreto TOTP ni un código vigente en una captura del manual.
+![Pantalla de Verificación 2FA TOTP](../assets/manual/14-verificacion-2fa-totp.png)
+*Figura 1.2: Pantalla de Verificación de Dos Factores (2FA/TOTP) para cuentas administrativas con código temporal de seis dígitos.*
 
 ## 1.3 Recuperar una contraseña
 
@@ -80,6 +82,7 @@ La barra lateral contiene:
 - **Equipo Técnico**
 - **Recursos Humanos**
 - **Integraciones**
+- **Manual de Usuario**
 - **Configuración**, en la parte inferior
 
 Presione una opción para abrirla. El elemento activo queda resaltado.
@@ -89,7 +92,8 @@ Atajos disponibles:
 | Atajo | Acción |
 |---|---|
 | `Shift + 0` | Expandir o contraer la barra lateral. |
-| `Shift + 1` a `Shift + 7` | Abrir los módulos principales. |
+| `Shift + 1` a `Shift + 7` | Abrir los módulos principales (Inicio a Integraciones). |
+| `Shift + 8` | Abrir el Manual de Usuario interactivo y documentación. |
 | `Shift + 9` | Abrir Configuración. |
 | `Ctrl + K` | Enfocar el buscador superior. |
 

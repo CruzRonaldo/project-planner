@@ -45,7 +45,7 @@ Al modificar el cronograma desde el diálogo interactivo `AdjustScheduleDialog`:
 
 ```mermaid
 flowchart TD
-    A([Entrada a /planning]) --> B{¿Es Admin o SubAdmin?}
+    A(["Entrada a /planning"]) --> B{"¿Es Admin o SubAdmin?"}
     B -- No --> C["Modo Solo Consulta (canManage = false)"]
     B -- Sí --> D["Modo Gestión Completa (canManage = true)"]
     
@@ -65,13 +65,13 @@ flowchart TD
     K -- No --> M["Dictamen: Líder Técnico"]
     L --> N["POST /api/milestones/"]
     M --> N
-    N --> O([Actualización Inmediata en Gantt])
+    N --> O(["Actualización Inmediata en Gantt"])
 
-    D --> P["Exportar Gantt / PDF"]
+    D --> P["Exportar Gantt a PDF"]
     P --> Q{"¿Proyecto Seleccionado?"}
     Q -- Sí --> R["Reporte Individual (Calendario_PRJ_Fecha.pdf)"]
     Q -- No --> S["Reporte Maestro Anual (Calendario_Maestro_Fecha.pdf)"]
-    R --> T([Generación PDF Vectorial Landscape])
+    R --> T(["Generación PDF Vectorial Landscape"])
     S --> T
 ```
 

@@ -11,7 +11,7 @@
 | Código 2FA rechazado | Hora del teléfono y código vigente | Esperar un código nuevo y verificar que el reloj sea automático. |
 | Pantalla vacía | Filtros activos o datos inexistentes | Limpiar filtros, actualizar registros y comprobar la base de datos. |
 | No aparece un botón | Rol o sesión anterior | Cerrar sesión, volver a ingresar y confirmar permisos con el administrador. |
-| Un cambio desaparece al recargar | Acción todavía local | Revisar la advertencia del capítulo y confirmar si existe persistencia backend. |
+| Un cambio no se refleja en otros puestos | Sincronización o guardado | Confirmar guardado mediante botón explícito y verificar conexión al backend. |
 | Drive no conecta | OAuth o URI de retorno | Reautorizar y solicitar revisión de configuración al responsable técnico. |
 | Make no responde | URL de webhook | Verificar formato, disponibilidad y escenario activo. |
 | APS/Revit no carga | Credenciales, formato o procesamiento | Esperar la traducción y revisar el mensaje de estado. |

@@ -38,10 +38,10 @@ Permite la conectividad fluida de Project Planner con el ecosistema de herramien
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Esp as 👷 Especialista BIM
-    participant UI as 💻 Frontend
-    participant API as ⚙️ Django API
-    participant APS as 📐 Autodesk APS (OSS / Derivadas)
+    actor Esp as Especialista BIM
+    participant UI as Frontend
+    participant API as Django API
+    participant APS as Autodesk APS
 
     Esp->>UI: Carga archivo .RVT (Revit)
     UI->>API: POST /api/integrations/aps/upload/

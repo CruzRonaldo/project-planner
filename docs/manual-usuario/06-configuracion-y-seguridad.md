@@ -70,5 +70,9 @@ Después de cambiar la contraseña:
 2. Presione **“Cerrar Sesión”**.
 3. Compruebe que aparezca la pantalla de acceso.
 
-> **Capturas recomendadas:** tarjeta Perfil de Usuario, Editar Perfil, Preferencias, verificación de contraseña actual y pantalla de confirmación.
+![Panel de Configuración y Preferencias](../assets/manual/12-perfil-preferencias-configuracion.png)
+*Figura 6.1: Panel de Configuración con información de perfil de usuario y selector de temas visuales (Claro, Oscuro, Medianoche).*
+
+![Modal de Cambio de Contraseña](../assets/manual/13-cambiar-contrasena-modal.png)
+*Figura 6.2: Diálogo interactivo para cambio seguro de contraseña con validación previa de la clave actual.*
 

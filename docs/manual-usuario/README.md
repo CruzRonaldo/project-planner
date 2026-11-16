@@ -1,9 +1,8 @@
 # Manual de Usuario — Project Planner
 
-> **Estado:** Borrador funcional para revisión  
-> **Versión:** 0.2  
-> **Última verificación:** 14 de noviembre de 2026  
-> **Commit verificado:** `18fb1a3`  
+> **Estado:** Documentación Oficial Verificada  
+> **Versión:** 1.0  
+> **Última verificación:** 15 de noviembre de 2026  
 > **Rama de documentación:** `Manual-update`  
 > **Audiencia:** Equipo Técnico, Subadministradores, Administradores y Superadministradores  
 > **Referencia de accesibilidad:** WCAG 2.2, nivel objetivo AA
