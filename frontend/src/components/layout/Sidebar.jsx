@@ -75,7 +75,7 @@ export default function Sidebar({
             ? 'w-[260px] translate-x-0 shadow-2xl'
             : '-translate-x-full md:translate-x-0'
         } ${
-          isOpenDesktop ? 'md:w-[210px]' : 'md:w-[60px]'
+          isOpenDesktop ? 'md:w-[250px]' : 'md:w-[60px]'
         } md:relative md:z-30 md:shadow-none md:overflow-visible select-none`}
       >
         <div className="flex flex-col flex-1 py-3 md:overflow-visible">
@@ -92,8 +92,7 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={!isOpenDesktop ? onToggleDesktop : undefined}
-                aria-label={!isOpenDesktop ? 'Expandir barra lateral' : 'Project Planner'}
-                title={!isOpenDesktop ? `Expandir barra lateral (${formatShortcut('Shift + 0')})` : 'Project Planner'}
+                aria-label={!isOpenDesktop ? `Expandir barra lateral (${formatShortcut('Shift + 0')})` : 'Project Planner'}
                 className={`flex items-center gap-2.5 text-left transition-colors ${
                   !isOpenDesktop ? 'cursor-pointer hover:opacity-85' : 'cursor-default'
                 }`}
@@ -142,8 +141,7 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={onToggleDesktop}
-                  aria-label="Colapsar barra lateral"
-                  title={`Colapsar barra lateral (${formatShortcut('Shift + 0')})`}
+                  aria-label={`Colapsar barra lateral (${formatShortcut('Shift + 0')})`}
                   className="hidden md:flex rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >
                   <PanelLeftClose size={16} />
@@ -177,8 +175,8 @@ export default function Sidebar({
                     type="button"
                     disabled={item.enabled === false}
                     onClick={() => handleNavigation(item.id)}
-                    aria-label={item.label}
-                    title={formattedShortcut ? `${item.label} (${formattedShortcut})` : item.label}
+                    aria-label={formattedShortcut ? `${item.label} (${formattedShortcut})` : item.label}
+                    title={isOpenDesktop && formattedShortcut ? `Atajo: ${formattedShortcut}` : undefined}
                     aria-current={isActive ? 'page' : undefined}
                     className={`relative flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                       isOpenDesktop
@@ -205,8 +203,8 @@ export default function Sidebar({
                     </span>
                   </button>
 
-                  {/* Tooltip flotante al pasar el cursor */}
-                  {!isMobile && (
+                  {/* Tooltip flotante al pasar el cursor (solo en estado colapsado para no duplicar etiquetas en expandido) */}
+                  {!isOpenDesktop && !isMobile && (
                     <div
                       role="tooltip"
                       className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
@@ -233,8 +231,8 @@ export default function Sidebar({
             <button
               type="button"
               onClick={() => handleNavigation('configuracion')}
-              aria-label="Configuración"
-              title={`Configuración (${formatShortcut('Shift + 9')})`}
+              aria-label={`Configuración (${formatShortcut('Shift + 9')})`}
+              title={isOpenDesktop ? `Atajo: ${formatShortcut('Shift + 9')}` : undefined}
               aria-current={activeView === 'configuracion' ? 'page' : undefined}
               className={`flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                 isOpenDesktop
@@ -255,8 +253,8 @@ export default function Sidebar({
                 Configuración
               </span>
             </button>
-            {/* Tooltip flotante al pasar el cursor */}
-            {!isMobile && (
+            {/* Tooltip flotante al pasar el cursor (solo en estado colapsado) */}
+            {!isOpenDesktop && !isMobile && (
               <div
                 role="tooltip"
                 className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"

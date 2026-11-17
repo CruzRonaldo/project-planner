@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Sparkles,
   Command,
+  Menu,
 } from 'lucide-react';
 import { MANUAL_SECTIONS, getSectionById } from './manualSections';
 import { usePlatform } from '../../hooks/usePlatform';
@@ -28,9 +29,10 @@ export default function UserManualView({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'admin' | 'user'
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const contentContainerRef = useRef(null);
   const searchInputRef = useRef(null);
-  const { isMac, formatShortcut } = usePlatform();
+  const { isMac, isMobile, formatShortcut } = usePlatform();
 
   // Si cambia la búsqueda desde el Topbar global
   useEffect(() => {
@@ -92,9 +94,8 @@ export default function UserManualView({
   }, [filteredSections, currentIndex]);
 
   // Atajos de teclado internos:
-  // - Alt + 0 .. 8: Cambiar de capítulo
-  // - Flecha Izquierda / Derecha: Anterior / Siguiente (cuando no se está en un input)
-  // - Escape: Cerrar Lightbox de imagen
+  // - Flecha Izquierda / Derecha: Anterior / Siguiente capítulo (cuando no se está en un input)
+  // - Escape: Cerrar Lightbox de imagen o cerrar Drawer móvil
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (zoomedImage && event.key === 'Escape') {
@@ -102,40 +103,31 @@ export default function UserManualView({
         return;
       }
 
-      const tagName = event.target?.tagName;
-      const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
-
-      // Alt + Número para cambiar de capítulo rápidamente con RBAC
-      if (event.altKey && !isNaN(parseInt(event.key, 10))) {
-        const num = parseInt(event.key, 10);
-        const targetSec = MANUAL_SECTIONS[num];
-        if (targetSec) {
-          if (!isAdmin && targetSec.roleRequired === 'admin') {
-            return; // Bloqueo de atajo para usuario sin privilegios
-          }
-          event.preventDefault();
-          setSelectedSectionId(targetSec.id);
-          contentContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-          return;
-        }
+      if (isMobileDrawerOpen && event.key === 'Escape') {
+        setIsMobileDrawerOpen(false);
+        return;
       }
 
+      const tagName = event.target?.tagName;
+      const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
       if (isInput) return;
 
       if (event.key === 'ArrowLeft' && prevSection) {
         event.preventDefault();
         setSelectedSectionId(prevSection.id);
+        setIsMobileDrawerOpen(false);
         contentContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       } else if (event.key === 'ArrowRight' && nextSection) {
         event.preventDefault();
         setSelectedSectionId(nextSection.id);
+        setIsMobileDrawerOpen(false);
         contentContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [zoomedImage, prevSection, nextSection, isAdmin]);
+  }, [zoomedImage, isMobileDrawerOpen, prevSection, nextSection]);
 
   // Desplazar al inicio al cambiar de capítulo con guardia RBAC
   const handleSelectSection = (id) => {
@@ -144,6 +136,7 @@ export default function UserManualView({
       return;
     }
     setSelectedSectionId(id);
+    setIsMobileDrawerOpen(false);
     contentContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -152,12 +145,27 @@ export default function UserManualView({
   };
 
   return (
-    <div className="flex flex-1 min-w-0 h-[calc(100vh-60px)] overflow-hidden bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14] transition-colors">
+    <div className="relative flex flex-1 min-w-0 h-[calc(100vh-60px)] overflow-hidden bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14] transition-colors">
       
+      {/* OVERLAY PARA MÓVIL (Índice de Capítulos Off-canvas) */}
+      {isMobileDrawerOpen && (
+        <div
+          role="presentation"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in lg:hidden"
+        />
+      )}
+
       {/* ============================================================ */}
       {/* BARRA LATERAL DEL MANUAL (Índice de Capítulos y Filtros) */}
       {/* ============================================================ */}
-      <aside className="w-80 shrink-0 border-r border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40 bg-white dark:bg-[#161b22] midnight:bg-[#080E1C] flex flex-col h-full print:hidden">
+      <aside
+        id="manual-sidebar"
+        aria-label="Índice de capítulos del manual"
+        className={`fixed inset-y-0 left-0 z-50 lg:static lg:z-auto w-80 max-w-[85vw] shrink-0 border-r border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40 bg-white dark:bg-[#161b22] midnight:bg-[#080E1C] flex flex-col h-full shadow-2xl lg:shadow-none transition-transform duration-300 ease-in-out print:hidden ${
+          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
         
         {/* Cabecera del Panel de Documentación */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 midnight:border-cyan-900/30">
@@ -175,14 +183,25 @@ export default function UserManualView({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handlePrint}
-              title="Imprimir o Exportar PDF de este capítulo"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 midnight:text-cyan-400 midnight:hover:bg-cyan-950 transition-colors cursor-pointer"
-            >
-              <Printer size={16} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handlePrint}
+                title="Imprimir o Exportar PDF de este capítulo"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 midnight:text-cyan-400 midnight:hover:bg-cyan-950 transition-colors cursor-pointer"
+              >
+                <Printer size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileDrawerOpen(false)}
+                aria-label="Cerrar índice"
+                title="Cerrar índice de capítulos"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 midnight:text-cyan-400 midnight:hover:bg-cyan-950 transition-colors lg:hidden cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Buscador de capítulos */}
@@ -292,9 +311,6 @@ export default function UserManualView({
                     {sec.summary}
                   </p>
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 opacity-60 self-center">
-                  Alt+{sec.number}
-                </span>
               </button>
             );
           })}
@@ -305,15 +321,17 @@ export default function UserManualView({
           )}
         </nav>
 
-        {/* Pie de navegación rápida con atajos */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 midnight:border-cyan-900/30 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#11161d]">
-          <div className="flex items-center justify-between text-[10px]">
-            <span>Atajo global del manual:</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 midnight:bg-cyan-950 font-mono text-cyan-600 dark:text-cyan-400">
-              {formatShortcut('Shift + 8')}
-            </kbd>
+        {/* Pie de navegación rápida con atajos (oculto en móviles/táctil) */}
+        {!isMobile && (
+          <div className="p-3 border-t border-slate-200 dark:border-slate-800 midnight:border-cyan-900/30 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#11161d]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span>Atajo global del manual:</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 midnight:bg-cyan-950 font-mono text-cyan-600 dark:text-cyan-400">
+                {formatShortcut('Shift + 8')}
+              </kbd>
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* ============================================================ */}
@@ -321,8 +339,38 @@ export default function UserManualView({
       {/* ============================================================ */}
       <main
         ref={contentContainerRef}
-        className="flex-1 min-w-0 h-full overflow-y-auto px-6 py-8 md:px-12 md:py-10 print:overflow-visible print:p-0"
+        className="flex-1 min-w-0 h-full overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 md:px-12 md:py-10 print:overflow-visible print:p-0"
       >
+        {/* BARRA SUPERIOR MÓVIL / TABLET (Acceso rápido al índice y acciones) */}
+        <div className="lg:hidden sticky top-0 z-30 -mx-4 sm:-mx-6 -mt-6 sm:-mt-8 mb-6 px-4 py-2.5 bg-white/95 dark:bg-[#161b22]/95 midnight:bg-[#080E1C]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 midnight:border-cyan-900/40 flex items-center justify-between gap-3 shadow-xs print:hidden">
+          <button
+            type="button"
+            onClick={() => setIsMobileDrawerOpen(true)}
+            aria-label="Abrir índice de capítulos"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
+          >
+            <Menu size={16} />
+            <span>Capítulos</span>
+            <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300">
+              {currentSection.number !== '0' ? `Cap. ${currentSection.number}` : 'Intro'}
+            </span>
+          </button>
+
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-100/90 truncate max-w-[170px] sm:max-w-xs">
+            {currentSection.shortTitle}
+          </span>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            title="Imprimir o Exportar PDF"
+            aria-label="Imprimir capítulo"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400"
+          >
+            <Printer size={16} />
+          </button>
+        </div>
+
         <div className="max-w-4xl mx-auto space-y-8">
           
           {/* Banner de Salto Rápido al Módulo en Sistema (Acceso directo contextual protegido por RBAC) */}
@@ -524,25 +572,25 @@ export default function UserManualView({
           {/* ============================================================ */}
           {/* BARRA DE NAVEGACIÓN INFERIOR (Anterior / Siguiente) */}
           {/* ============================================================ */}
-          <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 midnight:border-cyan-900/40 flex items-center justify-between gap-4 print:hidden">
+          <div className="pt-8 mt-12 border-t border-slate-200 dark:border-slate-800 midnight:border-cyan-900/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 print:hidden">
             {prevSection ? (
               <button
                 type="button"
                 onClick={() => handleSelectSection(prevSection.id)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 midnight:border-cyan-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 midnight:hover:bg-cyan-950 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 midnight:border-cyan-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 midnight:hover:bg-cyan-950 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
               >
                 <ChevronLeft size={16} />
-                <span>Anterior: {prevSection.shortTitle}</span>
+                <span className="truncate">Anterior: {prevSection.shortTitle}</span>
               </button>
-            ) : <div />}
+            ) : <div className="hidden sm:block" />}
 
             {nextSection && (
               <button
                 type="button"
                 onClick={() => handleSelectSection(nextSection.id)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md cursor-pointer ml-auto"
+                className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md cursor-pointer sm:ml-auto"
               >
-                <span>Siguiente: {nextSection.shortTitle}</span>
+                <span className="truncate">Siguiente: {nextSection.shortTitle}</span>
                 <ChevronRight size={16} />
               </button>
             )}
