@@ -56,7 +56,7 @@ Calculadas en tiempo real mediante funciones de agregación sobre `portfolioData
 
 ```mermaid
 flowchart LR
-    subgraph Backend["PostgreSQL / Django"]
+    subgraph Backend["PostgreSQL y Django"]
         API1["GET /api/projects/"]
         API2["GET /api/milestones/"]
     end

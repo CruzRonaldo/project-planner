@@ -126,16 +126,38 @@ En una terminal independiente:
 
 ---
 
-## 📚 Documentación Técnica y Arquitectura (`/docs`)
+### 4. Acceso Rápido y Credenciales de Prueba
 
-El proyecto cuenta con especificaciones completas y detalladas dentro del directorio [`docs/`](docs/):
+Una vez iniciados ambos servidores:
 
-* **Endpoints de Django (Backend & API REST):**
-  * Catálogo integral de endpoints, métodos HTTP, parámetros y respuestas en [`docs/general/02. Documentación API y Endpoints.md`](docs/general/02.%20Documentaci%C3%B3n%20API%20y%20Endpoints.md).
-* **Estructura y Arquitectura del Frontend:**
-  * Especificación de arquitectura por capas (Vistas, Controladores, Servicios y Componentes) y modelo de permisos RBAC en [`docs/general/03. Documentación Frontend.md`](docs/general/03.%20Documentaci%C3%B3n%20Frontend.md).
-  * Guías detalladas por cada dominio funcional en [`docs/modules/`](docs/modules/).
-* **Método de Trabajo y Flujos de Negocio:**
+* **Aplicación Web (Frontend):** [http://localhost:5173](http://localhost:5173)
+* **API REST & Documentación Interactiva (Swagger UI):** [http://127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/)
+* **Panel de Administración de Django:** [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
+
+Si ejecutaste `python manage.py seed_data`, puedes acceder de inmediato con las siguientes cuentas de prueba:
+
+| Rol en Sistema | Correo de Acceso | Contraseña | Perfil y Alcance |
+| :--- | :--- | :--- | :--- |
+| **Project Manager (Admin)** | `admin.sistemas@projectplanner.com` | `password123` | Gestión completa, gobernanza, asignación presupuestaria y 2FA |
+| **Equipo Técnico (Usuario)** | `dev.sistemas@projectplanner.com` | `password123` | Ficha técnica de terreno, avance de hitos y consulta operativa |
+
+---
+
+## 📚 Centro de Documentación (`/docs`)
+
+El proyecto cuenta con especificaciones completas para diferentes perfiles, centralizadas en el directorio [`docs/`](docs/):
+
+### 👤 Para Usuarios y Operación
+* **[Manual de Usuario Operativo](./docs/manual-usuario/README.md):** Guía visual paso a paso organizada por módulos, navegación por roles, acciones permitidas y resolución de incidencias.
+* **[Auditoría de Accesibilidad WCAG 2.2 AA](./docs/general/05-analisis-accesibilidad-wcag.md):** Evaluación y matriz de cumplimiento de accesibilidad web nivel AA.
+
+### 💻 Para Desarrolladores y Arquitectura
+* **[Centro de Documentación (Índice Maestro)](./docs/README.md):** Mapa general de navegación técnica y base de conocimiento del proyecto.
+* **[Directrices de Arquitectura y Estándares](./docs/architecture.md):** Clean code, principios SOLID, diseño multitema ergonómico y catálogo de componentes comunes.
+* **[Catálogo de Endpoints y API REST](./docs/general/02.%20Documentación%20API%20y%20Endpoints.md):** Especificación completa de Django REST Framework, parámetros y respuestas.
+* **[Arquitectura Frontend y RBAC](./docs/general/03.%20Documentación%20Frontend.md):** Capas de presentación, controladores reactivos, servicios y políticas de guards.
+* **[Especificación Modular](./docs/modules/):** Documentación técnica 360° de cada módulo de backend y base de datos.
+* **[Matriz de Historias de Usuario (HU)](./docs/general/04.%20Matriz%20de%20Historias%20de%20Usuario%20(HU).md):** Trazabilidad, criterios de aceptación Gherkin y Definition of Done (DoD).
 
 ---
 

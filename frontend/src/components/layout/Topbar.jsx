@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search } from 'lucide-react';
+import { Menu, Search, BookOpen } from 'lucide-react';
 import ProfileControls from './ProfileControls';
 import { usePlatform } from '../../hooks/usePlatform';
 
@@ -16,7 +16,7 @@ export default function Topbar({
   onOpenMobileMenu,
 }) {
   const searchInputRef = React.useRef(null);
-  const { isMac, isMobile } = usePlatform();
+  const { isMac, isMobile, formatShortcut } = usePlatform();
 
   React.useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -91,13 +91,24 @@ export default function Topbar({
           )}
         </div>
       </div>
-      <ProfileControls
-        currentUser={currentUser}
-        users={users}
-        onToggleSubAdmin={onToggleSubAdmin}
-        onLogout={onLogout}
-        onNavigate={onNavigate}
-      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onNavigate && onNavigate('manual')}
+          title={`Manual de Usuario (${formatShortcut('Shift + 8')})`}
+          aria-label="Manual de Usuario"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-50 transition-colors cursor-pointer"
+        >
+          <BookOpen size={17} />
+        </button>
+        <ProfileControls
+          currentUser={currentUser}
+          users={users}
+          onToggleSubAdmin={onToggleSubAdmin}
+          onLogout={onLogout}
+          onNavigate={onNavigate}
+        />
+      </div>
     </header>
   );
 }

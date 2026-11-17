@@ -95,7 +95,9 @@ export default function App() {
           Numpad6: 'human-resources',
           Digit7: 'integrations',
           Numpad7: 'integrations',
-          // Shift + 8 queda libre para un futuro panel
+          // Shift + 8 para Manual de Usuario (Documentación Docs-as-Code)
+          Digit8: 'manual',
+          Numpad8: 'manual',
           Digit9: 'configuracion',
           Numpad9: 'configuracion',
         };
@@ -118,6 +120,10 @@ export default function App() {
           '6': 'human-resources',
           '/': 'integrations',
           '7': 'integrations',
+          // Shift + 8 para Manual de Usuario (en ES '(', en US '*')
+          '(': 'manual',
+          '*': 'manual',
+          '8': 'manual',
           // Shift + 9 para Configuración (en teclado ES genera ')', en US genera '(')
           ')': 'configuracion',
           '9': 'configuracion',

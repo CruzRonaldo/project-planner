@@ -81,19 +81,23 @@ class Command(BaseCommand):
 
         for udata in users_by_area:
             uname = udata["username"]
-            if not User.objects.filter(username=uname).exists():
+            is_admin_user = (udata.get("role") == "admin")
+            user = User.objects.filter(username=uname).first()
+            if not user:
                 User.objects.create_user(
                     username=uname,
                     email=udata["email"],
                     password=udata["password"],
                     first_name=udata["first_name"],
                     last_name=udata["last_name"],
-                    is_staff=False,
+                    is_staff=is_admin_user,
                     is_superuser=False,
                 )
                 self.stdout.write(self.style.SUCCESS(f"[OK] Usuario creado: '{uname}' ({udata['last_name']})"))
             else:
-                self.stdout.write(self.style.WARNING(f"[INFO] Usuario '{uname}' ya existía."))
+                user.is_staff = is_admin_user
+                user.save(update_fields=['is_staff'])
+                self.stdout.write(self.style.WARNING(f"[INFO] Usuario '{uname}' ya existía (is_staff={is_admin_user})."))
 
         # =========================================================================
         # 2. ÁREAS TÉCNICAS

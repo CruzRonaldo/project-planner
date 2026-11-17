@@ -67,12 +67,13 @@ export function formatShortcut(shortcut, platformInfo = null) {
 
   if (!shortcut) return null;
 
-  // En macOS se adaptan las etiquetas a los símbolos habituales de Apple
+  // En macOS se adaptan las etiquetas con el nombre descriptivo y su símbolo oficial
   if (info.isMac) {
     return shortcut
-      .replace(/Ctrl\s*\+\s*/gi, '⌘')
-      .replace(/Ctrl/gi, '⌘')
-      .replace(/Shift\s*\+\s*/gi, '⇧');
+      .replace(/\bCtrl\b|\bControl\b/gi, 'Comando (⌘)')
+      .replace(/\bShift\b/gi, 'Shift (⇧)')
+      .replace(/\bAlt\b|\bOption\b/gi, 'Opción (⌥)')
+      .replace(/\bEnter\b/gi, 'Return');
   }
 
   return shortcut;
