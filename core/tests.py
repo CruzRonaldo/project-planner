@@ -575,7 +575,7 @@ class MakeSignalsIntegrationTests(TestCase):
     @patch("core.services.make_service.send_make_webhook")
     def test_project_created_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
-        Project.objects.create(
+        project = Project(
             code="PRJ-TEST-002",
             name="Hospital Metropolitano",
             start_date="2026-04-01",
@@ -583,11 +583,33 @@ class MakeSignalsIntegrationTests(TestCase):
             duration_months=8,
             budget=500000.00,
         )
+        # Asignar creador dinámicamente
+        project.created_by = self.user_dev
+        project.save()
+
         mock_send.assert_called_once()
         kwargs = mock_send.call_args[1]
         self.assertEqual(kwargs.get("event"), "project.created")
         self.assertEqual(kwargs.get("data", {}).get("code"), "PRJ-TEST-002")
         self.assertEqual(kwargs.get("data", {}).get("name"), "Hospital Metropolitano")
+        self.assertEqual(kwargs.get("data", {}).get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(kwargs.get("data", {}).get("creator_name"), "lucas_vargas")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_without_creator_uses_empty_strings(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        Project.objects.create(
+            code="PRJ-TEST-003",
+            name="Parque Logístico Norte",
+            start_date="2026-05-01",
+            end_date="2026-11-01",
+            duration_months=6,
+            budget=350000.00,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("data", {}).get("creator_email"), "")
+        self.assertEqual(kwargs.get("data", {}).get("creator_name"), "")
 
     @patch("core.services.make_service.send_make_webhook")
     def test_leader_assigned_signal_dispatches_webhook(self, mock_send):

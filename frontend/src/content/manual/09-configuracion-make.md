@@ -57,7 +57,7 @@ A continuación se detallan los 4 eventos principales y sus eventos complementar
 
 | Evento | Modelo de Origen | Momento de Activación | Carga Útil (`data`) Principal |
 | :--- | :--- | :--- | :--- |
-| **`project.created`** | `core.models.Project` | Al registrar un nuevo proyecto (`created=True`). | `id`, `code`, `name`, `description`, `start_date`, `end_date`, `budget`, `status`, `leader_name`, `leader_email`. |
+| **`project.created`** | `core.models.Project` | Al registrar un nuevo proyecto (`created=True`). | `id`, `code`, `name`, `description`, `start_date`, `end_date`, `budget`, `status`, `leader_name`, `leader_email`, `creator_name`, `creator_email`. |
 | **`project.leader_assigned`** | `core.models.TeamMember` | Al vincular o reasignar un miembro con rol de liderazgo (`can_manage_projects=True` o rol afín) a un proyecto. | `project_id`, `project_code`, `project_name`, `leader_id`, `leader_name`, `leader_email`, `leader_role`, `technical_area`. |
 | **`task.assigned`** | `core.models.Task` | Al crear una tarea con responsable o al transferir una tarea existente a otro miembro técnico. | `task_id`, `task_title`, `task_description`, `start_date`, `end_date`, `project` (código y nombre), datos de `assignee`. |
 | **`meeting.created`** | `core.models.ProjectMeeting` | Al agendar o iniciar una nueva videoconferencia Jitsi Meet (`created=True`). | `meeting_id`, `project_code`, `title`, `room_name`, `meeting_url`, `scheduled_at`, `created_by` (`username`, `email`), `team_emails` (correos de miembros y organizador). |

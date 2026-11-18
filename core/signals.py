@@ -42,6 +42,21 @@ def _dispatch_async_webhook(event: str, data: dict):
 @receiver(post_save, sender=Project)
 def handle_project_saved(sender, instance, created, **kwargs):
     assigned_leader = instance.team_members.first()
+
+    # Extraer información del creador (soporta campos o atributos created_by u owner)
+    creator = getattr(instance, 'created_by', None) or getattr(instance, 'owner', None)
+    creator_email = ''
+    creator_name = ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or ''
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
     payload = {
         'id': instance.id,
         'code': instance.code,
@@ -56,6 +71,8 @@ def handle_project_saved(sender, instance, created, **kwargs):
         'leader_name': f"{assigned_leader.first_name} {assigned_leader.last_name}".strip() if assigned_leader else 'Sin Asignar',
         'leader_email': assigned_leader.email if assigned_leader else '',
         'leader_role': assigned_leader.role.name if assigned_leader and assigned_leader.role else '',
+        'creator_email': creator_email,
+        'creator_name': creator_name,
     }
 
     if created:
