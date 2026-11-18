@@ -24,7 +24,7 @@ import {
   IntegrationActivityList,
   StatusPanel,
   cardClass,
-} from './integrations';
+} from './integrations/index';
 
 export { IntegrationEditor };
 
