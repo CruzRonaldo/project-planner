@@ -11,6 +11,7 @@ from core.models import (
     Milestone,
     PerformanceMetric,
     Project,
+    ProjectMeeting,
     Role,
     ScheduleAdjustment,
     TwoFactorProfile,
@@ -523,6 +524,120 @@ class MakeServiceUnitTests(TestCase):
         )
         self.assertTrue(result["success"])
         self.assertEqual(result["status_code"], 200)
+
+
+class MakeSignalsIntegrationTests(TestCase):
+    """Pruebas de integración de Django Signals para notificaciones hacia Make (Integromat)."""
+
+    def setUp(self):
+        self.area = TechnicalArea.objects.create(name="Estructuras y BIM", description="Área técnica de prueba")
+        self.role_leader = Role.objects.create(
+            name="Líder de Proyecto",
+            technical_area=self.area,
+            can_manage_projects=True,
+        )
+        self.role_dev = Role.objects.create(
+            name="Desarrollador de Software",
+            technical_area=self.area,
+            can_manage_projects=False,
+        )
+        self.status_active = TeamStatus.objects.create(name="Active", color_code="#10B981")
+        self.project = Project.objects.create(
+            code="PRJ-TEST-001",
+            name="Proyecto Señales Make",
+            start_date="2026-03-01",
+            end_date="2026-09-01",
+            duration_months=6,
+            budget=200000.00,
+        )
+        self.member_leader = TeamMember.objects.create(
+            first_name="Elena",
+            last_name="Rostova",
+            email="elena.rostova@polyline.com",
+            technical_area=self.area,
+            role=self.role_leader,
+            status=self.status_active,
+        )
+        self.member_dev = TeamMember.objects.create(
+            first_name="Lucas",
+            last_name="Vargas",
+            email="lucas.vargas@polyline.com",
+            technical_area=self.area,
+            role=self.role_dev,
+            status=self.status_active,
+        )
+        self.user_dev = User.objects.create_user(
+            username="lucas_vargas",
+            email="lucas.vargas@polyline.com",
+            password="SecurePassword123!",
+        )
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        Project.objects.create(
+            code="PRJ-TEST-002",
+            name="Hospital Metropolitano",
+            start_date="2026-04-01",
+            end_date="2026-12-01",
+            duration_months=8,
+            budget=500000.00,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.created")
+        self.assertEqual(kwargs.get("data", {}).get("code"), "PRJ-TEST-002")
+        self.assertEqual(kwargs.get("data", {}).get("name"), "Hospital Metropolitano")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_leader_assigned_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        self.member_leader.project = self.project
+        self.member_leader.save()
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.leader_assigned")
+        self.assertEqual(kwargs.get("data", {}).get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(kwargs.get("data", {}).get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(kwargs.get("data", {}).get("leader_role"), "Líder de Proyecto")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        Task.objects.create(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Diseño de Conexiones Metálicas",
+            description="Modelado y cálculo de nodos en Tekla",
+            start_date="2026-03-05",
+            end_date="2026-03-20",
+            duration_days=15,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "task.assigned")
+        self.assertEqual(kwargs.get("data", {}).get("task_title"), "Diseño de Conexiones Metálicas")
+        self.assertEqual(kwargs.get("data", {}).get("assignee", {}).get("email"), "lucas.vargas@polyline.com")
+        self.assertEqual(kwargs.get("data", {}).get("assignee", {}).get("username"), "lucas_vargas")
+        self.assertNotIn("password", kwargs.get("data", {}).get("assignee", {}))
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_meeting_created_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        ProjectMeeting.objects.create(
+            project=self.project,
+            title="Reunión de Coordinación BIM",
+            scheduled_at=timezone.now(),
+            created_by=self.user_dev,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "meeting.created")
+        self.assertEqual(kwargs.get("data", {}).get("title"), "Reunión de Coordinación BIM")
+        self.assertIn("meet.jit.si", kwargs.get("data", {}).get("meeting_url", ""))
+        self.assertEqual(kwargs.get("data", {}).get("created_by", {}).get("username"), "lucas_vargas")
 
 
 class MilestoneStrategicPlanningTests(TestCase):
