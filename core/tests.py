@@ -892,9 +892,7 @@ class UserProfileAPITests(TestCase):
             self.assertEqual(login_resp.data["user"]["phone"], "+51 987 654 321")
 
     def test_remove_profile_photo(self):
-        # Primero guardar foto
         self.client.patch(self.profile_url, {"identifier": self.email, "photo": "data:image/png;base64,mock"}, format="json")
-        # Luego remover foto
         remove_resp = self.client.patch(self.profile_url, {"identifier": self.email, "photo": None}, format="json")
         self.assertEqual(remove_resp.status_code, status.HTTP_200_OK)
         self.assertIsNone(remove_resp.data["profile"]["photo"])

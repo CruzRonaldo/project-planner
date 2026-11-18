@@ -2090,11 +2090,8 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Cambiar contrasena
         user.set_password(new_password)
         user.save(update_fields=['password'])
-
-        # Eliminar el codigo usado
         reset_code.delete()
 
         logger.info('Contrasena restablecida exitosamente para el usuario %s', user.email)

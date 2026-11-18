@@ -1,9 +1,9 @@
-
+﻿
 param([string]$Hora = "20:00")
 
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = $PSScriptRoot
+$ProjectRoot = if (Test-Path (Join-Path $PSScriptRoot "manage.py")) { $PSScriptRoot } else { Split-Path -Parent $PSScriptRoot }
 $PythonExecutable = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 $ManagePy = Join-Path $ProjectRoot "manage.py"
 
