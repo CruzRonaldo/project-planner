@@ -185,6 +185,32 @@ def handle_meeting_created(sender, instance, created, **kwargs):
     if not created:
         return
 
+    # Extraer correos electrónicos de los miembros asignados al proyecto
+    team_emails = []
+    seen_emails = set()
+
+    if instance.project:
+        # Optimización de consulta directa a la base de datos (evita instanciar modelos)
+        member_emails = (
+            instance.project.team_members
+            .exclude(email__isnull=True)
+            .exclude(email__exact='')
+            .values_list('email', flat=True)
+        )
+        for email in member_emails:
+            clean_email = email.strip()
+            if clean_email and clean_email.lower() not in seen_emails:
+                seen_emails.add(clean_email.lower())
+                team_emails.append(clean_email)
+
+    # Extraer correo del organizador (created_by)
+    organizer_email = instance.created_by.email if instance.created_by and instance.created_by.email else ''
+    if organizer_email:
+        clean_organizer = organizer_email.strip()
+        if clean_organizer and clean_organizer.lower() not in seen_emails:
+            seen_emails.add(clean_organizer.lower())
+            team_emails.append(clean_organizer)
+
     payload = {
         'meeting_id': str(instance.id),
         'project_code': instance.project.code if instance.project else '',
@@ -196,6 +222,7 @@ def handle_meeting_created(sender, instance, created, **kwargs):
         'created_by': {
             'username': instance.created_by.username if instance.created_by else 'Sistema',
             'email': instance.created_by.email if instance.created_by else '',
-        }
+        },
+        'team_emails': team_emails,
     }
     _dispatch_async_webhook(event='meeting.created', data=payload)

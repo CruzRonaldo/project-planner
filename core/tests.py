@@ -626,6 +626,14 @@ class MakeSignalsIntegrationTests(TestCase):
     @patch("core.services.make_service.send_make_webhook")
     def test_meeting_created_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        self.member_leader.project = self.project
+        self.member_leader.save()
+
+        # Resetear mock tras las asignaciones previas de TeamMember
+        mock_send.reset_mock()
+
         ProjectMeeting.objects.create(
             project=self.project,
             title="Reunión de Coordinación BIM",
@@ -638,6 +646,12 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertEqual(kwargs.get("data", {}).get("title"), "Reunión de Coordinación BIM")
         self.assertIn("meet.jit.si", kwargs.get("data", {}).get("meeting_url", ""))
         self.assertEqual(kwargs.get("data", {}).get("created_by", {}).get("username"), "lucas_vargas")
+
+        # Verificar team_emails: incluye correos de miembros y organizador sin duplicados
+        team_emails = kwargs.get("data", {}).get("team_emails", [])
+        self.assertIn("elena.rostova@polyline.com", team_emails)
+        self.assertIn("lucas.vargas@polyline.com", team_emails)
+        self.assertEqual(len(team_emails), 2)  # lucas.vargas aparece una sola vez
 
 
 class MilestoneStrategicPlanningTests(TestCase):
