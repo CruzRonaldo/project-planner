@@ -34,7 +34,8 @@ No contiene contraseñas, correos reales ni secretos de integración. Las captur
 6. [Configuración y seguridad personal](./06-configuracion-y-seguridad.md)
 7. [Administración, roles y respaldos](./07-administracion-y-respaldos.md)
 8. [Solución de problemas](./08-solucion-de-problemas.md)
-9. [Análisis de accesibilidad WCAG 2.2 AA](../general/05-analisis-accesibilidad-wcag.md)
+9. [Automatizaciones y Webhooks con Make](./09-configuracion-make.md)
+10. [Análisis de accesibilidad WCAG 2.2 AA](../general/05-analisis-accesibilidad-wcag.md)
 
 ## 4. Convenciones de lectura
 

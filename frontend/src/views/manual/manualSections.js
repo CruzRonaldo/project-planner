@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   HelpCircle,
   BookOpen,
+  Webhook,
 } from 'lucide-react';
 
 // Carga en caliente/compilación de todos los archivos .md canónicos del manual
@@ -143,6 +144,19 @@ export const MANUAL_SECTIONS = [
     targetModule: null,
     moduleShortcut: null,
     summary: 'Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas de seguridad.',
+  },
+  {
+    id: '09-make-webhooks',
+    number: '9',
+    title: 'Automatizaciones y Webhooks con Make',
+    shortTitle: 'Make & Webhooks',
+    filename: '09-configuracion-make.md',
+    icon: Webhook,
+    category: 'integraciones',
+    roleRequired: 'admin',
+    targetModule: 'integrations',
+    moduleShortcut: null,
+    summary: 'Arquitectura de Django Signals, despacho asíncrono con transaction.on_commit y configuración de escenarios en Make.',
   },
 ].map((section) => ({
   ...section,
