@@ -604,6 +604,7 @@ def audit_logs_view(request):
 
 
 @api_view(['GET'])
+@authentication_classes([SimpleUserAuthentication])
 @permission_classes([AllowAny])
 def notifications_view(request):
     """
@@ -618,7 +619,7 @@ def notifications_view(request):
     email = (request.query_params.get('email') or '').strip().lower()
     notifications = []
 
-    # Mantiene compatibilidad con el contrato existente basado en parámetros.
+    # Resuelve el usuario autenticado (Bearer token) o mediante parámetros retrocompatibles
     user = None
     target_ident = email or username
     if target_ident:
@@ -626,6 +627,10 @@ def notifications_view(request):
             Q(email__iexact=target_ident) |
             Q(username__iexact=target_ident)
         ).first()
+    elif request.user and request.user.is_authenticated:
+        user = request.user
+        username = (user.username or '').strip().lower()
+        email = (user.email or '').strip().lower()
 
     is_admin = bool(
         (user and (user.is_superuser or user.is_staff)) or

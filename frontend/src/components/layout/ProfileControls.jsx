@@ -35,10 +35,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
     const fetchNotifications = async () => {
       if (!currentUser) return;
       try {
-        const data = await projectsApi.getNotifications({
-          username: currentUser.username,
-          email: currentUser.email,
-        });
+        const data = await projectsApi.getNotifications();
         if (isMounted && Array.isArray(data)) {
           // Descartar notificaciones de prueba/dummy con prefijo 'notif-'
           const realNotifications = data.filter((n) => !n.id?.startsWith('notif-'));
