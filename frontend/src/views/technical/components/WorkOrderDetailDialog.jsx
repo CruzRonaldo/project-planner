@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   ExternalLink,
   CheckCircle2,
-  Clock,
   RotateCcw,
   ArrowRight,
 } from 'lucide-react';
@@ -45,12 +44,6 @@ export default function WorkOrderDetailDialog({
   onCompleteAndNext,
   canManage = false,
 }) {
-  if (!order) return null;
-
-  const durationDays = getWorkOrderDuration(order.startDate, order.endDate);
-  const isCompleted = order.status === 'completed';
-  const hasDriveLink = Boolean(order.documentUrl && order.documentUrl.trim());
-
   // Detectar inteligentemente si existe una siguiente orden en cola para este trabajador o proyecto
   const nextOrder = useMemo(() => {
     if (!ordersList || ordersList.length === 0 || !order) return null;
@@ -83,6 +76,12 @@ export default function WorkOrderDetailDialog({
 
     return null;
   }, [ordersList, order]);
+
+  if (!order) return null;
+
+  const durationDays = getWorkOrderDuration(order.startDate, order.endDate);
+  const isCompleted = order.status === 'completed';
+  const hasDriveLink = Boolean(order.documentUrl && order.documentUrl.trim());
 
   const handleToggleComplete = () => {
     if (onUpdateStatus) {

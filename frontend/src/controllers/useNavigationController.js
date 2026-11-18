@@ -24,15 +24,8 @@ export function useNavigationController({
   isAuthenticated = false,
   isInitializing = false,
 } = {}) {
-  let location = { pathname: '/' };
-  let navigate = () => {};
-
-  try {
-    location = useLocation();
-    navigate = useNavigate();
-  } catch {
-    // Fallback tolerante para entornos SSR o pruebas unitarias sin <BrowserRouter>
-  }
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // 1. Ruta normalizada del navegador (sin slash final salvo en raíz)
   const normalizedPath = useMemo(() => {

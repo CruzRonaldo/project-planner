@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, UserRoundCog } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
@@ -15,16 +15,28 @@ export function PersonnelEditorModal({
   editingProject = false,
   isOpen = true,
 }) {
-  if (!member) return null;
-
   const [draft, setDraft] = useState({
-    project: member.project,
-    status: member.status,
-    availability: member.availability,
+    project: member?.project || '',
+    status: member?.status || '',
+    availability: member?.availability || 0,
     comment: '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (member) {
+      setDraft({
+        project: member.project || '',
+        status: member.status || '',
+        availability: member.availability || 0,
+        comment: '',
+      });
+      setError('');
+    }
+  }, [member]);
+
+  if (!member) return null;
 
   const availableProjects = Array.from(
     new Set(['Ninguno', member.project, ...projectOptions].filter(Boolean))

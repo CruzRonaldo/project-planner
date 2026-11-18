@@ -31,12 +31,13 @@ const actionConfig = {
 };
 
 export function IncidentActionDialog({ incident, action, onSubmit, onClose, isOpen = true }) {
-  if (!incident) return null;
-
-  const config = actionConfig[action] || actionConfig.approve;
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!incident) return null;
+
+  const config = actionConfig[action] || actionConfig.approve;
 
   const submitAction = async () => {
     if (action === 'reject' && comment.trim().length < 5) {

@@ -39,12 +39,7 @@ export function useAuthController({
   setUsers,
   onSessionExpired,
 } = {}) {
-  let navigate = null;
-  try {
-    navigate = useNavigate();
-  } catch {
-    navigate = () => {};
-  }
+  const navigate = useNavigate();
 
   // Estado de carga inicial: true mientras se valida la sesión persistida con el backend
   const [isInitializing, setIsInitializing] = useState(() => {
