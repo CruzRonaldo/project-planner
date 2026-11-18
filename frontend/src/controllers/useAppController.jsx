@@ -245,6 +245,9 @@ export function useAppController() {
           onChange={integrations.setIntegrationsData}
           query={integrations.integrationsQuery}
           onQueryChange={integrations.setIntegrationsQuery}
+          canManage={auth.canManage}
+          isAdmin={auth.isAdmin}
+          currentUser={auth.displayedCurrentUser}
         />
       );
     }
