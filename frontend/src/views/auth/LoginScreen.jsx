@@ -5,8 +5,6 @@ import {
   User,
   Mail,
   Lock,
-  Eye,
-  EyeOff,
   AlertCircle,
   X,
   KeyRound,
@@ -40,8 +38,6 @@ export default function LoginScreen({ onLogin }) {
   const [forgotCode, setForgotCode] = useState("");
   const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
-  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
-  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
 

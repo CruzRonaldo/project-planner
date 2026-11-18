@@ -11,7 +11,6 @@ import {
   BookOpen,
   X,
   PanelLeftClose,
-  Command,
 } from 'lucide-react';
 import logoEmpresa from '../../assets/logoempresa1.png';
 import { usePlatform } from '../../hooks/usePlatform';

@@ -4,7 +4,6 @@ import ModalDialog from '../../../components/common/ModalDialog';
 import { FootnoteText, InlineAlert } from '../../../components/common';
 import { runSafe } from '../../../utils/asyncHandler';
 import {
-  errorClass,
   inputClass,
   nestedClass,
 } from '../../../constants/themeClasses';

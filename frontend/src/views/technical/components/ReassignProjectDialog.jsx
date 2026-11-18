@@ -16,7 +16,6 @@ import {
   inputClass,
   labelClass,
   nestedClass,
-  errorClass,
 } from '../../../constants/themeClasses';
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';

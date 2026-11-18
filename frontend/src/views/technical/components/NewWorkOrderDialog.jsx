@@ -7,7 +7,6 @@ import {
   inputClass,
   labelClass,
   nestedClass,
-  errorClass,
 } from '../../../constants/themeClasses';
 import {
   operationalAreas,

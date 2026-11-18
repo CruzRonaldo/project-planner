@@ -13,11 +13,24 @@ import {
  * Desacopla la resolución de vista activa, historial del navegador y guardias de ruta
  * frente al resto de la aplicación.
  *
- * @param {Object} [options]
- * @param {Object|null} [options.currentUser=null] - Usuario activo para validar permisos de acceso
- * @param {boolean} [options.isAuthenticated=false] - Indica si existe una sesión válida
- * @param {boolean} [options.isInitializing=false] - Indica si la sesión está en proceso de validación inicial
- * @returns {Object} Vista activa, navegador, listas de menú autorizadas y placeholder de búsqueda
+ * Mantiene la sincronización estricta entre la URL real del navegador y las vistas declaradas
+ * en NAVIGATION_ITEMS. Protege las rutas mediante validación RBAC según el rol del usuario,
+ * redirigiendo automáticamente a /login si no hay sesión o a /dashboard si se intenta
+ * acceder a una sección restringida.
+ *
+ * @param {Object} [options] - Parámetros de navegación y sesión.
+ * @param {Object|null} [options.currentUser=null] - Usuario activo en sesión para verificar permisos de acceso.
+ * @param {boolean} [options.isAuthenticated=false] - Indica si existe una sesión verificada.
+ * @param {boolean} [options.isInitializing=false] - Indica si la sesión está en proceso de validación inicial con el servidor.
+ * @returns {{
+ *   normalizedPath: string,
+ *   activeView: string,
+ *   setActiveView: (target: string) => void,
+ *   allowedSidebarItems: Array<Object>,
+ *   allowedMobileItems: Array<Object>,
+ *   searchPlaceholder: string,
+ *   hasAccess: (viewId: string) => boolean
+ * }} Propiedades de enrutamiento, guardias y metadatos de interfaz.
  */
 export function useNavigationController({
   currentUser = null,

@@ -17,8 +17,8 @@ export default function ScheduleAdjustmentsSection({
   pageSize = 5,
   onPageChange = () => {},
   cardClass = '',
-  headingClass = '',
-  mutedClass = '',
+  headingClass: _headingClass = '',
+  mutedClass: _mutedClass = '',
 }) {
   return (
     <section

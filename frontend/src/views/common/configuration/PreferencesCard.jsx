@@ -1,6 +1,5 @@
 import React from 'react';
 import { Sun, Moon, MoonStar } from 'lucide-react';
-import Button from '../../../components/common/Button';
 import ReadOnlyField from '../../../components/common/ReadOnlyField';
 import { cardClass } from '../../../constants/themeClasses';
 
