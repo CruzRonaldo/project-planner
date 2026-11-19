@@ -23,7 +23,6 @@ const baseURL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 // multipart/form-data para archivos (cuando se pase FormData)
 const api = axios.create({
   baseURL,
-  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
