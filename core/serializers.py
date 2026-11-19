@@ -479,6 +479,166 @@ class MilestoneSerializer(serializers.ModelSerializer):
         return rep
 
 
+def resolve_team_member(val):
+    """
+    Resuelve una instancia de TeamMember a partir de:
+    - ID entero o cadena numérica: 1, '1'
+    - Correo electrónico: 'usuario@empresa.com'
+    - Nombres o apellidos: 'Carlos Mendoza', 'Elena'
+    - Alias de mock frontend: 'carlos', 'ana', 'lucia', 'javier'
+    """
+    if not val:
+        return None
+    from .models import TeamMember
+    from django.db.models import Q
+    import re
+
+    # 1. ID numérico directo
+    if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
+        member = TeamMember.objects.filter(id=int(val)).first()
+        if member:
+            return member
+
+    if isinstance(val, str):
+        clean_val = val.strip()
+        if not clean_val:
+            return None
+
+        # 2. Correo electrónico directo
+        member = TeamMember.objects.filter(email__iexact=clean_val).first()
+        if member:
+            return member
+
+        # 3. Alias comunes de mock frontend
+        alias_map = {
+            'carlos': 'Carlos',
+            'ana': 'Ana',
+            'lucia': 'Lucía',
+            'javier': 'Javier',
+        }
+        search_alias = alias_map.get(clean_val.lower())
+        if search_alias:
+            member = TeamMember.objects.filter(
+                Q(first_name__icontains=search_alias) | Q(last_name__icontains=search_alias)
+            ).first()
+            if member:
+                return member
+
+        # 4. Remover información entre paréntesis, ej: "Carlos Mendoza (Modelador BIM)"
+        clean_name = re.sub(r'\s*\([^)]*\)\s*', '', clean_val).strip()
+
+        # 5. Coincidencia por nombres / apellidos compuestos
+        parts = clean_name.split()
+        if len(parts) >= 2:
+            member = TeamMember.objects.filter(
+                first_name__icontains=parts[0],
+                last_name__icontains=parts[-1]
+            ).first()
+            if member:
+                return member
+
+        member = TeamMember.objects.filter(
+            Q(first_name__icontains=clean_name) |
+            Q(last_name__icontains=clean_name)
+        ).first()
+        if member:
+            return member
+
+        # 6. Búsqueda cruzada por User de autenticación
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user_match = User.objects.filter(
+            Q(email__iexact=clean_val) |
+            Q(username__iexact=clean_val)
+        ).first()
+        if user_match and user_match.email:
+            member = TeamMember.objects.filter(email__iexact=user_match.email).first()
+            if member:
+                return member
+
+    return None
+
+
+def resolve_project(val):
+    """
+    Resuelve una instancia de Project a partir de:
+    - ID entero o cadena numérica: 1, '1'
+    - Nombre formateado con código: 'Torre Mirador Fase 2 (PRJ-001)'
+    - Código del proyecto: 'PRJ-001'
+    - Nombre del proyecto: 'Torre Mirador Fase 2'
+    """
+    if not val:
+        return None
+    from .models import Project
+    from django.db.models import Q
+    import re
+
+    # 1. ID numérico directo
+    if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
+        proj = Project.objects.filter(id=int(val)).first()
+        if proj:
+            return proj
+
+    if isinstance(val, str):
+        clean_val = val.strip()
+        if not clean_val:
+            return None
+
+        # 2. Código entre paréntesis: "Torre Mirador Fase 2 (PRJ-001)"
+        code_match = re.search(r'\(([^)]+)\)', clean_val)
+        if code_match:
+            candidate_code = code_match.group(1).strip()
+            proj = Project.objects.filter(code__iexact=candidate_code).first()
+            if proj:
+                return proj
+
+        # 3. Código directo
+        proj = Project.objects.filter(code__iexact=clean_val).first()
+        if proj:
+            return proj
+
+        # 4. Nombre limpio
+        clean_name = re.sub(r'\s*\([^)]*\)\s*', '', clean_val).strip()
+        proj = Project.objects.filter(name__iexact=clean_name).first()
+        if proj:
+            return proj
+
+        # 5. Búsqueda por substring en nombre
+        proj = Project.objects.filter(name__icontains=clean_name).first()
+        if proj:
+            return proj
+
+    return None
+
+
+def resolve_technical_area(val):
+    """
+    Resuelve una instancia de TechnicalArea a partir de:
+    - ID entero o cadena numérica: 1, '1'
+    - Nombre del área técnica: 'Estructuras', 'Instalaciones MEP', 'Arquitectura'
+    """
+    if not val:
+        return None
+    from .models import TechnicalArea
+
+    if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
+        area = TechnicalArea.objects.filter(id=int(val)).first()
+        if area:
+            return area
+
+    if isinstance(val, str):
+        clean_val = val.strip()
+        if not clean_val:
+            return None
+        area = TechnicalArea.objects.filter(name__iexact=clean_val).first()
+        if area:
+            return area
+        area = TechnicalArea.objects.filter(name__icontains=clean_val).first()
+        if area:
+            return area
+
+    return None
+
 
 class TaskSerializer(serializers.ModelSerializer):
     """
@@ -520,20 +680,74 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         data = data.copy() if hasattr(data, 'copy') else dict(data)
+
+        # 1. Mapeo y resolución flexible de Proyecto (soporta string 'Nombre (COD)' o ID)
+        raw_project = data.get('project') or data.get('projectId')
+        if raw_project is not None:
+            resolved_proj = resolve_project(raw_project)
+            if resolved_proj:
+                data['project'] = resolved_proj.id
+            elif isinstance(raw_project, int) or (isinstance(raw_project, str) and raw_project.isdigit()):
+                data['project'] = int(raw_project)
+            else:
+                from .models import Project
+                first_proj = Project.objects.first()
+                if first_proj:
+                    data['project'] = first_proj.id
+
+        # 2. Mapeo y resolución de Responsable / Assigned To (soporta nombre completo o ID)
+        raw_assignee = data.get('assigned_to') or data.get('assignedTo') or data.get('responsible')
+        if raw_assignee is not None:
+            resolved_member = resolve_team_member(raw_assignee)
+            if resolved_member:
+                data['assigned_to'] = resolved_member.id
+            elif isinstance(raw_assignee, int) or (isinstance(raw_assignee, str) and raw_assignee.isdigit()):
+                data['assigned_to'] = int(raw_assignee)
+
+        # 3. Mapeo y resolución de Área Técnica / Category (soporta nombre o ID)
+        raw_cat = data.get('category') or data.get('area')
+        if raw_cat is not None:
+            resolved_area = resolve_technical_area(raw_cat)
+            if resolved_area:
+                data['category'] = resolved_area.id
+            elif isinstance(raw_cat, int) or (isinstance(raw_cat, str) and raw_cat.isdigit()):
+                data['category'] = int(raw_cat)
+        if 'category' not in data or not data['category']:
+            from .models import TechnicalArea
+            first_area = TechnicalArea.objects.first()
+            if first_area:
+                data['category'] = first_area.id
+
+        # 4. Fechas (startDate -> start_date, endDate / dueDate -> end_date)
         if 'startDate' in data and 'start_date' not in data:
             data['start_date'] = data['startDate']
         if 'endDate' in data and 'end_date' not in data:
             data['end_date'] = data['endDate']
         elif 'dueDate' in data and 'end_date' not in data:
             data['end_date'] = data['dueDate']
-        if 'projectId' in data and 'project' not in data:
-            data['project'] = data['projectId']
-        if 'assignedTo' in data and 'assigned_to' not in data:
-            data['assigned_to'] = data['assignedTo']
+
+        # 5. Parámetros de Ruta Crítica y Tolerancia
         if 'critical' in data and 'is_critical_path' not in data:
             data['is_critical_path'] = data['critical']
         if 'tolerance' in data and 'tolerance_days' not in data:
             data['tolerance_days'] = data['tolerance']
+
+        # 6. Cálculo de duration_days si no fue suministrado
+        if not data.get('duration_days'):
+            s_date = data.get('start_date')
+            e_date = data.get('end_date')
+            if s_date and e_date:
+                try:
+                    from datetime import datetime
+                    s_dt = datetime.strptime(str(s_date), '%Y-%m-%d').date() if isinstance(s_date, str) else s_date
+                    e_dt = datetime.strptime(str(e_date), '%Y-%m-%d').date() if isinstance(e_date, str) else e_date
+                    diff = (e_dt - s_dt).days
+                    data['duration_days'] = max(1, diff)
+                except Exception:
+                    data['duration_days'] = 1
+            else:
+                data['duration_days'] = 1
+
         return super().to_internal_value(data)
 
     def create(self, validated_data):
@@ -576,15 +790,18 @@ class TaskSerializer(serializers.ModelSerializer):
             if fallback_email:
                 instance._fallback_creator_email = fallback_email
 
+        # Normalización de prioridad (high/medium/low -> Alta/Media/Baja)
+        prio_map = {'high': 'Alta', 'medium': 'Media', 'low': 'Baja', 'alta': 'Alta', 'media': 'Media', 'baja': 'Baja'}
         if priority:
-            instance._priority = priority
+            instance._priority = prio_map.get(str(priority).lower(), priority)
         elif request and hasattr(request, 'data') and request.data.get('priority'):
-            instance._priority = request.data.get('priority')
+            raw_p = request.data.get('priority')
+            instance._priority = prio_map.get(str(raw_p).lower(), raw_p)
 
         if due_date:
             instance._due_date = due_date
-        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date')):
-            instance._due_date = request.data.get('dueDate') or request.data.get('due_date')
+        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date') or request.data.get('endDate')):
+            instance._due_date = request.data.get('dueDate') or request.data.get('due_date') or request.data.get('endDate')
 
         instance.save()
         if predecessors:
@@ -632,20 +849,38 @@ class TaskSerializer(serializers.ModelSerializer):
             if fallback_email:
                 instance._fallback_creator_email = fallback_email
 
+        # Normalización de prioridad (high/medium/low -> Alta/Media/Baja)
+        prio_map = {'high': 'Alta', 'medium': 'Media', 'low': 'Baja', 'alta': 'Alta', 'media': 'Media', 'baja': 'Baja'}
         if priority:
-            instance._priority = priority
+            instance._priority = prio_map.get(str(priority).lower(), priority)
         elif request and hasattr(request, 'data') and request.data.get('priority'):
-            instance._priority = request.data.get('priority')
+            raw_p = request.data.get('priority')
+            instance._priority = prio_map.get(str(raw_p).lower(), raw_p)
 
         if due_date:
             instance._due_date = due_date
-        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date')):
-            instance._due_date = request.data.get('dueDate') or request.data.get('due_date')
+        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date') or request.data.get('endDate')):
+            instance._due_date = request.data.get('dueDate') or request.data.get('due_date') or request.data.get('endDate')
 
         instance.save()
         if predecessors is not None:
             instance.predecessors.set(predecessors)
         return instance
+
+    def to_representation(self, obj):
+        rep = super().to_representation(obj)
+        rep['startDate'] = rep.get('start_date')
+        rep['endDate'] = rep.get('end_date')
+        rep['dueDate'] = rep.get('end_date')
+        rep['critical'] = rep.get('is_critical_path')
+        rep['tolerance'] = rep.get('tolerance_days')
+        if obj.assigned_to:
+            rep['responsible'] = f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}".strip()
+            rep['assignee_email'] = obj.assigned_to.email
+        if obj.project:
+            rep['project_name'] = obj.project.name
+            rep['project_code'] = obj.project.code
+        return rep
 
 
 class DriveLinkSerializer(serializers.ModelSerializer):
@@ -818,11 +1053,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         if not selected_leader and request and hasattr(request, 'data'):
             leader_val = request.data.get('leaderId') or request.data.get('leader_id')
             if leader_val:
-                try:
-                    from .models import TeamMember
-                    selected_leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                except (ValueError, TypeError):
-                    pass
+                selected_leader = resolve_team_member(leader_val)
 
         instance = Project(**validated_data)
         if created_by:

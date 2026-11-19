@@ -27,6 +27,8 @@ import {
   operationsSortCategories,
 } from '../../utils/operations';
 import { createOperationsData } from '../../mocks/operationsData';
+import { projectsApi } from '../../services/projectsApi';
+import { runSafe } from '../../utils/asyncHandler';
 
 export { NewWorkOrderDialog, WorkOrderDetailDialog };
 
@@ -42,6 +44,8 @@ export default function Operations({
   canManage = false,
   projectOptions = [],
   responsibleOptions = [],
+  currentUser = null,
+  currentUserName = '',
 }) {
   const isProduction =
     import.meta.env.PROD ||
@@ -243,13 +247,41 @@ export default function Operations({
     },
   ];
 
-  const saveOrder = (draft) => {
+  const saveOrder = async (draft) => {
+    // 1. Validar y generar actualización de estado local
     const updated = createWorkOrder(data, draft);
+
+    // 2. Persistir en Backend Django (dispara automáticamente webhook task.assigned a Make)
+    const taskPayload = {
+      ...draft,
+      creator_email: currentUser?.email || '',
+      creator_name: currentUser?.username || currentUser?.name || currentUserName || '',
+      createdBy: currentUserName || currentUser?.name || currentUser?.username || '',
+    };
+
+    let makeMsg = '';
+    const [createdTask, taskError] = await runSafe(
+      () => projectsApi.createTask(taskPayload),
+      {
+        fallbackError: 'Error al registrar la tarea en el servidor.',
+      }
+    );
+
+    if (createdTask?.make_notification?.success) {
+      makeMsg = ' · Notificación enviada a Make.';
+    } else if (createdTask?.make_notification) {
+      makeMsg = ` · Make: ${createdTask.make_notification.message || 'No fue posible notificar'}`;
+    }
+
+    if (taskError) {
+      console.warn('[Operations] Tarea guardada localmente, sincronización con backend:', taskError);
+    }
+
     onChange(updated);
     setDialogOpen(false);
     setOrderFilter('all');
     setProjectFilter('all');
-    const msg = `Orden ${updated.orders[0].code} emitida y añadida al panel operativo.`;
+    const msg = `Orden ${updated.orders[0].code} emitida y añadida al panel operativo.${makeMsg}`;
     setFeedback(msg);
     showToast({
       title: 'Orden Emitida',

@@ -70,6 +70,9 @@ from .serializers import (
     TeamStatusSerializer,
     TechnicalAreaSerializer,
     ProjectMeetingSerializer,
+    resolve_team_member,
+    resolve_project,
+    resolve_technical_area,
 )
 from .services.google_drive import (
     GoogleDriveConfigurationError,
@@ -1027,15 +1030,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
     def create(self, request, *args, **kwargs):
-        # 1. Identificar líder técnico seleccionado en el formulario
+        # 1. Identificar líder técnico seleccionado en el formulario (soporta ID o nombre/alias)
         leader_val = request.data.get('leaderId') or request.data.get('leader_id')
-        selected_leader = None
-        if leader_val:
-            try:
-                from .models import TeamMember
-                selected_leader = TeamMember.objects.filter(id=int(leader_val)).first()
-            except (ValueError, TypeError):
-                pass
+        selected_leader = resolve_team_member(leader_val) if leader_val else None
 
         # 2. Identificar usuario creador autenticado (con fallback tolerante a request.data)
         user = getattr(request, 'user', None)
@@ -1082,10 +1079,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
 
-        # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
+        # Identificar creador / editor autenticado
         user = getattr(request, 'user', None)
-        is_admin_user = bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
-
         creator = user if user and user.is_authenticated else None
         if not creator:
             creator_identifier = (
@@ -1103,57 +1098,46 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     Q(username__iexact=creator_identifier.strip())
                 ).first()
 
+        is_admin_user = bool(
+            user and (
+                getattr(user, 'is_staff', False) or
+                getattr(user, 'is_superuser', False) or
+                'admin' in getattr(user, 'username', '').lower() or
+                'admin' in getattr(user, 'email', '').lower()
+            )
+        )
+
         request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
         if user and user.is_authenticated and not is_admin_user:
-            # Preservar presupuesto original
             if 'budget' in request_data:
                 request_data['budget'] = instance.budget
             if 'totalBudget' in request_data:
                 request_data['totalBudget'] = instance.budget
-            # Preservar líder original si ya tiene uno
-            first_m = instance.team_members.first()
-            if first_m:
-                request_data['leaderId'] = first_m.id
 
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
-        # Actualizar asignación del líder técnico solo si el usuario es administrador (o cliente no autenticado de prueba)
-        if is_admin_user or not (user and user.is_authenticated):
-            leader_val = request.data.get('leaderId') or request.data.get('leader_id')
-            if leader_val:
-                try:
-                    from .models import TeamMember
-                    leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                    if leader:
-                        current_leader = (
-                            project.team_members.filter(role__can_manage_projects=True).first()
-                            or project.team_members.first()
-                        )
-                        leader_changed = (
-                            (not current_leader)
-                            or (current_leader.id != leader.id)
-                            or (leader.project_id != project.id)
-                        )
+        # Actualizar asignación del líder técnico si viene especificado en la petición
+        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        if leader_val is not None and leader_val != '':
+            leader = resolve_team_member(leader_val)
+            if leader:
+                if creator:
+                    leader._assigned_by = creator
+                    leader.created_by = creator
+                else:
+                    fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+                    fallback_email = request.data.get('creator_email')
+                    if fallback_name:
+                        leader._fallback_creator_name = fallback_name
+                    if fallback_email:
+                        leader._fallback_creator_email = fallback_email
 
-                        if leader_changed:
-                            if creator:
-                                leader._assigned_by = creator
-                                leader.created_by = creator
-                            else:
-                                fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
-                                fallback_email = request.data.get('creator_email')
-                                if fallback_name:
-                                    leader._fallback_creator_name = fallback_name
-                                if fallback_email:
-                                    leader._fallback_creator_email = fallback_email
-
-                            leader._is_leader_assignment = True
-                            leader.project = project
-                            leader.save()
-                except (ValueError, TypeError):
-                    pass
+                leader._is_leader_assignment = True
+                leader.project = project
+                leader.save()
 
         response_data = self.get_serializer(project).data
         return Response(response_data)

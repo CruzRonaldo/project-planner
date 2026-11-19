@@ -938,6 +938,109 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertNotIn("task.assigned", events)
 
     @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_with_react_frontend_exact_json_format(self, mock_send):
+        """
+        Prueba Rama 1: Simula la petición real POST /api/tasks/ enviada desde NewWorkOrderDialog.jsx / Operations.jsx.
+        Utiliza nombres de proyectos combinados con código, nombres textuales de responsables, áreas y prioridades 'high'.
+        """
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Payload idéntico al emitido por NewWorkOrderDialog y Operations.jsx
+        payload = {
+            "project": f"{self.project.name} ({self.project.code})",
+            "type": "Operación de campo",
+            "title": "Vaciado de losa Nivel 4 - Sector Norte",
+            "area": self.area.name,
+            "responsible": f"{self.member_dev.first_name} {self.member_dev.last_name}",
+            "startDate": "2026-05-01",
+            "endDate": "2026-05-08",
+            "priority": "high",
+            "critical": True,
+            "tolerance": 3,
+            "documentUrl": "https://drive.google.com/drive/folders/sample-losa",
+            "description": "Detalla verificaciones de enfierradura y protocolos de vaciado de concreto premezclado.",
+            "creator_email": "admin@polyline.com",
+            "creator_name": "admin_user",
+            "createdBy": "admin_user",
+        }
+
+        response = api_client.post("/api/tasks/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse para el payload real de React")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Vaciado de losa Nivel 4 - Sector Norte")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-05-08")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_leader_assigned_with_react_frontend_exact_json_format(self, mock_send):
+        """
+        Prueba Rama 2: Simula la petición real PATCH /api/projects/:id/ enviada desde EditProjectDialog.jsx / Portfolio.jsx.
+        Prueba específicamente cuando el miembro asignado YA pertenecía al proyecto y su rol no tenía can_manage_projects.
+        """
+        mock_send.return_value = {"success": True, "status_code": 200}
+        # El colaborador ya pertenece al proyecto previamente y tiene rol de técnico/dev (can_manage_projects=False)
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Payload idéntico al enviado por EditProjectDialog.jsx
+        payload = {
+            "name": self.project.name,
+            "area": "Edificaciones Comerciales",
+            "startDate": "2026-03-01",
+            "endDate": "2026-09-01",
+            "totalBudget": 200000.0,
+            "status": "planning",
+            "leaderId": self.member_dev.id,
+            "driveFolder": "https://drive.google.com/drive/folders/test-project",
+            "description": "Edición y asignación de nuevo líder de obra",
+            "creator_email": "admin@polyline.com",
+            "creator_name": "admin_user",
+            "createdBy": "admin_user",
+        }
+
+        response = api_client.patch(f"/api/projects/{self.project.id}/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        # Confirmar que a Make le llegó el evento project.leader_assigned
+        leader_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.leader_assigned":
+                leader_call = call[1]
+                break
+
+        self.assertIsNotNone(leader_call, "El evento project.leader_assigned debió despacharse incluso si el miembro ya pertenecía al proyecto")
+        data = leader_call.get("data", {})
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("leader_name"), "Lucas Vargas")
+        self.assertEqual(data.get("leader_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Desarrollador de Software")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
     def test_meeting_created_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
         self.member_dev.project = self.project

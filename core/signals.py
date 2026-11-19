@@ -130,8 +130,8 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
     old_project_id = getattr(instance, '_old_project_id', None)
     is_explicit_assignment = getattr(instance, '_is_leader_assignment', False)
 
-    # Disparar si es líder y es una asignación explícita, nueva creación o cambio de proyecto
-    if is_leader and (is_explicit_assignment or created or old_project_id != instance.project_id):
+    # Disparar si es una asignación explícita de líder, o si es líder y es nueva creación o cambio de proyecto
+    if is_explicit_assignment or (is_leader and (created or old_project_id != instance.project_id)):
         creator = (
             getattr(instance, '_assigned_by', None)
             or getattr(instance, 'created_by', None)

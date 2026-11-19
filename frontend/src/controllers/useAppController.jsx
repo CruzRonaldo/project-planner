@@ -199,6 +199,8 @@ export function useAppController() {
           canManage={auth.canManage}
           projectOptions={projects.projectOptions}
           responsibleOptions={responsibleOptions}
+          currentUser={auth.displayedCurrentUser}
+          currentUserName={auth.displayedCurrentUser?.name}
         />
       );
     }
