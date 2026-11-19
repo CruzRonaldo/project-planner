@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import logoEmpresa from '../../assets/logoempresa1.png';
 import { usePlatform } from '../../hooks/usePlatform';
+import { useLanguage } from '../../context/LanguageContext';
 
 const mainItems = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, shortcut: 'Shift + 1', enabled: true },
@@ -38,6 +39,21 @@ const VIEW_SHORTCUTS = {
   configuracion: 'Shift + 9',
 };
 
+const NAV_TRANSLATION_MAP = {
+  dashboard: 'nav.dashboard',
+  planning: 'nav.planning',
+  portfolio: 'nav.portfolio',
+  operations: 'nav.operations',
+  'technical-team': 'nav.technicalTeam',
+  technicalTeam: 'nav.technicalTeam',
+  'human-resources': 'nav.humanResources',
+  humanResources: 'nav.humanResources',
+  integrations: 'nav.integrations',
+  manual: 'nav.manual',
+  settings: 'nav.settings',
+  configuracion: 'nav.settings',
+};
+
 export default function Sidebar({
   items = mainItems,
   activeView,
@@ -48,6 +64,7 @@ export default function Sidebar({
   onToggleDesktop = () => {},
 }) {
   const { isMobile, formatShortcut } = usePlatform();
+  const { t } = useLanguage();
 
   const handleNavigation = (viewId) => {
     onNavigate(viewId);
@@ -91,7 +108,7 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={!isOpenDesktop ? onToggleDesktop : undefined}
-                aria-label={!isOpenDesktop ? `Expandir barra lateral (${formatShortcut('Shift + 0')})` : 'Project Planner'}
+                aria-label={!isOpenDesktop ? `${t('sidebar.expand', 'Expandir barra lateral')} (${formatShortcut('Shift + 0')})` : 'Project Planner'}
                 className={`flex items-center gap-2.5 text-left transition-colors ${
                   !isOpenDesktop ? 'cursor-pointer hover:opacity-85' : 'cursor-default'
                 }`}
@@ -116,7 +133,7 @@ export default function Sidebar({
                   role="tooltip"
                   className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                 >
-                  <span>Expandir barra lateral</span>
+                  <span>{t('sidebar.expand', 'Expandir barra lateral')}</span>
                   <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
                     ({formatShortcut('Shift + 0')})
                   </span>
@@ -128,7 +145,7 @@ export default function Sidebar({
             <button
               type="button"
               onClick={onCloseMobile}
-              aria-label="Cerrar menú lateral"
+              aria-label={t('sidebar.closeMenu', 'Cerrar menú lateral')}
               className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors md:hidden cursor-pointer"
             >
               <X size={18} />
@@ -140,7 +157,7 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={onToggleDesktop}
-                  aria-label={`Colapsar barra lateral (${formatShortcut('Shift + 0')})`}
+                  aria-label={`${t('sidebar.collapse', 'Colapsar barra lateral')} (${formatShortcut('Shift + 0')})`}
                   className="hidden md:flex rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >
                   <PanelLeftClose size={16} />
@@ -150,7 +167,7 @@ export default function Sidebar({
                     role="tooltip"
                     className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                   >
-                    <span>Colapsar barra lateral</span>
+                    <span>{t('sidebar.collapse', 'Colapsar barra lateral')}</span>
                     <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
                       ({formatShortcut('Shift + 0')})
                     </span>
@@ -161,12 +178,14 @@ export default function Sidebar({
           </div>
 
           {/* NAVEGACIÓN PRINCIPAL */}
-          <nav className="flex flex-col gap-0.5 px-2 md:overflow-visible" aria-label="Secciones del sistema">
+          <nav className="flex flex-col gap-0.5 px-2 md:overflow-visible" aria-label={t('sidebar.systemSections', 'Secciones del sistema')}>
             {items.map((item, index) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
               const rawShortcut = VIEW_SHORTCUTS[item.id] || (index < 8 ? `Shift + ${index + 1}` : null);
               const formattedShortcut = !isMobile ? formatShortcut(rawShortcut) : null;
+              const navKey = NAV_TRANSLATION_MAP[item.id] || `nav.${item.id}`;
+              const translatedLabel = t(navKey, item.label);
 
               return (
                 <div key={item.id} className="relative group flex items-center">
@@ -174,8 +193,8 @@ export default function Sidebar({
                     type="button"
                     disabled={item.enabled === false}
                     onClick={() => handleNavigation(item.id)}
-                    aria-label={formattedShortcut ? `${item.label} (${formattedShortcut})` : item.label}
-                    title={isOpenDesktop && formattedShortcut ? `Atajo: ${formattedShortcut}` : undefined}
+                    aria-label={formattedShortcut ? `${translatedLabel} (${formattedShortcut})` : translatedLabel}
+                    title={isOpenDesktop && formattedShortcut ? t('sidebar.shortcutTooltip', 'Atajo: {shortcut}', { shortcut: formattedShortcut }) : undefined}
                     aria-current={isActive ? 'page' : undefined}
                     className={`relative flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                       isOpenDesktop
@@ -198,7 +217,7 @@ export default function Sidebar({
                         isOpenDesktop ? 'inline' : 'inline md:hidden'
                       }`}
                     >
-                      {item.label}
+                      {translatedLabel}
                     </span>
                   </button>
 
@@ -208,7 +227,7 @@ export default function Sidebar({
                       role="tooltip"
                       className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                     >
-                      <span>{item.label}</span>
+                      <span>{translatedLabel}</span>
                       {formattedShortcut && (
                         <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
                           ({formattedShortcut})
@@ -227,43 +246,50 @@ export default function Sidebar({
 
           {/* BOTÓN CONFIGURACIÓN */}
           <div className="relative group flex items-center">
-            <button
-              type="button"
-              onClick={() => handleNavigation('configuracion')}
-              aria-label={`Configuración (${formatShortcut('Shift + 9')})`}
-              title={isOpenDesktop ? `Atajo: ${formatShortcut('Shift + 9')}` : undefined}
-              aria-current={activeView === 'configuracion' ? 'page' : undefined}
-              className={`flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-                isOpenDesktop
-                  ? 'w-full gap-2.5 px-2.5 py-1.5 text-[13px] font-medium'
-                  : 'w-full gap-2.5 px-2.5 py-1.5 text-[13px] font-medium md:w-9 md:h-9 md:justify-center md:mx-auto md:p-0'
-              } ${
-                activeView === 'configuracion'
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
-              }`}
-            >
-              <Settings size={16} className="shrink-0 group-hover:rotate-45 transition-transform duration-300" />
-              <span
-                className={`whitespace-nowrap transition-all duration-200 truncate ${
-                  isOpenDesktop ? 'inline' : 'inline md:hidden'
-                }`}
-              >
-                Configuración
-              </span>
-            </button>
-            {/* Tooltip flotante al pasar el cursor (solo en estado colapsado) */}
-            {!isOpenDesktop && !isMobile && (
-              <div
-                role="tooltip"
-                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-              >
-                <span>Configuración</span>
-                <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
-                  ({formatShortcut('Shift + 9')})
-                </span>
-              </div>
-            )}
+            {(() => {
+              const settingsLabel = t('nav.settings', 'Configuración');
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleNavigation('configuracion')}
+                    aria-label={`${settingsLabel} (${formatShortcut('Shift + 9')})`}
+                    title={isOpenDesktop ? t('sidebar.shortcutTooltip', 'Atajo: {shortcut}', { shortcut: formatShortcut('Shift + 9') }) : undefined}
+                    aria-current={activeView === 'configuracion' ? 'page' : undefined}
+                    className={`flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                      isOpenDesktop
+                        ? 'w-full gap-2.5 px-2.5 py-1.5 text-[13px] font-medium'
+                        : 'w-full gap-2.5 px-2.5 py-1.5 text-[13px] font-medium md:w-9 md:h-9 md:justify-center md:mx-auto md:p-0'
+                    } ${
+                      activeView === 'configuracion'
+                        ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
+                    }`}
+                  >
+                    <Settings size={16} className="shrink-0 group-hover:rotate-45 transition-transform duration-300" />
+                    <span
+                      className={`whitespace-nowrap transition-all duration-200 truncate ${
+                        isOpenDesktop ? 'inline' : 'inline md:hidden'
+                      }`}
+                    >
+                      {settingsLabel}
+                    </span>
+                  </button>
+                  {/* Tooltip flotante al pasar el cursor (solo en estado colapsado) */}
+                  {!isOpenDesktop && !isMobile && (
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                    >
+                      <span>{settingsLabel}</span>
+                      <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
+                        ({formatShortcut('Shift + 9')})
+                      </span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </aside>

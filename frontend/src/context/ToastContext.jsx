@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import FormattedAuditText from '../components/common/FormattedAuditText';
+import { useLanguage } from './LanguageContext';
 
 const ToastContext = createContext(null);
 
@@ -40,6 +41,7 @@ export function ToastProvider({ children }) {
 }
 
 export function ToastContainer({ toast, onClose }) {
+  const { t } = useLanguage();
   const isError = toast.type === 'error';
   const isWarning = toast.type === 'warning';
   const isInfo = toast.type === 'info';
@@ -114,10 +116,10 @@ export function ToastContainer({ toast, onClose }) {
 
             <div className="min-w-0 flex-1 pr-1">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
-                {toast.title}
+                {t(`toasts.${toast.title}`, toast.title)}
               </h4>
               <div className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90">
-                <FormattedAuditText text={toast.message} />
+                <FormattedAuditText text={t(`toasts.${toast.message}`, toast.message)} />
               </div>
             </div>
 
@@ -125,7 +127,7 @@ export function ToastContainer({ toast, onClose }) {
               type="button"
               onClick={onClose}
               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300 midnight:text-cyan-600 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-300"
-              aria-label="Cerrar notificación"
+              aria-label={t('common.closeNotification', 'Cerrar notificación')}
             >
               <X size={16} />
             </button>

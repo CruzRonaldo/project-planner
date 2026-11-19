@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Bell, ChevronDown, LogOut, ShieldCheck, Settings, BookOpen } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 import FormattedAuditText from '../common/FormattedAuditText';
+import { useLanguage } from '../../context/LanguageContext';
 
 function getInitials(name = '') {
   return name
@@ -13,7 +14,54 @@ function getInitials(name = '') {
     .toUpperCase();
 }
 
+function formatNotificationTitle(title = '', t) {
+  if (!title) return '';
+  if (title === 'Proyecto Asignado') return t('notifications.projectAssignedTitle', 'Proyecto Asignado');
+  if (title === 'Reincorporación próxima') return t('notifications.upcomingReturnTitle', 'Reincorporación próxima');
+  if (title.startsWith('Auditoría:')) {
+    return title.replace(/^Auditoría:\s*/, `${t('notifications.auditPrefix', 'Auditoría')}: `);
+  }
+  if (title.startsWith('Hito próximo:')) {
+    return title.replace(/^Hito próximo:\s*/, `${t('notifications.milestonePrefix', 'Hito próximo')}: `);
+  }
+  return title;
+}
+
+function formatNotificationTime(time = '', t) {
+  if (!time) return '';
+  if (time === 'Reciente') return t('notifications.recent', 'Reciente');
+  if (time === 'Hoy') return t('notifications.today', 'Hoy');
+  if (time === 'Próximamente') return t('notifications.soon', 'Próximamente');
+  const daysMatch = time.match(/^En (\d+) día\(s\)$/);
+  if (daysMatch) {
+    return t('notifications.inDays', 'En {count} día(s)', { count: daysMatch[1] });
+  }
+  return time;
+}
+
+function formatNotificationDetail(detail = '', t) {
+  if (!detail) return '';
+  const leaderMatch = detail.match(/Has sido asignado como líder técnico del proyecto \*\*(.*?)\*\* \((.*?)\)\./);
+  if (leaderMatch) {
+    return t(
+      'notifications.projectAssignedDetail',
+      'Has sido asignado como líder técnico del proyecto **{name}** ({code}).',
+      { name: leaderMatch[1], code: leaderMatch[2] }
+    );
+  }
+  const returnMatch = detail.match(/^(.*?) retorna el (\d{2}\/\d{2}\/\d{4}) tras (.*?)\.$/);
+  if (returnMatch) {
+    return t(
+      'notifications.personnelReturnDetail',
+      '{member} retorna el {date} tras {reason}.',
+      { member: returnMatch[1], date: returnMatch[2], reason: returnMatch[3] }
+    );
+  }
+  return detail;
+}
+
 export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
+  const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsList, setNotificationsList] = useState([]);
@@ -129,7 +177,8 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
         <button 
           type="button" 
           onClick={openNotifications} 
-          aria-label="Notificaciones" 
+          title={t('profile.notifications', 'Notificaciones')}
+          aria-label={t('profile.notifications', 'Notificaciones')} 
           className="relative rounded-lg p-2 transition-colors duration-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-300"
         >
           <Bell size={20} />
@@ -146,14 +195,14 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
             setMenuOpen((current) => !current);
           }}
           aria-expanded={menuOpen}
-          aria-label="Abrir menú de usuario"
+          aria-label={t('profile.openUserMenu', 'Abrir menú de usuario')}
           className="flex items-center gap-2 rounded-xl p-1.5 text-left transition-colors duration-200 hover:bg-slate-100 dark:hover:bg-white/5 midnight:hover:bg-cyan-900/20 sm:gap-3"
         >
           {currentUser?.photo || currentUser?.avatar ? (
             <span className="h-8 w-8 overflow-hidden rounded-full border border-cyan-500/30 sm:h-9 sm:w-9 shrink-0 shadow-sm">
               <img
                 src={currentUser.photo || currentUser.avatar}
-                alt={`Perfil de ${currentUser?.name || 'Usuario'}`}
+                alt={t('profile.profileOf', 'Perfil de {name}', { name: currentUser?.name || t('profile.defaultUser', 'Usuario') })}
                 className="h-full w-full object-cover"
               />
             </span>
@@ -182,7 +231,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                   <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-cyan-500/30">
                     <img
                       src={currentUser.photo || currentUser.avatar}
-                      alt={`Perfil de ${currentUser?.name || 'Usuario'}`}
+                      alt={t('profile.profileOf', 'Perfil de {name}', { name: currentUser?.name || t('profile.defaultUser', 'Usuario') })}
                       className="h-full w-full object-cover"
                     />
                   </span>
@@ -209,7 +258,7 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
               }}
               className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
             >
-              <Settings size={17} /> Configuración de perfil
+              <Settings size={17} /> {t('profile.profileSettings', 'Configuración de perfil')}
             </button>
 
             <button
@@ -220,11 +269,11 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
               }}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
             >
-              <BookOpen size={17} /> Manual de Usuario
+              <BookOpen size={17} /> {t('profile.manual', 'Manual de Usuario')}
             </button>
 
             <button type="button" onClick={openNotifications} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">
-              <span className="flex items-center gap-3"><Bell size={17} /> Notificaciones</span>
+              <span className="flex items-center gap-3"><Bell size={17} /> {t('profile.notifications', 'Notificaciones')}</span>
               {unreadCount > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">{unreadCount}</span>
               )}
@@ -239,14 +288,14 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                 }}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
               >
-                <ShieldCheck size={17} /> Roles y permisos
+                <ShieldCheck size={17} /> {t('profile.roles', 'Roles y permisos')}
               </button>
             )}
 
             <div className="my-2 border-t border-slate-100 dark:border-slate-800 midnight:border-cyan-900/30" />
             
             <button type="button" onClick={onLogout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300 midnight:text-rose-400 midnight:hover:bg-rose-500/10 midnight:hover:text-rose-300">
-              <LogOut size={17} /> Cerrar sesión
+              <LogOut size={17} /> {t('profile.logout', 'Cerrar sesión')}
             </button>
           </div>
         )}
@@ -255,25 +304,25 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
         {notificationsOpen && (
           <section className="absolute right-0 top-[calc(100%+10px)] z-[70] w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-xl border shadow-[0_18px_50px_rgba(0,0,0,0.5)] transition-colors duration-300 bg-white border-slate-200 dark:bg-[#111a29] dark:border-slate-700 midnight:bg-[#0a1120] midnight:border-cyan-900/50">
             <header className="flex items-center justify-between border-b px-4 py-3 border-slate-100 dark:border-slate-800 midnight:border-cyan-900/30">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">Notificaciones</h2>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">{t('profile.notifications', 'Notificaciones')}</h2>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 ? (
                   <>
                     <span className="text-[10px] font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
-                      {unreadCount} {unreadCount === 1 ? 'nueva' : 'nuevas'}
+                      {unreadCount} {unreadCount === 1 ? t('profile.newNotificationSingular', 'nueva') : t('profile.newNotificationPlural', 'nuevas')}
                     </span>
                     <button
                       type="button"
                       onClick={markAllAsRead}
                       className="text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400/80 midnight:hover:text-cyan-200 transition-colors"
-                      title="Marcar todas como leídas"
+                      title={t('profile.markAllAsReadTooltip', 'Marcar todas como leídas')}
                     >
-                      Marcar leídas
+                      {t('profile.markAllRead', 'Marcar leídas')}
                     </button>
                   </>
                 ) : (
                   <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                    Al día
+                    {t('profile.allCaughtUp', 'Al día')}
                   </span>
                 )}
               </div>
@@ -300,21 +349,21 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
                           <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-                            {notification.title}
+                            {formatNotificationTitle(notification.title, t)}
                           </h3>
                           {notification.type === 'project_assignment' && (
                             <span className="shrink-0 rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-bold text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300">
-                              Líder
+                              {t('profile.leaderBadge', 'Líder')}
                             </span>
                           )}
                         </div>
                         <div className="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 midnight:text-cyan-500/80">
-                          <FormattedAuditText text={notification.detail} />
+                          <FormattedAuditText text={formatNotificationDetail(notification.detail, t)} />
                         </div>
                         <div className="mt-1.5 flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-600 midnight:text-cyan-500/50">
-                          <span>{notification.time}</span>
+                          <span>{formatNotificationTime(notification.time, t)}</span>
                           {notification.type === 'project_assignment' && (
-                            <span className="text-cyan-600 dark:text-cyan-400 font-medium">Ver en Portafolio →</span>
+                            <span className="text-cyan-600 dark:text-cyan-400 font-medium">{t('profile.viewInPortfolio', 'Ver en Portafolio →')}</span>
                           )}
                         </div>
                       </div>
@@ -326,10 +375,10 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
                 <div className="py-8 px-4 text-center">
                   <Bell className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600 midnight:text-cyan-800 mb-2 opacity-50" />
                   <p className="text-xs font-medium text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-                    No tienes notificaciones
+                    {t('profile.noNotifications', 'No tienes notificaciones')}
                   </p>
                   <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
-                    Todas las novedades de proyectos aparecerán aquí
+                    {t('profile.allProjectUpdatesAppearHere', 'Todas las novedades de proyectos aparecerán aquí')}
                   </p>
                 </div>
               )}

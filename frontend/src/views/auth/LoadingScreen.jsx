@@ -1,7 +1,10 @@
 import React from 'react';
 import logoEmpresa from '../../assets/logoempresa1.png';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function LoadingScreen() {
+  const { t } = useLanguage();
+
   return (
     <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-8 animate-in fade-in duration-1000">
       
@@ -23,7 +26,7 @@ export default function LoadingScreen() {
       {/* Texto y Barra de progreso */}
       <div className="flex flex-col items-center gap-4">
         <span className="text-cyan-400 font-bold tracking-[0.3em] uppercase text-xs sm:text-sm animate-pulse">
-          Inicializando Entorno...
+          {t('auth.initializing', 'Inicializando Entorno...')}
         </span>
         
         {/* Barra de progreso estilo Cyber/Tech con movimiento horizontal activo */}

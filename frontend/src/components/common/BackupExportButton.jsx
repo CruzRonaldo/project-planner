@@ -1,13 +1,10 @@
 import React, { useRef, useState } from 'react';
 import api from '../../services/api';
 import PasswordInput from './PasswordInput';
-
-const sourceLabels = {
-  manual: 'Manual', automatic: 'Automático',
-  before_restore: 'Antes de restaurar', legacy: 'Anterior',
-};
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function BackupExportButton({ onCreated, currentUser }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +19,21 @@ export default function BackupExportButton({ onCreated, currentUser }) {
   const [restored, setRestored] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const getSourceLabel = (source) => {
+    switch (source) {
+      case 'manual':
+        return t('backup.sourceManual', 'Manual');
+      case 'automatic':
+        return t('backup.sourceAutomatic', 'Automático');
+      case 'before_restore':
+        return t('backup.sourceBeforeRestore', 'Antes de restaurar');
+      case 'legacy':
+        return t('backup.sourceLegacy', 'Anterior');
+      default:
+        return source;
+    }
+  };
 
   const activeAdmin = currentUser || (() => {
     try {
@@ -52,7 +64,6 @@ export default function BackupExportButton({ onCreated, currentUser }) {
     setOpen(false);
     setUsername('');
     setPassword('');
-    setShowPassword(false);
     setConnected(false);
     setBackups([]);
     setDatabase('');
@@ -150,7 +161,7 @@ export default function BackupExportButton({ onCreated, currentUser }) {
   const download = (filename) => perform(async () => {
     const response = await api.get(`/backups/${encodeURIComponent(filename)}/download/`, options({ responseType: 'blob' }));
     saveDownload(response, filename);
-    setMessage('Se ha iniciado la descarga del respaldo seleccionado.');
+    setMessage(t('backup.downloadStarted', 'Se ha iniciado la descarga del respaldo seleccionado.'));
   });
 
   const restore = () => perform(async () => {
@@ -171,15 +182,15 @@ export default function BackupExportButton({ onCreated, currentUser }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={button}>
-        Administrar respaldos
+        {t('backup.manageBackups', 'Administrar respaldos')}
       </button>
       {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-          <section role="dialog" aria-modal="true" aria-label="Administrar respaldos" aria-busy={busy}
+          <section role="dialog" aria-modal="true" aria-label={t('backup.manageBackups', 'Administrar respaldos')} aria-busy={busy}
             className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-5 text-slate-800 shadow-xl dark:bg-slate-900 dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-100">
             <div className="mb-4 flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold">Respaldos de PostgreSQL</h2>
-              <button type="button" onClick={close} disabled={busy} className={button}>Cerrar</button>
+              <h2 className="text-lg font-bold">{t('backup.postgresBackupsTitle', 'Respaldos de PostgreSQL')}</h2>
+              <button type="button" onClick={close} disabled={busy} className={button}>{t('common.close', 'Cerrar')}</button>
             </div>
             {!connected && !restored && (
               <form
@@ -191,23 +202,23 @@ export default function BackupExportButton({ onCreated, currentUser }) {
                 className="space-y-3"
               >
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Ingresa las credenciales de la sesión actual
+                  {t('backup.enterCredentials', 'Ingresa las credenciales de la sesión actual')}
                 </p>
                 <label className="block text-sm">
-                  Nombre o correo
+                  {t('backup.usernameOrEmail', 'Nombre o correo')}
                   <input
                     autoFocus
                     autoComplete="username"
                     value={username}
                     disabled={busy}
                     required
-                    placeholder={activeAdmin?.email || activeAdmin?.username || 'ej. admin@empresa.com'}
+                    placeholder={activeAdmin?.email || activeAdmin?.username || t('backup.adminEmailPlaceholder', 'ej. admin@empresa.com')}
                     onChange={(event) => setUsername(event.target.value)}
                     className={input}
                   />
                 </label>
                 <label className="block text-sm">
-                  Contraseña
+                  {t('backup.password', 'Contraseña')}
                   <div className="mt-1">
                     <PasswordInput
                       autoComplete="current-password"
@@ -218,49 +229,50 @@ export default function BackupExportButton({ onCreated, currentUser }) {
                     />
                   </div>
                 </label>
-                <button type="submit" disabled={busy} className={button}>Consultar respaldos</button>
+                <button type="submit" disabled={busy} className={button}>{t('backup.consultBackups', 'Consultar respaldos')}</button>
               </form>
             )}
             {error && <p role="alert" className="mt-4 rounded-lg bg-red-100 p-3 text-sm text-red-800">{error}</p>}
             {message && <p role="status" className="mt-4 rounded-lg bg-emerald-100 p-3 text-sm text-emerald-900">{message}</p>}
             {connected && !restored && (
               <>
-                <p className="my-4 text-sm">Base configurada: <strong>{database}</strong></p>
+                <p className="my-4 text-sm">{t('backup.configuredDatabase', `Base configurada: ${database}`, { database })}</p>
                 <div className="mb-4 flex flex-wrap gap-2">
-                  <button type="button" disabled={busy} onClick={create} className={button}>Crear y descargar respaldo</button>
-                  <button type="button" disabled={busy} onClick={() => perform(refresh)} className={button}>Actualizar historial</button>
+                  <button type="button" disabled={busy} onClick={create} className={button}>{t('backup.createAndDownload', 'Crear y descargar respaldo')}</button>
+                  <button type="button" disabled={busy} onClick={() => perform(refresh)} className={button}>{t('backup.refreshHistory', 'Actualizar historial')}</button>
                 </div>
-                <p className="mb-3 text-xs">Las copias automáticas se ejecutan según la programación del servidor. El historial muestra las copias que realmente se han generado.</p>
+                <p className="mb-3 text-xs">{t('backup.historyNotice', 'Las copias automáticas se ejecutan según la programación del servidor. El historial muestra las copias que realmente se han generado.')}</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead><tr className="border-b border-slate-400">
-                      <th className="p-2">Fecha y archivo</th><th className="p-2">Origen</th>
-                      <th className="p-2">Tamaño</th><th className="p-2">Acciones</th>
+                      <th className="p-2">{t('backup.colDateAndFile', 'Fecha y archivo')}</th><th className="p-2">{t('backup.colSource', 'Origen')}</th>
+                      <th className="p-2">{t('backup.colSize', 'Tamaño')}</th><th className="p-2">{t('backup.colActions', 'Acciones')}</th>
                     </tr></thead>
                     <tbody>{backups.map((backup) => (
                       <tr key={backup.filename} className="border-b border-slate-300 dark:border-slate-700">
                         <td className="p-2"><div>{new Date(backup.created_at).toLocaleString('es-PE')}</div>
                           <div className="mt-1 break-all">{backup.filename}</div></td>
-                        <td className="p-2">{sourceLabels[backup.source] || backup.source}</td>
+                        <td className="p-2">{getSourceLabel(backup.source)}</td>
                         <td className="p-2">{(backup.size_bytes / 1024).toFixed(1)} KB</td>
                         <td className="p-2"><div className="flex gap-2">
-                          <button type="button" disabled={busy} onClick={() => download(backup.filename)} className={button}>Descargar</button>
+                          <button type="button" disabled={busy} onClick={() => download(backup.filename)} className={button}>{t('backup.download', 'Descargar')}</button>
                           <button type="button" disabled={busy} onClick={() => {
                             setSelected(backup); setConfirmation(''); setAcknowledged(false); setError(''); setMessage('');
-                          }} className={button}>Restaurar</button>
+                          }} className={button}>{t('backup.restore', 'Restaurar')}</button>
                         </div></td>
                       </tr>
                     ))}</tbody>
                   </table>
-                  {!backups.length && <p className="py-4 text-sm">Todavía no hay respaldos en esta instalación.</p>}
+                  {!backups.length && <p className="py-4 text-sm">{t('backup.noBackupsYet', 'Todavía no hay respaldos en esta instalación.')}</p>}
                 </div>
                 {selected && (
                   <div className="mt-5 space-y-3 rounded-lg border border-amber-500 p-4">
-                    <h3 className="font-bold">Confirmar restauración</h3>
-                    <p className="break-all text-sm">Archivo: {selected.filename}</p>
-                    <p className="text-sm">Se reemplazarán los datos y objetos incluidos en la copia. Los usuarios y contraseñas también volverán a ese momento. Primero se guardará un respaldo del estado actual.</p>
-                    <p className="text-sm">Pausa el trabajo de los demás usuarios y no cierres esta ventana durante el proceso.</p>
-                    <label className="block text-sm">Para confirmar, escribe: <strong>{database}</strong>
+                    <h3 className="font-bold">{t('backup.confirmRestoreTitle', 'Confirmar restauración')}</h3>
+                    <p className="break-all text-sm">{t('backup.fileLabel', `Archivo: ${selected.filename}`, { filename: selected.filename })}</p>
+                    <p className="text-sm">{t('backup.restoreWarningText', 'Se reemplazarán los datos y objetos incluidos en la copia. Los usuarios y contraseñas también volverán a ese momento. Primero se guardará un respaldo del estado actual.')}</p>
+                    <p className="text-sm">{t('backup.pauseNotice', 'Pausa el trabajo de los demás usuarios y no cierres esta ventana durante el proceso.')}</p>
+                    <label className="block text-sm">
+                      {t('backup.typeToConfirm', `Para confirmar, escribe: ${database}`, { database })}
                       <input
                         value={confirmation}
                         disabled={busy}
@@ -273,18 +285,18 @@ export default function BackupExportButton({ onCreated, currentUser }) {
                     <label className="flex items-start gap-2 text-sm">
                       <input type="checkbox" checked={acknowledged} disabled={busy}
                         onChange={(event) => setAcknowledged(event.target.checked)} />
-                      Entiendo que los datos actuales incluidos en el respaldo serán reemplazados.
+                      {t('backup.acknowledgeCheckbox', 'Entiendo que los datos actuales incluidos en el respaldo serán reemplazados.')}
                     </label>
                     <div className="flex gap-2">
                       <button type="button" disabled={busy || !acknowledged || confirmation !== database}
-                        onClick={restore} className={button}>Confirmar restauración</button>
-                      <button type="button" disabled={busy} onClick={() => setSelected(null)} className={button}>Cancelar</button>
+                        onClick={restore} className={button}>{t('backup.confirmRestoreBtn', 'Confirmar restauración')}</button>
+                      <button type="button" disabled={busy} onClick={() => setSelected(null)} className={button}>{t('common.cancel', 'Cancelar')}</button>
                     </div>
                   </div>
                 )}
               </>
             )}
-            {busy && <p role="status" className="mt-4 text-sm">Procesando. Espera a que termine antes de repetir la operación.</p>}
+            {busy && <p role="status" className="mt-4 text-sm">{t('backup.processingNotice', 'Procesando. Espera a que termine antes de repetir la operación.')}</p>}
           </section>
         </div>
       )}
