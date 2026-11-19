@@ -1,11 +1,44 @@
 import React from 'react';
 import { Settings2 } from 'lucide-react';
 import Button from '../../../components/common/Button';
-import { cardClass, iconMap } from './constants';
+import { cardClass, iconMap, resolveLastActivity } from './constants';
 import IntegrationStatus from './IntegrationStatus';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function IntegrationCard({ integration, onConfigure }) {
+  const { t } = useLanguage();
   const Icon = iconMap[integration.icon];
+
+  const resolveMetricValue = (val) => {
+    if (typeof val !== 'string') return val;
+    const lower = val.toLowerCase();
+    if (lower === 'activa' || lower === 'activo' || lower === 'active') {
+      return t('integrations.val_active', 'Activa');
+    }
+    if (lower === 'pendiente' || lower === 'pending') {
+      return t('integrations.val_pending', 'Pendiente');
+    }
+    return val;
+  };
+
+  const resolveMetricLabel = (metric) => {
+    if (metric.key === 'api') {
+      return metric.label === 'Google Drive API'
+        ? t('integrations.metric_drive_api', 'Google Drive API')
+        : t('integrations.metric_api', 'Estado API');
+    }
+    if (metric.key === 'account') {
+      return metric.value === 1
+        ? t('integrations.metric_account', 'cuenta conectada')
+        : t('integrations.metric_account_plural', 'cuentas conectadas');
+    }
+    if (metric.key === 'models') {
+      return metric.value === 1
+        ? t('integrations.metric_models_singular', 'modelo activo')
+        : t('integrations.metric_models', 'modelos activos');
+    }
+    return t(`integrations.metric_${metric.key}`, metric.label);
+  };
 
   return (
     <article className={`flex min-h-[225px] min-w-0 flex-col p-5 ${cardClass}`}>
@@ -22,7 +55,7 @@ export default function IntegrationCard({ integration, onConfigure }) {
       </header>
 
       <p className="mt-4 min-h-10 text-xs leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-300/80">
-        {integration.description}
+        {t(`integrations.desc_${integration.id}`, integration.description)}
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-4">
@@ -35,10 +68,10 @@ export default function IntegrationCard({ integration, onConfigure }) {
                   : 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400'
               }`}
             >
-              {metric.value}
+              {resolveMetricValue(metric.value)}
             </strong>
             <p className="mt-0.5 text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-400/80">
-              {metric.label}
+              {resolveMetricLabel(metric)}
             </p>
           </div>
         ))}
@@ -46,16 +79,16 @@ export default function IntegrationCard({ integration, onConfigure }) {
 
       <footer className="mt-auto flex items-end justify-between gap-3 pt-4">
         <span className="text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-400/80">
-          Actividad: {integration.lastActivity}
+          {t('integrations.activity', 'Actividad')}: {resolveLastActivity(integration.lastActivity, t)}
         </span>
         <Button
           variant="primary"
           size="sm"
           icon={Settings2}
           onClick={() => onConfigure(integration.id)}
-          aria-label={`Configurar ${integration.name}`}
+          aria-label={t('integrations.configureIntegration', 'Configurar {name}', { name: integration.name })}
         >
-          Configurar
+          {t('integrations.configure', 'Configurar')}
         </Button>
       </footer>
     </article>

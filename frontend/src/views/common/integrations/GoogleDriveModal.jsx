@@ -4,7 +4,8 @@ import ModalDialog from '../../../components/common/ModalDialog';
 import Button from '../../../components/common/Button';
 import IntegrationStatus from './IntegrationStatus';
 import GoogleDriveFileManager from './GoogleDriveFileManager';
-import { nestedClass } from './constants';
+import { nestedClass, resolveLastActivity } from './constants';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function GoogleDriveModal({
   isOpen = false,
@@ -14,16 +15,28 @@ export default function GoogleDriveModal({
   onTest,
   testing = false,
 }) {
+  const { t } = useLanguage();
   if (!integration) return null;
 
   const isConnected = integration.status === 'connected';
+
+  const hasValidAccount =
+    integration.endpoint &&
+    integration.endpoint !== 'Sin cuenta conectada' &&
+    integration.endpoint !== 'Sin cuenta autorizada' &&
+    integration.endpoint !== 'No connected account' &&
+    integration.endpoint !== 'No authorized account';
+
+  const accountDisplay = hasValidAccount
+    ? integration.endpoint
+    : t('integrations.noConnectedAccount', 'Sin cuenta conectada');
 
   return (
     <ModalDialog
       isOpen={isOpen}
       onClose={onClose}
-      title={`Configuración de ${integration.name}`}
-      subtitle="Bóveda documental para planos, especificaciones y archivos de proyectos."
+      title={t('integrations.configDrive', 'Configuración de {name}', { name: integration.name })}
+      subtitle={t('integrations.driveSubtitle', 'Bóveda documental para planos, especificaciones y archivos de proyectos.')}
       icon={<Cloud size={22} />}
       maxWidth="max-w-5xl"
       showFooter={false}
@@ -35,18 +48,19 @@ export default function GoogleDriveModal({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-                Estado de la Bóveda:
+                {t('integrations.vaultStatus', 'Estado de la Bóveda:')}
               </span>
               <IntegrationStatus status={integration.status} />
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 midnight:text-cyan-300">
-              Cuenta vinculada:{' '}
+              {t('integrations.linkedAccount', 'Cuenta vinculada:')}{' '}
               <strong className="text-slate-800 dark:text-slate-200 midnight:text-cyan-200">
-                {integration.endpoint || 'Sin cuenta autorizada'}
+                {accountDisplay}
               </strong>
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80">
-              Última verificación: {integration.lastActivity}
+              {t('integrations.lastVerification', 'Última verificación:')}{' '}
+              {resolveLastActivity(integration.lastActivity, t)}
             </p>
           </div>
 
@@ -58,7 +72,7 @@ export default function GoogleDriveModal({
               isLoading={testing}
               onClick={() => onTest(integration.id)}
             >
-              {testing ? 'Comprobando...' : 'Probar conexión'}
+              {testing ? t('integrations.checking', 'Comprobando...') : t('integrations.testConnection', 'Probar conexión')}
             </Button>
 
             <Button
@@ -67,7 +81,9 @@ export default function GoogleDriveModal({
               icon={ShieldCheck}
               onClick={onConnect}
             >
-              {isConnected ? 'Reautorizar Google Drive' : 'Conectar Google Drive'}
+              {isConnected
+                ? t('integrations.reauthorizeGoogleDrive', 'Reautorizar Google Drive')
+                : t('integrations.connectGoogleDrive', 'Conectar Google Drive')}
             </Button>
           </div>
         </div>

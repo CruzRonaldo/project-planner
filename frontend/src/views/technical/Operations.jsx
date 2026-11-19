@@ -11,6 +11,7 @@ import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import PageHeader from '../../components/common/PageHeader';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import NewWorkOrderDialog from './components/NewWorkOrderDialog';
 import WorkOrderDetailDialog from './components/WorkOrderDetailDialog';
 import CriticalScheduleSection from './components/CriticalScheduleSection';
@@ -43,6 +44,7 @@ export default function Operations({
   projectOptions = [],
   responsibleOptions = [],
 }) {
+  const { t } = useLanguage();
   const isProduction =
     import.meta.env.PROD ||
     (typeof window !== 'undefined' &&
@@ -141,7 +143,7 @@ export default function Operations({
     }
     const label = nextStatus === 'completed' ? 'Completada' : 'En progreso';
     showToast({
-      title: 'Orden Actualizada',
+      title: t('toasts.Orden Actualizada', 'Orden Actualizada'),
       message: `La orden fue actualizada a **${label}**.`,
       type: 'success',
     });
@@ -184,7 +186,7 @@ export default function Operations({
     }
 
     showToast({
-      title: 'Flujo de Tareas Actualizado',
+      title: t('toasts.Flujo de Tareas Actualizado', 'Flujo de Tareas Actualizado'),
       message: `Orden **${currentOrder?.code || ''}** completada. Se activó la siguiente orden **${nextOrderObj?.code || ''}** (${nextOrderObj?.title || ''}).`,
       type: 'success',
     });
@@ -208,40 +210,48 @@ export default function Operations({
       : 1;
   const paginatedOrders = sortedOrders.slice((safeOrderPage - 1) * ORDERS_PER_PAGE, safeOrderPage * ORDERS_PER_PAGE);
 
-  const metricCards = [
+  const metricCards = useMemo(() => [
     {
-      label: 'Tareas en progreso',
+      label: t('operations.tasksInProgress', 'Tareas en progreso'),
       value: metrics.inProgress,
-      note: metrics.inProgress > 0 ? `${metrics.inProgress} activas` : 'Sin tareas',
+      note: metrics.inProgress > 0
+        ? t('operations.activeTasksCount', '{count} activas', { count: metrics.inProgress })
+        : t('operations.noTasks', 'Sin tareas'),
       icon: Activity,
       color: 'text-blue-600 dark:text-blue-400 midnight:text-cyan-400',
       badge: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300',
     },
     {
-      label: 'Tareas completadas',
+      label: t('operations.tasksCompleted', 'Tareas completadas'),
       value: metrics.completed,
-      note: metrics.completed > 0 ? `${metrics.completed} finalizadas` : 'Sin registros',
+      note: metrics.completed > 0
+        ? t('operations.completedTasksCount', '{count} finalizadas', { count: metrics.completed })
+        : t('operations.noRecords', 'Sin registros'),
       icon: CheckCircle2,
       color: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300',
       badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300',
     },
     {
-      label: 'Incidencias abiertas',
+      label: t('operations.openIncidents', 'Incidencias abiertas'),
       value: metrics.incidents,
-      note: metrics.incidents > 0 ? `${metrics.incidents} alertas` : 'Sin incidencias',
+      note: metrics.incidents > 0
+        ? t('operations.alertsCount', '{count} alertas', { count: metrics.incidents })
+        : t('operations.noIncidents', 'Sin incidencias'),
       icon: AlertTriangle,
       color: 'text-red-600 dark:text-red-400 midnight:text-red-300',
       badge: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300',
     },
     {
-      label: 'Eficiencia operativa',
+      label: t('operations.operationalEfficiency', 'Eficiencia operativa'),
       value: `${metrics.efficiency}%`,
-      note: metrics.efficiency > 0 ? 'En rango' : 'Sin métricas',
+      note: metrics.efficiency > 0
+        ? t('operations.inRange', 'En rango')
+        : t('operations.noMetrics', 'Sin métricas'),
       icon: BarChart3,
       color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400',
       badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:bg-emerald-500/10 midnight:text-emerald-300',
     },
-  ];
+  ], [metrics, t]);
 
   const saveOrder = (draft) => {
     const updated = createWorkOrder(data, draft);
@@ -266,8 +276,7 @@ export default function Operations({
     link.download = 'reporte-operativo-diario.csv';
     link.click();
     URL.revokeObjectURL(url);
-    const msg = 'Reporte operativo diario exportado correctamente.';
-    setFeedback(msg);
+    const msg = t('toasts.operationsReportExported', 'Reporte operativo exportado correctamente.');
     showToast({
       title: 'Reporte Exportado',
       message: msg,
@@ -279,13 +288,13 @@ export default function Operations({
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <PageHeader
-          title="Gestión Operativa de Campo"
-          subtitle="Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad"
+          title={t('operations.title', 'Gestión Operativa de Campo')}
+          subtitle={t('operations.subtitle', 'Control de tareas activas, órdenes de trabajo críticas y aseguramiento de calidad')}
         >
           {canManage && (
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="secondary" onClick={exportReport} icon={ClipboardCheck}>
-                Generar Reporte Diario
+                {t('operations.generateDailyReport', 'Generar Reporte Diario')}
               </Button>
               <Button
                 variant="primary"
@@ -295,17 +304,17 @@ export default function Operations({
                 }}
                 icon={Plus}
               >
-                Nueva Orden de Trabajo
+                {t('operations.newWorkOrder', 'Nueva Orden de Trabajo')}
               </Button>
             </div>
           )}
         </PageHeader>
 
-        <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>
+        <p role="status" className="sr-only">
           {feedback}
         </p>
 
-        <section aria-label="Resumen operativo" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <section aria-label={t('operations.operationalSummary', 'Resumen operativo')} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {metricCards.map((card) => (
             <KpiCard
               key={card.label}

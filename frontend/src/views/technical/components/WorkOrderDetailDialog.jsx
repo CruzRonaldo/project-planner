@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ArrowRight,
 } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import ModalDialog from '../../../components/common/ModalDialog';
 import StatusBadge from '../../../components/common/StatusBadge';
 import FormattedAuditText from '../../../components/common/FormattedAuditText';
@@ -44,6 +45,7 @@ export default function WorkOrderDetailDialog({
   onCompleteAndNext,
   canManage = false,
 }) {
+  const { t } = useLanguage();
   // Detectar inteligentemente si existe una siguiente orden en cola para este trabajador o proyecto
   const nextOrder = useMemo(() => {
     if (!ordersList || ordersList.length === 0 || !order) return null;
@@ -114,7 +116,7 @@ export default function WorkOrderDetailDialog({
           {order.critical && (
             <div className="flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-bold text-red-700 dark:bg-red-950/40 dark:text-red-400 midnight:bg-red-950/60 midnight:text-red-300">
               <AlertTriangle size={12} />
-              <span>Ruta Crítica Activa</span>
+              <span>{t('operations.activeCriticalPath', 'Ruta Crítica Activa')}</span>
             </div>
           )}
         </div>
@@ -125,7 +127,7 @@ export default function WorkOrderDetailDialog({
           <div className={`p-3 ${nestedClass}`}>
             <span className={`flex items-center gap-1.5 ${labelClass}`}>
               <Building2 size={13} />
-              Proyecto Asociado
+              {t('operations.associatedProjectDetail', 'Proyecto Asociado')}
             </span>
             <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-100 midnight:text-cyan-50">
               {order.project}
@@ -136,7 +138,7 @@ export default function WorkOrderDetailDialog({
           <div className={`p-3 ${nestedClass}`}>
             <span className={`flex items-center gap-1.5 ${labelClass}`}>
               <User size={13} />
-              Responsable de Campo
+              {t('operations.fieldResponsible', 'Responsable de Campo')}
             </span>
             <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-100 midnight:text-cyan-50">
               {order.responsible || 'Sin responsable asignado'}
@@ -147,10 +149,10 @@ export default function WorkOrderDetailDialog({
           <div className={`p-3 ${nestedClass}`}>
             <span className={`flex items-center gap-1.5 ${labelClass}`}>
               <Layers size={13} />
-              Especialidad y Tipo
+              {t('operations.specialtyAndType', 'Especialidad y Tipo')}
             </span>
             <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-100 midnight:text-cyan-50">
-              {order.type} <span className="font-normal text-slate-500 dark:text-slate-400">({order.area})</span>
+              {t('operations.types.' + order.type, order.type)} <span className="font-normal text-slate-500 dark:text-slate-400">({t('operations.areas.' + order.area, order.area)})</span>
             </p>
           </div>
 
@@ -158,13 +160,13 @@ export default function WorkOrderDetailDialog({
           <div className={`p-3 ${nestedClass}`}>
             <span className={`flex items-center gap-1.5 ${labelClass}`}>
               <Calendar size={13} />
-              Plazo de Ejecución
+              {t('operations.executionPeriod', 'Plazo de Ejecución')}
             </span>
             <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-100 midnight:text-cyan-50">
               {order.startDate || '—'} → {order.endDate || '—'}
               {durationDays ? (
                 <span className="ml-1.5 font-normal text-cyan-600 dark:text-cyan-400">
-                  ({durationDays} {durationDays === 1 ? 'día' : 'días'})
+                  ({durationDays} {durationDays === 1 ? t('common.day', 'día') : t('common.days', 'días')})
                 </span>
               ) : null}
             </p>
@@ -175,7 +177,7 @@ export default function WorkOrderDetailDialog({
         <div className={`p-3.5 ${nestedClass}`}>
           <div className="flex items-center justify-between text-xs">
             <span className="font-medium text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
-              Avance Estimado
+              {t('operations.estimatedProgress', 'Avance Estimado')}
             </span>
             <span className="font-bold text-cyan-700 dark:text-cyan-400 midnight:text-cyan-300">
               {order.progress ?? (isCompleted ? 100 : 0)}%
@@ -192,15 +194,15 @@ export default function WorkOrderDetailDialog({
             />
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">
-            <span>Tolerancia de holgura técnica:</span>
-            <span className="font-semibold">{order.tolerance ?? 0} días hábiles</span>
+            <span>{t('operations.slackTolerance', 'Tolerancia de holgura técnica:')}</span>
+            <span className="font-semibold">{t('operations.businessDays', `${order.tolerance ?? 0} días hábiles`, { count: order.tolerance ?? 0 })}</span>
           </div>
         </div>
 
         {/* Instrucciones de Terreno */}
         <div className={`p-3.5 ${nestedClass}`}>
           <span className={`block font-medium ${labelClass}`}>
-            Instrucciones y Especificaciones de Campo
+            {t('operations.fieldInstructions', 'Instrucciones y Especificaciones de Campo')}
           </span>
           <div className="mt-1.5 text-xs leading-relaxed text-slate-700 dark:text-slate-300 midnight:text-cyan-100/90 whitespace-pre-line">
             <FormattedAuditText text={order.description || 'Sin instrucciones adicionales registradas.'} />
@@ -210,9 +212,9 @@ export default function WorkOrderDetailDialog({
         {/* Plano o Documento Vinculado */}
         <div className={`flex flex-wrap items-center justify-between gap-3 p-3 ${nestedClass}`}>
           <div className="min-w-0">
-            <span className={`block ${labelClass}`}>Documentación / Plano de Ingeniería</span>
+            <span className={`block ${labelClass}`}>{t('operations.engineeringDocumentation', 'Documentación / Plano de Ingeniería')}</span>
             <span className="truncate text-xs text-slate-600 dark:text-slate-400 midnight:text-cyan-500/90">
-              {hasDriveLink ? 'Enlace a Google Drive verificado' : 'Sin enlace a Google Drive'}
+              {hasDriveLink ? t('operations.driveLinkVerified', 'Enlace a Google Drive verificado') : t('operations.noDriveLink', 'Sin enlace a Google Drive')}
             </span>
           </div>
           {hasDriveLink ? (
@@ -222,12 +224,12 @@ export default function WorkOrderDetailDialog({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition-colors hover:bg-cyan-100 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300 dark:hover:bg-cyan-500/20 midnight:border-cyan-700 midnight:bg-cyan-900/30 midnight:text-cyan-300"
             >
-              <span>Abrir en Drive</span>
+              <span>{t('operations.openInDrive', 'Abrir en Drive')}</span>
               <ExternalLink size={13} />
             </a>
           ) : (
             <span className="text-[11px] italic text-slate-400 dark:text-slate-500">
-              No adjunto
+              {t('operations.notAttached', 'No adjunto')}
             </span>
           )}
         </div>
@@ -238,7 +240,7 @@ export default function WorkOrderDetailDialog({
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 font-bold text-cyan-800 dark:text-cyan-300 midnight:text-cyan-200">
                 <ArrowRight size={13} />
-                Siguiente tarea en cola ({nextOrder.matchReason})
+                {t('operations.nextTaskInQueue', `Siguiente tarea en cola (${nextOrder.matchReason})`, { reason: nextOrder.matchReason })}
               </span>
               <span className="font-mono text-[11px] font-bold text-cyan-700 dark:text-cyan-400">
                 {nextOrder.code}
@@ -257,7 +259,7 @@ export default function WorkOrderDetailDialog({
             onClick={onClose}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/5 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200"
           >
-            Cerrar Ficha
+            {t('operations.closeCard', 'Cerrar Ficha')}
           </button>
 
           {canManage && (
@@ -271,7 +273,7 @@ export default function WorkOrderDetailDialog({
                     className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                   >
                     <CheckCircle2 size={14} />
-                    <span>Solo completar</span>
+                    <span>{t('operations.onlyComplete', 'Solo completar')}</span>
                   </button>
 
                   <button
@@ -280,7 +282,7 @@ export default function WorkOrderDetailDialog({
                     className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
                   >
                     <CheckCircle2 size={14} />
-                    <span>Completar y pasar a siguiente</span>
+                    <span>{t('operations.completeAndNext', 'Completar y pasar a siguiente')}</span>
                     <ArrowRight size={14} />
                   </button>
                 </>
@@ -292,7 +294,7 @@ export default function WorkOrderDetailDialog({
                     className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-500 dark:bg-amber-500 dark:hover:bg-amber-400"
                   >
                     <RotateCcw size={14} />
-                    <span>Reabrir Orden</span>
+                    <span>{t('operations.reopenOrder', 'Reabrir Orden')}</span>
                   </button>
 
                   {nextOrder && onCompleteAndNext && (
@@ -301,7 +303,7 @@ export default function WorkOrderDetailDialog({
                       onClick={() => onCompleteAndNext(order.id, nextOrder.id)}
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
                     >
-                      <span>Iniciar siguiente ({nextOrder.code})</span>
+                      <span>{t('operations.startNextOrder', `Iniciar siguiente (${nextOrder.code})`, { code: nextOrder.code })}</span>
                       <ArrowRight size={14} />
                     </button>
                   )}
@@ -313,7 +315,7 @@ export default function WorkOrderDetailDialog({
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 >
                   <CheckCircle2 size={14} />
-                  <span>Marcar como Completada</span>
+                  <span>{t('operations.markCompleted', 'Marcar como Completada')}</span>
                 </button>
               )}
             </div>

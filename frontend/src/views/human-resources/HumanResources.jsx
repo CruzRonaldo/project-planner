@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  AlertCircle,
   CalendarDays,
   Check,
   Download,
   Pencil,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import { personnelStatuses } from '../../constants/humanResources';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { runSafe } from '../../utils/asyncHandler';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
@@ -122,6 +123,7 @@ export default function HumanResources({
   syncError = '',
   syncedAt = null,
 }) {
+  const { t } = useLanguage();
   const members = data?.members || [];
   const history = data?.history || [];
   const incidents = data?.incidents || [];
@@ -193,11 +195,42 @@ export default function HumanResources({
     safeHistoryPage * HISTORY_PAGE_SIZE
   );
 
-  const summaryCards = [
-    { id: 'all', label: 'Total personal', value: summary.total, dotClass: 'bg-slate-400' },
-    ...personnelStatuses.map((status) => ({ ...status, label: status.summaryLabel, value: summary[status.id] || 0 })),
-  ];
+  const summaryCards = useMemo(() => [
+    { id: 'all', label: t('humanResources.summaryTotalPersonnel', 'Total personal'), value: summary.total, dotClass: 'bg-slate-400' },
+    ...personnelStatuses.map((status) => ({
+      ...status,
+      label: t(`humanResources.status_${status.id}`, status.summaryLabel),
+      value: summary[status.id] || 0,
+    })),
+  ], [t, summary]);
   const upcomingAlerts = getUpcomingIncidentAlerts(incidents);
+
+  const tableColumns = useMemo(() => [
+    t('humanResources.colName', 'Nombre'),
+    t('humanResources.colArea', 'Área Técnica'),
+    t('humanResources.colProject', 'Proyecto Asignado'),
+    t('humanResources.colStatus', 'Estado'),
+    t('humanResources.colAvailability', 'Disponibilidad'),
+    t('humanResources.colAction', 'Acción'),
+  ], [t]);
+
+  const incidentHeaders = useMemo(() => [
+    t('humanResources.colMember', 'Integrante'),
+    t('humanResources.colType', 'Tipo'),
+    t('humanResources.colPeriod', 'Periodo / Fechas'),
+    t('humanResources.colDays', 'Días'),
+    t('humanResources.colRequestStatus', 'Estado Solicitud'),
+    t('humanResources.colBackup', 'Respaldo'),
+    t('humanResources.colActions', 'Acciones'),
+  ], [t]);
+
+  const historyHeaders = useMemo(() => [
+    t('humanResources.colDate', 'Fecha'),
+    t('humanResources.colMember', 'Miembro'),
+    t('humanResources.colPreviousStatus', 'Estado Anterior'),
+    t('humanResources.colNextStatus', 'Estado Nuevo'),
+    t('humanResources.colReasonComment', 'Motivo / Comentario'),
+  ], [t]);
 
   const openEditor = (member, mode = 'status') => {
     if (!canManage) return;
@@ -312,11 +345,17 @@ export default function HumanResources({
         },
         onError: () => {
           setRefreshState('error');
-          setTimeout(() => setRefreshState('idle'), 3500);
+          setTimeout(() => setRefreshState('idle'), 4000);
         },
       }
     );
   };
+
+  const localizedSyncError = syncError ? t(`toasts.${syncError}`, t(syncError, syncError)) : '';
+  const isFailed = refreshState === 'error' || (Boolean(syncError) && refreshState !== 'loading' && refreshState !== 'success');
+  const isLoading = refreshState === 'loading' || (syncLoading && refreshState !== 'error');
+  const isSuccess = refreshState === 'success';
+  const isIdle = !isLoading && !isSuccess && !isFailed;
 
   const exportMatrix = async () => {
     if (isExportingMatrix) return;
@@ -347,29 +386,42 @@ export default function HumanResources({
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <PageHeader
-          title="Recursos Humanos y Estados"
-          subtitle="Administración de disponibilidad y asignación del personal"
+          title={t('humanResources.pageTitle', 'Recursos Humanos y Estados')}
+          subtitle={t('humanResources.pageSubtitle', 'Administración de disponibilidad y asignación del personal')}
         >
           <div className="flex flex-wrap items-center gap-2">
             {onRefreshRecords && (
               <button
                 type="button"
                 onClick={refreshRecords}
-                disabled={isRefreshingRecords || syncLoading}
-                aria-label="Actualizar registros"
+                disabled={isLoading}
+                aria-label={
+                  isFailed
+                    ? `${t('humanResources.refresh', 'Actualizar')} (${localizedSyncError || t('humanResources.refreshFailed', 'Error al sincronizar')})`
+                    : t('humanResources.refreshAriaLabel', 'Actualizar registros')
+                }
+                title={localizedSyncError || (isFailed ? t('humanResources.refreshErrorTooltip', 'Error al sincronizar con el servidor') : undefined)}
                 className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition-colors duration-300 disabled:cursor-wait disabled:opacity-60 bg-white dark:bg-[#161b22] midnight:bg-[#0a1120] ${
-                  refreshState === 'success'
+                  isSuccess
                     ? 'border-emerald-500/60 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400 midnight:border-emerald-500/40 midnight:text-emerald-300'
-                    : refreshState === 'error'
-                    ? 'border-red-500/60 text-red-700 dark:border-red-500/40 dark:text-red-400 midnight:border-red-500/40 midnight:text-red-300'
+                    : isFailed
+                    ? 'border-red-500/60 text-red-700 bg-red-50/50 hover:bg-red-50 dark:border-red-500/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/30 midnight:border-red-500/40 midnight:bg-red-950/30 midnight:text-red-300'
                     : 'border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50'
                 }`}
               >
-                {refreshState === 'loading' && <RefreshCw size={15} className="animate-spin text-cyan-600 dark:text-cyan-400" />}
-                {refreshState === 'success' && <Check size={15} className="text-emerald-600 dark:text-emerald-400 animate-in zoom-in-75 duration-200" />}
-                {refreshState === 'error' && <AlertCircle size={15} className="text-red-600 dark:text-red-400 animate-in zoom-in-75 duration-200" />}
-                {refreshState === 'idle' && <RefreshCw size={15} />}
-                <span>{refreshState === 'loading' ? 'Actualizando...' : 'Actualizar'}</span>
+                {isLoading && <RefreshCw size={15} className="animate-spin text-cyan-600 dark:text-cyan-400" />}
+                {isSuccess && <Check size={15} className="text-emerald-600 dark:text-emerald-400 animate-in zoom-in-75 duration-200" />}
+                {isFailed && <X size={15} className="text-red-600 dark:text-red-400 animate-in zoom-in-75 duration-200" />}
+                {isIdle && <RefreshCw size={15} />}
+                <span>
+                  {isLoading
+                    ? t('humanResources.refreshing', 'Actualizando...')
+                    : isSuccess
+                    ? t('humanResources.refreshSuccess', 'Actualizado')
+                    : isFailed
+                    ? t('humanResources.refreshFailed', 'Error al sincronizar')
+                    : t('humanResources.refresh', 'Actualizar')}
+                </span>
               </button>
             )}
             {canManage ? (
@@ -381,7 +433,7 @@ export default function HumanResources({
                   isLoading={isExportingMatrix}
                   icon={Download}
                 >
-                  {isExportingMatrix ? 'Generando Excel...' : 'Exportar Matriz'}
+                  {isExportingMatrix ? t('humanResources.exportingMatrix', 'Generando Excel...') : t('humanResources.exportMatrix', 'Exportar Matriz')}
                 </Button>
                 <Button
                   variant="primary"
@@ -392,12 +444,12 @@ export default function HumanResources({
                   }}
                   icon={CalendarDays}
                 >
-                  Registrar Incidencia / Licencia
+                  {t('humanResources.registerIncident', 'Registrar Incidencia / Licencia')}
                 </Button>
               </>
             ) : (
               <span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">
-                Vista de consulta
+                {t('humanResources.viewOnly', 'Vista de consulta')}
               </span>
             )}
           </div>
@@ -427,12 +479,11 @@ export default function HumanResources({
             {feedback}
           </p>
         )}
-        {syncError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 midnight:text-red-300">{syncError}</p>}
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
           <section className={panelClass} aria-labelledby="personnel-assignment-title">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-5">
-              <h2 id="personnel-assignment-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Asignación de Personal</h2>
+              <h2 id="personnel-assignment-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">{t('humanResources.personnelAssignment', 'Asignación de Personal')}</h2>
               <div className="flex flex-wrap items-center gap-3">
                 <SortDropdown
                   value={sortOrder}
@@ -441,14 +492,14 @@ export default function HumanResources({
                     setPageSelection((prev) => ({ ...prev, page: 1 }));
                   }}
                   categories={personnelSortCategories}
-                  label="Ordenar:"
+                  label={t('humanResources.sortLabel', 'Ordenar:')}
                   buttonClassName="w-[225px]"
-                  ariaLabel="Ordenar asignación de personal"
+                  ariaLabel={t('humanResources.sortAriaLabel', 'Ordenar asignación de personal')}
                 />
                 {(!syncedAt || syncLoading || syncError) && (
                   <span className="inline-flex items-center gap-1.5 text-[9px] text-cyan-700 dark:text-cyan-400 midnight:text-cyan-400">
                     <i className={`h-1.5 w-1.5 rounded-full ${syncError ? 'bg-red-400' : syncLoading ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
-                    {syncError ? 'Error de sincronización' : syncLoading ? 'Sincronizando...' : 'Pendiente de sincronización'}
+                    {syncError ? t('humanResources.syncError', 'Error de sincronización') : syncLoading ? t('humanResources.syncing', 'Sincronizando...') : t('humanResources.syncPending', 'Pendiente de sincronización')}
                   </span>
                 )}
                 {(query || !isAll) && (
@@ -462,7 +513,7 @@ export default function HumanResources({
             <div className="mt-3 px-4 sm:px-5">
               <Table className="min-w-[700px] border-collapse">
                 <TableHead
-                  columns={['Nombre', 'Área Técnica', 'Proyecto Asignado', 'Estado', 'Disponibilidad', 'Acción']}
+                  columns={tableColumns}
                 />
                 <tbody>
                   {visibleMembers.map((member) => (
@@ -475,11 +526,11 @@ export default function HumanResources({
                       <td className="whitespace-nowrap py-3.5 pl-2 text-right">
                         {canManage ? (
                           <div className="flex items-center justify-end gap-1">
-                            <button type="button" onClick={() => openEditor(member, 'status')} title="Editar disponibilidad y estado" className={iconButtonClass}><Pencil size={14} /></button>
-                            <button type="button" onClick={() => openEditor(member, 'project')} className="rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">Asignar</button>
+                            <button type="button" onClick={() => openEditor(member, 'status')} title={t('humanResources.editTooltip', 'Editar disponibilidad y estado')} className={iconButtonClass}><Pencil size={14} /></button>
+                            <button type="button" onClick={() => openEditor(member, 'project')} className="rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">{t('humanResources.assignBtn', 'Asignar')}</button>
                           </div>
                         ) : (
-                          <span className="text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">Solo lectura</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">{t('humanResources.readOnly', 'Solo lectura')}</span>
                         )}
                       </td>
                     </TableRow>
@@ -487,7 +538,7 @@ export default function HumanResources({
                   {!visibleMembers.length && (
                     <TableRow>
                       <td colSpan={6} className="py-12 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                        <EmptyState description="No se encontró personal con estos filtros." />
+                        <EmptyState description={t('humanResources.noPersonnel', 'No se encontró personal con estos filtros.')} />
                       </td>
                     </TableRow>
                   )}
@@ -500,7 +551,7 @@ export default function HumanResources({
                 totalPages={totalPages}
                 totalItems={filteredMembers.length}
                 pageSize={pageSize}
-                itemLabel="integrantes"
+                itemLabel={t('humanResources.membersLabel', 'integrantes')}
                 onPageChange={(nextPage) => setPageSelection({ query, status: statusFilterKey, page: nextPage })}
               />
             </div>
@@ -508,7 +559,7 @@ export default function HumanResources({
 
           <section className={`${panelClass} flex flex-col justify-between`} aria-labelledby="team-status-title">
             <div>
-              <div className="px-4 pt-5 sm:px-5"><h2 id="team-status-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Estado de Equipos</h2><p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Distribución rápida por disponibilidad operativa</p></div>
+              <div className="px-4 pt-5 sm:px-5"><h2 id="team-status-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">{t('humanResources.teamStatus', 'Estado de Equipos')}</h2><p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{t('humanResources.teamStatusSubtitle', 'Distribución rápida por disponibilidad operativa')}</p></div>
               <div className="mt-4 grid grid-cols-1 gap-3 px-4 sm:grid-cols-3 sm:px-5">
                 {personnelStatuses.map((status) => {
                   const statusMembers = members.filter((member) => member.status === status.id);
@@ -526,7 +577,7 @@ export default function HumanResources({
                             : `${themeStyle?.idle || status.className} ${!isAll ? 'opacity-40 hover:opacity-100' : ''}`
                         }`}
                       >
-                        <span className="truncate">{status.label}</span>
+                        <span className="truncate">{t(`statuses.${status.id}`, status.label)}</span>
                         <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
                           isSelected
                             ? themeStyle?.badgeSelected || 'bg-white/20 text-white'
@@ -537,15 +588,15 @@ export default function HumanResources({
                       </button>
                       <div className="mt-3 flex max-h-[380px] flex-col gap-2 overflow-y-auto">
                         {statusMembers.map((member) => canManage ? (
-                          <button key={member.id} type="button" onClick={() => openEditor(member)} aria-label={`Editar estado de ${member.name}`} title={`${member.name} · ${member.project}`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100 midnight:hover:text-cyan-50">
+                          <button key={member.id} type="button" onClick={() => openEditor(member)} aria-label={t('humanResources.editStatusOf', `Editar estado de ${member.name}`, { name: member.name })} title={`${member.name} · ${member.project}`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100 midnight:hover:text-cyan-50">
                             {member.name}
                           </button>
                         ) : (
-                          <span key={member.id} title={`${member.name} · Vista de consulta`} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100">
+                          <span key={member.id} title={t('humanResources.viewOnlyOf', `${member.name} · Vista de consulta`, { name: member.name })} className="truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-left text-[10px] text-slate-700 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-100">
                             {member.name}
                           </span>
                         ))}
-                        {!statusMembers.length && <p className="py-2 text-center text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">Sin personal</p>}
+                        {!statusMembers.length && <p className="py-2 text-center text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">{t('humanResources.noTeamPersonnel', 'Sin personal')}</p>}
                       </div>
                     </div>
                   );
@@ -567,8 +618,8 @@ export default function HumanResources({
                 }`}
               >
                 {!isAll
-                  ? '← Restablecer y ver balance completo'
-                  : 'Ver balance de carga completo (Todos los integrantes)'}
+                  ? t('humanResources.resetBalance', '← Restablecer y ver balance completo')
+                  : t('humanResources.viewFullBalance', 'Ver balance de carga completo (Todos los integrantes)')}
               </button>
             </footer>
           </section>
@@ -579,13 +630,13 @@ export default function HumanResources({
             <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
               <section className={panelClass} aria-labelledby="incidents-list-title">
                 <div className="px-4 pt-5 sm:px-5">
-                  <h2 id="incidents-list-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Incidencias y Licencias</h2>
-                  <p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Flujo activo de ausencias, descansos y vacaciones</p>
+                  <h2 id="incidents-list-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">{t('humanResources.incidentsAndLeaves', 'Incidencias y Licencias')}</h2>
+                  <p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{t('humanResources.incidentsSubtitle', 'Flujo activo de ausencias, descansos y vacaciones')}</p>
                 </div>
                 <div className="mt-3 overflow-x-auto px-4 sm:px-5">
                   <table className="w-full min-w-[700px] border-collapse text-left text-xs">
                     <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-                      {['Integrante', 'Tipo', 'Periodo / Fechas', 'Días', 'Estado Solicitud', 'Respaldo', 'Acciones'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}
+                      {incidentHeaders.map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0 last:pr-0">{label}</th>)}
                     </tr></thead>
                     <tbody>
                       {visibleIncidents.map((incident) => (
@@ -593,25 +644,25 @@ export default function HumanResources({
                           <td className="whitespace-nowrap py-3 pr-2 font-medium text-slate-900 transition-colors duration-300 dark:text-slate-100 midnight:text-cyan-50">{incident.memberName}</td>
                           <td className="whitespace-nowrap px-2 py-3 text-[11px] text-slate-600 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-200">{incident.typeLabel}</td>
                           <td className="whitespace-nowrap px-2 py-3 font-mono text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600">{formatDisplayDate(incident.startDate, { day: '2-digit', month: 'short' })} → {formatDisplayDate(incident.endDate, { day: '2-digit', month: 'short' })}</td>
-                          <td className="whitespace-nowrap px-2 py-3 text-[11px] text-slate-700 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{incident.businessDays ?? '-'} hab / {incident.calendarDays ?? '-'} cal</td>
+                          <td className="whitespace-nowrap px-2 py-3 text-[11px] text-slate-700 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{incident.businessDays ?? '-'} {t('humanResources.bizDaysShort', 'hab')} / {incident.calendarDays ?? '-'} {t('humanResources.calDaysShort', 'cal')}</td>
                           <td className="whitespace-nowrap px-2 py-3"><WorkflowBadge status={incident.workflowStatus} /></td>
-                          <td className="max-w-[140px] truncate px-2 py-3 text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600" title={incident.backupMemberName || 'Sin técnico'}>{incident.backupMemberName || 'Sin técnico'}</td>
+                          <td className="max-w-[140px] truncate px-2 py-3 text-[11px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600" title={incident.backupMemberName || t('humanResources.noBackup', 'Sin técnico')}>{incident.backupMemberName || t('humanResources.noBackup', 'Sin técnico')}</td>
                           <td className="whitespace-nowrap py-3 pl-2 text-right">
                             <div className="flex items-center justify-end gap-1">
                               {incident.workflowStatus === 'pending' && (
                                 <>
-                                  <button type="button" onClick={() => setIncidentAction({ incident, action: 'approve' })} className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20 midnight:bg-emerald-500/15 midnight:text-emerald-300 midnight:hover:bg-emerald-500/25">Aprobar</button>
-                                  <button type="button" onClick={() => setIncidentAction({ incident, action: 'reject' })} className="rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20 midnight:bg-red-500/15 midnight:text-red-300 midnight:hover:bg-red-500/25">Rechazar</button>
+                                  <button type="button" onClick={() => setIncidentAction({ incident, action: 'approve' })} className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20 midnight:bg-emerald-500/15 midnight:text-emerald-300 midnight:hover:bg-emerald-500/25">{t('humanResources.approve', 'Aprobar')}</button>
+                                  <button type="button" onClick={() => setIncidentAction({ incident, action: 'reject' })} className="rounded bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20 midnight:bg-red-500/15 midnight:text-red-300 midnight:hover:bg-red-500/25">{t('humanResources.reject', 'Rechazar')}</button>
                                 </>
                               )}
                               {incident.workflowStatus === 'approved' && (
-                                <button type="button" onClick={() => setIncidentAction({ incident, action: 'finalize' })} className="rounded bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-200 midnight:hover:bg-cyan-800/50 midnight:hover:text-cyan-50">Finalizar</button>
+                                <button type="button" onClick={() => setIncidentAction({ incident, action: 'finalize' })} className="rounded bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-200 midnight:hover:bg-cyan-800/50 midnight:hover:text-cyan-50">{t('humanResources.finalize', 'Finalizar')}</button>
                               )}
                             </div>
                           </td>
                         </tr>
                       ))}
-                      {!incidents.length && <tr><td colSpan={7} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay incidencias registradas. Usa el botón superior para crear una nueva.</td></tr>}
+                      {!incidents.length && <tr><td colSpan={7} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">{t('humanResources.noIncidents', 'No hay incidencias registradas. Usa el botón superior para crear una nueva.')}</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -621,7 +672,7 @@ export default function HumanResources({
                     totalPages={totalIncidentPages}
                     totalItems={incidents.length}
                     pageSize={INCIDENTS_PAGE_SIZE}
-                    itemLabel="incidencias"
+                    itemLabel={t('humanResources.incidentsLabel', 'incidencias')}
                     onPageChange={(nextPage) => setIncidentPageSelection({ query, page: nextPage })}
                     hideOnSinglePage={true}
                   />
@@ -630,30 +681,30 @@ export default function HumanResources({
 
               <aside className={panelClass} aria-labelledby="alerts-title">
                 <div className="px-4 pt-5 sm:px-5">
-                  <h2 id="alerts-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">Próximas reincorporaciones</h2>
-                  <p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">Alertas a 7 días y vencidas</p>
+                  <h2 id="alerts-title" className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">{t('humanResources.upcomingReturns', 'Próximas reincorporaciones')}</h2>
+                  <p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{t('humanResources.upcomingSubtitle', 'Alertas a 7 días y vencidas')}</p>
                 </div>
                 <div className="mt-3 flex flex-col gap-2.5 px-4 pb-5 sm:px-5">
                   {upcomingAlerts.map((alert) => (
                     <article key={alert.id} className={`rounded-lg border p-3 ${alert.isOverdue ? 'border-red-300 bg-red-50/50 dark:border-red-500/30 dark:bg-red-500/10' : 'border-amber-300 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-500/10'}`}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-xs text-slate-800 dark:text-slate-200 midnight:text-cyan-100">{alert.memberName}</span>
-                        <span className={`text-[10px] font-bold ${alert.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{alert.isOverdue ? 'Vencida' : `${alert.daysUntilReturn}d`}</span>
+                        <span className={`text-[10px] font-bold ${alert.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{alert.isOverdue ? t('humanResources.overdue', 'Vencida') : `${alert.daysUntilReturn}d`}</span>
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300 midnight:text-cyan-300/80">{alert.typeLabel} · Retorno {formatDisplayDate(alert.endDate, { day: '2-digit', month: 'short' })}</p>
+                      <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300 midnight:text-cyan-300/80">{alert.typeLabel} · {t('humanResources.returnPrefix', 'Retorno')} {formatDisplayDate(alert.endDate, { day: '2-digit', month: 'short' })}</p>
                     </article>
                   ))}
-                  {!upcomingAlerts.length && <p className="py-4 text-center text-xs text-slate-400 dark:text-slate-600 midnight:text-cyan-600">No hay reincorporaciones pendientes a corto plazo.</p>}
+                  {!upcomingAlerts.length && <p className="py-4 text-center text-xs text-slate-400 dark:text-slate-600 midnight:text-cyan-600">{t('humanResources.noUpcomingReturns', 'No hay reincorporaciones pendientes a corto plazo.')}</p>}
                 </div>
               </aside>
             </div>
 
             <section className={`${panelClass} w-full`} aria-labelledby="status-history-title">
-              <h2 id="status-history-title" className="px-4 pt-5 text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 sm:px-5">Historial de Cambios de Estado</h2>
+              <h2 id="status-history-title" className="px-4 pt-5 text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50 sm:px-5">{t('humanResources.statusHistory', 'Historial de Cambios de Estado')}</h2>
               <div className="mt-3 overflow-x-auto px-4 pb-3 sm:px-5">
                 <table className="w-full min-w-[660px] border-collapse text-left text-xs">
                   <thead><tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
-                    {['Fecha', 'Miembro', 'Estado Anterior', 'Estado Nuevo', 'Motivo / Comentario'].map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0">{label}</th>)}
+                    {historyHeaders.map((label) => <th scope="col" key={label} className="px-2 py-3 font-semibold first:pl-0">{label}</th>)}
                   </tr></thead>
                   <tbody>
                     {visibleHistory.map((change) => (
@@ -662,10 +713,10 @@ export default function HumanResources({
                         <td className="whitespace-nowrap px-2 py-3.5 text-[11px] font-medium text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{change.name}</td>
                         <td className="px-2 py-3.5"><StatusBadge status={change.previousStatus} /></td>
                         <td className="px-2 py-3.5"><StatusBadge status={change.nextStatus} /></td>
-                        <td className="min-w-[200px] px-2 py-3.5 text-[11px] leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{change.comment}{change.changedByName && <span className="mt-1 block text-[9px] text-slate-400">Por {change.changedByName}</span>}</td>
+                        <td className="min-w-[200px] px-2 py-3.5 text-[11px] leading-relaxed text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">{change.comment}{change.changedByName && <span className="mt-1 block text-[9px] text-slate-400">{t('humanResources.byAuthor', `Por ${change.changedByName}`, { name: change.changedByName })}</span>}</td>
                       </tr>
                     ))}
-                    {!history.length && <tr><td colSpan={5} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">No hay cambios de estado registrados en el historial.</td></tr>}
+                    {!history.length && <tr><td colSpan={5} className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">{t('humanResources.noStatusHistory', 'No hay cambios de estado registrados en el historial.')}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -675,7 +726,7 @@ export default function HumanResources({
                   totalPages={totalHistoryPages}
                   totalItems={history.length}
                   pageSize={HISTORY_PAGE_SIZE}
-                  itemLabel="cambios"
+                  itemLabel={t('humanResources.changesLabel', 'cambios')}
                   onPageChange={(nextPage) => setHistoryPageSelection({ query, page: nextPage })}
                   hideOnSinglePage={true}
                 />

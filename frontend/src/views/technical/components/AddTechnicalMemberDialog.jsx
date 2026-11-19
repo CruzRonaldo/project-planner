@@ -3,6 +3,7 @@ import { Camera, UserPlus, Users } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
 import { FootnoteText, InlineAlert } from '../../../components/common';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   technicalAreas,
   technicalProjects,
@@ -28,6 +29,7 @@ export default function AddTechnicalMemberDialog({
   onSubmit,
   onClose,
 }) {
+  const { t } = useLanguage();
   const [draft, setDraft] = useState({
     firstNames: '',
     lastNames: '',
@@ -96,7 +98,7 @@ export default function AddTechnicalMemberDialog({
 
   const membersCount = existingData?.members?.length ?? 0;
   const footnote = (
-    <FootnoteText text={`Campos requeridos para el alta técnica. Actualmente hay ${membersCount} integrantes.`} />
+    <FootnoteText text={t('technicalTeam.addFootnote', `Campos requeridos para el alta técnica. Actualmente hay ${membersCount} integrantes.`, { count: membersCount })} />
   );
 
   return (
@@ -104,12 +106,12 @@ export default function AddTechnicalMemberDialog({
       isOpen={true}
       onClose={onClose}
       onSubmit={submitDraft}
-      title="Añadir Nuevo Técnico"
-      subtitle="Registra un nuevo profesional en el directorio de ingeniería, arquitectura o sistemas."
+      title={t('technicalTeam.addMemberTitle', 'Añadir Nuevo Técnico')}
+      subtitle={t('technicalTeam.addMemberSubtitle', 'Registra un nuevo profesional en el directorio de ingeniería, arquitectura o sistemas.')}
       icon={<UserPlus size={21} />}
-      submitLabel="Añadir al equipo"
+      submitLabel={t('technicalTeam.confirmAdd', 'Añadir al equipo')}
       submitIcon={<UserPlus size={15} />}
-      cancelLabel="Cancelar"
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       footnote={footnote}
       maxWidth="max-w-3xl"
@@ -117,7 +119,7 @@ export default function AddTechnicalMemberDialog({
     >
       <div className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center ${nestedClass}`}>
         {draft.avatar ? (
-          <img src={draft.avatar} alt="Vista previa de la foto" className="h-16 w-16 rounded-full object-cover" />
+          <img src={draft.avatar} alt={t('technicalTeam.photoPreviewAlt', 'Vista previa de la foto')} className="h-16 w-16 rounded-full object-cover" />
         ) : (
           <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 transition-colors duration-300 dark:border-slate-500 midnight:border-cyan-800/40 midnight:text-cyan-600">
             <Users size={27} />
@@ -125,51 +127,51 @@ export default function AddTechnicalMemberDialog({
         )}
         <div>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 dark:border-slate-600 dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100">
-            <Camera size={15} /> Subir foto de perfil
+            <Camera size={15} /> {t('technicalTeam.uploadPhoto', 'Subir foto de perfil')}
             <input type="file" accept="image/png,image/jpeg" onChange={selectPhoto} className="sr-only" />
           </label>
-          <p className={`mt-2 text-[10px] ${mutedClass}`}>PNG o JPG (máx. 2 MB){photoName && ` · ${photoName}`}</p>
+          <p className={`mt-2 text-[10px] ${mutedClass}`}>{t('technicalTeam.photoHint', 'PNG o JPG (máx. 2 MB)')}{photoName && ` · ${photoName}`}</p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          Nombres <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.firstNames', 'Nombres')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input
             autoFocus
             required
             maxLength={80}
             value={draft.firstNames}
             onChange={changeField('firstNames')}
-            placeholder="Sofía Alejandra"
+            placeholder={t('technicalTeam.firstNamePlaceholder', 'Sofía Alejandra')}
             className={inputClass}
           />
         </label>
         <label className={labelClass}>
-          Apellidos <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.lastNames', 'Apellidos')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input
             required
             maxLength={80}
             value={draft.lastNames}
             onChange={changeField('lastNames')}
-            placeholder="Torres Valdivia"
+            placeholder={t('technicalTeam.lastNamePlaceholder', 'Torres Valdivia')}
             className={inputClass}
           />
         </label>
         <label className={labelClass}>
-          Correo electrónico corporativo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.corporateEmail', 'Correo electrónico corporativo')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input
             type="email"
             required
             maxLength={120}
             value={draft.email}
             onChange={changeField('email')}
-            placeholder="nombre@empresa.com"
+            placeholder={t('technicalTeam.emailPlaceholder', 'nombre@empresa.com')}
             className={inputClass}
           />
         </label>
         <label className={labelClass}>
-          Contraseña inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.initialPassword', 'Contraseña inicial')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <div className="mt-2">
             <PasswordInput
               required
@@ -178,12 +180,12 @@ export default function AddTechnicalMemberDialog({
               autoComplete="new-password"
               value={draft.password}
               onChange={changeField('password')}
-              placeholder="Mínimo 8 caracteres"
+              placeholder={t('technicalTeam.passwordMinCharsPlaceholder', 'Mínimo 8 caracteres')}
             />
           </div>
         </label>
         <label className={labelClass}>
-          Confirmar contraseña <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.confirmPassword', 'Confirmar contraseña')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <div className="mt-2">
             <PasswordInput
               required
@@ -192,35 +194,35 @@ export default function AddTechnicalMemberDialog({
               autoComplete="new-password"
               value={draft.passwordConfirm}
               onChange={changeField('passwordConfirm')}
-              placeholder="Repita la contraseña"
-              showPasswordLabel="Ver confirmación de contraseña"
-              hidePasswordLabel="Ocultar confirmación de contraseña"
+              placeholder={t('technicalTeam.confirmPasswordPlaceholder', 'Repita la contraseña')}
+              showPasswordLabel={t('technicalTeam.showConfirmPassword', 'Ver confirmación de contraseña')}
+              hidePasswordLabel={t('technicalTeam.hideConfirmPassword', 'Ocultar confirmación de contraseña')}
             />
           </div>
         </label>
         <label className={labelClass}>
-          Especialidad / Rol <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.specialtyRole', 'Especialidad / Rol')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input
             required
             maxLength={100}
             value={draft.specialty}
             onChange={changeField('specialty')}
-            placeholder="Arquitecta Principal / BIM"
+            placeholder={t('technicalTeam.positionPlaceholder', 'Arquitecta Principal / BIM')}
             className={inputClass}
           />
         </label>
         <label className={labelClass}>
-          Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.technicalArea', 'Área técnica')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.area} onChange={changeField('area')} className={inputClass}>
             {technicalAreas.map((area) => (
               <option key={area.id} value={area.id}>
-                {area.label}
+                {t(`technicalTeam.area_${area.id}`, area.label)}
               </option>
             ))}
           </select>
         </label>
         <label className={labelClass}>
-          Proyecto asignado inicial
+          {t('technicalTeam.initialAssignedProject', 'Proyecto asignado inicial')}
           <select value={draft.project} onChange={changeField('project')} className={inputClass}>
             {projectOptions.map((project) => (
               <option key={project}>{project}</option>
@@ -228,17 +230,17 @@ export default function AddTechnicalMemberDialog({
           </select>
         </label>
         <label className={labelClass}>
-          Estado de disponibilidad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.availabilityStatus', 'Estado de disponibilidad')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
             {technicalStatuses.map((status) => (
               <option key={status.id} value={status.id}>
-                {status.label}
+                {t(`statuses.${status.id}`, status.label)}
               </option>
             ))}
           </select>
         </label>
         <label className={labelClass}>
-          Disponibilidad / carga inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.initialWorkload', 'Disponibilidad / carga inicial')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <div className="relative">
             <input
               type="number"

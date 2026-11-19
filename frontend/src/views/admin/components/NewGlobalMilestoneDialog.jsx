@@ -3,6 +3,7 @@ import { Flag, Plus } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import { FootnoteText, InlineAlert } from '../../../components/common';
 import { runSafe } from '../../../utils/asyncHandler';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   inputClass,
   nestedClass,
@@ -25,6 +26,7 @@ const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slat
  * @param {Function} props.onClose - Cierra el diálogo
  */
 export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
+  const { t } = useLanguage();
   const [draft, setDraft] = useState({
     projectId: data.projects[0]?.id ?? '',
     status: 'pending',
@@ -50,7 +52,7 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
   }, [onClose]);
 
   const footnote = (
-    <FootnoteText text="Campos requeridos para dar de alta el hito." />
+    <FootnoteText text={t('strategicPlanning.requiredFieldsNotice', 'Campos requeridos para dar de alta el hito.')} />
   );
 
   const handleSubmit = async () => {
@@ -68,12 +70,12 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
       isOpen={true}
       onClose={onClose}
       onSubmit={handleSubmit}
-      title="Nuevo Hito Global"
-      subtitle="Define una entrega crítica, auditoría o fase clave en el calendario anual."
+      title={t('strategicPlanning.newGlobalMilestone', 'Nuevo Hito Global')}
+      subtitle={t('strategicPlanning.newMilestoneSubtitle', 'Define una entrega crítica, auditoría o fase clave en el calendario anual.')}
       icon={<Flag size={20} />}
-      submitLabel="Registrar Hito Global"
+      submitLabel={t('strategicPlanning.registerGlobalMilestone', 'Registrar Hito Global')}
       submitIcon={<Plus size={15} />}
-      cancelLabel="Cancelar"
+      cancelLabel={t('common.cancel', 'Cancelar')}
       submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
       footnote={footnote}
       maxWidth="max-w-2xl"
@@ -81,7 +83,8 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className={`text-xs ${mutedClass}`}>
-          Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('strategicPlanning.associatedProject', 'Proyecto asociado')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select autoFocus required value={draft.projectId} onChange={changeField('projectId')} className={inputClass}>
             {data.projects.map((project) => (
               <option key={project.id} value={project.id}>
@@ -91,37 +94,43 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
           </select>
         </label>
         <label className={`text-xs ${mutedClass}`}>
-          Estado inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('strategicPlanning.initialStatus', 'Estado inicial')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
             {milestoneStatuses.map((status) => (
               <option key={status.id} value={status.id}>
-                {status.label}
+                {t(`statuses.${status.id}`, status.label)}
               </option>
             ))}
           </select>
-          <small className={`mt-1 block text-[10px] ${mutedClass}`}>Recomendado: “Pendiente” (amarillo) para entregas programadas.</small>
+          <small className={`mt-1 block text-[10px] ${mutedClass}`}>
+            {t('strategicPlanning.recommendedPending', 'Recomendado: “Pendiente” (amarillo) para entregas programadas.')}
+          </small>
         </label>
       </div>
 
       <label className={`mt-4 block text-xs ${mutedClass}`}>
-        Nombre del hito / entrega crítica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        {t('strategicPlanning.milestoneName', 'Nombre del hito / entrega crítica')}{' '}
+        <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <input
           required
           maxLength={120}
           value={draft.title}
           onChange={changeField('title')}
-          placeholder="Entrega Cimentación y Pilotes Estructurales"
+          placeholder={t('strategicPlanning.milestoneNamePlaceholder', 'Entrega Cimentación y Pilotes Estructurales')}
           className={inputClass}
         />
       </label>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className={`text-xs ${mutedClass}`}>
-          Fecha límite programada <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('strategicPlanning.targetDate', 'Fecha límite programada')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input type="date" required value={draft.targetDate} onChange={changeField('targetDate')} className={inputClass} />
         </label>
         <label className={`text-xs ${mutedClass}`}>
-          Responsable de validación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('strategicPlanning.validationResponsible', 'Responsable de validación')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.validator} onChange={changeField('validator')} className={inputClass}>
             {milestoneValidators.map((validator) => (
               <option key={validator}>{validator}</option>
@@ -131,7 +140,8 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
       </div>
 
       <label className={`mt-4 block text-xs ${mutedClass}`}>
-        Descripción y entregables clave <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        {t('strategicPlanning.descriptionDeliverables', 'Descripción y entregables clave')}{' '}
+        <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <textarea
           required
           minLength={10}
@@ -139,7 +149,7 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
           rows={4}
           value={draft.description}
           onChange={changeField('description')}
-          placeholder="Describe los criterios de aprobación, documentos y entregables..."
+          placeholder={t('strategicPlanning.descriptionPlaceholder', 'Describe los criterios de aprobación, documentos y entregables...')}
           className={`${inputClass} resize-y leading-relaxed`}
         />
       </label>
@@ -152,9 +162,11 @@ export default function NewGlobalMilestoneDialog({ data, onSubmit, onClose }) {
           className="mt-0.5 accent-blue-600 dark:accent-blue-500 midnight:accent-cyan-500"
         />
         <span>
-          <strong className={`block text-xs font-medium ${headingClass}`}>Hito bloqueante</strong>
+          <strong className={`block text-xs font-medium ${headingClass}`}>
+            {t('strategicPlanning.blockingMilestone', 'Hito bloqueante')}
+          </strong>
           <small className={`mt-1 block text-[10px] leading-relaxed ${mutedClass}`}>
-            Detiene el cronograma si no se valida en la fecha objetivo y activa la ruta crítica.
+            {t('strategicPlanning.blockingMilestoneDesc', 'Detiene el cronograma si no se valida en la fecha objetivo y activa la ruta crítica.')}
           </small>
         </span>
       </label>

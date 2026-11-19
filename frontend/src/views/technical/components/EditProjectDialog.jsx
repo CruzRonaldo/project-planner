@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Pencil, Save } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
@@ -17,6 +18,7 @@ export default function EditProjectDialog({
   teamMembers = [],
   isAdmin = false,
 }) {
+  const { t } = useLanguage();
   const leadersList =
     teamMembers.length > 0
       ? teamMembers.map((m) => ({
@@ -100,7 +102,7 @@ export default function EditProjectDialog({
       isOpen={true}
       onClose={onClose}
       onSubmit={submit}
-      title="Editar Proyecto"
+      title={t('portfolio.editProjectTitle', 'Editar Proyecto')}
       subtitle={
         <span>
           Código:{' '}
@@ -110,9 +112,9 @@ export default function EditProjectDialog({
         </span>
       }
       icon={<Pencil size={18} />}
-      submitLabel="Guardar Cambios"
+      submitLabel={t('common.save', 'Guardar Cambios')}
       submitIcon={<Save size={15} />}
-      cancelLabel="Cancelar"
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       submitButtonClass="bg-cyan-600 hover:bg-cyan-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
       maxWidth="max-w-2xl"
@@ -120,7 +122,7 @@ export default function EditProjectDialog({
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-          Nombre del proyecto{' '}
+          {t('portfolio.projectName', 'Nombre del proyecto')}{' '}
           <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
             *
           </span>
@@ -129,13 +131,13 @@ export default function EditProjectDialog({
             maxLength={80}
             value={draft.name}
             onChange={changeField('name')}
-            placeholder="Ej. Torre Mirador Fase 2"
+            placeholder={t('portfolio.editProjectNamePlaceholder', 'Ej. Torre Mirador Fase 2')}
             className={inputClass}
           />
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-          Área técnica{' '}
+          {t('portfolio.technicalArea', 'Área técnica')}{' '}
           <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
             *
           </span>
@@ -146,7 +148,7 @@ export default function EditProjectDialog({
           >
             {projectAreas.map((area) => (
               <option key={area} value={area}>
-                {area}
+                {t('portfolio.areas.' + area, area)}
               </option>
             ))}
           </select>
@@ -155,14 +157,14 @@ export default function EditProjectDialog({
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
           <span className="flex items-center justify-between">
             <span>
-              Presupuesto total (S/){' '}
+              {t('portfolio.totalBudget', 'Presupuesto total')} (S/){' '}
               <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
                 *
               </span>
             </span>
             {!isAdmin && (
               <span
-                title="Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador."
+                title={t('portfolio.budgetProtectedTooltip', 'Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador.')}
                 className="cursor-help text-slate-400 transition-colors hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400"
               >
                 <Lock size={13} />
@@ -177,13 +179,13 @@ export default function EditProjectDialog({
             disabled={!isAdmin}
             title={
               !isAdmin
-                ? 'Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador.'
+                ? t('portfolio.budgetProtectedTooltip', 'Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador.')
                 : undefined
             }
             value={draft.totalBudget}
             onKeyDown={handleKeyDownBudget}
             onChange={handleBudgetChange}
-            placeholder="Ej. 1500000"
+            placeholder={t('portfolio.editBudgetPlaceholder', 'Ej. 1500000')}
             className={`${inputClass} ${
               !isAdmin
                 ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 midnight:bg-cyan-950/40'
@@ -193,7 +195,7 @@ export default function EditProjectDialog({
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-          Fecha de inicio{' '}
+          {t('portfolio.startDate', 'Fecha de inicio')}{' '}
           <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
             *
           </span>
@@ -207,7 +209,7 @@ export default function EditProjectDialog({
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-          Fecha de entrega estimada{' '}
+          {t('portfolio.endDate', 'Fecha de entrega estimada')}{' '}
           <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
             *
           </span>
@@ -221,7 +223,7 @@ export default function EditProjectDialog({
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
-          Estado operativo{' '}
+          {t('portfolio.initialStatus', 'Estado operativo')}{' '}
           <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
             *
           </span>
@@ -232,7 +234,7 @@ export default function EditProjectDialog({
           >
             {projectStatuses.map((status) => (
               <option key={status.id} value={status.id}>
-                {status.label}
+                {t(`statuses.${status.id}`, status.label)}
               </option>
             ))}
           </select>
@@ -241,7 +243,7 @@ export default function EditProjectDialog({
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70">
           <span className="flex items-center justify-between">
             <span>
-              Líder de obra{' '}
+              {t('portfolio.projectLeader', 'Líder de obra')}{' '}
               <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
                 *
               </span>
@@ -280,7 +282,7 @@ export default function EditProjectDialog({
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-          Carpeta de Google Drive
+          {t('portfolio.driveFolder', 'Carpeta de Google Drive')}
           <input
             type="url"
             maxLength={300}
@@ -292,13 +294,13 @@ export default function EditProjectDialog({
         </label>
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
-          Descripción / alcance
+          {t('portfolio.description', 'Descripción / alcance')}
           <textarea
             rows="3"
             maxLength={1000}
             value={draft.description}
             onChange={changeField('description')}
-            placeholder="Describe brevemente el alcance del proyecto..."
+            placeholder={t('portfolio.descriptionPlaceholder', 'Describe brevemente el alcance del proyecto...')}
             className={`${inputClass} resize-y`}
           />
         </label>

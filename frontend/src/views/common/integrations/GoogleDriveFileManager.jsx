@@ -13,18 +13,20 @@ import {
 import api from '../../../services/api';
 import { runSafe } from '../../../utils/asyncHandler';
 import { useToast } from '../../../context/ToastContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
 import { nestedClass } from './constants';
 
-function formatFileSize(bytes) {
-  if (bytes === null || bytes === undefined) return 'Carpeta';
+function formatFileSize(bytes, t) {
+  if (bytes === null || bytes === undefined) return t ? t('integrations.folder', 'Carpeta') : 'Carpeta';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function GoogleDriveFileManager({ connected }) {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [files, setFiles] = useState([]);
   const [folderStack, setFolderStack] = useState([]);
@@ -83,9 +85,9 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading,
         showToast: showFeedback ? showToast : undefined,
-        successTitle: 'Bóveda Actualizada',
-        successMessage: 'El contenido de la carpeta se actualizó con éxito.',
-        fallbackError: 'No se pudo actualizar el contenido de Google Drive.',
+        successTitle: t('toasts.vaultUpdated', 'Bóveda Actualizada'),
+        successMessage: t('toasts.vaultUpdatedMsg', 'El contenido de la carpeta se actualizó con éxito.'),
+        fallbackError: t('toasts.vaultUpdateError', 'No se pudo actualizar el contenido de Google Drive.'),
       }
     );
 
@@ -104,8 +106,8 @@ export default function GoogleDriveFileManager({ connected }) {
     const cleanName = folderName.trim();
     if (!cleanName) {
       showToast({
-        title: 'Nombre Requerido',
-        message: 'Escribe un nombre para la carpeta.',
+        title: t('toasts.nameRequired', 'Nombre Requerido'),
+        message: t('toasts.nameRequiredMsg', 'Escribe un nombre para la carpeta.'),
         type: 'warning',
       });
       return;
@@ -120,8 +122,8 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading: setWorking,
         showToast,
-        successTitle: 'Carpeta Creada',
-        successMessage: `Carpeta "${cleanName}" creada correctamente.`,
+        successTitle: t('toasts.folderCreated', 'Carpeta Creada'),
+        successMessage: t('toasts.folderCreatedMsg', `Carpeta "${cleanName}" creada correctamente.`, { name: cleanName }),
         fallbackError: 'No se pudo crear la carpeta de Google Drive.',
       }
     );
@@ -135,8 +137,8 @@ export default function GoogleDriveFileManager({ connected }) {
   const uploadDriveFile = async () => {
     if (!selectedFile) {
       showToast({
-        title: 'Archivo Requerido',
-        message: 'Selecciona un archivo para subir a Google Drive.',
+        title: t('toasts.fileRequired', 'Archivo Requerido'),
+        message: t('toasts.fileRequiredMsg', 'Selecciona un archivo para subir a Google Drive.'),
         type: 'warning',
       });
       return;
@@ -156,8 +158,8 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading: setWorking,
         showToast,
-        successTitle: 'Archivo Subido',
-        successMessage: `"${selectedFile.name}" subido con éxito a Google Drive.`,
+        successTitle: t('toasts.fileUploaded', 'Archivo Subido'),
+        successMessage: t('toasts.fileUploadedMsg', `"${selectedFile.name}" subido con éxito a Google Drive.`, { name: selectedFile.name }),
         fallbackError: 'No se pudo subir el archivo a Google Drive.',
       }
     );
@@ -180,8 +182,8 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading: setWorking,
         showToast,
-        successTitle: 'Elemento Renombrado',
-        successMessage: `Se actualizó el nombre a "${newName}".`,
+        successTitle: t('toasts.itemRenamed', 'Elemento Renombrado'),
+        successMessage: t('toasts.itemRenamedMsg', `Se actualizó el nombre a "${newName}".`, { name: newName }),
         fallbackError: 'No se pudo cambiar el nombre del elemento.',
       }
     );
@@ -202,8 +204,8 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading: setWorking,
         showToast,
-        successTitle: 'Elemento Eliminado',
-        successMessage: `"${item.name}" fue enviado a la papelera.`,
+        successTitle: t('toasts.itemDeleted', 'Elemento Eliminado'),
+        successMessage: t('toasts.itemDeletedMsg', `"${item.name}" fue enviado a la papelera.`, { name: item.name }),
         fallbackError: 'No se pudo eliminar el elemento de Google Drive.',
       }
     );
@@ -218,7 +220,7 @@ export default function GoogleDriveFileManager({ connected }) {
       <div
         className={`mt-4 p-4 text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80 ${nestedClass}`}
       >
-        Conecta Google Drive para administrar carpetas y archivos de la bóveda.
+        {t('integrations.connectDriveNotice', 'Conecta Google Drive para administrar carpetas y archivos de la bóveda.')}
       </div>
     );
   }
@@ -231,7 +233,7 @@ export default function GoogleDriveFileManager({ connected }) {
             id="drive-files-title"
             className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50"
           >
-            Archivos de Project Planner
+            {t('integrations.driveFilesHeader', 'Archivos de Project Planner')}
           </h3>
           <p className="mt-1 truncate text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
             {folderStack.map((folder) => folder.name).join(' / ') || 'Project Planner'}
@@ -245,7 +247,7 @@ export default function GoogleDriveFileManager({ connected }) {
             disabled={loading || folderStack.length <= 1}
             onClick={goBack}
           >
-            Atrás
+            {t('integrations.goBack', 'Volver')}
           </Button>
           <Button
             variant="secondary"
@@ -254,7 +256,7 @@ export default function GoogleDriveFileManager({ connected }) {
             isLoading={loading}
             onClick={() => refreshCurrentFolder(true)}
           >
-            Actualizar
+            {t('integrations.refresh', 'Actualizar')}
           </Button>
         </div>
       </div>
@@ -265,7 +267,7 @@ export default function GoogleDriveFileManager({ connected }) {
             value={folderName}
             maxLength={200}
             onChange={(event) => setFolderName(event.target.value)}
-            placeholder="Nombre de la carpeta"
+            placeholder={t('integrations.folderNamePlaceholder', 'Nombre de la carpeta')}
             containerClassName="flex-1"
             className="text-xs py-2"
           />
@@ -277,14 +279,14 @@ export default function GoogleDriveFileManager({ connected }) {
             onClick={createDriveFolder}
             className="shrink-0"
           >
-            Crear
+            {t('integrations.newFolder', 'Nueva Carpeta')}
           </Button>
         </div>
 
         <div className="flex min-w-0 gap-2 items-center">
           <label className="flex min-w-0 flex-1 cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-200">
             <span className="truncate">
-              {selectedFile?.name || 'Seleccionar archivo local'}
+              {selectedFile?.name || t('integrations.selectLocalFile', 'Seleccionar archivo local')}
             </span>
             <input
               type="file"
@@ -301,7 +303,7 @@ export default function GoogleDriveFileManager({ connected }) {
             onClick={uploadDriveFile}
             className="shrink-0"
           >
-            Subir
+            {t('integrations.uploadFile', 'Subir Archivo')}
           </Button>
         </div>
       </div>
@@ -310,17 +312,17 @@ export default function GoogleDriveFileManager({ connected }) {
         <table className="w-full min-w-[620px] text-left text-xs">
           <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400 midnight:bg-cyan-950/30 midnight:text-cyan-400">
             <tr>
-              <th className="px-3 py-2 font-medium">Nombre</th>
-              <th className="px-3 py-2 font-medium">Tamaño</th>
-              <th className="px-3 py-2 font-medium">Modificado</th>
-              <th className="px-3 py-2 text-right font-medium">Acciones</th>
+              <th className="px-3 py-2 font-medium">{t('integrations.colName', 'Nombre')}</th>
+              <th className="px-3 py-2 font-medium">{t('integrations.colSize', 'Tamaño')}</th>
+              <th className="px-3 py-2 font-medium">{t('integrations.colModified', 'Modificación')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('integrations.colActions', 'Acciones')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-[#30363d] midnight:divide-cyan-900/30">
             {loading && (
               <tr>
                 <td colSpan="4" className="px-3 py-8 text-center text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
-                  Cargando archivos...
+                  {t('integrations.loadingFiles', 'Cargando archivos...')}
                 </td>
               </tr>
             )}
@@ -345,7 +347,7 @@ export default function GoogleDriveFileManager({ connected }) {
                     </button>
                   </td>
                   <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
-                    {formatFileSize(item.size)}
+                    {formatFileSize(item.size, t)}
                   </td>
                   <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
                     {item.modified_time ? new Date(item.modified_time).toLocaleString() : '—'}
@@ -357,7 +359,7 @@ export default function GoogleDriveFileManager({ connected }) {
                           href={item.web_view_link}
                           target="_blank"
                           rel="noreferrer"
-                          title="Abrir en Google Drive"
+                          title={t('integrations.openInDrive', 'Abrir en Google Drive')}
                           className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
                         >
                           <ExternalLink size={14} />
@@ -366,7 +368,7 @@ export default function GoogleDriveFileManager({ connected }) {
                       <button
                         type="button"
                         disabled={working}
-                        title="Cambiar nombre"
+                        title={t('integrations.rename', 'Cambiar nombre')}
                         onClick={() => renameDriveItem(item)}
                         className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 disabled:opacity-40 dark:hover:bg-white/5 midnight:text-cyan-400 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-200"
                       >
@@ -375,7 +377,7 @@ export default function GoogleDriveFileManager({ connected }) {
                       <button
                         type="button"
                         disabled={working}
-                        title="Eliminar"
+                        title={t('integrations.delete', 'Eliminar')}
                         onClick={() => deleteDriveItem(item)}
                         className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-500/10 midnight:text-cyan-400 midnight:hover:bg-red-500/20 midnight:hover:text-red-300"
                       >
@@ -388,7 +390,7 @@ export default function GoogleDriveFileManager({ connected }) {
             {!loading && files.length === 0 && (
               <tr>
                 <td colSpan="4" className="px-3 py-8 text-center text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80">
-                  Esta carpeta está vacía.
+                  {t('integrations.emptyFolder', 'Esta carpeta está vacía.')}
                 </td>
               </tr>
             )}

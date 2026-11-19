@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { History } from 'lucide-react';
 import Pagination from '../../../components/common/Pagination';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   SectionCardHeader,
   Table,
@@ -20,6 +21,16 @@ export default function ScheduleAdjustmentsSection({
   headingClass: _headingClass = '',
   mutedClass: _mutedClass = '',
 }) {
+  const { t } = useLanguage();
+
+  const columns = useMemo(() => [
+    { label: t('strategicPlanning.date', 'Fecha'), className: 'px-4 py-3 sm:px-6' },
+    { label: t('strategicPlanning.project', 'Proyecto'), className: 'px-4 py-3 sm:px-6' },
+    { label: t('strategicPlanning.previousPeriod', 'Periodo Anterior'), className: 'px-4 py-3 sm:px-6' },
+    { label: t('strategicPlanning.newPeriod', 'Nuevo Periodo'), className: 'px-4 py-3 sm:px-6' },
+    { label: t('strategicPlanning.adjustmentReason', 'Motivo del Reajuste'), className: 'px-4 py-3 sm:px-6' },
+  ], [t]);
+
   return (
     <section
       className={`min-w-0 overflow-hidden ${cardClass} print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}
@@ -29,25 +40,17 @@ export default function ScheduleAdjustmentsSection({
         <SectionCardHeader
           icon={History}
           iconContainerClass="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/15 midnight:text-cyan-300"
-          title="Historial de Reajustes de Cronograma"
-          subtitle="Registro de modificaciones de plazos, prórrogas y motivos de gobernanza"
+          title={t('strategicPlanning.adjustmentsHistoryTitle', 'Historial de Reajustes de Cronograma')}
+          subtitle={t('strategicPlanning.adjustmentsHistorySubtitle', 'Registro de modificaciones de plazos, prórrogas y motivos de gobernanza')}
         >
           <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-300 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-300">
-            {displayedAdjustments.length} {displayedAdjustments.length === 1 ? 'registro' : 'registros'}
+            {displayedAdjustments.length} {displayedAdjustments.length === 1 ? t('strategicPlanning.record', 'registro') : t('strategicPlanning.records', 'registros')}
           </span>
         </SectionCardHeader>
       </header>
 
       <Table className="min-w-[700px] border-collapse">
-        <TableHead
-          columns={[
-            { label: 'Fecha', className: 'px-4 py-3 sm:px-6' },
-            { label: 'Proyecto', className: 'px-4 py-3 sm:px-6' },
-            { label: 'Periodo Anterior', className: 'px-4 py-3 sm:px-6' },
-            { label: 'Nuevo Periodo', className: 'px-4 py-3 sm:px-6' },
-            { label: 'Motivo del Reajuste', className: 'px-4 py-3 sm:px-6' },
-          ]}
-        />
+        <TableHead columns={columns} />
         <tbody>
           {paginatedAdjustments.map((adj) => (
             <TableRow
@@ -77,7 +80,7 @@ export default function ScheduleAdjustmentsSection({
           {!displayedAdjustments.length && (
             <TableRow>
               <td colSpan={5} className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                <EmptyState description="No hay reajustes de cronograma registrados en este ejercicio." />
+                <EmptyState description={t('strategicPlanning.noAdjustments', 'No hay reajustes de cronograma registrados en este ejercicio.')} />
               </td>
             </TableRow>
           )}
@@ -89,7 +92,7 @@ export default function ScheduleAdjustmentsSection({
           totalPages={totalPages}
           totalItems={displayedAdjustments.length}
           pageSize={pageSize}
-          itemLabel="reajustes"
+          itemLabel={t('strategicPlanning.adjustmentsItemLabel', 'reajustes')}
           onPageChange={onPageChange}
           hideOnSinglePage={true}
         />

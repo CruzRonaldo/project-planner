@@ -11,6 +11,7 @@ import KpiCard from '../../components/common/KpiCard';
 import { cardClass } from '../../constants/themeClasses';
 import { formatMoney } from '../../utils/format';
 import { getBarGeometry, getRollingWindow, legacyMonthRangeToDates } from '../../utils/gantt';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function DashboardContent({
   portfolioData,
@@ -18,6 +19,7 @@ export default function DashboardContent({
   onNavigate,
   referenceDate = new Date(),
 }) {
+  const { t } = useLanguage();
   const projects = portfolioData?.projects || [];
   const milestones = strategicPlanningData?.milestones || [];
 
@@ -41,8 +43,6 @@ export default function DashboardContent({
         )
       : 0;
 
-
-
   // Alertas de proyectos en riesgo o pausados
   const alerts = projects.filter(
     (p) => p.status === 'risk' || p.status === 'paused'
@@ -55,9 +55,11 @@ export default function DashboardContent({
   );
   const { windowStart, windowMonths, months } = rolling;
   const isSameYear = months[0].year === months[months.length - 1].year;
+  const startMonthName = t(`months.${months[0].month}`, months[0].short);
+  const endMonthName = t(`months.${months[months.length - 1].month}`, months[months.length - 1].short);
   const windowLabel = isSameYear
-    ? `${months[0].short} – ${months[months.length - 1].short} ${months[0].year}`
-    : `${months[0].short} ${months[0].year} – ${months[months.length - 1].short} ${months[months.length - 1].year}`;
+    ? `${startMonthName} – ${endMonthName} ${months[0].year}`
+    : `${startMonthName} ${months[0].year} – ${endMonthName} ${months[months.length - 1].year}`;
 
   const colors = [
     '#0ea5e9',
@@ -97,52 +99,69 @@ export default function DashboardContent({
       .filter(Boolean);
   }, [projects, windowStart, windowMonths, months]);
 
+  const kpiStats = useMemo(
+    () => [
+      {
+        title: t('dashboard.kpiActiveProjects', 'PROYECTOS ACTIVOS'),
+        value: String(activeProjects.length),
+        badge: t('dashboard.kpiTotalProjects', '{count} en total', { count: projects.length }),
+        badgeColor:
+          'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
+        icon: Folder,
+        color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
+      },
+      {
+        title: t('dashboard.kpiPendingMilestones', 'HITOS PENDIENTES'),
+        value: String(pendingMilestones.length),
+        badge: t('dashboard.kpiTotalMilestones', '{count} en total', { count: milestones.length }),
+        badgeColor:
+          'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
+        icon: CheckSquare,
+        color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
+      },
+      {
+        title: t('dashboard.kpiTotalBudget', 'PRESUPUESTO TOTAL'),
+        value: formatMoney(totalBudget),
+        badge:
+          projects.length > 0
+            ? t('dashboard.kpiUsedBudget', '{amount} usado', { amount: formatMoney(usedBudget) })
+            : t('dashboard.kpiZeroUsedBudget', '$0 usado'),
+        badgeColor:
+          'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
+        icon: DollarSign,
+        color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
+      },
+      {
+        title: t('dashboard.kpiAvgProgress', 'AVANCE PROMEDIO'),
+        value: `${avgProgress}%`,
+        badge:
+          projects.length > 0
+            ? t('dashboard.kpiPrjsCount', '{count} prjs', { count: projects.length })
+            : t('dashboard.kpiNoData', 'Sin datos'),
+        badgeColor:
+          'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
+        icon: TrendingUp,
+        color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
+      },
+    ],
+    [
+      t,
+      activeProjects.length,
+      projects.length,
+      pendingMilestones.length,
+      milestones.length,
+      totalBudget,
+      usedBudget,
+      avgProgress,
+    ]
+  );
+
   return (
     <main className="flex-1 overflow-y-auto p-4 md:p-6 transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
       <div className="flex flex-col gap-6 pb-8">
         {/* 1. Tarjetas Superiores */}
-        <section aria-label="Resumen ejecutivo de proyectos" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[
-            {
-              title: 'PROYECTOS ACTIVOS',
-              value: String(activeProjects.length),
-              badge: `${projects.length} en total`,
-              badgeColor:
-                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
-              icon: Folder,
-              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
-            },
-            {
-              title: 'HITOS PENDIENTES',
-              value: String(pendingMilestones.length),
-              badge: `${milestones.length} en total`,
-              badgeColor:
-                'text-cyan-600 bg-cyan-500/10 dark:text-cyan-400 dark:bg-cyan-400/10 midnight:text-cyan-300 midnight:bg-cyan-900/40',
-              icon: CheckSquare,
-              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
-            },
-            {
-              title: 'PRESUPUESTO TOTAL',
-              value: formatMoney(totalBudget),
-              badge:
-                projects.length > 0
-                  ? `${formatMoney(usedBudget)} usado`
-                  : '$0 usado',
-              badgeColor:
-                'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
-              icon: DollarSign,
-              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
-            },
-            {
-              title: 'AVANCE PROMEDIO',
-              value: `${avgProgress}%`,
-              badge: projects.length > 0 ? `${projects.length} prjs` : 'Sin datos',
-              badgeColor:
-                'text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-400/10 midnight:text-emerald-300 midnight:bg-emerald-950/40',
-              icon: TrendingUp,
-              color: 'text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300',
-            },
-          ].map((stat, i) => (
+        <section aria-label={t('dashboard.executiveSummaryAria', 'Resumen ejecutivo de proyectos')} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          {kpiStats.map((stat, i) => (
             <KpiCard
               key={stat.title || i}
               title={stat.title}
@@ -162,10 +181,10 @@ export default function DashboardContent({
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-100">
-                  Calendario de Proyectos ({windowLabel})
+                  {t('dashboard.projectCalendarTitle', 'Calendario de Proyectos ({windowLabel})', { windowLabel })}
                 </h3>
                 <p className="text-xs mt-1 text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                  Fases operativas críticas para los próximos 6 meses
+                  {t('dashboard.projectCalendarSubtitle', 'Fases operativas críticas para los próximos 6 meses')}
                 </p>
               </div>
               {onNavigate && (
@@ -174,7 +193,7 @@ export default function DashboardContent({
                   onClick={() => onNavigate('planning')}
                   className="text-xs px-3 py-1.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 rounded-md hover:bg-cyan-500/25 transition-colors"
                 >
-                  Ver Planificación
+                  {t('dashboard.viewPlanning', 'Ver Planificación')}
                 </button>
               )}
             </div>
@@ -184,7 +203,7 @@ export default function DashboardContent({
                 <div className="flex text-xs mb-4 border-b pb-2 ml-[160px] text-slate-500 dark:text-gray-500 border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30">
                   {months.map((m) => (
                     <div key={m.key} className="flex-1 text-center font-medium">
-                      <span>{m.short}</span>
+                      <span>{t(`months.${m.month}`, m.short)}</span>
                       {m.year !== months[0].year && (
                         <span className="ml-0.5 text-[10px] opacity-75 font-mono">'{String(m.year).slice(2)}</span>
                       )}
@@ -196,10 +215,10 @@ export default function DashboardContent({
                   <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
                     <Calendar size={28} className="mx-auto mb-2 opacity-40" />
                     <p className="font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-100">
-                      No hay proyectos registrados en el calendario
+                      {t('dashboard.noProjectsInCalendar', 'No hay proyectos registrados en el calendario')}
                     </p>
                     <p className="mt-1">
-                      Crea un proyecto en el Portafolio para visualizar sus cronogramas aquí.
+                      {t('dashboard.createProjectToView', 'Crea un proyecto en el Portafolio para visualizar sus cronogramas aquí.')}
                     </p>
                     {onNavigate && (
                       <button
@@ -207,7 +226,7 @@ export default function DashboardContent({
                         onClick={() => onNavigate('portfolio')}
                         className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
                       >
-                        <Plus size={14} /> Ir a Portafolio
+                        <Plus size={14} /> {t('dashboard.goToPortfolio', 'Ir a Portafolio')}
                       </button>
                     )}
                   </div>
@@ -215,10 +234,10 @@ export default function DashboardContent({
                   <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
                     <Calendar size={28} className="mx-auto mb-2 opacity-40" />
                     <p className="font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-100">
-                      Sin proyectos activos en esta ventana temporal
+                      {t('dashboard.noActiveProjectsInWindow', 'Sin proyectos activos en esta ventana temporal')}
                     </p>
                     <p className="mt-1">
-                      Los proyectos registrados están programados fuera del periodo ({windowLabel}).
+                      {t('dashboard.projectsOutsideWindow', 'Los proyectos registrados están programados fuera del periodo ({windowLabel}).', { windowLabel })}
                     </p>
                     {onNavigate && (
                       <button
@@ -226,7 +245,7 @@ export default function DashboardContent({
                         onClick={() => onNavigate('planning')}
                         className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
                       >
-                        Ver Planificación Anual
+                        {t('dashboard.viewAnnualPlanning', 'Ver Planificación Anual')}
                       </button>
                     )}
                   </div>
@@ -249,13 +268,13 @@ export default function DashboardContent({
                       const progressVal = Math.min(100, Math.max(0, Number(project.progress) || 0));
 
                       return (
-                        <div key={project.id || i} className="flex items-center" aria-label={`Cronograma de ${project.name}`}>
+                        <div key={project.id || i} className="flex items-center" aria-label={t('dashboard.projectScheduleAria', 'Cronograma de {name}', { name: project.name })}>
                           <div className="w-[160px] shrink-0 pr-3">
                             <p className="truncate text-sm font-medium text-slate-900 dark:text-white midnight:text-cyan-50">
                               {project.name}
                             </p>
                             <p className="truncate text-[11px] text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                              {project.area || 'General'}
+                              {project.area || t('dashboard.generalArea', 'General')}
                             </p>
                           </div>
                           <div className="flex-1 relative h-7 rounded bg-slate-100 dark:bg-[#0d1117] midnight:bg-cyan-950/50">
@@ -286,7 +305,7 @@ export default function DashboardContent({
                                 {isClippedLeft ? (
                                   <span
                                     className="shrink-0 rounded bg-black/30 px-1 py-0.2 text-[8px] font-mono leading-none"
-                                    title="Inició antes de esta ventana"
+                                    title={t('dashboard.startedBeforeWindow', 'Inició antes de esta ventana')}
                                   >
                                     ◀
                                   </span>
@@ -295,13 +314,13 @@ export default function DashboardContent({
                                 )}
 
                                 <span className="truncate text-[9px] min-w-0 font-medium">
-                                  {hasProgress ? `${progressVal}%` : 'En curso'}
+                                  {hasProgress ? `${progressVal}%` : t('dashboard.inProgress', 'En curso')}
                                 </span>
 
                                 {isClippedRight ? (
                                   <span
                                     className="shrink-0 rounded bg-black/30 px-1 py-0.2 text-[8px] font-mono leading-none"
-                                    title="Continúa después de esta ventana"
+                                    title={t('dashboard.continuesAfterWindow', 'Continúa después de esta ventana')}
                                   >
                                     ▶
                                   </span>
@@ -323,17 +342,17 @@ export default function DashboardContent({
           {/* Alertas Ruta Crítica */}
           <div className={`${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              Alertas Ruta Crítica
+              {t('dashboard.criticalAlertsTitle', 'Alertas Ruta Crítica')}
             </h3>
             {alerts.length === 0 ? (
               <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
                 <p className="font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
-                  ✓ Sin alertas críticas
+                  {t('dashboard.noCriticalAlerts', '✓ Sin alertas críticas')}
                 </p>
                 <p className="mt-1">
                   {projects.length === 0
-                    ? 'No hay proyectos en curso que requieran supervisión de riesgo.'
-                    : 'Todos los proyectos activos operan con normalidad.'}
+                    ? t('dashboard.noProjectsRiskSupervision', 'No hay proyectos en curso que requieran supervisión de riesgo.')
+                    : t('dashboard.allActiveProjectsNormal', 'Todos los proyectos activos operan con normalidad.')}
                 </p>
               </div>
             ) : (
@@ -348,12 +367,14 @@ export default function DashboardContent({
                         {project.name}
                       </p>
                       <p className="truncate text-xs text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                        {project.area || 'Operativo'}
+                        {project.area || t('dashboard.operativeArea', 'Operativo')}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-[11px] px-2 py-1 rounded font-medium bg-red-500/10 text-red-600 dark:text-red-400">
-                        {project.status === 'risk' ? 'En riesgo' : 'En pausa'}
+                        {project.status === 'risk'
+                          ? t('dashboard.statusRisk', 'En riesgo')
+                          : t('dashboard.statusPaused', 'En pausa')}
                       </span>
                     </div>
                   </div>
@@ -368,11 +389,11 @@ export default function DashboardContent({
           {/* Rendimiento por Equipo / Proyectos */}
           <div className={`xl:col-span-2 ${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              Avance por Proyecto
+              {t('dashboard.progressByProjectTitle', 'Avance por Proyecto')}
             </h3>
             {projects.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                Sin proyectos registrados para calcular métricas de avance.
+                {t('dashboard.noProjectsForProgress', 'Sin proyectos registrados para calcular métricas de avance.')}
               </div>
             ) : (
               <div className="space-y-6">
@@ -411,7 +432,7 @@ export default function DashboardContent({
           {/* Control Presupuestario */}
           <div className={`${cardClass} p-5 md:p-6`}>
             <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              Control Presupuestario
+              {t('dashboard.budgetControlTitle', 'Control Presupuestario')}
             </h3>
             <div className="flex justify-center items-center py-2">
               <div
@@ -428,17 +449,21 @@ export default function DashboardContent({
                     {formatMoney(totalBudget)}
                   </span>
                   <span className="text-xs mt-1 text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                    {totalBudget > 0 ? 'Asignado' : 'Sin asignar'}
+                    {totalBudget > 0
+                      ? t('dashboard.budgetAssigned', 'Asignado')
+                      : t('dashboard.budgetUnassigned', 'Sin asignar')}
                   </span>
                 </div>
               </div>
             </div>
             <div className="flex justify-center flex-wrap gap-4 mt-8 text-[11px] text-slate-500 dark:text-gray-400 midnight:text-cyan-400/80">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Total: {formatMoney(totalBudget)}
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>{' '}
+                {t('dashboard.budgetLegendTotal', 'Total: {amount}', { amount: formatMoney(totalBudget) })}
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span> Usado: {formatMoney(usedBudget)}
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>{' '}
+                {t('dashboard.budgetLegendUsed', 'Usado: {amount}', { amount: formatMoney(usedBudget) })}
               </div>
             </div>
           </div>

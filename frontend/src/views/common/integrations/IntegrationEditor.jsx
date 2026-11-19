@@ -4,6 +4,7 @@ import { integrationStatuses, syncFrequencies } from '../../../constants/integra
 import { cardClass, inputClass, nestedClass } from './constants';
 import IntegrationStatus from './IntegrationStatus';
 import GoogleDriveFileManager from './GoogleDriveFileManager';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function IntegrationEditor({
   integration,
@@ -13,7 +14,19 @@ export default function IntegrationEditor({
   onCancel,
   testing = false,
 }) {
+  const { t } = useLanguage();
   const isGoogleDrive = integration.id === 'drive';
+  const hasValidAccount =
+    integration.endpoint &&
+    integration.endpoint !== 'Sin cuenta conectada' &&
+    integration.endpoint !== 'Sin cuenta autorizada' &&
+    integration.endpoint !== 'No connected account' &&
+    integration.endpoint !== 'No authorized account';
+
+  const accountDisplay = hasValidAccount
+    ? integration.endpoint
+    : t('integrations.noConnectedAccount', 'Sin cuenta conectada');
+
   const [draft, setDraft] = useState({
     status: integration.status,
     endpoint: integration.endpoint,
@@ -53,18 +66,18 @@ export default function IntegrationEditor({
             id="integration-editor-title"
             className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50"
           >
-            Configurar {integration.name}
+            {t('integrations.configureIntegration', 'Configurar {name}', { name: integration.name })}
           </h2>
           <p className="mt-1 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
             {isGoogleDrive
-              ? 'Estado consultado directamente desde Google Drive mediante Django.'
-              : 'Ajustes locales de demostración; no se envían credenciales.'}
+              ? t('integrations.driveSubtitleNotice', 'Estado consultado directamente desde Google Drive mediante Django.')
+              : t('integrations.demoSettingsNotice', 'Ajustes locales de demostración; no se envían credenciales.')}
           </p>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          aria-label="Cerrar configuración"
+          aria-label={t('common.close', 'Cerrar')}
           className="rounded-lg p-2 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
         >
           <X size={18} />
@@ -76,7 +89,7 @@ export default function IntegrationEditor({
           <div className={`mt-4 grid gap-3 p-4 sm:grid-cols-2 ${nestedClass}`}>
             <div>
               <p className="text-[10px] uppercase text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
-                Estado
+                {t('integrations.status', 'Estado')}
               </p>
               <div className="mt-2">
                 <IntegrationStatus status={integration.status} />
@@ -84,10 +97,10 @@ export default function IntegrationEditor({
             </div>
             <div>
               <p className="text-[10px] uppercase text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
-                Cuenta autorizada
+                {t('integrations.authorizedAccount', 'Cuenta autorizada')}
               </p>
               <p className="mt-2 break-all text-xs font-medium text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
-                {integration.endpoint || 'Sin cuenta conectada'}
+                {accountDisplay}
               </p>
             </div>
           </div>
@@ -96,17 +109,17 @@ export default function IntegrationEditor({
       ) : (
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-            Estado
+            {t('integrations.status', 'Estado')}
             <select value={draft.status} onChange={changeField('status')} className={inputClass}>
               {integrationStatuses.map((statusItem) => (
                 <option key={statusItem.id} value={statusItem.id}>
-                  {statusItem.label}
+                  {t(`integrations.status_${statusItem.id}`, statusItem.label)}
                 </option>
               ))}
             </select>
           </label>
           <label className="text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-            Carpeta / endpoint
+            {t('integrations.folderOrEndpoint', 'Carpeta / endpoint')}
             <input
               autoFocus
               required
@@ -117,15 +130,17 @@ export default function IntegrationEditor({
             />
           </label>
           <label className="text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-            Frecuencia
+            {t('integrations.frequency', 'Frecuencia')}
             <select value={draft.frequency} onChange={changeField('frequency')} className={inputClass}>
               {syncFrequencies.map((frequency) => (
-                <option key={frequency}>{frequency}</option>
+                <option key={frequency} value={frequency}>
+                  {t(`integrations.freq_${frequency.replace(/\s+/g, '_')}`, frequency)}
+                </option>
               ))}
             </select>
           </label>
           <label className="text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-            Errores recientes
+            {t('integrations.recentErrorsField', 'Errores recientes')}
             <input
               type="number"
               min="0"
@@ -154,7 +169,9 @@ export default function IntegrationEditor({
             className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-white transition-colors duration-300 hover:bg-cyan-400 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300 midnight:bg-cyan-500 midnight:text-slate-950 midnight:hover:bg-cyan-400"
           >
             <Cloud size={14} />
-            {integration.status === 'connected' ? 'Reautorizar Google Drive' : 'Conectar Google Drive'}
+            {integration.status === 'connected'
+              ? t('integrations.reauthorizeGoogleDrive', 'Reautorizar Google Drive')
+              : t('integrations.connectGoogleDrive', 'Conectar Google Drive')}
           </button>
         )}
         <button
@@ -164,14 +181,14 @@ export default function IntegrationEditor({
           className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:text-cyan-50"
         >
           <RotateCw size={14} className={testing ? 'animate-spin' : ''} />
-          {testing ? 'Comprobando...' : 'Probar conexión'}
+          {testing ? t('integrations.checking', 'Comprobando...') : t('integrations.testConnection', 'Probar conexión')}
         </button>
         {!isGoogleDrive && (
           <button
             type="submit"
             className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-xs font-semibold text-white transition-colors duration-300 hover:bg-cyan-400 dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300 midnight:bg-cyan-500 midnight:text-slate-950 midnight:hover:bg-cyan-400"
           >
-            <Save size={14} /> Guardar
+            <Save size={14} /> {t('common.save', 'Guardar')}
           </button>
         )}
       </div>

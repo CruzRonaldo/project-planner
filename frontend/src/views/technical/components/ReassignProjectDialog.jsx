@@ -3,6 +3,7 @@ import { ArrowLeftRight, Check } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
 import MemberAvatar from './MemberAvatar';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   technicalProjects,
   technicalStatuses,
@@ -32,6 +33,7 @@ export default function ReassignProjectDialog({
   onSubmit,
   onClose,
 }) {
+  const { t } = useLanguage();
   const availableProjects = Array.from(new Set([member?.project, ...projectOptions].filter(Boolean)));
   const [draft, setDraft] = useState({
     project: member?.project ?? '',
@@ -62,7 +64,7 @@ export default function ReassignProjectDialog({
 
   const footnote = (
     <p className={`text-[10px] ${mutedClass}`}>
-      La modificación se guardará en PostgreSQL y en Asignaciones Recientes.
+      {t('technicalTeam.reassignFootnote', 'La modificación se guardará en PostgreSQL y en Asignaciones Recientes.')}
     </p>
   );
 
@@ -71,12 +73,12 @@ export default function ReassignProjectDialog({
       isOpen={true}
       onClose={onClose}
       onSubmit={submitDraft}
-      title="Reasignar Proyecto"
-      subtitle="Actualiza la obra o la disponibilidad operativa del técnico."
+      title={t('technicalTeam.reassignTitle', 'Reasignar Proyecto')}
+      subtitle={t('technicalTeam.reassignSubtitle', 'Actualiza la obra o la disponibilidad operativa del técnico.')}
       icon={<ArrowLeftRight size={20} />}
-      submitLabel="Guardar reasignación"
+      submitLabel={t('technicalTeam.confirmReassign', 'Guardar reasignación')}
       submitIcon={<Check size={15} />}
-      cancelLabel="Cancelar"
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       footnote={footnote}
       maxWidth="max-w-xl"
@@ -88,19 +90,19 @@ export default function ReassignProjectDialog({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`font-semibold ${headingClass}`}>
-                {member.area === 'architecture' ? 'Arq.' : 'Ing.'} {getMemberFullName(member)}
+                {member.area === 'architecture' ? t('technicalTeam.prefixArch', 'Arq.') : t('technicalTeam.prefixEng', 'Ing.')} {getMemberFullName(member)}
               </p>
               <span className="rounded bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700 transition-colors duration-300 dark:bg-blue-500/15 dark:text-blue-300 midnight:bg-blue-500/15 midnight:text-blue-300">
                 {member.specialty}
               </span>
             </div>
-            <p className={`mt-1 truncate text-[10px] ${mutedClass}`}>Actual: {member.project}</p>
+            <p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{t('technicalTeam.currentProject', `Actual: ${member.project}`, { project: member.project })}</p>
           </div>
         </div>
       )}
 
       <label className={`mt-5 block ${labelClass}`}>
-        Nuevo proyecto asignado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        {t('technicalTeam.newAssignedProject', 'Nuevo proyecto asignado')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>
           {availableProjects.map((project) => (
             <option key={project}>{project}</option>
@@ -110,7 +112,7 @@ export default function ReassignProjectDialog({
 
       <fieldset className="mt-5">
         <legend className={labelClass}>
-          Estado operativo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('technicalTeam.operationalStatus', 'Estado operativo')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         </legend>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {operationalStatuses.map((status) => (
@@ -137,7 +139,7 @@ export default function ReassignProjectDialog({
                     : 'bg-blue-500 dark:bg-blue-400'
                 }`}
               />
-              {status.shortLabel}
+              {t(`statuses.${status.id}`, status.shortLabel)}
             </button>
           ))}
         </div>
@@ -146,7 +148,7 @@ export default function ReassignProjectDialog({
       <label className={`mt-5 block ${labelClass}`}>
         <span className="flex items-center justify-between gap-3">
           <span>
-            Porcentaje de dedicación en esta obra <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+            {t('technicalTeam.workloadPercentage', 'Porcentaje de dedicación en esta obra')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           </span>
           <output className="rounded border border-blue-200 bg-blue-50 px-2 py-1 font-mono text-[11px] text-blue-700 transition-colors duration-300 dark:border-blue-500/25 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300">
             {draft.workload}%
@@ -162,17 +164,17 @@ export default function ReassignProjectDialog({
           className="mt-3 h-2 w-full cursor-pointer accent-blue-600 dark:accent-blue-500 midnight:accent-cyan-500"
         />
         <span className={`mt-1 flex justify-between text-[9px] ${mutedClass}`}>
-          <span>0% (Sin asignación)</span>
-          <span>50% (Media jornada)</span>
-          <span>100% (Exclusivo)</span>
+          <span>{t('technicalTeam.workload0', '0% (Sin asignación)')}</span>
+          <span>{t('technicalTeam.workload50', '50% (Media jornada)')}</span>
+          <span>{t('technicalTeam.workload100', '100% (Exclusivo)')}</span>
         </span>
       </label>
 
       <label className={`mt-5 block ${labelClass}`}>
-        Motivo de la reasignación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        {t('technicalTeam.reassignmentReason', 'Motivo de la reasignación')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <select required value={draft.reason} onChange={changeField('reason')} className={inputClass}>
           {reassignmentReasons.map((reason) => (
-            <option key={reason}>{reason}</option>
+            <option key={reason} value={reason}>{t('technicalTeam.reasons.' + reason, reason)}</option>
           ))}
         </select>
       </label>

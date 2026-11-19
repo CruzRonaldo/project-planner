@@ -1,6 +1,7 @@
 import React from 'react';
 import { SlidersHorizontal, Flag } from 'lucide-react';
 import EmptyState from '../../../components/common/EmptyState';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   getBarGeometry,
   legacyMonthRangeToDates,
@@ -21,6 +22,7 @@ export default function GanttScheduleSection({
   onMilestoneClick = () => {},
   formatMilestoneDate = () => '',
 }) {
+  const { t } = useLanguage();
   const windowStart = `${selectedYear}-01-01`;
   const windowMonths = 12;
 
@@ -40,7 +42,7 @@ export default function GanttScheduleSection({
           <div className="space-y-4 pt-4">
             {displayedProjects.length === 0 ? (
               <EmptyState
-                description="No hay proyectos registrados en el calendario anual para la selección actual."
+                description={t('strategicPlanning.noProjectsInYear', 'No hay proyectos registrados en el calendario anual para la selección actual.')}
                 className="py-10"
               />
             ) : (
@@ -94,20 +96,20 @@ export default function GanttScheduleSection({
                         )}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <p className={`text-[10px] ${mutedClass}`}>{project.area}</p>
+                        <p className={`text-[10px] ${mutedClass}`}>{t('portfolio.areas.' + project.area, project.area)}</p>
                         {isAbove100k ? (
                           <span
                             className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[8px] font-semibold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 midnight:border-amber-500/30 midnight:bg-amber-500/10 midnight:text-amber-300"
                             title={gov.tooltip}
                           >
-                            Comité (&gt;$100k)
+                            {t('strategicPlanning.committeeGovernance', 'Comité (>$100k)')}
                           </span>
                         ) : (
                           <span
                             className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-0.2 text-[8px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-500/30 midnight:bg-cyan-500/10 midnight:text-cyan-300"
                             title={gov.tooltip}
                           >
-                            Líder (≤$100k)
+                            {t('strategicPlanning.leaderGovernance', 'Líder (≤$100k)')}
                           </span>
                         )}
                       </div>
@@ -134,7 +136,7 @@ export default function GanttScheduleSection({
                           {isClippedLeft && (
                             <span
                               className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
-                              title={`Inició antes de ${selectedYear}`}
+                              title={t('strategicPlanning.startedBeforeYear', `Inició antes de ${selectedYear}`, { year: selectedYear })}
                             >
                               ◀
                             </span>
@@ -143,7 +145,7 @@ export default function GanttScheduleSection({
                           {isClippedRight && (
                             <span
                               className="shrink-0 rounded bg-black/25 dark:bg-black/40 px-1 py-0.5 text-[8px] font-mono leading-none text-white"
-                              title={`Continúa después de ${selectedYear}`}
+                              title={t('strategicPlanning.continuesAfterYear', `Continúa después de ${selectedYear}`, { year: selectedYear })}
                             >
                               ▶
                             </span>
@@ -153,8 +155,8 @@ export default function GanttScheduleSection({
                           <button
                             type="button"
                             onClick={() => onAdjustProject(project.id)}
-                            aria-label={`Ajustar calendario de ${project.name}`}
-                            title="Ajustar calendario"
+                            aria-label={t('strategicPlanning.adjustProjectSchedule', `Ajustar calendario de ${project.name}`, { name: project.name })}
+                            title={t('strategicPlanning.adjustSchedule', 'Ajustar calendario')}
                             className="ml-2 shrink-0 rounded p-1 text-white/80 transition-colors hover:bg-black/15 hover:text-white no-print print:hidden"
                           >
                             <SlidersHorizontal size={11} />
@@ -188,7 +190,7 @@ export default function GanttScheduleSection({
                             onClick={() => onMilestoneClick(m)}
                           >
                             <span
-                              aria-label={`Hito: ${m.title}`}
+                              aria-label={t('strategicPlanning.milestoneAriaLabel', `Hito: ${m.title}`, { title: m.title })}
                               className={`flex h-5 w-5 items-center justify-center rounded-full border-2 shadow-md transition-transform duration-150 group-hover:scale-125 ${markerBg}`}
                             >
                               <Flag size={9} className="fill-current" />

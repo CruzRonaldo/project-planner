@@ -12,6 +12,7 @@ import {
   EditProfileModal,
   ChangePasswordModal,
 } from './configuration';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Vista unificada de Configuración del Sistema.
@@ -28,6 +29,7 @@ export default function Configuration({
   users = [],
   onAddMember,
 }) {
+  const { t } = useLanguage();
   const [, setLocalUsers] = useState(users);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function Configuration({
   const [auditLogs, setAuditLogs] = useState([]);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
   const [lastBackup, setLastBackup] = useState(
-    'Aún no se ha generado un respaldo desde esta pantalla.'
+    () => t('configuration.defaultLastBackup', 'Aún no se ha generado un respaldo desde esta pantalla.')
   );
 
   const getActiveUser = () => {
@@ -137,7 +139,7 @@ export default function Configuration({
         } catch {}
       }
     } catch (err) {
-      setPhotoError(err.message || 'No se pudo procesar la imagen seleccionada.');
+      setPhotoError(err.message || t('configuration.photoProcessError', 'No se pudo procesar la imagen seleccionada.'));
     } finally {
       if (e.target) {
         e.target.value = '';
@@ -166,7 +168,7 @@ export default function Configuration({
     setPasswordError('');
 
     if (!passwordForm.currentPassword) {
-      setPasswordError('Debe ingresar su contraseña actual.');
+      setPasswordError(t('configuration.enterCurrentPasswordError', 'Debe ingresar su contraseña actual.'));
       return;
     }
 
@@ -201,19 +203,19 @@ export default function Configuration({
     setPasswordError('');
 
     if (!passwordForm.currentPassword) {
-      setPasswordError('Debe ingresar su contraseña actual.');
+      setPasswordError(t('configuration.enterCurrentPasswordError', 'Debe ingresar su contraseña actual.'));
       return;
     }
     if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
-      setPasswordError('La nueva contraseña debe contener al menos 6 caracteres.');
+      setPasswordError(t('configuration.passwordMinLengthError', 'La nueva contraseña debe contener al menos 6 caracteres.'));
       return;
     }
     if (passwordForm.newPassword === passwordForm.currentPassword) {
-      setPasswordError('La nueva contraseña no puede ser idéntica a la contraseña actual.');
+      setPasswordError(t('configuration.passwordSameError', 'La nueva contraseña no puede ser idéntica a la contraseña actual.'));
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('La confirmación de la contraseña no coincide.');
+      setPasswordError(t('configuration.passwordMismatchError', 'La confirmación de la contraseña no coincide.'));
       return;
     }
 
@@ -258,18 +260,18 @@ export default function Configuration({
 
     const trimmedName = profileEditForm.name.trim();
     if (!trimmedName) {
-      setProfileError('El nombre no puede estar vacío.');
+      setProfileError(t('configuration.nameEmptyError', 'El nombre no puede estar vacío.'));
       return;
     }
 
     const trimmedEmail = profileEditForm.email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!trimmedEmail) {
-      setProfileError('El correo electrónico no puede estar vacío.');
+      setProfileError(t('configuration.emailEmptyError', 'El correo electrónico no puede estar vacío.'));
       return;
     }
     if (!emailRegex.test(trimmedEmail)) {
-      setProfileError('Ingrese un formato de correo electrónico válido (ej. usuario@gmail.com).');
+      setProfileError(t('configuration.emailInvalidError', 'Ingrese un formato de correo electrónico válido (ej. usuario@gmail.com).'));
       return;
     }
 
@@ -349,8 +351,8 @@ export default function Configuration({
     <div className="p-6 sm:p-10 h-full overflow-y-auto w-full transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
       {/* Cabecera */}
       <PageHeader
-        title="Configuración del Sistema"
-        subtitle="Gestione las preferencias del sistema, perfiles de usuarios y directivas de seguridad global."
+        title={t('configuration.title', 'Configuración del Sistema')}
+        subtitle={t('configuration.subtitle', 'Gestione las preferencias del sistema, perfiles de usuarios y directivas de seguridad global.')}
         className="mb-8"
       />
 
@@ -383,6 +385,7 @@ export default function Configuration({
             setFontScale={setFontScale}
             theme={theme}
             setTheme={setTheme}
+            isAdmin={isAdmin}
           />
 
           {isAdmin && (
