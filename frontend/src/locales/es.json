@@ -221,7 +221,15 @@
     "phoneInvalidCharsError": "El teléfono no debe contener letras, puntos ni comas.",
     "phonePeruInvalidError": "El número de Perú debe tener 9 dígitos y empezar con 9 (ej. 987 654 321).",
     "phoneLengthError": "El teléfono no puede exceder los 20 caracteres.",
-    "phoneInternationalInvalidError": "Formato internacional no válido (debe tener entre 8 y 15 dígitos numéricos tras el +)."
+    "phoneInternationalInvalidError": "Formato internacional no válido (debe tener entre 8 y 15 dígitos numéricos tras el +).",
+    "avatarModalTitle": "Foto de Perfil",
+    "avatarModalSubtitle": "Vista previa y gestión de su foto de perfil",
+    "avatarHint": "Formatos permitidos: JPG, PNG o WEBP (máx. 2 MB)",
+    "uploadPhotoModal": "Subir Foto",
+    "changePhotoModal": "Cambiar Foto",
+    "removePhotoModal": "Eliminar Foto",
+    "viewAvatarAria": "Ver o gestionar foto de perfil",
+    "previewAvatar": "Ver foto"
   },
   "auth": {
     "heroSubtitle": "Gestión y Optimización de Proyectos",

@@ -1,8 +1,9 @@
-import React from 'react';
-import { Camera, Trash2, UserPen, KeyRound, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Camera, Trash2, UserPen, KeyRound, AlertCircle, Eye } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import ReadOnlyField from '../../../components/common/ReadOnlyField';
 import { useLanguage } from '../../../context/LanguageContext';
+import AvatarPreviewModal from './AvatarPreviewModal';
 
 /**
  * Tarjeta de Perfil de Usuario:
@@ -24,6 +25,7 @@ export default function ProfileCard({
   isSubAdmin,
 }) {
   const { t } = useLanguage();
+  const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
 
   return (
     <section
@@ -65,13 +67,13 @@ export default function ProfileCard({
 
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label={t('configuration.changePhotoAria', 'Cambiar foto de perfil')}
-              className="absolute inset-0 rounded-full bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer shadow-lg"
+              onClick={() => setIsAvatarPreviewOpen(true)}
+              aria-label={t('configuration.viewAvatarAria', 'Ver o gestionar foto de perfil')}
+              className="absolute inset-0 rounded-full bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer shadow-lg focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
             >
-              <Camera size={18} className="mb-0.5 text-cyan-300" />
+              <Eye size={18} className="mb-0.5 text-cyan-300" />
               <span className="text-[8px] font-bold tracking-wider uppercase text-cyan-100">
-                {t('configuration.changePhoto', 'Cambiar')}
+                {t('configuration.previewAvatar', 'Ver foto')}
               </span>
             </button>
 
@@ -95,16 +97,6 @@ export default function ProfileCard({
               {currentUser?.roleLabel || t('configuration.technicalTeam', 'Equipo Técnico')}
             </span>
 
-            {userPhoto && (
-              <button
-                type="button"
-                onClick={onRemovePhoto}
-                className="mt-1 inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 midnight:text-rose-400 font-medium cursor-pointer transition-colors"
-              >
-                <Trash2 size={12} />
-                <span>{t('configuration.removePhoto', 'Eliminar foto')}</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -164,6 +156,19 @@ export default function ProfileCard({
           </p>
         </div>
       )}
+      {/* Modal de Previsualización y Gestión de Avatar */}
+      <AvatarPreviewModal
+        isOpen={isAvatarPreviewOpen}
+        onClose={() => setIsAvatarPreviewOpen(false)}
+        userPhoto={userPhoto}
+        userName={userName}
+        onPhotoChange={(e) => {
+          if (onPhotoChange) onPhotoChange(e);
+        }}
+        onRemovePhoto={() => {
+          if (onRemovePhoto) onRemovePhoto();
+        }}
+      />
     </section>
   );
 }

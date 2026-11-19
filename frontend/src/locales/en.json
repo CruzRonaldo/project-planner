@@ -221,7 +221,15 @@
     "phoneInvalidCharsError": "Phone number must not contain letters, dots, or commas.",
     "phonePeruInvalidError": "Peru phone numbers must have 9 digits starting with 9 (e.g., 987 654 321).",
     "phoneLengthError": "Phone number cannot exceed 20 characters.",
-    "phoneInternationalInvalidError": "Invalid international format (must have between 8 and 15 numeric digits after +)."
+    "phoneInternationalInvalidError": "Invalid international format (must have between 8 and 15 numeric digits after +).",
+    "avatarModalTitle": "Profile Photo",
+    "avatarModalSubtitle": "Preview and manage your profile photo",
+    "avatarHint": "Supported formats: JPG, PNG, or WEBP (max. 2 MB)",
+    "uploadPhotoModal": "Upload Photo",
+    "changePhotoModal": "Change Photo",
+    "removePhotoModal": "Remove Photo",
+    "viewAvatarAria": "View or manage profile photo",
+    "previewAvatar": "View photo"
   },
   "auth": {
     "heroSubtitle": "Project Management and Optimization",

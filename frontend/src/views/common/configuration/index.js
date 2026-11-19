@@ -6,3 +6,4 @@ export { default as BackupAndSecurityCard } from './BackupAndSecurityCard';
 export { default as AuditLogCard } from './AuditLogCard';
 export { default as EditProfileModal } from './EditProfileModal';
 export { default as ChangePasswordModal } from './ChangePasswordModal';
+export { default as AvatarPreviewModal } from './AvatarPreviewModal';
