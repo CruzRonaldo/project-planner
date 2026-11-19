@@ -3,6 +3,11 @@ import { Bell, ChevronDown, LogOut, ShieldCheck, Settings, BookOpen } from 'luci
 import projectsApi from '../../services/projectsApi';
 import FormattedAuditText from '../common/FormattedAuditText';
 import { useLanguage } from '../../context/LanguageContext';
+import {
+  formatNotificationTitle,
+  formatNotificationDetail,
+  formatNotificationTime,
+} from '../../utils/notificationFormatting';
 
 function getInitials(name = '') {
   return name
@@ -12,52 +17,6 @@ function getInitials(name = '') {
     .map((word) => word[0])
     .join('')
     .toUpperCase();
-}
-
-function formatNotificationTitle(title = '', t) {
-  if (!title) return '';
-  if (title === 'Proyecto Asignado') return t('notifications.projectAssignedTitle', 'Proyecto Asignado');
-  if (title === 'Reincorporación próxima') return t('notifications.upcomingReturnTitle', 'Reincorporación próxima');
-  if (title.startsWith('Auditoría:')) {
-    return title.replace(/^Auditoría:\s*/, `${t('notifications.auditPrefix', 'Auditoría')}: `);
-  }
-  if (title.startsWith('Hito próximo:')) {
-    return title.replace(/^Hito próximo:\s*/, `${t('notifications.milestonePrefix', 'Hito próximo')}: `);
-  }
-  return title;
-}
-
-function formatNotificationTime(time = '', t) {
-  if (!time) return '';
-  if (time === 'Reciente') return t('notifications.recent', 'Reciente');
-  if (time === 'Hoy') return t('notifications.today', 'Hoy');
-  if (time === 'Próximamente') return t('notifications.soon', 'Próximamente');
-  const daysMatch = time.match(/^En (\d+) día\(s\)$/);
-  if (daysMatch) {
-    return t('notifications.inDays', 'En {count} día(s)', { count: daysMatch[1] });
-  }
-  return time;
-}
-
-function formatNotificationDetail(detail = '', t) {
-  if (!detail) return '';
-  const leaderMatch = detail.match(/Has sido asignado como líder técnico del proyecto \*\*(.*?)\*\* \((.*?)\)\./);
-  if (leaderMatch) {
-    return t(
-      'notifications.projectAssignedDetail',
-      'Has sido asignado como líder técnico del proyecto **{name}** ({code}).',
-      { name: leaderMatch[1], code: leaderMatch[2] }
-    );
-  }
-  const returnMatch = detail.match(/^(.*?) retorna el (\d{2}\/\d{2}\/\d{4}) tras (.*?)\.$/);
-  if (returnMatch) {
-    return t(
-      'notifications.personnelReturnDetail',
-      '{member} retorna el {date} tras {reason}.',
-      { member: returnMatch[1], date: returnMatch[2], reason: returnMatch[3] }
-    );
-  }
-  return detail;
 }
 
 export default function ProfileControls({ currentUser, onLogout, onNavigate }) {

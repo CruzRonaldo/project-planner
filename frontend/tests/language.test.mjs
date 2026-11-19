@@ -70,6 +70,7 @@ test('es.json y en.json tienen una estructura de claves simétrica y completa', 
     'integrations',
     'manual',
     'months',
+    'notifications',
   ];
   for (const mod of requiredModules) {
     assert.ok(es[mod], `es.json debe contener el módulo ${mod}`);
@@ -594,6 +595,37 @@ test('es.json y en.json tienen una estructura de claves simétrica y completa', 
   for (const k of manualKeys) {
     assert.ok(es.manual[k], `manual.${k} debe estar definido en es.json`);
     assert.ok(en.manual[k], `manual.${k} debe estar definido en en.json`);
+  }
+
+  // Validar claves de notifications
+  const notificationsKeys = [
+    'projectAssignedTitle',
+    'upcomingReturnTitle',
+    'auditPrefix',
+    'milestonePrefix',
+    'recent',
+    'today',
+    'soon',
+    'inDays',
+    'projectAssignedDetail',
+    'personnelReturnDetail',
+    'auditPasswordChangeTitle',
+    'auditEmailChangeTitle',
+    'auditProfileUpdateTitle',
+    'auditPasswordChangeDetail',
+    'auditEmailChangeDetail',
+    'milestoneDetail',
+    'reasonVacation',
+    'reasonMedicalLeave',
+    'reasonPaidLeave',
+    'reasonUnpaidLeave',
+    'reasonPersonalPermission',
+    'reasonTraining',
+    'reasonOther',
+  ];
+  for (const k of notificationsKeys) {
+    assert.ok(es.notifications[k], `notifications.${k} debe estar definido en es.json`);
+    assert.ok(en.notifications[k], `notifications.${k} debe estar definido en en.json`);
   }
 });
 
@@ -1554,6 +1586,42 @@ test('Configuration y sus tarjetas se traducen adecuadamente al renderizarse con
     assert.ok(htmlEn.includes('Backup and Security'), 'Debe traducir Backup and Security');
     assert.ok(htmlEn.includes('Export Data'), 'Debe traducir Export Data');
     assert.ok(htmlEn.includes('Audit Log'), 'Debe traducir Audit Log');
+    assert.ok(htmlEn.includes('View photo'), 'Debe traducir botón de ver foto de perfil');
+    assert.ok(htmlEn.includes('View or manage profile photo'), 'Debe traducir aria-label de avatar');
+
+    // Probar AvatarPreviewModal en inglés
+    const { AvatarPreviewModal } = await server.ssrLoadModule('/src/views/common/configuration/index.js');
+    const modalEn = renderToStaticMarkup(
+      React.createElement(LanguageProvider, { initialLang: 'en' },
+        React.createElement(AvatarPreviewModal, {
+          isOpen: true,
+          onClose: () => {},
+          userPhoto: 'data:image/png;base64,mock',
+          userName: 'Carlos Mendoza',
+          onPhotoChange: () => {},
+          onRemovePhoto: () => {},
+        })
+      )
+    );
+    assert.ok(modalEn.includes('Profile Photo'), 'Debe traducir modal title en inglés');
+    assert.ok(modalEn.includes('Preview and manage your profile photo'), 'Debe traducir modal subtitle en inglés');
+    assert.ok(modalEn.includes('Change Photo'), 'Debe traducir botón Change Photo en inglés');
+    assert.ok(modalEn.includes('Remove Photo'), 'Debe traducir botón Remove Photo en inglés');
+    assert.ok(modalEn.includes('Supported formats: JPG, PNG, or WEBP (max. 2 MB)'), 'Debe traducir avatarHint en inglés');
+
+    const modalEnNoPhoto = renderToStaticMarkup(
+      React.createElement(LanguageProvider, { initialLang: 'en' },
+        React.createElement(AvatarPreviewModal, {
+          isOpen: true,
+          onClose: () => {},
+          userPhoto: null,
+          userName: 'Carlos Mendoza',
+          onPhotoChange: () => {},
+          onRemovePhoto: () => {},
+        })
+      )
+    );
+    assert.ok(modalEnNoPhoto.includes('Upload Photo'), 'Debe traducir Upload Photo cuando no hay foto');
 
     // Probar vista de usuario no-administrador en inglés
     const techUser = {
@@ -2043,6 +2111,149 @@ test('Toasts de Google Drive y gestión de archivos se traducen correctamente en
       testedT('toasts.itemDeletedMsg', '"{name}" fue enviado a la papelera.', { name: 'viejo.pdf' }),
       '"viejo.pdf" was moved to trash.'
     );
+  } finally {
+    await server.close();
+  }
+});
+
+test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadamente en inglés y español', async () => {
+  const server = await createTestServer();
+  try {
+    const { createTranslate } = await server.ssrLoadModule('/src/context/LanguageContext.jsx');
+    const {
+      formatNotificationTitle,
+      formatNotificationDetail,
+      formatNotificationTime,
+      formatAuditAction,
+    } = await server.ssrLoadModule('/src/utils/notificationFormatting.js');
+
+    const tEs = createTranslate('es');
+    const tEn = createTranslate('en');
+
+    // 1. formatNotificationTitle
+    // Proyecto Asignado
+    assert.equal(formatNotificationTitle('Proyecto Asignado', tEs), 'Proyecto Asignado');
+    assert.equal(formatNotificationTitle('Proyecto Asignado', tEn), 'Project Assigned');
+
+    // Reincorporación próxima
+    assert.equal(formatNotificationTitle('Reincorporación próxima', tEs), 'Reincorporación próxima');
+    assert.equal(formatNotificationTitle('Reincorporación próxima', tEn), 'Upcoming Return');
+
+    // Auditoría
+    assert.equal(
+      formatNotificationTitle('Auditoría: Cambio de Contraseña', tEs),
+      'Auditoría: Cambio de Contraseña'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Cambio de Contraseña', tEn),
+      'Audit: Password Change'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Cambio de Correo Electrónico', tEs),
+      'Auditoría: Cambio de Correo Electrónico'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Cambio de Correo Electrónico', tEn),
+      'Audit: Email Address Change'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Actualización de Perfil', tEs),
+      'Auditoría: Actualización de Perfil'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Actualización de Perfil', tEn),
+      'Audit: Profile Update'
+    );
+
+    // Hito próximo
+    assert.equal(
+      formatNotificationTitle('Hito próximo: Entrega Fase 1', tEs),
+      'Hito próximo: Entrega Fase 1'
+    );
+    assert.equal(
+      formatNotificationTitle('Hito próximo: Entrega Fase 1', tEn),
+      'Upcoming Milestone: Entrega Fase 1'
+    );
+
+    // 2. formatNotificationDetail
+    // Asignación de proyecto
+    const projDetail = 'Has sido asignado como líder técnico del proyecto **Titanium** (PRJ-01).';
+    assert.equal(
+      formatNotificationDetail(projDetail, tEs),
+      'Has sido asignado como líder técnico del proyecto **Titanium** (PRJ-01).'
+    );
+    assert.equal(
+      formatNotificationDetail(projDetail, tEn),
+      'You have been assigned as technical leader for project **Titanium** (PRJ-01).'
+    );
+
+    // Reincorporación de personal
+    const returnDetail = 'Carlos Gómez retorna el 20/12/2026 tras vacaciones programadas.';
+    assert.equal(
+      formatNotificationDetail(returnDetail, tEs),
+      'Carlos Gómez retorna el 20/12/2026 tras vacaciones programadas.'
+    );
+    assert.equal(
+      formatNotificationDetail(returnDetail, tEn),
+      'Carlos Gómez returns on 20/12/2026 after scheduled vacation.'
+    );
+
+    const medReturnDetail = 'Ana Torres retorna el 15/01/2027 tras descanso médico.';
+    assert.equal(
+      formatNotificationDetail(medReturnDetail, tEn),
+      'Ana Torres returns on 15/01/2027 after medical leave.'
+    );
+
+    // Auditoría: Cambio de contraseña
+    const pwdDetail = 'El usuario **ronaldo** (ronaldo@gmail.com) actualizó su contraseña de acceso.';
+    assert.equal(
+      formatNotificationDetail(pwdDetail, tEs),
+      'El usuario **ronaldo** (ronaldo@gmail.com) actualizó su contraseña de acceso.'
+    );
+    assert.equal(
+      formatNotificationDetail(pwdDetail, tEn),
+      'User **ronaldo** (ronaldo@gmail.com) updated their access password.'
+    );
+
+    // Auditoría: Cambio de correo
+    const emailDetail = 'El usuario **ronaldo** modificó su correo de acceso de **old@mail.com** a **new@mail.com**.';
+    assert.equal(
+      formatNotificationDetail(emailDetail, tEs),
+      'El usuario **ronaldo** modificó su correo de acceso de **old@mail.com** a **new@mail.com**.'
+    );
+    assert.equal(
+      formatNotificationDetail(emailDetail, tEn),
+      'User **ronaldo** changed their access email from **old@mail.com** to **new@mail.com**.'
+    );
+
+    // Hito próximo
+    const milestoneDetail = 'Proyecto **Torre Titan** (PRJ-99) programado para 2026-11-30.';
+    assert.equal(
+      formatNotificationDetail(milestoneDetail, tEs),
+      'Proyecto **Torre Titan** (PRJ-99) programado para 2026-11-30.'
+    );
+    assert.equal(
+      formatNotificationDetail(milestoneDetail, tEn),
+      'Project **Torre Titan** (PRJ-99) scheduled for 2026-11-30.'
+    );
+
+    // 3. formatNotificationTime
+    assert.equal(formatNotificationTime('Reciente', tEs), 'Reciente');
+    assert.equal(formatNotificationTime('Reciente', tEn), 'Recent');
+    assert.equal(formatNotificationTime('Hoy', tEs), 'Hoy');
+    assert.equal(formatNotificationTime('Hoy', tEn), 'Today');
+    assert.equal(formatNotificationTime('Próximamente', tEs), 'Próximamente');
+    assert.equal(formatNotificationTime('Próximamente', tEn), 'Soon');
+    assert.equal(formatNotificationTime('En 3 día(s)', tEs), 'En 3 día(s)');
+    assert.equal(formatNotificationTime('En 3 día(s)', tEn), 'In 3 day(s)');
+
+    // 4. formatAuditAction
+    assert.equal(formatAuditAction('password_change', 'Cambio de Contraseña', tEs), 'Cambio de Contraseña');
+    assert.equal(formatAuditAction('password_change', 'Cambio de Contraseña', tEn), 'Password Change');
+    assert.equal(formatAuditAction('email_change', 'Cambio de Correo Electrónico', tEs), 'Cambio de Correo Electrónico');
+    assert.equal(formatAuditAction('email_change', 'Cambio de Correo Electrónico', tEn), 'Email Address Change');
+    assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEs), 'Actualización de Perfil');
+    assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEn), 'Profile Update');
   } finally {
     await server.close();
   }

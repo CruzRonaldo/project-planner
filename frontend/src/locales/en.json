@@ -82,7 +82,20 @@
     "soon": "Soon",
     "inDays": "In {count} day(s)",
     "projectAssignedDetail": "You have been assigned as technical leader for project **{name}** ({code}).",
-    "personnelReturnDetail": "{member} returns on {date} after {reason}."
+    "personnelReturnDetail": "{member} returns on {date} after {reason}.",
+    "auditPasswordChangeTitle": "Password Change",
+    "auditEmailChangeTitle": "Email Address Change",
+    "auditProfileUpdateTitle": "Profile Update",
+    "auditPasswordChangeDetail": "User **{name}** ({email}) updated their access password.",
+    "auditEmailChangeDetail": "User **{name}** changed their access email from **{oldEmail}** to **{newEmail}**.",
+    "milestoneDetail": "Project **{name}** ({code}) scheduled for {date}.",
+    "reasonVacation": "scheduled vacation",
+    "reasonMedicalLeave": "medical leave",
+    "reasonPaidLeave": "paid leave",
+    "reasonUnpaidLeave": "unpaid leave",
+    "reasonPersonalPermission": "personal permission",
+    "reasonTraining": "external training",
+    "reasonOther": "other"
   },
   "configuration": {
     "title": "System Settings",

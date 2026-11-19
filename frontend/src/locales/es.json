@@ -82,7 +82,20 @@
     "soon": "Próximamente",
     "inDays": "En {count} día(s)",
     "projectAssignedDetail": "Has sido asignado como líder técnico del proyecto **{name}** ({code}).",
-    "personnelReturnDetail": "{member} retorna el {date} tras {reason}."
+    "personnelReturnDetail": "{member} retorna el {date} tras {reason}.",
+    "auditPasswordChangeTitle": "Cambio de Contraseña",
+    "auditEmailChangeTitle": "Cambio de Correo Electrónico",
+    "auditProfileUpdateTitle": "Actualización de Perfil",
+    "auditPasswordChangeDetail": "El usuario **{name}** ({email}) actualizó su contraseña de acceso.",
+    "auditEmailChangeDetail": "El usuario **{name}** modificó su correo de acceso de **{oldEmail}** a **{newEmail}**.",
+    "milestoneDetail": "Proyecto **{name}** ({code}) programado para {date}.",
+    "reasonVacation": "vacaciones programadas",
+    "reasonMedicalLeave": "descanso médico",
+    "reasonPaidLeave": "licencia con goce",
+    "reasonUnpaidLeave": "licencia sin goce",
+    "reasonPersonalPermission": "permiso personal",
+    "reasonTraining": "capacitación externa",
+    "reasonOther": "otro"
   },
   "configuration": {
     "title": "Configuración del Sistema",
