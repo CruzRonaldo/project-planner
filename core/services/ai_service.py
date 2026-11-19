@@ -1,3 +1,10 @@
+"""Servicio de Inteligencia Artificial y RAG (Retrieval-Augmented Generation).
+
+Proporciona capacidades de generación de embeddings vectoriales de 768 dimensiones
+con Google Gemini (gemini-embedding-001) compatibles con pgvector en PostgreSQL,
+así como orquestación de prompts contextuales y completado conversacional
+a través de OpenRouter y modelos de lenguaje de vanguardia.
+"""
 import logging
 import os
 import requests
@@ -11,25 +18,44 @@ logger = logging.getLogger(__name__)
 
 
 def _get_openrouter_api_key() -> str:
-    """Obtiene la clave de OpenRouter desde settings o variables de entorno."""
+    """Obtiene la clave de OpenRouter desde settings o variables de entorno.
+
+    Returns:
+        str: Clave de API de OpenRouter limpia o cadena vacía si no está definida.
+    """
     key = getattr(settings, 'OPENROUTER_API_KEY', '') or os.environ.get('OPENROUTER_API_KEY', '')
     return key.strip() if key else ''
 
 
 def _get_gemini_api_key() -> str:
-    """Obtiene la clave de Google Gemini desde settings o variables de entorno."""
+    """Obtiene la clave de Google Gemini desde settings o variables de entorno.
+
+    Returns:
+        str: Clave de API de Gemini limpia o cadena vacía si no está definida.
+    """
     key = getattr(settings, 'GEMINI_API_KEY', '') or os.environ.get('GEMINI_API_KEY', '')
     return key.strip() if key else ''
 
 
 def _get_huggingface_api_key() -> str:
-    """Obtiene la clave de Hugging Face desde settings o variables de entorno."""
+    """Obtiene la clave de Hugging Face desde settings o variables de entorno.
+
+    Returns:
+        str: Clave de API de Hugging Face limpia o cadena vacía si no está definida.
+    """
     key = getattr(settings, 'HUGGINGFACE_API_KEY', '') or os.environ.get('HUGGINGFACE_API_KEY', '')
     return key.strip() if key else ''
 
 
 def _get_openrouter_client() -> OpenAI:
-    """Configura e instancia el cliente de OpenAI apuntando al endpoint de OpenRouter."""
+    """Configura e instancia el cliente de OpenAI apuntando al endpoint de OpenRouter.
+
+    Returns:
+        OpenAI: Cliente instanciado con cabeceras de identificación de Project Planner.
+
+    Raises:
+        ValueError: Si OPENROUTER_API_KEY no se encuentra configurada en settings ni en variables de entorno.
+    """
     api_key = _get_openrouter_api_key()
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY no está configurada en settings ni en variables de entorno.")
@@ -45,9 +71,23 @@ def _get_openrouter_client() -> OpenAI:
 
 
 def get_embedding(text: str) -> list[float]:
-    """Genera un vector embedding de 768 dimensiones para el texto dado
-    utilizando el modelo oficial de embeddings de Google Gemini (gemini-embedding-001).
-    Mantiene compatibilidad exacta con VectorField(dimensions=768) de PostgreSQL.
+    """Genera un vector embedding de 768 dimensiones para el texto dado.
+
+    Utiliza el modelo oficial de embeddings de Google Gemini (gemini-embedding-001)
+    a través del SDK oficial `google-genai` con `output_dimensionality=768` y
+    `task_type="RETRIEVAL_DOCUMENT"`. Cuenta con fallback automático al endpoint REST
+    directo de Generative Language API en caso de fallos transitorios de red.
+    Mantiene compatibilidad exacta con la columna VectorField(dimensions=768) de PostgreSQL (pgvector).
+
+    Args:
+        text: Texto plano a vectorizar para indexación o búsqueda por similitud de cosenos.
+
+    Returns:
+        list[float]: Lista de 768 números flotantes que representan las coordenadas del embedding.
+
+    Raises:
+        ValueError: Si GEMINI_API_KEY no está presente en la configuración.
+        RuntimeError: Si tanto la llamada al SDK de Gemini como el fallback REST fallan.
     """
     api_key = _get_gemini_api_key()
     if not api_key:
@@ -105,7 +145,18 @@ def get_embedding(text: str) -> list[float]:
 
 
 def _build_rag_prompt(user_query: str, context_chunks: list) -> str:
-    """Construye el prompt con inyección de contexto documental recuperado."""
+    """Construye e inyecta el contexto documental recuperado dentro del prompt para el modelo de lenguaje.
+
+    Formatea los fragmentos documentales recuperados mediante búsqueda vectorial en PostgreSQL (pgvector)
+    con encabezados enumerados y títulos, aplicando directrices de estructura profesional en Markdown.
+
+    Args:
+        user_query: Pregunta o instrucción técnica formulada por el usuario.
+        context_chunks: Lista de fragmentos documentales (instancias de DocumentChunk o cadenas).
+
+    Returns:
+        str: Prompt enriquecido con bloque de contexto técnico delimitado y pautas de respuesta.
+    """
     if context_chunks:
         formatted_chunks = []
         for i, chunk in enumerate(context_chunks):
@@ -133,8 +184,33 @@ PAUTAS DE RESPUESTA:
 - Sé directo, conciso y técnico. Si la consulta involucra datos no presentes en el contexto, acláralo cortésmente."""
 
 
+def get_rag_context(user_query: str, context_chunks: list) -> str:
+    """Obtiene el prompt enriquecido con contexto RAG para la consulta del usuario.
+
+    Alias público de `_build_rag_prompt` para compatibilidad de interfaces externas.
+
+    Args:
+        user_query: Consulta o requerimiento del usuario.
+        context_chunks: Colección de fragmentos vectoriales recuperados.
+
+    Returns:
+        str: Prompt formateado con contexto y pautas de respuesta.
+    """
+    return _build_rag_prompt(user_query, context_chunks)
+
+
 def _get_system_instruction(user_role: str) -> str:
-    """Retorna la instrucción del sistema adaptada al rol del usuario."""
+    """Retorna la instrucción del sistema adaptada al rol jerárquico del usuario.
+
+    Aplica la directiva de seguridad estricta (Zero-Leakage) para roles no administrativos,
+    impidiendo la revelación de datos financieros, salarios o respaldos forenses.
+
+    Args:
+        user_role: Rol del usuario autenticado ('admin', 'user', 'manager', etc.).
+
+    Returns:
+        str: Instrucción del sistema (system prompt) configurada para el LLM.
+    """
     role_lower = str(user_role).strip().lower()
     is_admin = role_lower in ['admin', 'administrador', 'project manager', 'manager']
 
@@ -154,7 +230,14 @@ def _get_system_instruction(user_role: str) -> str:
 
 
 def _format_error_message(exc: Exception) -> str:
-    """Detecta errores de cuota (429), autenticación o red en OpenRouter/HuggingFace y genera mensajes legibles."""
+    """Detecta excepciones de cuota (429), autenticación (401) o conectividad y genera mensajes legibles.
+
+    Args:
+        exc: Excepción capturada durante la ejecución de la petición.
+
+    Returns:
+        str: Mensaje descriptivo con icono de advertencia adecuado para la interfaz.
+    """
     err_str = str(exc)
     err_lower = err_str.lower()
 
@@ -177,7 +260,16 @@ def _format_error_message(exc: Exception) -> str:
 
 
 def _stream_rag_response(user_query: str, context_chunks: list, user_role: str = 'user'):
-    """Generador interno para streaming con yield utilizando OpenRouter (OpenAI SDK)."""
+    """Generador interno para streaming con yield utilizando OpenRouter (OpenAI SDK).
+
+    Args:
+        user_query: Texto de la pregunta del usuario.
+        context_chunks: Lista de fragmentos documentales recuperados.
+        user_role: Rol del usuario para adaptar las directivas del sistema.
+
+    Yields:
+        str: Fragmentos sucesivos de texto (deltas) conforme son emitidos por el modelo.
+    """
     api_key = _get_openrouter_api_key()
     if not api_key:
         yield (
@@ -217,7 +309,16 @@ def _stream_rag_response(user_query: str, context_chunks: list, user_role: str =
 
 
 def _sync_rag_response(user_query: str, context_chunks: list, user_role: str = 'user') -> str:
-    """Función interna síncrona sin yield utilizando OpenRouter (OpenAI SDK)."""
+    """Función interna síncrona sin yield utilizando OpenRouter (OpenAI SDK).
+
+    Args:
+        user_query: Pregunta del usuario.
+        context_chunks: Lista de fragmentos documentales recuperados.
+        user_role: Rol del usuario.
+
+    Returns:
+        str: Texto completo de respuesta devuelto por el modelo.
+    """
     api_key = _get_openrouter_api_key()
     if not api_key:
         return (
@@ -257,13 +358,48 @@ def generate_rag_response(user_query: str, context_chunks: list, user_role: str 
 
     con los fragmentos más relevantes recuperados de la base de datos (pgvector).
     Soporta retorno en streaming (generador yield) o texto completo (str).
+
+    Args:
+        user_query: Pregunta técnica formulada por el usuario.
+        context_chunks: Lista de fragmentos recuperados por similitud de cosenos.
+        user_role: Rol jerárquico del usuario ('admin' o 'user').
+        stream: Si es True, retorna un generador iterable; si es False, retorna un string síncrono.
+
+    Returns:
+        Generator[str, None, None] | str: Flujo en tiempo real o respuesta textual unificada.
     """
     if stream:
         return _stream_rag_response(user_query, context_chunks, user_role)
     return _sync_rag_response(user_query, context_chunks, user_role)
 
 
+def chat_completion(user_query: str, context_chunks: list = None, user_role: str = 'user', stream: bool = False):
+    """Genera el completado conversacional del chatbot de Project Planner.
+
+    Alias público de alto nivel para orquestar respuestas con o sin fragmentos RAG.
+
+    Args:
+        user_query: Consulta enviada por el usuario.
+        context_chunks: Fragmentos vectoriales opcionales recuperados de la base de datos.
+        user_role: Rol del usuario para adaptar directivas zero-leakage.
+        stream: Si debe responder en modo streaming (True) o bloque síncrono (False).
+
+    Returns:
+        Generator[str, None, None] | str: Respuesta del modelo.
+    """
+    chunks = context_chunks or []
+    return generate_rag_response(user_query=user_query, context_chunks=chunks, user_role=user_role, stream=stream)
+
+
 def get_chat_response(prompt: str, user_role: str = 'user'):
-    """Genera una respuesta en streaming sin RAG previo (compatibilidad hacia atrás)."""
+    """Genera una respuesta en streaming sin RAG previo (compatibilidad hacia atrás).
+
+    Args:
+        prompt: Mensaje enviado por el usuario.
+        user_role: Rol del usuario para ajustar el comportamiento del asistente.
+
+    Returns:
+        Generator[str, None, None]: Generador yield de fragmentos de texto en tiempo real.
+    """
     return generate_rag_response(user_query=prompt, context_chunks=[], user_role=user_role, stream=True)
 

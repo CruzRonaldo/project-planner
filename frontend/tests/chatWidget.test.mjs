@@ -44,6 +44,22 @@ test('FormattedAuditText formatea negritas con asteriscos en strong con text-inh
   }
 });
 
+test('FormattedAuditText formatea textos entre comillas simples a negrita (strong) automáticamente', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: FormattedAuditText } = await server.ssrLoadModule('/src/components/common/FormattedAuditText.jsx');
+    const html = renderToStaticMarkup(
+      React.createElement(FormattedAuditText, { text: "El proyecto 'saaaaaaaaaaa' ha sido modificado exitosamente." })
+    );
+
+    assert.ok(html.includes('<strong'), 'Debe generar una etiqueta <strong> para texto entre comillas');
+    assert.ok(html.includes('saaaaaaaaaaa</strong>'), 'El nombre entre comillas debe ir dentro de <strong>');
+    assert.ok(!html.includes("'saaaaaaaaaaa'"), 'Las comillas deben ser reemplazadas por negrita');
+  } finally {
+    await server.close();
+  }
+});
+
 test('FormattedAuditText renderiza encabezados, listas y bloques de codigo Markdown', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {

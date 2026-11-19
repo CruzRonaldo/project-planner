@@ -16,6 +16,7 @@ import { syncFrequencies, integrationStatuses } from '../../../constants/integra
 import { makeApi } from '../../../services/makeApi';
 import { runSafe } from '../../../utils/asyncHandler';
 import { useToast } from '../../../context/ToastContext';
+import { useLanguage } from '../../../context/LanguageContext';
 import { nestedClass } from './constants';
 import IntegrationStatus from './IntegrationStatus';
 
@@ -55,13 +56,14 @@ export default function MakeModal({
   integration,
   onSave,
 }) {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [tasks, setTasks] = useState(() => {
     if (integration?.extraConfig?.tasks && Array.isArray(integration.extraConfig.tasks)) {
       return integration.extraConfig.tasks;
     }
     if (integration?.endpoint && integration.endpoint.startsWith('http')) {
-      return defaultTasks.map((t, idx) => (idx === 0 ? { ...t, endpoint: integration.endpoint } : t));
+      return defaultTasks.map((tItem, idx) => (idx === 0 ? { ...tItem, endpoint: integration.endpoint } : tItem));
     }
     return defaultTasks;
   });
@@ -112,7 +114,7 @@ export default function MakeModal({
 
     if (!err && res) {
       setTasks((current) =>
-        current.map((t) => (t.id === task.id ? { ...t, enabled: true } : t))
+        current.map((tItem) => (tItem.id === task.id ? { ...tItem, enabled: true } : tItem))
       );
     }
   };
@@ -122,8 +124,8 @@ export default function MakeModal({
     setIsSaving(true);
 
     const activeEndpoints = tasks
-      .filter((t) => t.enabled && t.endpoint)
-      .map((t) => t.name)
+      .filter((taskItem) => taskItem.enabled && taskItem.endpoint)
+      .map((taskItem) => taskItem.name)
       .join(', ');
 
     const draft = {
@@ -146,11 +148,11 @@ export default function MakeModal({
       isOpen={isOpen}
       onClose={onClose}
       onSubmit={handleSaveAll}
-      title={`Configuración Multitarea de ${integration.name}`}
-      subtitle="Orquestación de webhooks y agentes externos para automatizaciones del sistema."
+      title={t('integrations.configMake', 'Configuración Multitarea de {name}', { name: integration.name })}
+      subtitle={t('integrations.makeSubtitle', 'Orquestación de webhooks y agentes externos para automatizaciones del sistema.')}
       icon={<Workflow size={22} />}
       maxWidth="max-w-3xl"
-      submitLabel="Guardar escenarios"
+      submitLabel={t('integrations.saveScenarios', 'Guardar escenarios')}
       submitIcon={<Save size={14} />}
       isSubmitting={isSaving}
       id="make-modal"
@@ -160,12 +162,15 @@ export default function MakeModal({
         <div className={`p-4 ${nestedClass} flex flex-col md:flex-row md:items-center justify-between gap-4`}>
           <div>
             <p className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80">
-              Estado general de automatización
+              {t('integrations.automationGeneralStatus', 'Estado general de automatización')}
             </p>
             <div className="mt-1.5 flex items-center gap-2">
               <IntegrationStatus status={status} />
               <span className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-                {tasks.filter((t) => t.enabled).length} de {tasks.length} tareas activas
+                {t('integrations.activeTasksCount', '{active} de {total} tareas activas', {
+                  active: tasks.filter((taskItem) => taskItem.enabled).length,
+                  total: tasks.length,
+                })}
               </span>
             </div>
           </div>
@@ -173,24 +178,30 @@ export default function MakeModal({
           <div className="flex flex-wrap items-center gap-3">
             <div>
               <label className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80 block mb-1">
-                Frecuencia
+                {t('integrations.frequency', 'Frecuencia')}
               </label>
               <Select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
-                options={syncFrequencies.map((f) => ({ value: f, label: f }))}
+                options={syncFrequencies.map((f) => ({
+                  value: f,
+                  label: t(`integrations.freq_${f.replace(/\s+/g, '_')}`, f),
+                }))}
                 className="text-xs py-1.5"
               />
             </div>
 
             <div>
               <label className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80 block mb-1">
-                Estado
+                {t('integrations.status', 'Estado')}
               </label>
               <Select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                options={integrationStatuses.map((st) => ({ value: st.id, label: st.label }))}
+                options={integrationStatuses.map((st) => ({
+                  value: st.id,
+                  label: t(`integrations.status_${st.id}`, st.label),
+                }))}
                 className="text-xs py-1.5"
               />
             </div>
@@ -201,7 +212,7 @@ export default function MakeModal({
         <div className="space-y-3 pt-1">
           <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100 flex items-center gap-1.5">
             <Zap size={14} className="text-cyan-500" />
-            Escenarios y Webhooks por Tarea
+            {t('integrations.activeScenarios', 'Escenarios Activos')}
           </h3>
 
           {tasks.map((task) => {
@@ -230,17 +241,17 @@ export default function MakeModal({
                     </span>
                     <div>
                       <h4 className="text-xs font-semibold text-slate-900 dark:text-white midnight:text-cyan-50 truncate">
-                        {task.name}
+                        {t(`integrations.makeTask_${task.id}_name`, task.name)}
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-300/80">
-                        {task.description}
+                        {t(`integrations.makeTask_${task.id}_desc`, task.description)}
                       </p>
                     </div>
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 midnight:text-cyan-300">
-                      {task.enabled ? 'Activo' : 'Inactivo'}
+                      {task.enabled ? t('integrations.active', 'Activo') : t('integrations.inactive', 'Inactivo')}
                     </span>
                     <input
                       type="checkbox"
@@ -268,7 +279,7 @@ export default function MakeModal({
                     onClick={() => testSingleWebhook(task)}
                     className="shrink-0 w-full sm:w-auto"
                   >
-                    {isTestingThis ? 'Probando...' : 'Probar Webhook'}
+                    {isTestingThis ? t('integrations.testing', 'Probando...') : t('integrations.testWebhook', 'Probar Webhook')}
                   </Button>
                 </div>
               </div>

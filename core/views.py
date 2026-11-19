@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import re
 import time
 from datetime import date, timedelta
 
@@ -82,6 +83,10 @@ from .services.google_drive import (
     process_oauth_callback,
     rename_file,
     upload_file,
+)
+from .services.password_policy import (
+    format_password_policy_error,
+    get_password_policy_errors,
 )
 from core.services.aps_service import APSService
 
@@ -341,7 +346,7 @@ def change_password_view(request):
     """
     Endpoint para cambiar la contraseña de un usuario validando su contraseña actual.
     Garantiza que la clave anterior coincida y que la nueva contraseña se almacene
-    encriptada en la Base de Datos.
+    encriptada en la Base de Datos cumpliendo toda la política de seguridad.
     """
     data = request.data
     current_password = data.get('current_password') or data.get('currentPassword') or ''
@@ -375,35 +380,16 @@ def change_password_view(request):
             'message': 'Contraseña actual verificada correctamente.'
         }, status=status.HTTP_200_OK)
 
-    # 3. Validar nueva contraseña
-    if not new_password:
+    # 3. Validar nueva contraseña con política unificada
+    policy_errors = get_password_policy_errors(
+        new_password,
+        confirm_password=confirm_password,
+        current_password=current_password,
+    )
+    if policy_errors:
         return Response({
             'status': 'error',
-            'message': 'Debe ingresar una nueva contraseña.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if len(new_password) < 6:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña debe contener al menos 6 caracteres.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if current_password == new_password:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña no puede ser idéntica a la contraseña actual.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if not confirm_password:
-        return Response({
-            'status': 'error',
-            'message': 'Debe confirmar la nueva contraseña.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if new_password != confirm_password:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña y su confirmación no coinciden.'
+            'message': format_password_policy_error(policy_errors),
         }, status=status.HTTP_400_BAD_REQUEST)
 
     # 4. Actualizar contraseña cifrada en la base de datos
@@ -431,6 +417,52 @@ def change_password_view(request):
         'message': 'Contraseña modificada correctamente. Las demás sesiones fueron cerradas.',
         'session_token': new_session_token,
     }, status=status.HTTP_200_OK)
+
+
+def format_known_country_phone(digits_after_plus: str) -> str | None:
+    """
+    Formatea canónicamente números internacionales con prefijo de países reconocidos
+    (Perú, México, Colombia, Chile, España, EE.UU./Canadá, Argentina).
+    """
+    if not digits_after_plus or not isinstance(digits_after_plus, str):
+        return None
+
+    # Perú (+51): 9 dígitos iniciando en 9
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('519'):
+        d = digits_after_plus[2:]
+        return f"+51 {d[0:3]} {d[3:6]} {d[6:9]}"
+
+    # México (+52): 10 dígitos nacionales (ej. +52 55 8869 4904)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('52'):
+        d = digits_after_plus[2:]
+        return f"+52 {d[0:2]} {d[2:6]} {d[6:10]}"
+
+    # Colombia (+57): 10 dígitos nacionales (ej. +57 300 123 4567)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('57'):
+        d = digits_after_plus[2:]
+        return f"+57 {d[0:3]} {d[3:6]} {d[6:10]}"
+
+    # Chile (+56): 9 dígitos nacionales (ej. +56 9 1234 5678)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('56'):
+        d = digits_after_plus[2:]
+        return f"+56 {d[0:1]} {d[1:5]} {d[5:9]}"
+
+    # España (+34): 9 dígitos nacionales (ej. +34 612 345 678)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('34'):
+        d = digits_after_plus[2:]
+        return f"+34 {d[0:3]} {d[3:6]} {d[6:9]}"
+
+    # EE.UU. / Canadá (+1): 10 dígitos nacionales (ej. +1 555 123 4567)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('1'):
+        d = digits_after_plus[1:]
+        return f"+1 {d[0:3]} {d[3:6]} {d[6:10]}"
+
+    # Argentina (+54): 10 dígitos nacionales (ej. +54 11 2345 6789)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('54'):
+        d = digits_after_plus[2:]
+        return f"+54 {d[0:2]} {d[2:6]} {d[6:10]}"
+
+    return None
 
 
 @api_view(['GET', 'PATCH', 'POST'])
@@ -472,7 +504,57 @@ def user_profile_view(request):
 
         # 2. Actualizar teléfono
         if 'phone' in data:
-            profile.phone = (data.get('phone') or '').strip()
+            raw_phone = (data.get('phone') or '').strip()
+            if raw_phone:
+                if len(raw_phone) > 20:
+                    return Response({
+                        'status': 'error',
+                        'message': 'El formato del teléfono ingresado no es válido.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar que no contenga letras, puntos ni comas
+                if re.search(r'[a-zA-Z.,]', raw_phone):
+                    return Response({
+                        'status': 'error',
+                        'message': 'El formato del teléfono ingresado no es válido.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Si no empieza con '+': asumimos Perú (9 dígitos iniciando con 9)
+                if not raw_phone.startswith('+'):
+                    digits = re.sub(r'\D', '', raw_phone)
+                    if len(digits) == 9 and digits.startswith('9'):
+                        profile.phone = f"+51 {digits[0:3]} {digits[3:6]} {digits[6:9]}"
+                    else:
+                        return Response({
+                            'status': 'error',
+                            'message': 'El formato del teléfono ingresado no es válido.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    # Formato internacional: tras el '+' debe tener entre 8 y 15 dígitos y no iniciar en '0'
+                    digits_after_plus = re.sub(r'\D', '', raw_phone[1:])
+                    if (
+                        len(digits_after_plus) < 8
+                        or len(digits_after_plus) > 15
+                        or digits_after_plus.startswith('0')
+                    ):
+                        return Response({
+                            'status': 'error',
+                            'message': 'El formato del teléfono ingresado no es válido.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    formatted_known = format_known_country_phone(digits_after_plus)
+                    if formatted_known:
+                        profile.phone = formatted_known
+                    else:
+                        clean_intl = '+' + re.sub(r'\s+', ' ', raw_phone[1:]).strip()
+                        if len(clean_intl) > 20:
+                            return Response({
+                                'status': 'error',
+                                'message': 'El formato del teléfono ingresado no es válido.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        profile.phone = clean_intl
+            else:
+                profile.phone = ""
 
         profile.save()
 
@@ -493,10 +575,10 @@ def user_profile_view(request):
 
             if new_email != old_email:
                 from django.core.validators import validate_email
-                from django.core.exceptions import ValidationError
+                from django.core.exceptions import ValidationError as DjangoValidationError
                 try:
                     validate_email(new_email)
-                except ValidationError:
+                except DjangoValidationError:
                     return Response({
                         'status': 'error',
                         'message': 'El formato del correo electrónico ingresado no es válido.'
@@ -604,6 +686,7 @@ def audit_logs_view(request):
 
 
 @api_view(['GET'])
+@authentication_classes([SimpleUserAuthentication])
 @permission_classes([AllowAny])
 def notifications_view(request):
     """
@@ -618,7 +701,7 @@ def notifications_view(request):
     email = (request.query_params.get('email') or '').strip().lower()
     notifications = []
 
-    # Mantiene compatibilidad con el contrato existente basado en parámetros.
+    # Resuelve el usuario autenticado (Bearer token) o mediante parámetros retrocompatibles
     user = None
     target_ident = email or username
     if target_ident:
@@ -626,6 +709,10 @@ def notifications_view(request):
             Q(email__iexact=target_ident) |
             Q(username__iexact=target_ident)
         ).first()
+    elif request.user and request.user.is_authenticated:
+        user = request.user
+        username = (user.username or '').strip().lower()
+        email = (user.email or '').strip().lower()
 
     is_admin = bool(
         (user and (user.is_superuser or user.is_staff)) or
@@ -765,7 +852,20 @@ class TeamStatusViewSet(viewsets.ModelViewSet):
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
-    """CRUD para miembros del equipo técnico."""
+    """CRUD y administración del Directorio de Personal y Equipo Técnico.
+
+    Coordina la asignación operativa de técnicos a proyectos, áreas técnicas,
+    roles de especialidad y porcentajes de dedicación (allocation_percentage).
+
+    Características clave:
+    - Ciclo de Vida de Incidencias: Ejecuta `process_incident_lifecycle()` automáticamente
+      en cada consulta para aplicar transiciones de estado de personal por licencias,
+      vacaciones o incapacidades activas.
+    - Control de Acceso (RBAC): Permite lectura (GET/HEAD/OPTIONS) con permisos amplios,
+      restringiendo las mutaciones (POST/PUT/PATCH/DELETE) exclusivamente a administradores (`IsAdminUser`).
+    - Filtros Query Parameters: Soporta filtrado directo por área técnica (`?area=<id>`),
+      estado operativo (`?status=<id>`) y proyecto asignado (`?project=<id>`).
+    """
 
     authentication_classes = [SimpleUserAuthentication]
     queryset = TeamMember.objects.select_related(
@@ -972,8 +1072,6 @@ class PersonnelIncidentViewSet(viewsets.ModelViewSet):
             comment=request.data.get('comment', ''),
         )
         return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
-    
-
 
 
 class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1004,8 +1102,24 @@ class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    """
-    CRUD principal para Proyectos y Portafolio
+    """CRUD y controlador de gobernanza para Proyectos y Portafolio.
+
+    Gestiona el ciclo de vida completo de los proyectos de la plataforma, coordinando
+    relaciones con hitos estratégicos, tareas operativas e integrantes del equipo técnico.
+
+    Reglas de Gobernanza Corporativa:
+    - Umbral de Presupuesto ($100,000 USD): Proyectos con presupuesto superior a $100,000 USD
+      requieren revisión formal por Comité Directivo ('Revisión por Comité Directivo'),
+      mientras que proyectos de menor escala operan bajo aprobación del Líder Técnico.
+      Los usuarios sin privilegios administrativos (is_staff / is_superuser) tienen
+      estrictamente bloqueada la alteración de presupuestos y asignación de líderes en actualizaciones.
+    - Eliminación Exclusiva de Administradores: El método `destroy` valida que solo usuarios
+      con privilegios de Administrador (Project Manager) puedan dar de baja o eliminar proyectos
+      físicamente de la base de datos.
+    - Integración de Webhooks Make: Despacha notificaciones automáticas a Make (Integromat)
+      ante los eventos 'project.created', 'project.updated' y 'project.deleted'.
+    - Optimización de Cronograma: Expone la acción `/projects/{id}/optimize/` para el análisis
+      heurístico de holguras y compresión de rutas críticas mediante `analyze_project_timeline`.
     """
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
     serializer_class = ProjectSerializer
@@ -1163,7 +1277,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 class MilestoneViewSet(viewsets.ModelViewSet):
-    """CRUD para hitos estratégicos."""
+    """CRUD y gestión de entregas clave para Hitos Estratégicos.
+
+    Permite el registro, edición, actualización de estado ('pending', 'in_progress', 'completed')
+    y consulta de los hitos asociados a proyectos del Calendario Maestro y diagramas de Gantt.
+    Soporta filtrado por proyecto mediante el query parameter `?project=<id>`.
+    """
 
     queryset = Milestone.objects.select_related("project").all()
     serializer_class = MilestoneSerializer
@@ -1179,7 +1298,15 @@ class MilestoneViewSet(viewsets.ModelViewSet):
 
 
 class TaskViewSet(viewsets.ModelViewSet):
-    """CRUD para tareas operativas."""
+    """CRUD y control de ejecución de Tareas y Órdenes de Trabajo Operativas.
+
+    Gestiona tareas asignadas al personal técnico con relaciones a hitos, predecesores,
+    categorías operativas y enlaces documentales de Google Drive.
+
+    Filtros soportados mediante query parameters:
+    - `?project=<id>`: Filtra tareas pertenecientes a un proyecto específico.
+    - `?critical=true|false`: Filtra tareas según pertenezcan a la ruta crítica (`is_critical_path`).
+    """
 
     queryset = Task.objects.select_related(
         "project",
@@ -1859,6 +1986,7 @@ class APSTokenView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
 class APSDownloadView(APIView):
     """
     GET /api/integrations/aps/models/<id>/download/
@@ -1900,7 +2028,6 @@ class CreateTechnicianView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 
 # ==========================================================================
@@ -2024,12 +2151,19 @@ class PasswordResetVerifyCodeView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
-    """
-    POST /api/auth/password-reset/confirm/
-    Body: { "email": "...", "code": "123456", "new_password": "...", "confirm_password": "..." }
+    """Confirmación y aplicación de cambio de contraseña mediante código de un solo uso (OTP).
 
-    Valida el codigo OTP, comprueba que no haya expirado (15 min),
-    cambia la contrasena y elimina el codigo usado.
+    Endpoint: POST /api/auth/password-reset/confirm/
+    Payload esperado:
+        - email (str): Correo electrónico del usuario solicitante.
+        - code (str): Código de 6 dígitos emitido en el flujo de recuperación.
+        - new_password (str): Nueva contraseña elegida por el usuario.
+        - confirm_password (str): Confirmación idéntica de la nueva contraseña.
+
+    Reglas de negocio:
+    - Valida el código OTP y comprueba que no haya superado su periodo de validez de 15 minutos.
+    - Valida la política unificada de contraseña (mínimo 12 caracteres, mayúsculas, minúsculas, números, símbolos, sin espacios y coincidencia) mediante `get_password_policy_errors`.
+    - Aplica la nueva contraseña mediante `user.set_password()` y elimina el código usado.
     """
     permission_classes = [AllowAny]
 
@@ -2048,15 +2182,13 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if new_password != confirm_password:
+        policy_errors = get_password_policy_errors(
+            new_password,
+            confirm_password=confirm_password,
+        )
+        if policy_errors:
             return Response(
-                {'status': 'error', 'message': 'Las contrasenas nuevas no coinciden.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if len(new_password) < 8:
-            return Response(
-                {'status': 'error', 'message': 'La contrasena debe tener al menos 8 caracteres.'},
+                {'status': 'error', 'message': format_password_policy_error(policy_errors)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -2090,11 +2222,8 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Cambiar contrasena
         user.set_password(new_password)
         user.save(update_fields=['password'])
-
-        # Eliminar el codigo usado
         reset_code.delete()
 
         logger.info('Contrasena restablecida exitosamente para el usuario %s', user.email)
@@ -2123,7 +2252,6 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
-
 
 
 class ProjectChangeLogViewSet(viewsets.ModelViewSet):
@@ -2157,10 +2285,12 @@ class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
 # =============================================================
 
 class Setup2FAView(APIView):
-    """
-    Genera y devuelve el secreto TOTP y la URI de aprovisionamiento para
-    que el administrador configure su app de autenticación (Google Authenticator, Authy, etc.).
-    Permite autenticación Bearer o envío de user_id de administrador.
+    """Configuración y aprovisionamiento inicial de Autenticación de Dos Factores (2FA/TOTP).
+
+    Genera el secreto Base32 seguro y la URI de aprovisionamiento estándar (otpauth://)
+    junto con la imagen QR codificada en Base64 para que el usuario administrador
+    la escanee en aplicaciones TOTP (Google Authenticator, Microsoft Authenticator, Authy).
+    Restringido a usuarios con privilegios de Administrador (is_staff / is_superuser).
     """
     permission_classes = [AllowAny]
 
@@ -2224,10 +2354,13 @@ class Setup2FAView(APIView):
 
 
 class Verify2FAView(APIView):
-    """
-    Verifica el código TOTP de 6 dígitos del administrador.
-    Si es válido, devuelve los tokens de sesión y el perfil completo.
-    Recibe: { user_id, otp_code }
+    """Verificación de código TOTP temporal y emisión de token de sesión administrativo.
+
+    Valida el código numérico de 6 dígitos introducido por el administrador contra el
+    secreto criptográfico TOTP guardado en su perfil (TwoFactorProfile).
+    Tolera una ventana de desfase temporal de 30 segundos (valid_window=1).
+    Al verificar exitosamente, actualiza la fecha de último acceso y retorna el
+    session_token firmado junto con el perfil completo del usuario.
     """
     permission_classes = [AllowAny]
 
@@ -2317,15 +2450,12 @@ class Verify2FAView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
 class Request2FAResetView(APIView):
-    """
-    POST /api/auth/request-2fa-reset/
-    Body: { "user_id": 4 }
+    """Solicitud de código de restablecimiento de 2FA por extravío o cambio de dispositivo.
 
-    Genera un código de 6 dígitos con expiración de 15 minutos en recovery_code_expires.
-    Envía una petición POST al webhook de Make configurado en settings.RECOVERY_WEBHOOK_URL.
-    Retorna HTTP 200.
+    Genera un código numérico temporal de 6 dígitos con validez de 15 minutos en el perfil
+    del administrador y despacha una notificación POST asíncrona al webhook de recuperación
+    de Make (Integromat) configurado en `settings.RECOVERY_WEBHOOK_URL` para su envío por correo.
     """
     permission_classes = [AllowAny]
 
@@ -2382,12 +2512,11 @@ class Request2FAResetView(APIView):
 
 
 class Verify2FAResetView(APIView):
-    """
-    POST /api/auth/verify-2fa-reset/
-    Body: { "user_id": 4, "code": "123456" }
+    """Verificación del código de recuperación y reseteo definitivo del 2FA.
 
-    Busca el perfil. Si el código coincide y no ha expirado, restablece el 2FA:
-    totp_secret = None, is_enabled = False, recovery_code = None, guarda y retorna HTTP 200.
+    Valida el código de 6 dígitos enviado por correo. Si es correcto y no ha expirado,
+    limpia el secreto TOTP (`totp_secret = None`), deshabilita 2FA (`is_enabled = False`)
+    e invalida el código de recuperación, permitiendo un re-aprovisionamiento limpio.
     """
     permission_classes = [AllowAny]
 
@@ -2443,6 +2572,12 @@ class Verify2FAResetView(APIView):
             'status': 'success',
             'message': '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.',
         }, status=status.HTTP_200_OK)
+
+
+# Aliases para compatibilidad formal de nomenclatura
+TwoFactorSetupView = Setup2FAView
+TwoFactorVerifyView = Verify2FAView
+TwoFactorResetRequestView = Request2FAResetView
 
 
 # Asistente de IA (Chatbot)

@@ -4,8 +4,11 @@ Vectoriza una regla de negocio clave con Google Gemini (gemini-embedding-001) y 
 """
 import os
 import sys
+from pathlib import Path
 
 # 1. Configurar entorno Django
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR.parent))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 import django

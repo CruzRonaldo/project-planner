@@ -1,8 +1,10 @@
 import React from 'react';
+import { useLanguage } from '../../../context/LanguageContext';
 import EmptyState from '../../../components/common/EmptyState';
 import { getBarGeometry } from '../../../utils/gantt';
 
-const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+const monthNums = [1, 2, 3, 4, 5, 6];
+const defaultShorts = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
 
 export default function CriticalScheduleSection({
   activitiesList = [],
@@ -11,6 +13,7 @@ export default function CriticalScheduleSection({
   mutedClass = '',
   cardClass = '',
 }) {
+  const { t } = useLanguage();
   const currentYear = referenceDate.getFullYear();
   const windowStart = `${currentYear}-01-01`;
   const windowMonths = 6;
@@ -20,31 +23,31 @@ export default function CriticalScheduleSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="critical-schedule-title" className={`text-base font-semibold ${headingClass}`}>
-            Cronograma de Actividades Críticas
+            {t('operations.criticalSchedule', 'Cronograma de Actividades Críticas')}
           </h2>
           <p className={`mt-1 text-[10px] ${mutedClass}`}>
-            Seguimiento temporal y avance real de entregables clave
+            {t('operations.criticalScheduleSubtitle', 'Seguimiento temporal y avance real de entregables clave')}
           </p>
         </div>
         <div className={`flex gap-3 text-[9px] ${mutedClass}`}>
-          <span><i className="mr-1 inline-block h-2 w-2 bg-blue-500" /> En tiempo</span>
-          <span><i className="mr-1 inline-block h-2 w-2 bg-emerald-500" /> Acelerada</span>
-          <span><i className="mr-1 inline-block h-2 w-2 bg-purple-500" /> Programada</span>
+          <span><i className="mr-1 inline-block h-2 w-2 bg-blue-500" /> {t('operations.onTime', 'En tiempo')}</span>
+          <span><i className="mr-1 inline-block h-2 w-2 bg-emerald-500" /> {t('operations.accelerated', 'Acelerada')}</span>
+          <span><i className="mr-1 inline-block h-2 w-2 bg-purple-500" /> {t('operations.scheduled', 'Programada')}</span>
         </div>
       </div>
 
       <div className="mt-5 overflow-x-auto">
         <div className="min-w-[780px]">
           <div className="grid grid-cols-[230px_1fr_90px] border-b border-slate-200 pb-2 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30">
-            <span className="text-[9px] text-slate-500 midnight:text-cyan-600">Actividad / Obra</span>
+            <span className="text-[9px] text-slate-500 midnight:text-cyan-600">{t('operations.activityWork', 'Actividad / Obra')}</span>
             <div className="grid grid-cols-6">
-              {months.map((month) => (
-                <span key={month} className="text-center text-[9px] text-slate-500 midnight:text-cyan-600">
-                  {month}
+              {monthNums.map((num, idx) => (
+                <span key={num} className="text-center text-[9px] text-slate-500 midnight:text-cyan-600">
+                  {t(`months.${num}`, defaultShorts[idx])}
                 </span>
               ))}
             </div>
-            <span className="text-right text-[9px] text-slate-500 midnight:text-cyan-600">Avance total</span>
+            <span className="text-right text-[9px] text-slate-500 midnight:text-cyan-600">{t('operations.totalProgress', 'Avance total')}</span>
           </div>
 
           <div className="space-y-4 pt-4">
@@ -129,7 +132,7 @@ export default function CriticalScheduleSection({
               );
             })}
             {!activitiesList.length && (
-              <EmptyState description="No hay actividades críticas registradas." />
+              <EmptyState description={t('operations.noActivities', 'No hay actividades críticas registradas.')} />
             )}
           </div>
         </div>

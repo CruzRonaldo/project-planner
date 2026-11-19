@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Zap } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import ModalDialog from '../../../components/common/ModalDialog';
 import Input from '../../../components/common/Input';
 import { FootnoteText, InlineAlert } from '../../../components/common';
@@ -7,7 +8,6 @@ import {
   inputClass,
   labelClass,
   nestedClass,
-  errorClass,
 } from '../../../constants/themeClasses';
 import {
   operationalAreas,
@@ -27,6 +27,7 @@ export default function NewWorkOrderDialog({
   onSubmit,
   onClose,
 }) {
+  const { t } = useLanguage();
   const today = new Date();
   const endDate = new Date(today);
   endDate.setDate(endDate.getDate() + 7);
@@ -70,12 +71,12 @@ export default function NewWorkOrderDialog({
       isOpen={true}
       onClose={onClose}
       onSubmit={submitDraft}
-      title="Nueva Orden de Trabajo"
+      title={t('operations.newWorkOrder', 'Nueva Orden de Trabajo')}
       subtitle="Emite una orden técnica de terreno, asigna responsables y fija su ruta crítica."
       icon={<Zap size={20} />}
-      submitLabel="Emitir Orden de Trabajo"
+      submitLabel={t('operations.issueWorkOrder', 'Emitir Orden de Trabajo')}
       submitIcon={<Download size={15} />}
-      cancelLabel="Cancelar"
+      cancelLabel={t('common.cancel', 'Cancelar')}
       submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
       footnote={footnote}
       maxWidth="max-w-3xl"
@@ -83,9 +84,10 @@ export default function NewWorkOrderDialog({
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          Proyecto asociado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.associatedProject', 'Proyecto asociado')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>
-            {projectOptions.length === 0 && <option value="">Sin proyectos registrados</option>}
+            {projectOptions.length === 0 && <option value="">{t('operations.noProjectsRegistered', 'Sin proyectos registrados')}</option>}
             {projectOptions.map((project) => (
               <option key={project} value={project}>
                 {project}
@@ -94,38 +96,41 @@ export default function NewWorkOrderDialog({
           </select>
         </label>
         <label className={labelClass}>
-          Tipo de operación <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.operationType', 'Tipo de operación')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.type} onChange={changeField('type')} className={inputClass}>
             {operationTypes.map((type) => (
-              <option key={type}>{type}</option>
+              <option key={type} value={type}>{t('operations.types.' + type, type)}</option>
             ))}
           </select>
         </label>
       </div>
 
       <Input
-        label="Título de la tarea / orden"
+        label={t('operations.orderTitle', 'Título de la tarea / orden')}
         required
         maxLength={120}
         value={draft.title}
         onChange={changeField('title')}
-        placeholder="Vaciado de losa Nivel 4 - Sector Norte"
+        placeholder={t('operations.orderTitlePlaceholder', 'Vaciado de losa Nivel 4 - Sector Norte')}
         containerClassName="mt-4"
       />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.technicalArea', 'Área técnica')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.area} onChange={changeField('area')} className={inputClass}>
             {operationalAreas.map((area) => (
-              <option key={area}>{area}</option>
+              <option key={area} value={area}>{t('operations.areas.' + area, area)}</option>
             ))}
           </select>
         </label>
         <label className={labelClass}>
-          Responsable asignado <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.responsible', 'Responsable asignado')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.responsible} onChange={changeField('responsible')} className={inputClass}>
-            {responsibleOptions.length === 0 && <option value="">Sin técnicos registrados</option>}
+            {responsibleOptions.length === 0 && <option value="">{t('operations.noTechniciansRegistered', 'Sin técnicos registrados')}</option>}
             {responsibleOptions.map((member) => (
               <option key={member.id} value={member.name}>
                 {member.name} ({member.specialty})
@@ -134,11 +139,13 @@ export default function NewWorkOrderDialog({
           </select>
         </label>
         <label className={labelClass}>
-          Fecha de inicio <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.startDate', 'Fecha de inicio')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input type="date" required value={draft.startDate} onChange={changeField('startDate')} className={inputClass} />
         </label>
         <label className={labelClass}>
-          Fecha de fin / límite <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.deadline', 'Fecha de fin / límite')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <input
             type="date"
             required
@@ -154,7 +161,8 @@ export default function NewWorkOrderDialog({
           )}
         </label>
         <label className={labelClass}>
-          Nivel de prioridad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          {t('operations.priorityLevel', 'Nivel de prioridad')}{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
           <select required value={draft.priority} onChange={changeField('priority')} className={inputClass}>
             {workOrderPriorities.map((priority) => (
               <option key={priority.id} value={priority.id}>
@@ -164,7 +172,7 @@ export default function NewWorkOrderDialog({
           </select>
         </label>
         <fieldset>
-          <legend className={labelClass}>Parámetro de ruta crítica</legend>
+          <legend className={labelClass}>{t('operations.criticalPath', 'Parámetro de ruta crítica')}</legend>
           <div className={`mt-2 flex min-h-11 items-center justify-between gap-3 px-3 ${nestedClass}`}>
             <label className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
               <input
@@ -195,7 +203,7 @@ export default function NewWorkOrderDialog({
 
       <Input
         type="url"
-        label="Documento o plano vinculado (Google Drive)"
+        label={`${t('operations.linkedDocument', 'Documento o plano vinculado')} (Google Drive)`}
         maxLength={300}
         value={draft.documentUrl}
         onChange={changeField('documentUrl')}
@@ -204,7 +212,8 @@ export default function NewWorkOrderDialog({
       />
 
       <label className={`mt-4 block ${labelClass}`}>
-        Descripción e instrucciones de terreno <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+        {t('operations.instructions', 'Descripción e instrucciones')}{' '}
+        <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <textarea
           required
           minLength={10}
@@ -212,7 +221,7 @@ export default function NewWorkOrderDialog({
           rows={4}
           value={draft.description}
           onChange={changeField('description')}
-          placeholder="Detalla verificaciones, entregables y criterios de aceptación..."
+          placeholder={t('operations.orderDescriptionPlaceholder', 'Detalla verificaciones, entregables y criterios de aceptación...')}
           className={`${inputClass} resize-y leading-relaxed`}
         />
       </label>

@@ -25,26 +25,40 @@ export function createNameFromEmail(email) {
 }
 
 /**
- * Controlador especializado en Autenticación, Sesión y Perfil de Usuario.
- * Desacopla la lógica de identidad, 2FA, validación de token y permisos del controlador general.
+ * Controlador de Dominio para Autenticación, Sesión y Perfil de Usuario.
  *
- * @param {Object} [options]
- * @param {Array} [options.users=[]] - Lista del directorio de usuarios para resolver roles complementarios
- * @param {Function} [options.setUsers] - Despachador opcional para actualizar el usuario dentro del directorio
- * @param {Function} [options.onSessionExpired] - Callback opcional al invalidarse la sesión
- * @returns {Object} Estado de autenticación, usuario formateado y métodos de sesión
+ * Centraliza la validación de credenciales, tokens firmados (Bearer), autenticación
+ * en dos pasos (2FA / TOTP) y sincronización del estado de autenticación en localStorage.
+ * Resuelve roles jerárquicos (Administrador / Project Manager, SubAdministrador, Equipo Técnico)
+ * y enriquece el objeto de usuario con avatares normalizados y datos de perfil.
+ *
+ * @param {Object} [options] - Parámetros de inicialización.
+ * @param {Array<Object>} [options.users=[]] - Directorio de usuarios para resolver roles complementarios.
+ * @param {React.Dispatch<React.SetStateAction<Array<Object>>>} [options.setUsers] - Despachador para sincronizar cambios en el usuario dentro del directorio.
+ * @param {() => void} [options.onSessionExpired] - Callback ejecutado cuando la sesión expira o se invalida.
+ * @returns {{
+ *   isInitializing: boolean,
+ *   isAuthenticated: boolean,
+ *   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>,
+ *   currentUser: Object|null,
+ *   setCurrentUser: React.Dispatch<React.SetStateAction<Object|null>>,
+ *   displayedCurrentUser: Object|null,
+ *   sessionToken: string|null,
+ *   isAdmin: boolean,
+ *   isSubAdmin: boolean,
+ *   canManage: boolean,
+ *   handleLogin: (userData: Object) => void,
+ *   handleLogout: () => Promise<void>,
+ *   handleSessionTokenChange: (newSessionToken: string) => void,
+ *   clearLocalSession: () => void
+ * }} Estado reactivo de identidad, privilegios y métodos de sesión.
  */
 export function useAuthController({
   users = [],
   setUsers,
   onSessionExpired,
 } = {}) {
-  let navigate = null;
-  try {
-    navigate = useNavigate();
-  } catch {
-    navigate = () => {};
-  }
+  const navigate = useNavigate();
 
   // Estado de carga inicial: true mientras se valida la sesión persistida con el backend
   const [isInitializing, setIsInitializing] = useState(() => {

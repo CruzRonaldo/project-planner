@@ -160,13 +160,39 @@ def file_lock(name):
 
 
 def restoration_active():
+    """Comprueba si hay una restauración activa sin bloquear a otros lectores concurrentes."""
+    lock_path = backup_directory() / ".restore.lock"
+    if not lock_path.exists():
+        return False
     try:
-        with file_lock(".restore.lock"):
-            return False
-    except BackupError as error:
-        if error.status == 409:
-            return True
-        raise
+        handle = lock_path.open("a+b")
+    except OSError:
+        return False
+
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0)
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                return False
+            except OSError:
+                return True
+        else:
+            import fcntl
+            try:
+                # Se utiliza LOCK_SH (bloqueo compartido) en lugar de LOCK_EX (bloqueo exclusivo).
+                # De esta forma, múltiples peticiones concurrentes pueden comprobar el cerrojo sin colisionar.
+                # Si una restauración está en curso (manteniendo LOCK_EX), LOCK_SH fallará con BlockingIOError.
+                fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                return False
+            except (BlockingIOError, OSError):
+                return True
+    finally:
+        handle.close()
 
 
 def resolve_backup(filename):
@@ -208,6 +234,20 @@ def metadata(path):
 
 
 def list_backups():
+    """Lista todos los respaldos locales disponibles ordenados cronológicamente descendente.
+
+    Inspecciona el directorio de respaldos, filtra archivos legítimos con el patrón oficial
+    project_planner_YYYYMMDD_HHMMSS_<hash>.dump y extrae sus metadatos del archivo sidecar JSON.
+
+    Returns:
+        list[dict]: Lista de diccionarios con metadatos:
+            - filename (str): Nombre del archivo .dump.
+            - created_at (str): Fecha ISO 8601 de creación.
+            - source (str): Origen ('manual', 'automatic', 'before_restore', 'legacy').
+            - created_by (str): Usuario responsable.
+            - size_bytes (int): Tamaño del archivo en bytes.
+            - has_checksum (bool): Indica si cuenta con hash SHA-256 verificado.
+    """
     result = []
     for path in backup_directory().glob("project_planner_*.dump"):
         if NAME.fullmatch(path.name) and path.is_file() and not path.is_symlink():
@@ -223,6 +263,18 @@ def list_backups():
 
 
 def validate_archive(path):
+    """Comprueba la validez física y estructural de un archivo de respaldo PostgreSQL.
+
+    Verifica que el tamaño no sea nulo, que los primeros 5 bytes correspondan a la firma
+    mágica b"PGDMP" del formato Custom de PostgreSQL y comprueba que `pg_restore --list`
+    pueda leer la tabla de contenidos sin errores.
+
+    Args:
+        path (Path): Ruta al archivo .dump a evaluar.
+
+    Raises:
+        BackupError: Si el archivo está vacío, la cabecera no coincide o pg_restore falla.
+    """
     if path.stat().st_size == 0:
         raise BackupError("El archivo está vacío.")
     with path.open("rb") as stream:
@@ -264,6 +316,22 @@ def _create_backup(source, created_by):
 
 
 def create_backup(source="manual", created_by=""):
+    """Crea un respaldo consistente de la base de datos PostgreSQL de Project Planner.
+
+    Genera un archivo dump en formato binario custom (`pg_dump -Fc`) con compresión nativa,
+    valida su índice y almacena un archivo sidecar JSON con su hash criptográfico SHA-256.
+    Asegura exclusión mutua mediante un cerrojo a nivel de sistema operativo (`.operation.lock`).
+
+    Args:
+        source (str): Origen del respaldo ('manual', 'automatic', 'before_restore').
+        created_by (str): Nombre o identificador del usuario que inició la operación.
+
+    Returns:
+        Path: Ruta absoluta al archivo .dump generado.
+
+    Raises:
+        BackupError: Si el motor de BD no es PostgreSQL, el origen es inválido o ocurre un error de ejecución.
+    """
     database_config()
     if source not in SOURCES:
         raise BackupError("Origen de respaldo inválido.")
@@ -272,6 +340,26 @@ def create_backup(source="manual", created_by=""):
 
 
 def restore_backup(filename, confirmation, created_by=""):
+    """Restaura un archivo de respaldo previo en la base de datos PostgreSQL.
+
+    Ejecuta validaciones estrictas:
+    1. Comprueba el nombre exacto de la base de datos confirmada para evitar desastres operativos.
+    2. Compara el hash SHA-256 del archivo contra los metadatos registrados.
+    3. Verifica la firma mágica del archivo con `pg_restore --list`.
+    4. Genera automáticamente un respaldo de seguridad previo ('before_restore').
+    5. Ejecuta `pg_restore` en una transacción atómica única (`--single-transaction`).
+
+    Args:
+        filename (str): Nombre del archivo de respaldo (ej. 'project_planner_20261118_120000_a1b2c3d4.dump').
+        confirmation (str): Nombre exacto de la base de datos actual para autorizar la operación destructiva.
+        created_by (str): Usuario responsable que solicita la restauración.
+
+    Returns:
+        dict: Resumen con el archivo restaurado y el nombre del respaldo preventivo generado.
+
+    Raises:
+        BackupError: Si la confirmación no coincide, el archivo está corrupto o la restauración falla.
+    """
     db = database_config()
     if confirmation != str(db["NAME"]):
         raise BackupError("Escribe el nombre exacto de la base para confirmar.")
@@ -298,3 +386,87 @@ def restore_backup(filename, confirmation, created_by=""):
         finally:
             connections.close_all()
     return {"restored": filename, "safety_backup": safety.name}
+
+
+def verify_integrity(filename):
+    """Verifica la integridad de un archivo de respaldo calculando su hash SHA-256 e inspeccionando su cabecera.
+
+    Args:
+        filename (str): Nombre del archivo .dump.
+
+    Returns:
+        dict: Diccionario con estado de verificación, hash actual, hash registrado y validez de índice.
+
+    Raises:
+        BackupError: Si el archivo no existe o no se puede leer.
+    """
+    path = resolve_backup(filename)
+    meta = metadata(path)
+    calc_sha = checksum(path)
+    expected_sha = meta.get("sha256")
+    is_valid_hash = (expected_sha is None) or (calc_sha == expected_sha)
+    validate_archive(path)
+    return {
+        "filename": filename,
+        "is_valid": is_valid_hash,
+        "sha256": calc_sha,
+        "expected_sha256": expected_sha,
+        "size_bytes": path.stat().st_size,
+    }
+
+
+class BackupService:
+    """Servicio de gobernanza y gestión integral de copias de seguridad de PostgreSQL.
+
+    Encapsula los métodos de creación, restauración transaccional, consulta y
+    verificación criptográfica de integridad para las bases de datos de Project Planner.
+    """
+
+    @staticmethod
+    def create_backup(source: str = "manual", created_by: str = ""):
+        """Crea un respaldo consistente en formato custom con hash SHA-256.
+
+        Args:
+            source: Origen del respaldo ('manual', 'automatic', 'before_restore').
+            created_by: Identificador del usuario u operador.
+
+        Returns:
+            Path: Ruta al archivo generado.
+        """
+        return create_backup(source=source, created_by=created_by)
+
+    @staticmethod
+    def restore_backup(filename: str, confirmation: str, created_by: str = ""):
+        """Restaura un respaldo transaccionalmente con respaldo de seguridad previo.
+
+        Args:
+            filename: Nombre del archivo .dump.
+            confirmation: Nombre de la base de datos para confirmación obligatoria.
+            created_by: Identificador del usuario que solicita la restauración.
+
+        Returns:
+            dict: Resumen con archivo restaurado y respaldo preventivo generado.
+        """
+        return restore_backup(filename=filename, confirmation=confirmation, created_by=created_by)
+
+    @staticmethod
+    def list_backups():
+        """Lista todos los respaldos locales registrados ordenados cronológicamente.
+
+        Returns:
+            list[dict]: Lista de metadatos de los respaldos disponibles.
+        """
+        return list_backups()
+
+    @staticmethod
+    def verify_integrity(filename: str):
+        """Verifica la integridad física y criptográfica de un archivo de respaldo.
+
+        Args:
+            filename: Nombre del archivo .dump a verificar.
+
+        Returns:
+            dict: Resultados del análisis de integridad SHA-256 y validez de archivo.
+        """
+        return verify_integrity(filename=filename)
+

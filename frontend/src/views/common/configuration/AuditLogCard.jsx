@@ -3,6 +3,8 @@ import { ShieldAlert, RotateCw, Clock } from 'lucide-react';
 import FormattedAuditText from '../../../components/common/FormattedAuditText';
 import { SectionCardHeader, EmptyState } from '../../../components/common';
 import { cardClass } from '../../../constants/themeClasses';
+import { useLanguage } from '../../../context/LanguageContext';
+import { formatNotificationDetail, formatAuditAction } from '../../../utils/notificationFormatting';
 
 /**
  * Tarjeta de Bitácora de Auditoría de Seguridad (exclusivo para Administrador)
@@ -12,6 +14,8 @@ export default function AuditLogCard({
   loadingAuditLogs = false,
   onRefresh,
 }) {
+  const { t } = useLanguage();
+
   return (
     <section
       aria-labelledby="audit-log-title"
@@ -21,15 +25,15 @@ export default function AuditLogCard({
         <SectionCardHeader
           icon={ShieldAlert}
           iconContainerClass="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300"
-          title="Bitácora de Auditoría"
-          subtitle="Supervisión de cambios de correo, contraseñas y accesos"
+          title={t('configuration.auditLogTitle', 'Bitácora de Auditoría')}
+          subtitle={t('configuration.auditLogSubtitle', 'Supervisión de cambios de correo, contraseñas y accesos')}
         >
           <button
             type="button"
             onClick={onRefresh}
             disabled={loadingAuditLogs}
-            title="Actualizar bitácora"
-            aria-label="Actualizar bitácora de auditoría"
+            title={t('configuration.refreshAuditLog', 'Actualizar bitácora')}
+            aria-label={t('configuration.refreshAuditLogAria', 'Actualizar bitácora de auditoría')}
             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-[#30363d] dark:hover:bg-white/5 midnight:border-cyan-800 midnight:hover:bg-cyan-900/20 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400 midnight:hover:text-cyan-200 transition-colors cursor-pointer"
           >
             <RotateCw size={14} className={loadingAuditLogs ? 'animate-spin' : ''} />
@@ -40,7 +44,7 @@ export default function AuditLogCard({
       {auditLogs.length === 0 ? (
         <EmptyState
           icon={Clock}
-          description="No hay eventos de auditoría registrados recientemente."
+          description={t('configuration.noAuditLogsRecent', 'No hay eventos de auditoría registrados recientemente.')}
           bordered
         />
       ) : (
@@ -53,11 +57,11 @@ export default function AuditLogCard({
                     {log.userName}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-50 border border-cyan-200 text-cyan-700 dark:bg-cyan-500/10 dark:border-cyan-500/20 dark:text-cyan-300 midnight:bg-cyan-950 midnight:border-cyan-800/40 midnight:text-cyan-400 font-mono">
-                    {log.actionDisplay || log.action}
+                    {formatAuditAction(log.action, log.actionDisplay, t)}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600 dark:text-slate-300 midnight:text-cyan-300/80 mt-0.5 break-words">
-                  <FormattedAuditText text={log.description} />
+                  <FormattedAuditText text={formatNotificationDetail(log.description, t)} />
                 </div>
               </div>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-600 shrink-0 whitespace-nowrap">

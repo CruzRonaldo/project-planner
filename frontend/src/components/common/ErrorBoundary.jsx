@@ -21,7 +21,6 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // TODO: integrar con servicio de observabilidad (logs/telemetría) y/o Toast global.
     console.error('[ErrorBoundary] Error capturado durante render:', error, errorInfo);
   }
 

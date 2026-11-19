@@ -5,6 +5,13 @@ function normalizeText(value) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+/**
+ * Calcula la duración neta en días calendario entre dos fechas ISO YYYY-MM-DD.
+ *
+ * @param {string} startDate - Fecha de inicio YYYY-MM-DD.
+ * @param {string} endDate - Fecha límite YYYY-MM-DD.
+ * @returns {number|null} Número entero positivo de días (mínimo 1) o null si el rango es inválido.
+ */
 export function getWorkOrderDuration(startDate, endDate) {
   const start = new Date(`${startDate}T12:00:00`);
   const end = new Date(`${endDate}T12:00:00`);
@@ -12,6 +19,15 @@ export function getWorkOrderDuration(startDate, endDate) {
   return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
 }
 
+/**
+ * Filtra la colección de órdenes de trabajo por texto de búsqueda, estado/prioridad y proyecto.
+ *
+ * @param {Array<Object>} [orders=[]] - Colección de órdenes de trabajo.
+ * @param {string} [query=''] - Texto de búsqueda libre.
+ * @param {string} [filter='all'] - Criterio ('all' | 'high' | 'in-progress').
+ * @param {string} [project='all'] - Nombre o identificador del proyecto asignado.
+ * @returns {Array<Object>} Subconjunto filtrado de órdenes de trabajo.
+ */
 export function filterWorkOrders(orders = [], query = '', filter = 'all', project = 'all') {
   const normalizedQuery = normalizeText(query);
   return (orders || []).filter((order) => {
@@ -54,6 +70,16 @@ function validateDocumentUrl(value) {
   return url.toString();
 }
 
+/**
+ * Crea y valida una nueva Orden de Trabajo para el módulo de Gestión Operativa,
+ * asignándole un código secuencial correlativo y actualizando las métricas globales.
+ *
+ * @param {Object} data - Estado actual de operaciones (orders, metrics).
+ * @param {Object} draft - Datos de la orden capturados en formulario modal.
+ * @param {Date} [date=new Date()] - Fecha de registro para el ID y timestamp.
+ * @throws {Error} Si algún campo obligatorio (proyecto, responsable, tolerancia, duración) es inválido.
+ * @returns {Object} Estado clonado de operaciones con la nueva orden y métricas actualizadas.
+ */
 export function createWorkOrder(data, draft, date = new Date()) {
   const project = draft.project?.trim() ?? '';
   const title = draft.title?.trim() ?? '';
@@ -104,6 +130,12 @@ function escapeCsv(value) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+/**
+ * Serializa la colección de órdenes de trabajo a una cadena en formato CSV compatible con hojas de cálculo.
+ *
+ * @param {Array<Object>} [orders=[]] - Colección de órdenes a exportar.
+ * @returns {string} Contenido CSV delimitado por comas.
+ */
 export function buildWorkOrdersCsv(orders = []) {
   const header = ['ID', 'Proyecto', 'Tipo', 'Título', 'Área', 'Responsable', 'Prioridad', 'Estado', 'Inicio', 'Límite'];
   const rows = (orders || []).map((order) => [order.code, order.project, order.type, order.title, order.area, order.responsible, order.priority, order.status, order.startDate, order.endDate].map(escapeCsv).join(','));
@@ -174,6 +206,13 @@ export const operationsSortCategories = [
   },
 ];
 
+/**
+ * Ordena la colección de órdenes de trabajo según el criterio seleccionado (prioridad, fecha límite o título).
+ *
+ * @param {Array<Object>} [orders=[]] - Colección de órdenes de trabajo.
+ * @param {string} [sortOrder='prio_desc'] - Identificador del criterio ('prio_desc'|'prio_asc'|'due_asc'|'due_desc'|'title_asc'|'title_desc').
+ * @returns {Array<Object>} Nueva colección ordenada de forma inmutable.
+ */
 export function sortWorkOrders(orders = [], sortOrder = 'prio_desc') {
   if (!Array.isArray(orders) || orders.length === 0) return [];
   const copy = [...orders];
@@ -194,4 +233,15 @@ export function sortWorkOrders(orders = [], sortOrder = 'prio_desc') {
     default:
       return copy;
   }
+}
+
+/**
+ * Obtiene el descriptor y clases visuales de insignia para un nivel de prioridad dado.
+ *
+ * @param {string} priorityId - Nivel de prioridad ('high' | 'medium' | 'low').
+ * @returns {{ id: string, label: string, className: string }} Configuración de la insignia.
+ */
+export function getPriorityBadge(priorityId) {
+  const match = workOrderPriorities.find((item) => item.id === priorityId);
+  return match || workOrderPriorities[2];
 }

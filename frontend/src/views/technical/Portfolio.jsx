@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Cloud, FolderPlus } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { runSafe } from "../../utils/asyncHandler";
 import { projectStatuses } from "../../constants/portfolio";
 import { filterPortfolio, sortPortfolioProjects, portfolioSortCategories } from "../../utils/portfolio";
@@ -29,10 +30,29 @@ export { NewProjectDialog, EditProjectDialog, ConfirmDeleteDialog, ProjectCard }
 const PROJECTS_PER_PAGE = 6;
 const CHANGES_PER_PAGE = 5;
 
-const filters = [
-  { id: "all", label: "Todos" },
-  ...projectStatuses.map((status) => ({ id: status.id, label: status.label })),
-];
+function getMakeNotificationMessage(makeInfo, t) {
+  if (!makeInfo) return '';
+  if (makeInfo.success) {
+    return ` · ${t('toasts.makeNotificationSent', 'Notificación enviada a Make.')}`;
+  }
+  const detail = makeInfo.message
+    ? t(`toasts.${makeInfo.message}`, makeInfo.message)
+    : t('toasts.makeCouldNotNotify', 'No fue posible notificar');
+  return ` · Make: ${detail}`;
+}
+
+function formatChangeDescription(text, t) {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/Alta de nuevo proyecto|New project registration/g, t('portfolio.changeProjectCreated', 'Alta de nuevo proyecto'))
+    .replace(/Edición de proyecto|Project edit/g, t('portfolio.changeProjectUpdated', 'Edición de proyecto'))
+    .replace(/Eliminación permanente del proyecto|Permanent project deletion/g, t('portfolio.changeProjectDeleted', 'Eliminación permanente del proyecto'))
+    .replace(/Notificación enviada a Make\.|Notification dispatched to Make\./g, t('toasts.makeNotificationSent', 'Notificación enviada a Make.'))
+    .replace(
+      /No se ha configurado ninguna URL de webhook para Make\.|No webhook URL has been configured for Make\./g,
+      t('toasts.No se ha configurado ninguna URL de webhook para Make.', 'No se ha configurado ninguna URL de webhook para Make.')
+    );
+}
 
 export default function Portfolio({
   data,
@@ -44,6 +64,14 @@ export default function Portfolio({
   currentUser = null,
   currentUserName = "",
 }) {
+  const { t, lang } = useLanguage();
+  const filters = useMemo(() => [
+    { id: "all", label: t('portfolio.all', 'Todos') },
+    ...projectStatuses.map((status) => ({
+      id: status.id,
+      label: t(`statuses.${status.id}`, status.label),
+    })),
+  ], [t]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [syncing, setSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -145,20 +173,18 @@ export default function Portfolio({
       () => projectsApi.createProject(draft),
       {
         showToast,
-        successTitle: "¡Proyecto Creado con Éxito!",
+        successTitle: t('toasts.projectCreatedTitle', '¡Proyecto Creado con Éxito!'),
         successMessage: (res) => {
-          const makeInfo = res?.make_notification;
-          let makeMsg = "";
-          if (makeInfo?.success) {
-            makeMsg = " · Notificación enviada a Make.";
-          } else if (makeInfo) {
-            makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-          }
+          const makeMsg = getMakeNotificationMessage(res?.make_notification, t);
           const pName = res?.name || draft.name;
           const pCode = res?.code || draft.code;
-          return `El proyecto '${pName}' (${pCode}) ha sido creado exitosamente.${makeMsg}`;
+          return t(
+            'toasts.projectCreatedMessage',
+            "El proyecto '{name}' ({code}) ha sido creado exitosamente.{makeMsg}",
+            { name: pName, code: pCode, makeMsg }
+          );
         },
-        fallbackError: "Error de conexión con el servidor al crear el proyecto.",
+        fallbackError: t('toasts.projectCreateError', 'Error de conexión con el servidor al crear el proyecto.'),
       }
     );
 
@@ -166,13 +192,7 @@ export default function Portfolio({
       throw new Error(error?.friendlyMessage || error?.message || "Error al procesar la creación del proyecto");
     }
 
-    const makeInfo = created.make_notification;
-    let makeMsg = "";
-    if (makeInfo?.success) {
-      makeMsg = " · Notificación enviada a Make.";
-    } else if (makeInfo) {
-      makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-    }
+    const makeMsg = getMakeNotificationMessage(created.make_notification, t);
 
     const newProject = {
       id: created.id || `project-${Date.now()}`,
@@ -195,7 +215,7 @@ export default function Portfolio({
       id: `change-${Date.now()}`,
       date: new Date().toISOString().split("T")[0],
       project: newProject.name,
-      change: `Alta de nuevo proyecto${makeMsg}`,
+      change: `${t('portfolio.changeProjectCreated', 'Alta de nuevo proyecto')}${makeMsg}`,
       user: currentUserName || "Admin",
     };
 
@@ -226,18 +246,16 @@ export default function Portfolio({
       () => projectsApi.updateProject(projectId, draft),
       {
         showToast,
-        successTitle: "¡Proyecto Actualizado!",
+        successTitle: t('toasts.projectUpdatedTitle', '¡Proyecto Actualizado!'),
         successMessage: (res) => {
-          const makeInfo = res?.make_notification;
-          let makeMsg = "";
-          if (makeInfo?.success) {
-            makeMsg = " · Notificación enviada a Make.";
-          } else if (makeInfo) {
-            makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-          }
-          return `El proyecto '${res?.name || draft.name}' ha sido modificado exitosamente.${makeMsg}`;
+          const makeMsg = getMakeNotificationMessage(res?.make_notification, t);
+          return t(
+            'toasts.projectUpdatedMessage',
+            "El proyecto '{name}' ha sido modificado exitosamente.{makeMsg}",
+            { name: res?.name || draft.name, makeMsg }
+          );
         },
-        fallbackError: "Error al guardar los cambios del proyecto.",
+        fallbackError: t('toasts.projectUpdateError', 'Error al guardar los cambios del proyecto.'),
       }
     );
 
@@ -245,19 +263,13 @@ export default function Portfolio({
       throw new Error(error?.friendlyMessage || error?.message || "Error al actualizar el proyecto.");
     }
 
-    const makeInfo = updated.make_notification;
-    let makeMsg = "";
-    if (makeInfo?.success) {
-      makeMsg = " · Notificación enviada a Make.";
-    } else if (makeInfo) {
-      makeMsg = ` · Make: ${makeInfo.message || "No fue posible notificar"}`;
-    }
+    const makeMsg = getMakeNotificationMessage(updated.make_notification, t);
 
     const newChange = {
       id: `change-${Date.now()}`,
       date: new Date().toISOString().split("T")[0],
       project: updated.name || draft.name,
-      change: `Edición de proyecto${makeMsg}`,
+      change: `${t('portfolio.changeProjectUpdated', 'Edición de proyecto')}${makeMsg}`,
       user: currentUserName || "Admin",
     };
 
@@ -302,9 +314,9 @@ export default function Portfolio({
       () => projectsApi.deleteProject(projectId),
       {
         showToast,
-        successTitle: "Proyecto Eliminado",
-        successMessage: `El proyecto '${projectName}' ha sido eliminado exitosamente.`,
-        fallbackError: "Error al eliminar el proyecto.",
+        successTitle: t('toasts.projectDeletedTitle', 'Proyecto Eliminado'),
+        successMessage: t('toasts.projectDeletedMessage', "El proyecto '{name}' ha sido eliminado exitosamente.", { name: projectName }),
+        fallbackError: t('toasts.projectDeleteError', 'Error al eliminar el proyecto.'),
       }
     );
 
@@ -316,7 +328,7 @@ export default function Portfolio({
       id: `change-${Date.now()}`,
       date: new Date().toISOString().split("T")[0],
       project: projectName,
-      change: "Eliminación permanente del proyecto",
+      change: t('portfolio.changeProjectDeleted', 'Eliminación permanente del proyecto'),
       user: currentUserName || "Admin",
     };
 
@@ -384,9 +396,9 @@ export default function Portfolio({
       {
         setLoading: setSyncing,
         showToast,
-        successTitle: "Proyectos Actualizados",
-        successMessage: "Los proyectos se han sincronizado exitosamente.",
-        fallbackError: "No se pudo conectar con el servidor para sincronizar.",
+        successTitle: t('toasts.projectsSynced', "Proyectos Actualizados"),
+        successMessage: t('toasts.projectsSyncedMsg', "Los proyectos se han sincronizado exitosamente."),
+        fallbackError: t('toasts.syncErrorMsg', "No se pudo conectar con el servidor para sincronizar."),
       }
     );
   };
@@ -396,8 +408,8 @@ export default function Portfolio({
       <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-8">
         <section className="flex flex-col gap-5">
           <PageHeader
-            title="Repositorio de Proyectos"
-            subtitle="Control presupuestal en tiempo real y supervisión financiera de obra"
+            title={t("portfolio.title", "Repositorio de Proyectos")}
+            subtitle={t("portfolio.subtitle", "Control presupuestal en tiempo real y supervisión financiera de obra")}
           >
             {canManage && (
               <button
@@ -405,7 +417,7 @@ export default function Portfolio({
                 onClick={() => setDialogOpen(true)}
                 className="inline-flex w-fit items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500 shadow-sm"
               >
-                <FolderPlus size={17} /> Crear Proyecto
+                <FolderPlus size={17} /> {t("portfolio.createProject", "Crear Proyecto")}
               </button>
             )}
           </PageHeader>
@@ -434,7 +446,7 @@ export default function Portfolio({
                 categories={portfolioSortCategories}
                 label="Ordenar:"
                 buttonClassName="w-[225px]"
-                ariaLabel="Ordenar proyectos del portafolio"
+                ariaLabel={t("portfolio.sortLabel", "Ordenar proyectos del portafolio")}
               />
               {(query || activeFilter !== "all") && (
                 <ClearFiltersButton
@@ -458,7 +470,7 @@ export default function Portfolio({
                       : ""
                   }
                 />
-                {syncing ? "Sincronizando..." : "Sincronizar"}
+                {syncing ? t("portfolio.syncing", "Sincronizando...") : t("portfolio.sync", "Sincronizar")}
               </button>
             </div>
           </div>
@@ -498,7 +510,7 @@ export default function Portfolio({
               totalPages={totalProjectPages}
               totalItems={visible.projects.length}
               pageSize={PROJECTS_PER_PAGE}
-              itemLabel="proyectos"
+              itemLabel={t('portfolio.projectsCountLabel', 'proyectos')}
               onPageChange={(nextPage) => setProjectPageSelection({ query, filter: activeFilter, page: nextPage })}
               hideOnSinglePage={true}
               className="mt-6"
@@ -506,7 +518,7 @@ export default function Portfolio({
           </>
         ) : (
             <EmptyState
-              description="No hay proyectos que coincidan con los filtros."
+              description={t("portfolio.noProjectsDesc", "No hay proyectos que coincidan con los filtros.")}
               className={`${cardClass} p-10 text-sm`}
             />
           )}
@@ -514,20 +526,19 @@ export default function Portfolio({
 
         <section className={`${cardClass} overflow-hidden p-5 md:p-6`}>
           <h2 className="text-base font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-            Historial de Cambios Reciente
+            {t("portfolio.recentChanges", "Historial de Cambios Reciente")}
           </h2>
           <p className="mt-1 text-[10px] text-slate-500 midnight:text-cyan-600">
-            Altas de proyectos, notificaciones despachadas a Make y
-            modificaciones presupuestales
+            {t('portfolio.recentChangesSubtitle', 'Altas de proyectos, notificaciones despachadas a Make y modificaciones presupuestales')}
           </p>
           <div className="mt-5">
             <Table className="min-w-[820px] border-collapse">
               <TableHead
                 columns={[
-                  { label: "Fecha", className: "px-3 py-3 font-medium" },
-                  { label: "Proyecto", className: "px-3 py-3 font-medium" },
-                  { label: "Cambio", className: "px-3 py-3 font-medium" },
-                  { label: "Usuario", align: "right", className: "px-3 py-3 font-medium" },
+                  { label: t('portfolio.colDate', 'Fecha'), className: "px-3 py-3 font-medium" },
+                  { label: t('portfolio.colProject', 'Proyecto'), className: "px-3 py-3 font-medium" },
+                  { label: t('portfolio.colChange', 'Cambio'), className: "px-3 py-3 font-medium" },
+                  { label: t('portfolio.colUser', 'Usuario'), align: "right", className: "px-3 py-3 font-medium" },
                 ]}
               />
               <tbody>
@@ -537,7 +548,7 @@ export default function Portfolio({
                   >
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                       {new Date(`${change.date}T12:00:00`).toLocaleDateString(
-                        "es-PE",
+                        lang === 'en' ? 'en-US' : 'es-PE',
                         { day: "2-digit", month: "short", year: "numeric" },
                       )}
                     </td>
@@ -545,7 +556,7 @@ export default function Portfolio({
                       {change.project}
                     </td>
                     <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                      {change.change}
+                      {formatChangeDescription(change.change, t)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                       {change.user}
@@ -558,7 +569,7 @@ export default function Portfolio({
                       colSpan={4}
                       className="py-10 text-center text-sm text-slate-500 midnight:text-cyan-500/70"
                     >
-                      No hay cambios que coincidan con la búsqueda.
+                      {t('portfolio.noMatchingChanges', 'No hay cambios que coincidan con la búsqueda.')}
                     </td>
                   </TableRow>
                 )}
@@ -570,7 +581,7 @@ export default function Portfolio({
             totalPages={totalChangePages}
             totalItems={visible.changes.length}
             pageSize={CHANGES_PER_PAGE}
-            itemLabel="cambios"
+            itemLabel={t('portfolio.changesCountLabel', 'cambios')}
             onPageChange={(nextPage) => setChangePageSelection({ query, page: nextPage })}
             hideOnSinglePage={true}
             className="mt-4 border-t border-slate-200 pt-3 dark:border-[#30363d] midnight:border-cyan-900/30"

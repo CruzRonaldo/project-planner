@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Cliente HTTP principal Axios para la plataforma Project Planner.
+ *
+ * Configura la resolución inteligente de la URL base según el entorno:
+ * 1. Variable de entorno Vite: Si `import.meta.env.VITE_API_URL` está definida, se normaliza asegurando el prefijo `/api`.
+ * 2. Despliegue en la nube (Render): Si el hostname contiene `onrender.com`, conecta a `https://project-planner-to9j.onrender.com/api`.
+ * 3. Entorno local: Fallback predeterminado a `http://127.0.0.1:8000/api`.
+ *
+ * Interceptores:
+ * - Request: Lee el `session_token` firmado desde `project_planner_user` en localStorage e inyecta la cabecera `Authorization: Bearer <token>`
+ *   en todas las peticiones protegidas.
+ */
 import axios from 'axios';
 
 // Determinar la URL base de forma inteligente:
@@ -18,9 +30,10 @@ if (!configuredUrl) {
 const cleanUrl = configuredUrl.replace(/\/+$/, '');
 const baseURL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 
-// Axios seleccionará automáticamente:
-// application/json para datos normales
-// multipart/form-data para archivos (cuando se pase FormData)
+/**
+ * Instancia preconfigurada de Axios para peticiones a la API REST de Django.
+ * Soporta serialización automática de JSON y multipart/form-data para archivos.
+ */
 const api = axios.create({
   baseURL,
   headers: {
@@ -28,7 +41,10 @@ const api = axios.create({
   },
 });
 
-// Inyecta el token firmado de la sesión activa en las solicitudes protegidas.
+/**
+ * Interceptor de solicitudes salientes:
+ * Inyecta el token firmado de sesión (Bearer) si existe un usuario autenticado en localStorage.
+ */
 api.interceptors.request.use((requestConfig) => {
   if (typeof window === 'undefined') return requestConfig;
 

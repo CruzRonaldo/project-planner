@@ -17,14 +17,16 @@ import {
   Command,
   Menu,
 } from 'lucide-react';
-import { MANUAL_SECTIONS, getSectionById } from './manualSections';
+import { getManualSections, getSectionById } from './manualSections';
 import { usePlatform } from '../../hooks/usePlatform';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function UserManualView({
   onNavigate,
   isAdmin = false,
   initialQuery = '',
 }) {
+  const { lang, t } = useLanguage();
   const [selectedSectionId, setSelectedSectionId] = useState('intro');
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'admin' | 'user'
@@ -33,6 +35,8 @@ export default function UserManualView({
   const contentContainerRef = useRef(null);
   const searchInputRef = useRef(null);
   const { isMac, isMobile, formatShortcut } = usePlatform();
+
+  const localizedSections = useMemo(() => getManualSections(lang, t), [lang, t]);
 
   // Si cambia la búsqueda desde el Topbar global
   useEffect(() => {
@@ -43,7 +47,7 @@ export default function UserManualView({
 
   // Filtrado de capítulos por texto y por rol con RBAC estricto
   const filteredSections = useMemo(() => {
-    return MANUAL_SECTIONS.filter((section) => {
+    return localizedSections.filter((section) => {
       // Bloqueo RBAC: si el usuario no es admin, jamás ve capítulos exclusivos de admin
       if (!isAdmin && section.roleRequired === 'admin') return false;
 
@@ -60,7 +64,7 @@ export default function UserManualView({
       const inContent = (section.content || '').toLowerCase().includes(q);
       return inTitle || inShort || inSummary || inContent;
     });
-  }, [searchQuery, roleFilter, isAdmin]);
+  }, [localizedSections, searchQuery, roleFilter, isAdmin]);
 
   // Si un usuario no admin tenía el filtro 'admin', forzar a 'all'
   useEffect(() => {
@@ -71,12 +75,12 @@ export default function UserManualView({
 
   // Resolución de sección activa protegida contra accesos directos no autorizados
   const currentSection = useMemo(() => {
-    const sec = getSectionById(selectedSectionId);
+    const sec = getSectionById(selectedSectionId, lang, t);
     if (!isAdmin && sec.roleRequired === 'admin') {
-      return MANUAL_SECTIONS[0]; // Redirección forzosa al índice general
+      return localizedSections[0]; // Redirección forzosa al índice general
     }
     return sec;
-  }, [selectedSectionId, isAdmin]);
+  }, [selectedSectionId, isAdmin, lang, t, localizedSections]);
 
   // Navegación secuencial acotada estrictamente a los capítulos autorizados para el rol
   const currentIndex = useMemo(() => {
@@ -131,7 +135,7 @@ export default function UserManualView({
 
   // Desplazar al inicio al cambiar de capítulo con guardia RBAC
   const handleSelectSection = (id) => {
-    const target = getSectionById(id);
+    const target = getSectionById(id, lang, t);
     if (!isAdmin && target.roleRequired === 'admin') {
       return;
     }
@@ -161,7 +165,7 @@ export default function UserManualView({
       {/* ============================================================ */}
       <aside
         id="manual-sidebar"
-        aria-label="Índice de capítulos del manual"
+        aria-label={t('manual.sidebarAria', 'Índice de capítulos del manual')}
         className={`fixed inset-y-0 left-0 z-50 lg:static lg:z-auto w-80 max-w-[85vw] shrink-0 border-r border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40 bg-white dark:bg-[#161b22] midnight:bg-[#080E1C] flex flex-col h-full shadow-2xl lg:shadow-none transition-transform duration-300 ease-in-out print:hidden ${
           isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
@@ -176,10 +180,10 @@ export default function UserManualView({
               </div>
               <div>
                 <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 midnight:text-cyan-50">
-                  Manual de Usuario
+                  {t('manual.pageTitle', 'Manual de Usuario')}
                 </h1>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 midnight:text-cyan-400/80">
-                  Documentación del Sistema
+                  {t('manual.systemDocs', 'Documentación del Sistema')}
                 </p>
               </div>
             </div>
@@ -187,7 +191,7 @@ export default function UserManualView({
               <button
                 type="button"
                 onClick={handlePrint}
-                title="Imprimir o Exportar PDF de este capítulo"
+                title={t('manual.printChapter', 'Imprimir o Exportar PDF de este capítulo')}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 midnight:text-cyan-400 midnight:hover:bg-cyan-950 transition-colors cursor-pointer"
               >
                 <Printer size={16} />
@@ -195,8 +199,8 @@ export default function UserManualView({
               <button
                 type="button"
                 onClick={() => setIsMobileDrawerOpen(false)}
-                aria-label="Cerrar índice"
-                title="Cerrar índice de capítulos"
+                aria-label={t('manual.closeIndex', 'Cerrar índice')}
+                title={t('manual.closeIndexAria', 'Cerrar índice de capítulos')}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 midnight:text-cyan-400 midnight:hover:bg-cyan-950 transition-colors lg:hidden cursor-pointer"
               >
                 <X size={18} />
@@ -212,13 +216,14 @@ export default function UserManualView({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar contenido o atajos..."
+              placeholder={t('manual.searchPlaceholder', 'Buscar contenido o atajos...')}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-slate-900 midnight:bg-[#0a1120] border border-slate-200 dark:border-slate-700 midnight:border-cyan-800/40 text-slate-900 dark:text-slate-100 midnight:text-cyan-50 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-500"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
+                aria-label={t('manual.clearSearch', 'Limpiar búsqueda')}
                 className="absolute right-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
                 <X size={13} />
@@ -238,7 +243,7 @@ export default function UserManualView({
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                 }`}
               >
-                Todos
+                {t('manual.filterRoleAll', 'Todos los roles')}
               </button>
               <button
                 type="button"
@@ -249,7 +254,7 @@ export default function UserManualView({
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                 }`}
               >
-                Técnico
+                {t('manual.filterRoleTechnical', 'Solo Técnico')}
               </button>
               <button
                 type="button"
@@ -260,13 +265,13 @@ export default function UserManualView({
                     : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
                 }`}
               >
-                Admin
+                {t('manual.filterRoleAdmin', 'Solo Administrador')}
               </button>
             </div>
           ) : (
             <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900 midnight:bg-[#0a1120] border border-slate-200 dark:border-slate-800 text-[11px] flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span>Guías operativas:</span>
-              <span className="font-semibold text-cyan-600 dark:text-cyan-400">Equipo Técnico</span>
+              <span>{t('manual.operationalGuides', 'Guías operativas:')}</span>
+              <span className="font-semibold text-cyan-600 dark:text-cyan-400">{t('common.technicalTeam', 'Equipo Técnico')}</span>
             </div>
           )}
         </div>
@@ -316,22 +321,11 @@ export default function UserManualView({
           })}
           {!filteredSections.length && (
             <div className="p-6 text-center text-xs text-slate-400">
-              No se encontraron capítulos con la búsqueda actual.
+              {t('manual.noResults', 'No se encontraron capítulos para esa búsqueda.')}
             </div>
           )}
         </nav>
 
-        {/* Pie de navegación rápida con atajos (oculto en móviles/táctil) */}
-        {!isMobile && (
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800 midnight:border-cyan-900/30 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-[#11161d]">
-            <div className="flex items-center justify-between text-[10px]">
-              <span>Atajo global del manual:</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 midnight:bg-cyan-950 font-mono text-cyan-600 dark:text-cyan-400">
-                {formatShortcut('Shift + 8')}
-              </kbd>
-            </div>
-          </div>
-        )}
       </aside>
 
       {/* ============================================================ */}
@@ -346,11 +340,11 @@ export default function UserManualView({
           <button
             type="button"
             onClick={() => setIsMobileDrawerOpen(true)}
-            aria-label="Abrir índice de capítulos"
+            aria-label={t('manual.closeIndexAria', 'Abrir índice de capítulos')}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
           >
             <Menu size={16} />
-            <span>Capítulos</span>
+            <span>{t('manual.chapters', 'Capítulos')}</span>
             <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300">
               {currentSection.number !== '0' ? `Cap. ${currentSection.number}` : 'Intro'}
             </span>
@@ -363,8 +357,8 @@ export default function UserManualView({
           <button
             type="button"
             onClick={handlePrint}
-            title="Imprimir o Exportar PDF"
-            aria-label="Imprimir capítulo"
+            title={t('manual.printChapter', 'Imprimir o Exportar PDF')}
+            aria-label={t('manual.printChapter', 'Imprimir capítulo')}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white midnight:text-cyan-400"
           >
             <Printer size={16} />
@@ -382,10 +376,10 @@ export default function UserManualView({
                 </div>
                 <div>
                   <h2 className="text-xs font-bold text-slate-900 dark:text-slate-100 midnight:text-cyan-50 uppercase tracking-wider">
-                    Acceso Directo al Sistema
+                    {t('manual.directAccess', 'Acceso Directo al Sistema')}
                   </h2>
                   <p className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200/90">
-                    Puedes ir a este módulo directamente o usar su atajo de teclado:
+                    {t('manual.directAccessDesc', 'Puedes ir a este módulo directamente o usar su atajo de teclado:')}
                   </p>
                 </div>
               </div>
@@ -394,7 +388,7 @@ export default function UserManualView({
                 onClick={() => onNavigate(currentSection.targetModule)}
                 className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
               >
-                <span>Abrir Módulo</span>
+                <span>{t('manual.goToView', 'Ir a la vista')}</span>
                 {currentSection.moduleShortcut && (
                   <kbd className="px-1.5 py-0.5 rounded bg-slate-950/20 text-[10px] font-mono">
                     {formatShortcut(currentSection.moduleShortcut)}
@@ -490,7 +484,7 @@ export default function UserManualView({
                 // Renderizado interactivo de imágenes con botón de zoom y Lightbox
                 img: ({ node, src, alt, ...props }) => {
                   // Normalizar rutas relativas del manual (../assets/manual/ -> /assets/manual/)
-                  const normalizedSrc = (src || '').replace(/^\.\.\/assets\/manual\//, '/assets/manual/');
+                  const normalizedSrc = (src || '').replace(/^(\.\.\/)+assets\/manual\//, '/assets/manual/');
                   return (
                     <figure className="my-8 flex flex-col items-center">
                       <div
@@ -509,7 +503,7 @@ export default function UserManualView({
                         >
                           <div className="px-3 py-1.5 rounded-lg bg-slate-950/80 border border-white/20 flex items-center gap-1.5 shadow-lg">
                             <Maximize2 size={14} />
-                            <span>Ampliar imagen</span>
+                            <span>{t('manual.zoomImageAria', 'Ampliar imagen')}</span>
                           </div>
                         </div>
                       </div>
@@ -525,17 +519,17 @@ export default function UserManualView({
                   // Manejar enlaces internos hacia otros capítulos del manual con protección RBAC
                   if (href && href.startsWith('./') && href.endsWith('.md')) {
                     const targetFile = href.replace('./', '');
-                    const matched = MANUAL_SECTIONS.find((s) => s.filename === targetFile);
+                    const matched = localizedSections.find((s) => s.filename === targetFile);
                     if (matched) {
                       if (!isAdmin && matched.roleRequired === 'admin') {
                         return (
                           <span
                             className="inline-flex items-center gap-1.5 text-slate-400 dark:text-slate-500 line-through cursor-not-allowed select-none opacity-60"
-                            title="Acceso restringido: Requiere rol de Administrador"
+                            title={t('manual.restrictedAccess', 'Acceso restringido: Requiere rol de Administrador')}
                           >
                             <span>{children}</span>
                             <span className="text-[9px] font-sans no-underline font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-amber-600 dark:text-amber-400">
-                              Solo Admin
+                              {t('manual.onlyAdmin', 'Solo Admin')}
                             </span>
                           </span>
                         );
@@ -580,7 +574,7 @@ export default function UserManualView({
                 className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 midnight:border-cyan-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 midnight:hover:bg-cyan-950 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
               >
                 <ChevronLeft size={16} />
-                <span className="truncate">Anterior: {prevSection.shortTitle}</span>
+                <span className="truncate">{t('manual.prevChapter', 'Capítulo anterior')}: {prevSection.shortTitle}</span>
               </button>
             ) : <div className="hidden sm:block" />}
 
@@ -590,7 +584,7 @@ export default function UserManualView({
                 onClick={() => handleSelectSection(nextSection.id)}
                 className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-md cursor-pointer sm:ml-auto"
               >
-                <span className="truncate">Siguiente: {nextSection.shortTitle}</span>
+                <span className="truncate">{t('manual.nextChapter', 'Capítulo siguiente')}: {nextSection.shortTitle}</span>
                 <ChevronRight size={16} />
               </button>
             )}
@@ -613,7 +607,8 @@ export default function UserManualView({
               type="button"
               onClick={() => setZoomedImage(null)}
               className="absolute -top-12 right-0 p-2 rounded-full bg-slate-800/80 hover:bg-slate-700 text-white transition-colors cursor-pointer"
-              title="Cerrar (Esc)"
+              title={t('manual.closeZoomAria', 'Cerrar (Esc)')}
+              aria-label={t('manual.closeZoomAria', 'Cerrar ampliación')}
             >
               <X size={20} />
             </button>

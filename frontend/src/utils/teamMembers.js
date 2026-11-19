@@ -1,3 +1,5 @@
+import { normalizeTeamMemberRecords } from './teamMemberCache.js';
+
 const AREA_ALIASES = {
   arquitectura: 'architecture',
   architecture: 'architecture',
@@ -101,8 +103,12 @@ function getStableId(member, prefix) {
 }
 
 /**
- * Convierte los nombres usados por Django y por las vistas al estado canónico
- * que comparten Equipo Técnico y Recursos Humanos.
+ * Convierte los nombres y cadenas de estado usados por Django REST Framework y las vistas
+ * al código canónico unificado ('active' | 'standby' | 'support' | 'offline').
+ *
+ * @param {string|Object} value - Cadena de estado o registro relacional con campo status / name.
+ * @param {boolean} [isActive=true] - Indicador booleano is_active para desactivación forzada.
+ * @returns {'active'|'standby'|'support'|'offline'} Estado canónico normalizado.
  */
 export function normalizeTeamStatus(value, isActive = true) {
   if (value && typeof value === 'object') {
@@ -119,7 +125,13 @@ export function normalizeTeamStatus(value, isActive = true) {
   return 'offline';
 }
 
-/** Mapea un registro TeamMember de Django al contrato visual de Equipo Técnico. */
+/**
+ * Mapea un registro TeamMember de Django al contrato de datos consumido por la vista de Equipo Técnico.
+ * Genera IDs estables ('tech-db-{id}'), resuelve el área normalizada, formatea el teléfono y calcula el workload.
+ *
+ * @param {Object} [member={}] - Registro de integrante retornado por la API de Django.
+ * @returns {Object} Integrante adaptado al contrato visual de Equipo Técnico sin mutar el original.
+ */
 export function mapTeamMemberToTechnical(member = {}) {
   const names = getNames(member);
   const area = normalizeAreaCode(
@@ -150,7 +162,13 @@ export function mapTeamMemberToTechnical(member = {}) {
   };
 }
 
-/** Mapea el mismo TeamMember de Django al contrato visual de Recursos Humanos. */
+/**
+ * Mapea el mismo registro TeamMember de Django al contrato de datos requerido por Recursos Humanos.
+ * Concatena nombres en 'name', resuelve el nombre legible de área y adapta estados inactivos a 'standby'.
+ *
+ * @param {Object} [member={}] - Registro de integrante retornado por la API de Django.
+ * @returns {Object} Integrante adaptado al contrato visual de Recursos Humanos sin mutar el original.
+ */
 export function mapTeamMemberToHumanResources(member = {}) {
   const names = getNames(member);
   const areaCode = normalizeAreaCode(
@@ -178,5 +196,14 @@ export function mapTeamMemberToHumanResources(member = {}) {
     availability: normalizePercentage(availability),
   };
 }
+
+/** Alias semántico para mapTeamMemberToTechnical */
+export const mapTeamMemberToTechnicalContract = mapTeamMemberToTechnical;
+
+/** Alias semántico para mapTeamMemberToHumanResources */
+export const mapTeamMemberToHrContract = mapTeamMemberToHumanResources;
+
+/** Alias semántico para normalizar listas y páginas DRF */
+export const normalizeMemberList = normalizeTeamMemberRecords;
 
 export { normalizeAreaCode, normalizePercentage };
