@@ -518,6 +518,135 @@ class TaskSerializer(serializers.ModelSerializer):
             return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}"
         return None
 
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'startDate' in data and 'start_date' not in data:
+            data['start_date'] = data['startDate']
+        if 'endDate' in data and 'end_date' not in data:
+            data['end_date'] = data['endDate']
+        elif 'dueDate' in data and 'end_date' not in data:
+            data['end_date'] = data['dueDate']
+        if 'projectId' in data and 'project' not in data:
+            data['project'] = data['projectId']
+        if 'assignedTo' in data and 'assigned_to' not in data:
+            data['assigned_to'] = data['assignedTo']
+        if 'critical' in data and 'is_critical_path' not in data:
+            data['is_critical_path'] = data['critical']
+        if 'tolerance' in data and 'tolerance_days' not in data:
+            data['tolerance_days'] = data['tolerance']
+        return super().to_internal_value(data)
+
+    def create(self, validated_data):
+        creator = validated_data.pop('creator', None)
+        priority = validated_data.pop('priority', None)
+        due_date = validated_data.pop('due_date', None)
+
+        request = self.context.get('request')
+        if not creator and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            creator = request.user
+
+        if not creator and request and hasattr(request, 'data'):
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+                or request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        predecessors = validated_data.pop('predecessors', None)
+        instance = Task(**validated_data)
+
+        if creator:
+            instance._assigned_by = creator
+            instance.created_by = creator
+        elif request and hasattr(request, 'data'):
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
+        if priority:
+            instance._priority = priority
+        elif request and hasattr(request, 'data') and request.data.get('priority'):
+            instance._priority = request.data.get('priority')
+
+        if due_date:
+            instance._due_date = due_date
+        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date')):
+            instance._due_date = request.data.get('dueDate') or request.data.get('due_date')
+
+        instance.save()
+        if predecessors:
+            instance.predecessors.set(predecessors)
+        return instance
+
+    def update(self, instance, validated_data):
+        creator = validated_data.pop('creator', None)
+        priority = validated_data.pop('priority', None)
+        due_date = validated_data.pop('due_date', None)
+
+        request = self.context.get('request')
+        if not creator and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            creator = request.user
+
+        if not creator and request and hasattr(request, 'data'):
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+                or request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        predecessors = validated_data.pop('predecessors', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if creator:
+            instance._assigned_by = creator
+            instance.created_by = creator
+        elif request and hasattr(request, 'data'):
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
+        if priority:
+            instance._priority = priority
+        elif request and hasattr(request, 'data') and request.data.get('priority'):
+            instance._priority = request.data.get('priority')
+
+        if due_date:
+            instance._due_date = due_date
+        elif request and hasattr(request, 'data') and (request.data.get('dueDate') or request.data.get('due_date')):
+            instance._due_date = request.data.get('dueDate') or request.data.get('due_date')
+
+        instance.save()
+        if predecessors is not None:
+            instance.predecessors.set(predecessors)
+        return instance
+
 
 class DriveLinkSerializer(serializers.ModelSerializer):
     """

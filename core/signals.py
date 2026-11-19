@@ -114,6 +114,10 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
     if not instance.project:
         return
 
+    # Si se marcó para ignorar (ej. durante la creación de un nuevo proyecto, ya cubierto por project.created)
+    if getattr(instance, '_skip_leader_assigned_signal', False):
+        return
+
     # Verificar si el rol corresponde a una posición de liderazgo / gestión
     is_leader = False
     if instance.role:
@@ -124,16 +128,41 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
         )
 
     old_project_id = getattr(instance, '_old_project_id', None)
-    # Disparar solo si es líder y es una asignación nueva o un cambio de proyecto
-    if is_leader and (created or old_project_id != instance.project_id):
+    is_explicit_assignment = getattr(instance, '_is_leader_assignment', False)
+
+    # Disparar si es líder y es una asignación explícita, nueva creación o cambio de proyecto
+    if is_leader and (is_explicit_assignment or created or old_project_id != instance.project_id):
+        creator = (
+            getattr(instance, '_assigned_by', None)
+            or getattr(instance, 'created_by', None)
+            or getattr(instance, 'assigned_by', None)
+            or getattr(instance, 'owner', None)
+        )
+        creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+        creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+        if creator:
+            creator_email = getattr(creator, 'email', '') or creator_email
+            creator_name = (
+                getattr(creator, 'username', '')
+                or (creator.get_username() if hasattr(creator, 'get_username') else '')
+                or getattr(creator, 'get_full_name', lambda: '')()
+                or str(creator)
+            )
+
+        leader_name = f"{instance.first_name} {instance.last_name}".strip()
+        leader_role = instance.role.name if instance.role else 'Líder Técnico'
+
         payload = {
-            'project_id': instance.project.id,
-            'project_code': instance.project.code,
             'project_name': instance.project.name,
+            'project_code': instance.project.code,
+            'leader_name': leader_name,
+            'leader_email': instance.email or '',
+            'leader_role': leader_role,
+            'creator_name': creator_name,
+            'creator_email': creator_email,
+            'project_id': instance.project.id,
             'leader_id': instance.id,
-            'leader_name': f"{instance.first_name} {instance.last_name}".strip(),
-            'leader_email': instance.email,
-            'leader_role': instance.role.name if instance.role else 'Líder Técnico',
             'technical_area': instance.technical_area.name if instance.technical_area else '',
         }
         _dispatch_async_webhook(event='project.leader_assigned', data=payload)
@@ -168,25 +197,59 @@ def handle_task_assigned(sender, instance, created, **kwargs):
         assigned_member = instance.assigned_to
         system_user = User.objects.filter(email__iexact=assigned_member.email).first()
 
+        creator = (
+            getattr(instance, '_assigned_by', None)
+            or getattr(instance, 'created_by', None)
+            or getattr(instance, 'assigned_by', None)
+            or getattr(instance, 'owner', None)
+        )
+        creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+        creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+        if creator:
+            creator_email = getattr(creator, 'email', '') or creator_email
+            creator_name = (
+                getattr(creator, 'username', '')
+                or (creator.get_username() if hasattr(creator, 'get_username') else '')
+                or getattr(creator, 'get_full_name', lambda: '')()
+                or str(creator)
+            )
+
+        priority = getattr(instance, '_priority', None) or ('Alta' if instance.is_critical_path else 'Media')
+        due_date = getattr(instance, '_due_date', None) or (str(instance.end_date) if instance.end_date else '')
+        project_name = instance.project.name if instance.project else ''
+        project_code = instance.project.code if instance.project else ''
+        assignee_name = f"{assigned_member.first_name} {assigned_member.last_name}".strip()
+        assignee_email = assigned_member.email or ''
+
         payload = {
+            'title': instance.title,
+            'project_name': project_name,
+            'project_code': project_code,
+            'priority': priority,
+            'due_date': str(due_date),
+            'assignee_name': assignee_name,
+            'assignee_email': assignee_email,
+            'creator_name': creator_name,
+            'creator_email': creator_email,
             'task_id': instance.id,
             'task_title': instance.title,
             'task_description': instance.description or '',
-            'start_date': str(instance.start_date),
-            'end_date': str(instance.end_date),
+            'start_date': str(instance.start_date) if instance.start_date else '',
+            'end_date': str(instance.end_date) if instance.end_date else '',
             'duration_days': instance.duration_days,
             'status': instance.get_status_display(),
             'is_critical_path': instance.is_critical_path,
             'project': {
-                'id': instance.project.id,
-                'code': instance.project.code,
-                'name': instance.project.name,
+                'id': instance.project.id if instance.project else None,
+                'code': project_code,
+                'name': project_name,
             },
             'assignee': {
                 'id': assigned_member.id,
-                'name': f"{assigned_member.first_name} {assigned_member.last_name}".strip(),
-                'email': assigned_member.email,
-                'username': system_user.username if system_user else assigned_member.email.split('@')[0],
+                'name': assignee_name,
+                'email': assignee_email,
+                'username': system_user.username if system_user else (assignee_email.split('@')[0] if assignee_email else ''),
                 'technical_area': assigned_member.technical_area.name if assigned_member.technical_area else '',
                 'role': assigned_member.role.name if assigned_member.role else '',
             }

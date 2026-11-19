@@ -594,6 +594,8 @@ export default function Portfolio({
           onClose={() => setEditingProject(null)}
           teamMembers={teamMembers}
           isAdmin={isAdmin}
+          currentUser={currentUser}
+          currentUserName={currentUserName}
         />
       )}
       {deletingProject && isAdmin && (

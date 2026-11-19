@@ -571,6 +571,11 @@ class MakeSignalsIntegrationTests(TestCase):
             email="lucas.vargas@polyline.com",
             password="SecurePassword123!",
         )
+        self.user_admin = User.objects.create_superuser(
+            username="admin_user",
+            email="admin@polyline.com",
+            password="SecurePassword123!",
+        )
 
     @patch("core.services.make_service.send_make_webhook")
     def test_project_created_signal_dispatches_webhook(self, mock_send):
@@ -729,14 +734,75 @@ class MakeSignalsIntegrationTests(TestCase):
         mock_send.assert_called_once()
         kwargs = mock_send.call_args[1]
         self.assertEqual(kwargs.get("event"), "project.leader_assigned")
-        self.assertEqual(kwargs.get("data", {}).get("project_code"), "PRJ-TEST-001")
-        self.assertEqual(kwargs.get("data", {}).get("leader_email"), "elena.rostova@polyline.com")
-        self.assertEqual(kwargs.get("data", {}).get("leader_role"), "Líder de Proyecto")
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+        self.assertIn("creator_name", data)
+        self.assertIn("creator_email", data)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_leader_assigned_via_api_update_with_authenticated_user(self, mock_send):
+        """Al editar un proyecto y asignarle un nuevo líder de obra, despacha project.leader_assigned con datos de request.user."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/projects/{self.project.id}/",
+            {"leaderId": self.member_leader.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Buscar el despacho de project.leader_assigned
+        leader_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.leader_assigned":
+                leader_call = call[1]
+                break
+
+        self.assertIsNotNone(leader_call, "El evento project.leader_assigned debió despacharse")
+        data = leader_call.get("data", {})
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_creation_does_not_duplicate_leader_assigned_event(self, mock_send):
+        """Al crear un nuevo proyecto con líder, solo se despacha project.created y no se duplica project.leader_assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "code": "PRJ-NO-DUP-001",
+            "name": "Edificio Singular",
+            "start_date": "2026-09-01",
+            "end_date": "2027-03-01",
+            "totalBudget": "450000.00",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        events_dispatched = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertIn("project.created", events_dispatched)
+        self.assertNotIn("project.leader_assigned", events_dispatched, "No debe duplicar project.leader_assigned en creación")
 
     @patch("core.services.make_service.send_make_webhook")
     def test_task_assigned_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
-        Task.objects.create(
+        task = Task(
             project=self.project,
             category=self.area,
             assigned_to=self.member_dev,
@@ -746,13 +812,130 @@ class MakeSignalsIntegrationTests(TestCase):
             end_date="2026-03-20",
             duration_days=15,
         )
+        task.created_by = self.user_dev
+        task.save()
+
         mock_send.assert_called_once()
         kwargs = mock_send.call_args[1]
         self.assertEqual(kwargs.get("event"), "task.assigned")
-        self.assertEqual(kwargs.get("data", {}).get("task_title"), "Diseño de Conexiones Metálicas")
-        self.assertEqual(kwargs.get("data", {}).get("assignee", {}).get("email"), "lucas.vargas@polyline.com")
-        self.assertEqual(kwargs.get("data", {}).get("assignee", {}).get("username"), "lucas_vargas")
-        self.assertNotIn("password", kwargs.get("data", {}).get("assignee", {}))
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("title"), "Diseño de Conexiones Metálicas")
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("priority"), "Media")
+        self.assertEqual(data.get("due_date"), "2026-03-20")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_via_api_post_with_authenticated_user(self, mock_send):
+        """Al crear una tarea con responsable vía TaskViewSet, despacha task.assigned con datos completos."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "project": self.project.id,
+            "category": self.area.id,
+            "assigned_to": self.member_dev.id,
+            "title": "Modelado de Zapatas Aisladas",
+            "description": "Detallado estructural de zapatas en Revit",
+            "start_date": "2026-04-01",
+            "end_date": "2026-04-15",
+            "priority": "Alta",
+        }
+
+        response = api_client.post("/api/tasks/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Modelado de Zapatas Aisladas")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-04-15")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_reassigned_via_api_patch_triggers_task_assigned(self, mock_send):
+        """Al reasignar una tarea existente a otro usuario vía TaskViewSet, despacha task.assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        task = Task.objects.create(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Revisión de Planos de Encofrados",
+            start_date="2026-04-01",
+            end_date="2026-04-10",
+        )
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"assigned_to": self.member_leader.id, "priority": "Alta"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse tras reasignación")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Revisión de Planos de Encofrados")
+        self.assertEqual(data.get("assignee_name"), "Elena Rostova")
+        self.assertEqual(data.get("assignee_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-04-10")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_updated_without_assignee_change_does_not_trigger_task_assigned(self, mock_send):
+        """Al editar solo el título de una tarea sin cambiar responsable, NO despacha task.assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        task = Task.objects.create(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Tarea Inicial",
+            start_date="2026-04-01",
+            end_date="2026-04-10",
+        )
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"title": "Tarea con Nuevo Título"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        events = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertNotIn("task.assigned", events)
 
     @patch("core.services.make_service.send_make_webhook")
     def test_meeting_created_signal_dispatches_webhook(self, mock_send):

@@ -840,6 +840,20 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         )
 
         previous = capture_member_state(serializer.instance)
+
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if creator:
+            serializer.instance._assigned_by = creator
+            serializer.instance.created_by = creator
+        else:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                serializer.instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                serializer.instance._fallback_creator_email = fallback_email
+
         member = serializer.save()
         current = capture_member_state(member)
         if build_field_changes(previous, current):
@@ -1054,8 +1068,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if fallback_email:
                 project._fallback_creator_email = fallback_email
 
-        # 4. Persistir relación del líder con el proyecto en base de datos
+        # 4. Persistir relación del líder con el proyecto en base de datos (sin duplicar señal project.leader_assigned)
         if selected_leader:
+            selected_leader._skip_leader_assigned_signal = True
             selected_leader.project = project
             selected_leader.save(update_fields=['project'])
 
@@ -1070,6 +1085,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
         user = getattr(request, 'user', None)
         is_admin_user = bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
 
         request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         if user and user.is_authenticated and not is_admin_user:
@@ -1095,8 +1127,31 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     from .models import TeamMember
                     leader = TeamMember.objects.filter(id=int(leader_val)).first()
                     if leader:
-                        leader.project = project
-                        leader.save(update_fields=['project'])
+                        current_leader = (
+                            project.team_members.filter(role__can_manage_projects=True).first()
+                            or project.team_members.first()
+                        )
+                        leader_changed = (
+                            (not current_leader)
+                            or (current_leader.id != leader.id)
+                            or (leader.project_id != project.id)
+                        )
+
+                        if leader_changed:
+                            if creator:
+                                leader._assigned_by = creator
+                                leader.created_by = creator
+                            else:
+                                fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+                                fallback_email = request.data.get('creator_email')
+                                if fallback_name:
+                                    leader._fallback_creator_name = fallback_name
+                                if fallback_email:
+                                    leader._fallback_creator_email = fallback_email
+
+                            leader._is_leader_assignment = True
+                            leader.project = project
+                            leader.save()
                 except (ValueError, TypeError):
                     pass
 
@@ -1174,6 +1229,58 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        serializer.save(
+            creator=creator,
+            priority=self.request.data.get('priority'),
+            due_date=self.request.data.get('due_date') or self.request.data.get('dueDate')
+        )
+
+    def perform_update(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        serializer.save(
+            creator=creator,
+            priority=self.request.data.get('priority'),
+            due_date=self.request.data.get('due_date') or self.request.data.get('dueDate')
+        )
 
 
 class PerformanceMetricViewSet(viewsets.ModelViewSet):

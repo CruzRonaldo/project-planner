@@ -55,7 +55,9 @@ export const projectsApi = {
    * @param {Object} projectData Campos actualizados
    */
   updateProject: async (id, projectData) => {
-    const response = await api.patch(`/projects/${id}/`, projectData);
+    const response = await api.patch(`/projects/${id}/`, projectData, {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 
@@ -107,6 +109,29 @@ export const projectsApi = {
    */
   getTasks: async (params = {}) => {
     const response = await api.get('/tasks/', { params });
+    return response.data;
+  },
+
+  /**
+   * Registra una nueva tarea operativa en la Base de Datos.
+   * @param {Object} taskData
+   */
+  createTask: async (taskData) => {
+    const response = await api.post('/tasks/', taskData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /**
+   * Actualiza parcialmente una tarea operativa en la Base de Datos.
+   * @param {string|number} id
+   * @param {Object} taskData
+   */
+  updateTask: async (id, taskData) => {
+    const response = await api.patch(`/tasks/${id}/`, taskData, {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 

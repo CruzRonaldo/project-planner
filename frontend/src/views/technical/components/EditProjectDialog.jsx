@@ -16,6 +16,8 @@ export default function EditProjectDialog({
   onClose,
   teamMembers = [],
   isAdmin = false,
+  currentUser = null,
+  currentUserName = '',
 }) {
   const leadersList =
     teamMembers.length > 0
@@ -85,6 +87,9 @@ export default function EditProjectDialog({
             ? project.leaderId || draft.leaderId
             : draft.leaderId,
           totalBudget: numericBudget,
+          creator_email: currentUser?.email || '',
+          creator_name: currentUser?.username || currentUser?.name || currentUserName || '',
+          createdBy: currentUserName || currentUser?.name || currentUser?.username || '',
         }),
       {
         setLoading: setIsSubmitting,
