@@ -11,7 +11,7 @@ class BackupMaintenanceMiddleware:
         try:
             active = restoration_active()
         except (BackupError, OSError):
-            active = True
+            active = False
         if active:
             response = JsonResponse(
                 {"detail": "Mantenimiento de respaldos. Espera y vuelve a intentar."},

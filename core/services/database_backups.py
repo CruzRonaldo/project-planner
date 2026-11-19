@@ -160,13 +160,39 @@ def file_lock(name):
 
 
 def restoration_active():
+    """Comprueba si hay una restauración activa sin bloquear a otros lectores concurrentes."""
+    lock_path = backup_directory() / ".restore.lock"
+    if not lock_path.exists():
+        return False
     try:
-        with file_lock(".restore.lock"):
-            return False
-    except BackupError as error:
-        if error.status == 409:
-            return True
-        raise
+        handle = lock_path.open("a+b")
+    except OSError:
+        return False
+
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0)
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                return False
+            except OSError:
+                return True
+        else:
+            import fcntl
+            try:
+                # Se utiliza LOCK_SH (bloqueo compartido) en lugar de LOCK_EX (bloqueo exclusivo).
+                # De esta forma, múltiples peticiones concurrentes pueden comprobar el cerrojo sin colisionar.
+                # Si una restauración está en curso (manteniendo LOCK_EX), LOCK_SH fallará con BlockingIOError.
+                fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                return False
+            except (BlockingIOError, OSError):
+                return True
+    finally:
+        handle.close()
 
 
 def resolve_backup(filename):
