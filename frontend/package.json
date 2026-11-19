@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test tests/*.test.mjs",
+    "manual:translate": "node scripts/translate-manual.mjs",
     "test:hr": "node --test tests/humanResources.test.mjs",
     "test:integrations": "node --test tests/integrations.test.mjs",
     "test:team": "node --test tests/technicalTeam.test.mjs",
