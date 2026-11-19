@@ -580,6 +580,7 @@ export default function Portfolio({
       {dialogOpen && canManage && (
         <NewProjectDialog
           data={data}
+          currentUser={currentUser}
           currentUserName={currentUserName}
           onSubmit={createProject}
           onClose={() => setDialogOpen(false)}

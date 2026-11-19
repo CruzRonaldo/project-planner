@@ -23,6 +23,7 @@ const baseURL = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
 // multipart/form-data para archivos (cuando se pase FormData)
 const api = axios.create({
   baseURL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,10 +35,22 @@ api.interceptors.request.use((requestConfig) => {
 
   try {
     const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user') || 'null');
-    const sessionToken = savedUser?.session_token;
-    if (sessionToken && !requestConfig.headers?.Authorization) {
-      requestConfig.headers = requestConfig.headers || {};
-      requestConfig.headers.Authorization = `Bearer ${sessionToken}`;
+    const sessionToken =
+      savedUser?.session_token ||
+      window.localStorage.getItem('project_planner_session_token') ||
+      window.localStorage.getItem('project_planner_token');
+
+    if (sessionToken) {
+      if (typeof requestConfig.headers?.set === 'function') {
+        if (!requestConfig.headers.get('Authorization')) {
+          requestConfig.headers.set('Authorization', `Bearer ${sessionToken}`);
+        }
+      } else {
+        requestConfig.headers = requestConfig.headers || {};
+        if (!requestConfig.headers.Authorization) {
+          requestConfig.headers.Authorization = `Bearer ${sessionToken}`;
+        }
+      }
     }
   } catch {
     // Una sesión local dañada será tratada por el controlador de la aplicación.

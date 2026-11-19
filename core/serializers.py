@@ -670,6 +670,22 @@ class ProjectSerializer(serializers.ModelSerializer):
         if not created_by and request and getattr(request, 'user', None) and request.user.is_authenticated:
             created_by = request.user
 
+        if not created_by and request and hasattr(request, 'data'):
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                created_by = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
         if not selected_leader and request and hasattr(request, 'data'):
             leader_val = request.data.get('leaderId') or request.data.get('leader_id')
             if leader_val:
@@ -682,6 +698,14 @@ class ProjectSerializer(serializers.ModelSerializer):
         instance = Project(**validated_data)
         if created_by:
             instance.created_by = created_by
+        elif request and hasattr(request, 'data'):
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
         if selected_leader:
             instance._selected_leader = selected_leader
 

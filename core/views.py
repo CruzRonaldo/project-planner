@@ -49,6 +49,7 @@ from .models import (
     TwoFactorProfile,
 )
 
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from .authentication import PasswordBoundAuthentication, issue_session_token
 
@@ -1007,6 +1008,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     CRUD principal para Proyectos y Portafolio
     """
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
     serializer_class = ProjectSerializer
 
@@ -1021,15 +1023,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
             except (ValueError, TypeError):
                 pass
 
-        # 2. Identificar usuario creador autenticado
+        # 2. Identificar usuario creador autenticado (con fallback tolerante a request.data)
         user = getattr(request, 'user', None)
         creator = user if user and user.is_authenticated else None
+
+        if not creator:
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.db.models import Q
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         # 3. Guardar pasando creador y líder seleccionado en memoria para post_save
         project = serializer.save(created_by=creator, selected_leader=selected_leader)
+        if not creator:
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                project._fallback_creator_name = fallback_name
+            if fallback_email:
+                project._fallback_creator_email = fallback_email
 
         # 4. Persistir relación del líder con el proyecto en base de datos
         if selected_leader:
@@ -1125,6 +1148,7 @@ class MilestoneViewSet(viewsets.ModelViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     """CRUD para tareas operativas."""
 
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Task.objects.select_related(
         "project",
         "category",

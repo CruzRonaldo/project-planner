@@ -3,7 +3,10 @@ import api from './api';
 function getActorHeaders() {
   try {
     const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
-    const sessionToken = savedUser?.session_token;
+    const sessionToken =
+      savedUser?.session_token ||
+      window.localStorage.getItem('project_planner_session_token') ||
+      window.localStorage.getItem('project_planner_token');
     return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
   } catch {
     return {};
@@ -19,7 +22,9 @@ export const projectsApi = {
    * Obtiene la lista completa de proyectos registrados en la base de datos.
    */
   getProjects: async () => {
-    const response = await api.get('/projects/');
+    const response = await api.get('/projects/', {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 
@@ -30,7 +35,9 @@ export const projectsApi = {
    * @returns {Promise<Object>} Proyecto creado y resultado de la notificación Make
    */
   createProject: async (projectData) => {
-    const response = await api.post('/projects/', projectData);
+    const response = await api.post('/projects/', projectData, {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 

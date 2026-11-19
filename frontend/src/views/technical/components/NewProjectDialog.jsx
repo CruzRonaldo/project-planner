@@ -20,6 +20,7 @@ function isoDate(date) {
 
 export default function NewProjectDialog({
   data,
+  currentUser = null,
   currentUserName,
   onSubmit,
   onClose,
@@ -48,7 +49,9 @@ export default function NewProjectDialog({
     leaderId: leadersList[0]?.id || 1,
     driveFolder: "",
     description: "",
-    createdBy: currentUserName,
+    createdBy: currentUserName || currentUser?.name || currentUser?.username || '',
+    creator_email: currentUser?.email || '',
+    creator_name: currentUser?.username || currentUser?.name || currentUserName || '',
   });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -43,13 +43,13 @@ def _dispatch_async_webhook(event: str, data: dict):
 def handle_project_saved(sender, instance, created, **kwargs):
     assigned_leader = getattr(instance, '_selected_leader', None) or instance.team_members.first()
 
-    # Extraer información del creador (soporta campos o atributos created_by u owner)
+    # Extraer información del creador (soporta campos o atributos created_by u owner, o fallback en memoria)
     creator = getattr(instance, 'created_by', None) or getattr(instance, 'owner', None)
-    creator_email = ''
-    creator_name = ''
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
 
     if creator:
-        creator_email = getattr(creator, 'email', '') or ''
+        creator_email = getattr(creator, 'email', '') or creator_email
         creator_name = (
             getattr(creator, 'username', '')
             or (creator.get_username() if hasattr(creator, 'get_username') else '')

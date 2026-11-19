@@ -650,6 +650,77 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
 
     @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_with_bearer_token_authenticates_creator_realistically(self, mock_send):
+        """Simula una llamada real desde React con el header Authorization: Bearer <session_token>."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "code": "PRJ-BEARER-001",
+            "name": "Complejo Residencial Las Palmas",
+            "description": "Edificio multifamiliar de 12 pisos",
+            "start_date": "2026-07-01",
+            "end_date": "2027-02-01",
+            "duration_months": 7,
+            "budget": "920000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("code"), "PRJ-BEARER-001")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_with_body_fallback_resolves_creator_when_anonymous(self, mock_send):
+        """Si la petición no incluye Authorization header, resuelve el creador desde los campos del formulario."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        api_client = APIClient()
+
+        payload = {
+            "code": "PRJ-FALLBACK-001",
+            "name": "Planta Solar Desierto",
+            "description": "Parque fotovoltaico 50MW",
+            "start_date": "2026-08-01",
+            "end_date": "2027-04-01",
+            "duration_months": 8,
+            "budget": "1500000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+            "createdBy": "lucas_vargas",
+            "creator_email": "lucas.vargas@polyline.com",
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+
+    @patch("core.services.make_service.send_make_webhook")
     def test_leader_assigned_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
         self.member_leader.project = self.project
