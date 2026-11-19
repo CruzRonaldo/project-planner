@@ -662,6 +662,32 @@ class ProjectSerializer(serializers.ModelSerializer):
 
         return super().to_internal_value(data)
 
+    def create(self, validated_data):
+        created_by = validated_data.pop('created_by', None)
+        selected_leader = validated_data.pop('selected_leader', None)
+
+        request = self.context.get('request')
+        if not created_by and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            created_by = request.user
+
+        if not selected_leader and request and hasattr(request, 'data'):
+            leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+            if leader_val:
+                try:
+                    from .models import TeamMember
+                    selected_leader = TeamMember.objects.filter(id=int(leader_val)).first()
+                except (ValueError, TypeError):
+                    pass
+
+        instance = Project(**validated_data)
+        if created_by:
+            instance.created_by = created_by
+        if selected_leader:
+            instance._selected_leader = selected_leader
+
+        instance.save()
+        return instance
+
     def to_representation(self, obj):
         rep = super().to_representation(obj)
 

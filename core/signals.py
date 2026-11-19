@@ -41,7 +41,7 @@ def _dispatch_async_webhook(event: str, data: dict):
 # =========================================================================
 @receiver(post_save, sender=Project)
 def handle_project_saved(sender, instance, created, **kwargs):
-    assigned_leader = instance.team_members.first()
+    assigned_leader = getattr(instance, '_selected_leader', None) or instance.team_members.first()
 
     # Extraer información del creador (soporta campos o atributos created_by u owner)
     creator = getattr(instance, 'created_by', None) or getattr(instance, 'owner', None)

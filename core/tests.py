@@ -612,6 +612,44 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertEqual(kwargs.get("data", {}).get("creator_name"), "")
 
     @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_includes_both_creator_and_leader(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.user_dev)
+
+        payload = {
+            "code": "PRJ-API-001",
+            "name": "Centro de Distribución Aeropuerto",
+            "description": "Nave industrial automatizada",
+            "start_date": "2026-06-01",
+            "end_date": "2026-12-01",
+            "duration_months": 6,
+            "budget": "750000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("code"), "PRJ-API-001")
+        # Validar datos del creador
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        # Validar datos del líder de obra
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+
+    @patch("core.services.make_service.send_make_webhook")
     def test_leader_assigned_signal_dispatches_webhook(self, mock_send):
         mock_send.return_value = {"success": True, "status_code": 200}
         self.member_leader.project = self.project

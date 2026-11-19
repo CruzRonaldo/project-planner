@@ -1011,21 +1011,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        project = serializer.save()
-
-        # Asignar líder técnico si fue seleccionado en el frontend
+        # 1. Identificar líder técnico seleccionado en el formulario
         leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        selected_leader = None
         if leader_val:
             try:
                 from .models import TeamMember
-                leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                if leader:
-                    leader.project = project
-                    leader.save(update_fields=['project'])
+                selected_leader = TeamMember.objects.filter(id=int(leader_val)).first()
             except (ValueError, TypeError):
                 pass
+
+        # 2. Identificar usuario creador autenticado
+        user = getattr(request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # 3. Guardar pasando creador y líder seleccionado en memoria para post_save
+        project = serializer.save(created_by=creator, selected_leader=selected_leader)
+
+        # 4. Persistir relación del líder con el proyecto en base de datos
+        if selected_leader:
+            selected_leader.project = project
+            selected_leader.save(update_fields=['project'])
 
         response_data = self.get_serializer(project).data
         headers = self.get_success_headers(response_data)
