@@ -12,6 +12,7 @@ import {
 import api, { baseURL as apiBaseUrl } from '../../services/api';
 import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { runSafe } from '../../utils/asyncHandler';
 import ModalDialog from '../../components/common/ModalDialog';
 import PageHeader from '../../components/common/PageHeader';
@@ -31,6 +32,7 @@ export { IntegrationEditor };
 const googleDriveConnectUrl = `${apiBaseUrl}/integrations/google-drive/connect/`;
 
 export default function Integrations({ data, onChange, query = '', onQueryChange }) {
+  const { t } = useLanguage();
   const [selectedId, setSelectedId] = useState(null);
   const { showToast } = useToast();
   const [feedback, setFeedback] = useState('');
@@ -47,14 +49,16 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
       () => api.get('/integrations/google-drive/status/'),
       {
         showToast: showToastFeedback ? showToast : undefined,
-        successTitle: 'Estado de Google Drive',
+        successTitle: t('toasts.driveStatusTitle', 'Estado de Google Drive'),
         successMessage: (res) => {
           const driveStatus = res?.data;
           return driveStatus?.connected
-            ? `Google Drive conectado correctamente${driveStatus?.email ? `: ${driveStatus.email}` : '.'}`
-            : 'Google Drive todavía no está conectado.';
+            ? (driveStatus?.email
+                ? t('toasts.driveConnectedWithEmail', `Google Drive conectado correctamente: ${driveStatus.email}`, { email: driveStatus.email })
+                : t('toasts.driveConnected', 'Google Drive conectado correctamente.'))
+            : t('toasts.driveNotConnected', 'Google Drive todavía no está conectado.');
         },
-        fallbackError: 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
+        fallbackError: t('toasts.driveError', 'No se pudo consultar Google Drive. Verifica que Django esté encendido.'),
       }
     );
     setTestingDrive(false);
@@ -131,8 +135,8 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
     onChange(testIntegration(data, integrationId));
     setSelectedId(null);
     showToast({
-      title: 'Prueba Completada',
-      message: 'La integración se marcó como conectada en la sesión actual.',
+      title: t('toasts.testCompleted', 'Prueba Completada'),
+      message: t('toasts.testCompletedMsg', 'La integración se marcó como conectada en la sesión actual.'),
       type: 'info',
     });
   };
@@ -144,8 +148,8 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
       'noopener,noreferrer,width=720,height=820',
     );
     showToast({
-      title: 'Autorización Iniciada',
-      message: 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
+      title: t('toasts.authStarted', 'Autorización Iniciada'),
+      message: t('toasts.authStartedMsg', 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".'),
       type: 'info',
     });
   };
@@ -154,17 +158,17 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <PageHeader
-          title="Integraciones"
-          subtitle="Conexiones con servicios externos y automatizaciones"
+          title={t('integrations.pageTitle', 'Integraciones')}
+          subtitle={t('integrations.pageSubtitle', 'Conectividad con servicios externos y automatización')}
         >
           <span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">
-            Google Drive real · Otras integraciones en demostración
+            {t('integrations.demoNote', 'Google Drive real · Otras integraciones en demostración')}
           </span>
         </PageHeader>
 
         <p
           role="status"
-          className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}
+          className="sr-only"
         >
           {feedback}
         </p>
@@ -194,8 +198,8 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
           <ModalDialog
             isOpen={Boolean(selected)}
             onClose={() => setSelectedId(null)}
-            title={`Configurar ${selected.name}`}
-            subtitle="Ajustes de integración"
+            title={t('integrations.configureIntegration', 'Configurar {name}', { name: selected.name })}
+            subtitle={t('integrations.integrationSettings', 'Ajustes de integración')}
             showFooter={false}
           >
             <IntegrationEditor
@@ -212,7 +216,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
           <div className="min-w-0 space-y-5">
-            <section className="grid min-w-0 gap-5 md:grid-cols-2" aria-label="Servicios integrados">
+            <section className="grid min-w-0 gap-5 md:grid-cols-2" aria-label={t('integrations.integratedServicesAria', 'Servicios integrados')}>
               {visible.integrations.map((integration) => (
                 <IntegrationCard
                   key={integration.id}
@@ -230,7 +234,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
               ))}
               {!visible.integrations.length && (
                 <div className={`p-10 text-center text-sm text-slate-500 md:col-span-2 dark:text-slate-400 midnight:text-cyan-500/70 ${cardClass}`}>
-                  No se encontraron integraciones con esa búsqueda.
+                  {t('integrations.noIntegrationsFound', 'No se encontraron integraciones con esa búsqueda.')}
                 </div>
               )}
             </section>

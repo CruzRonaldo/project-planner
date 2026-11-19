@@ -1,7 +1,10 @@
 import React from 'react';
 import { Video, ExternalLink, X } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function VideoConferenceModal({ isOpen, onClose, meetingTitle, roomUrl }) {
+  const { t } = useLanguage();
+
   if (!isOpen) return null;
 
   return (
@@ -11,10 +14,12 @@ export default function VideoConferenceModal({ isOpen, onClose, meetingTitle, ro
         <div className="bg-slate-900 px-5 py-4 text-white flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Video className="w-4 h-4 text-slate-300" />
-            <h3 className="font-semibold text-sm truncate">{meetingTitle || "Sala de Proyecto"}</h3>
+            <h3 className="font-semibold text-sm truncate">{meetingTitle || t('portfolio.projectRoom', 'Sala de Proyecto')}</h3>
           </div>
           <button 
-            onClick={onClose} 
+            type="button"
+            onClick={onClose}
+            aria-label={t('common.close', 'Cerrar')}
             className="p-1 hover:bg-slate-700 rounded-md text-slate-300 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -24,7 +29,7 @@ export default function VideoConferenceModal({ isOpen, onClose, meetingTitle, ro
         {/* Contenido Minimalista */}
         <div className="p-6 text-center">
           <p className="text-gray-600 mb-6 text-sm">
-            La sala de videoconferencia se abrirá en una nueva pestaña segura.
+            {t('portfolio.videoCallNotice', 'La sala de videoconferencia se abrirá en una nueva pestaña segura.')}
           </p>
           
           <a
@@ -34,7 +39,7 @@ export default function VideoConferenceModal({ isOpen, onClose, meetingTitle, ro
             onClick={onClose}
             className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
           >
-            <span>Ingresar a la Videollamada</span>
+            <span>{t('portfolio.enterVideoCall', 'Ingresar a la Videollamada')}</span>
             <ExternalLink className="w-4 h-4" />
           </a>
         </div>

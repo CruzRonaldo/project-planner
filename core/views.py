@@ -589,6 +589,7 @@ def audit_logs_view(request):
 
 
 @api_view(['GET'])
+@authentication_classes([SimpleUserAuthentication])
 @permission_classes([AllowAny])
 def notifications_view(request):
     """
@@ -603,7 +604,7 @@ def notifications_view(request):
     email = (request.query_params.get('email') or '').strip().lower()
     notifications = []
 
-    # Mantiene compatibilidad con el contrato existente basado en parámetros.
+    # Resuelve el usuario autenticado (Bearer token) o mediante parámetros retrocompatibles
     user = None
     target_ident = email or username
     if target_ident:
@@ -611,6 +612,10 @@ def notifications_view(request):
             Q(email__iexact=target_ident) |
             Q(username__iexact=target_ident)
         ).first()
+    elif request.user and request.user.is_authenticated:
+        user = request.user
+        username = (user.username or '').strip().lower()
+        email = (user.email or '').strip().lower()
 
     is_admin = bool(
         (user and (user.is_superuser or user.is_staff)) or
@@ -750,7 +755,20 @@ class TeamStatusViewSet(viewsets.ModelViewSet):
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
-    """CRUD para miembros del equipo técnico."""
+    """CRUD y administración del Directorio de Personal y Equipo Técnico.
+
+    Coordina la asignación operativa de técnicos a proyectos, áreas técnicas,
+    roles de especialidad y porcentajes de dedicación (allocation_percentage).
+
+    Características clave:
+    - Ciclo de Vida de Incidencias: Ejecuta `process_incident_lifecycle()` automáticamente
+      en cada consulta para aplicar transiciones de estado de personal por licencias,
+      vacaciones o incapacidades activas.
+    - Control de Acceso (RBAC): Permite lectura (GET/HEAD/OPTIONS) con permisos amplios,
+      restringiendo las mutaciones (POST/PUT/PATCH/DELETE) exclusivamente a administradores (`IsAdminUser`).
+    - Filtros Query Parameters: Soporta filtrado directo por área técnica (`?area=<id>`),
+      estado operativo (`?status=<id>`) y proyecto asignado (`?project=<id>`).
+    """
 
     authentication_classes = [SimpleUserAuthentication]
     queryset = TeamMember.objects.select_related(
@@ -987,8 +1005,24 @@ class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    """
-    CRUD principal para Proyectos y Portafolio
+    """CRUD y controlador de gobernanza para Proyectos y Portafolio.
+
+    Gestiona el ciclo de vida completo de los proyectos de la plataforma, coordinando
+    relaciones con hitos estratégicos, tareas operativas e integrantes del equipo técnico.
+
+    Reglas de Gobernanza Corporativa:
+    - Umbral de Presupuesto ($100,000 USD): Proyectos con presupuesto superior a $100,000 USD
+      requieren revisión formal por Comité Directivo ('Revisión por Comité Directivo'),
+      mientras que proyectos de menor escala operan bajo aprobación del Líder Técnico.
+      Los usuarios sin privilegios administrativos (is_staff / is_superuser) tienen
+      estrictamente bloqueada la alteración de presupuestos y asignación de líderes en actualizaciones.
+    - Eliminación Exclusiva de Administradores: El método `destroy` valida que solo usuarios
+      con privilegios de Administrador (Project Manager) puedan dar de baja o eliminar proyectos
+      físicamente de la base de datos.
+    - Integración de Webhooks Make: Despacha notificaciones automáticas a Make (Integromat)
+      ante los eventos 'project.created', 'project.updated' y 'project.deleted'.
+    - Optimización de Cronograma: Expone la acción `/projects/{id}/optimize/` para el análisis
+      heurístico de holguras y compresión de rutas críticas mediante `analyze_project_timeline`.
     """
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
     serializer_class = ProjectSerializer
@@ -1146,7 +1180,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 
 class MilestoneViewSet(viewsets.ModelViewSet):
-    """CRUD para hitos estratégicos."""
+    """CRUD y gestión de entregas clave para Hitos Estratégicos.
+
+    Permite el registro, edición, actualización de estado ('pending', 'in_progress', 'completed')
+    y consulta de los hitos asociados a proyectos del Calendario Maestro y diagramas de Gantt.
+    Soporta filtrado por proyecto mediante el query parameter `?project=<id>`.
+    """
 
     queryset = Milestone.objects.select_related("project").all()
     serializer_class = MilestoneSerializer
@@ -1162,7 +1201,15 @@ class MilestoneViewSet(viewsets.ModelViewSet):
 
 
 class TaskViewSet(viewsets.ModelViewSet):
-    """CRUD para tareas operativas."""
+    """CRUD y control de ejecución de Tareas y Órdenes de Trabajo Operativas.
+
+    Gestiona tareas asignadas al personal técnico con relaciones a hitos, predecesores,
+    categorías operativas y enlaces documentales de Google Drive.
+
+    Filtros soportados mediante query parameters:
+    - `?project=<id>`: Filtra tareas pertenecientes a un proyecto específico.
+    - `?critical=true|false`: Filtra tareas según pertenezcan a la ruta crítica (`is_critical_path`).
+    """
 
     queryset = Task.objects.select_related(
         "project",
@@ -2007,12 +2054,19 @@ class PasswordResetVerifyCodeView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
-    """
-    POST /api/auth/password-reset/confirm/
-    Body: { "email": "...", "code": "123456", "new_password": "...", "confirm_password": "..." }
+    """Confirmación y aplicación de cambio de contraseña mediante código de un solo uso (OTP).
 
-    Valida el codigo OTP, comprueba que no haya expirado (15 min),
-    valida la politica unificada de contraseña, la actualiza y elimina el codigo usado.
+    Endpoint: POST /api/auth/password-reset/confirm/
+    Payload esperado:
+        - email (str): Correo electrónico del usuario solicitante.
+        - code (str): Código de 6 dígitos emitido en el flujo de recuperación.
+        - new_password (str): Nueva contraseña elegida por el usuario.
+        - confirm_password (str): Confirmación idéntica de la nueva contraseña.
+
+    Reglas de negocio:
+    - Valida el código OTP y comprueba que no haya superado su periodo de validez de 15 minutos.
+    - Valida la política unificada de contraseña (mínimo 12 caracteres, mayúsculas, minúsculas, números, símbolos, sin espacios y coincidencia) mediante `get_password_policy_errors`.
+    - Aplica la nueva contraseña mediante `user.set_password()` y elimina el código usado.
     """
     permission_classes = [AllowAny]
 
@@ -2071,11 +2125,8 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Cambiar contrasena
         user.set_password(new_password)
         user.save(update_fields=['password'])
-
-        # Eliminar el codigo usado
         reset_code.delete()
 
         logger.info('Contrasena restablecida exitosamente para el usuario %s', user.email)
@@ -2137,10 +2188,12 @@ class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
 # =============================================================
 
 class Setup2FAView(APIView):
-    """
-    Genera y devuelve el secreto TOTP y la URI de aprovisionamiento para
-    que el administrador configure su app de autenticación (Google Authenticator, Authy, etc.).
-    Permite autenticación Bearer o envío de user_id de administrador.
+    """Configuración y aprovisionamiento inicial de Autenticación de Dos Factores (2FA/TOTP).
+
+    Genera el secreto Base32 seguro y la URI de aprovisionamiento estándar (otpauth://)
+    junto con la imagen QR codificada en Base64 para que el usuario administrador
+    la escanee en aplicaciones TOTP (Google Authenticator, Microsoft Authenticator, Authy).
+    Restringido a usuarios con privilegios de Administrador (is_staff / is_superuser).
     """
     permission_classes = [AllowAny]
 
@@ -2204,10 +2257,13 @@ class Setup2FAView(APIView):
 
 
 class Verify2FAView(APIView):
-    """
-    Verifica el código TOTP de 6 dígitos del administrador.
-    Si es válido, devuelve los tokens de sesión y el perfil completo.
-    Recibe: { user_id, otp_code }
+    """Verificación de código TOTP temporal y emisión de token de sesión administrativo.
+
+    Valida el código numérico de 6 dígitos introducido por el administrador contra el
+    secreto criptográfico TOTP guardado en su perfil (TwoFactorProfile).
+    Tolera una ventana de desfase temporal de 30 segundos (valid_window=1).
+    Al verificar exitosamente, actualiza la fecha de último acceso y retorna el
+    session_token firmado junto con el perfil completo del usuario.
     """
     permission_classes = [AllowAny]
 
@@ -2298,13 +2354,11 @@ class Verify2FAView(APIView):
 
 
 class Request2FAResetView(APIView):
-    """
-    POST /api/auth/request-2fa-reset/
-    Body: { "user_id": 4 }
+    """Solicitud de código de restablecimiento de 2FA por extravío o cambio de dispositivo.
 
-    Genera un código de 6 dígitos con expiración de 15 minutos en recovery_code_expires.
-    Envía una petición POST al webhook de Make configurado en settings.RECOVERY_WEBHOOK_URL.
-    Retorna HTTP 200.
+    Genera un código numérico temporal de 6 dígitos con validez de 15 minutos en el perfil
+    del administrador y despacha una notificación POST asíncrona al webhook de recuperación
+    de Make (Integromat) configurado en `settings.RECOVERY_WEBHOOK_URL` para su envío por correo.
     """
     permission_classes = [AllowAny]
 
@@ -2361,12 +2415,11 @@ class Request2FAResetView(APIView):
 
 
 class Verify2FAResetView(APIView):
-    """
-    POST /api/auth/verify-2fa-reset/
-    Body: { "user_id": 4, "code": "123456" }
+    """Verificación del código de recuperación y reseteo definitivo del 2FA.
 
-    Busca el perfil. Si el código coincide y no ha expirado, restablece el 2FA:
-    totp_secret = None, is_enabled = False, recovery_code = None, guarda y retorna HTTP 200.
+    Valida el código de 6 dígitos enviado por correo. Si es correcto y no ha expirado,
+    limpia el secreto TOTP (`totp_secret = None`), deshabilita 2FA (`is_enabled = False`)
+    e invalida el código de recuperación, permitiendo un re-aprovisionamiento limpio.
     """
     permission_classes = [AllowAny]
 
@@ -2422,6 +2475,12 @@ class Verify2FAResetView(APIView):
             'status': 'success',
             'message': '2FA restablecido exitosamente. Inicia sesión nuevamente para configurar tu nuevo celular.',
         }, status=status.HTTP_200_OK)
+
+
+# Aliases para compatibilidad formal de nomenclatura
+TwoFactorSetupView = Setup2FAView
+TwoFactorVerifyView = Verify2FAView
+TwoFactorResetRequestView = Request2FAResetView
 
 
 # Asistente de IA (Chatbot)

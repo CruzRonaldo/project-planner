@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Componente atómico de ordenamiento desplegable compacto con dirección integrada.
@@ -32,11 +33,19 @@ export default function SortDropdown({
   buttonClassName = '',
   ariaLabel = 'Ordenar registros',
 }) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
   const listboxId = useId();
+
+  const resolveSortLabel = (id, fallback) => {
+    if (!id) return fallback;
+    return t(`sort.${id}`, fallback);
+  };
+
+  const displayLabel = label ? t('common.sortBy', label) : '';
 
   // Mapeo automático de IDs a categoría y dirección si no se provee customOptionsMap
   const optionsMap = useMemo(() => {
@@ -70,8 +79,14 @@ export default function SortDropdown({
       ? optionsMap[defaultCategory.defaultId || defaultCategory.descId || defaultCategory.ascId]
       : { id: value, label: value, category: '', direction: 'desc' });
 
-  const currentDirectionText = currentSort.direction === 'asc' ? 'ascendente' : 'descendente';
-  const triggerAriaLabel = `${ariaLabel}. Criterio actual: ${currentSort.label}, orden ${currentDirectionText}`;
+  const currentSortDisplayLabel = resolveSortLabel(currentSort.id, currentSort.label);
+  const currentDirectionText = currentSort.direction === 'asc'
+    ? t('common.ascending', 'ascendente')
+    : t('common.descending', 'descendente');
+  const resolvedAriaLabel = ariaLabel === 'Ordenar registros' ? t('common.sortRecords', 'Ordenar registros') : ariaLabel;
+  const currentCriteriaText = t('common.currentCriteria', 'Criterio actual');
+  const orderText = t('common.order', 'orden');
+  const triggerAriaLabel = `${resolvedAriaLabel}. ${currentCriteriaText}: ${currentSortDisplayLabel}, ${orderText} ${currentDirectionText}`;
 
   // Selección o alternancia direccional
   const handleSelectCategory = (cat) => {
@@ -166,9 +181,9 @@ export default function SortDropdown({
         className={`cursor-pointer flex items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors duration-300 hover:border-cyan-400 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-200 dark:hover:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100 midnight:hover:border-cyan-600 ${buttonClassName || 'min-w-[215px]'}`}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          {label && <span className="text-[10px] text-slate-400 midnight:text-cyan-600 shrink-0">{label}</span>}
+          {displayLabel && <span className="text-[10px] text-slate-400 midnight:text-cyan-600 shrink-0">{displayLabel}</span>}
           <span className="font-semibold text-slate-900 dark:text-white midnight:text-cyan-50 truncate">
-            {currentSort.label}
+            {currentSortDisplayLabel}
           </span>
         </div>
         <span className="shrink-0 flex items-center">
@@ -184,11 +199,11 @@ export default function SortDropdown({
         <div
           id={listboxId}
           role="listbox"
-          aria-label={ariaLabel}
+          aria-label={resolvedAriaLabel}
           className="absolute right-0 top-full z-30 mt-2 w-full min-w-[215px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:shadow-black/50 midnight:border-cyan-900/50 midnight:bg-[#050B14]"
         >
           <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 midnight:text-cyan-600">
-            Criterio de orden
+            {t('common.sortCriteria', 'Criterio de orden')}
           </div>
           <div className="space-y-0.5">
             {categories.map((cat, index) => {
@@ -197,12 +212,15 @@ export default function SortDropdown({
               
               // Resuelve dinámicamente la etiqueta según el defaultId de la categoría (elimina el bug de 'Fecha más lejana')
               const defaultTargetId = cat.defaultId || cat.ascId || cat.descId;
-              const itemLabel = isActive
+              const targetId = isActive ? currentSort.id : defaultTargetId;
+              const rawLabel = isActive
                 ? currentSort.label
                 : (optionsMap[defaultTargetId]?.label || cat.defaultLabel || cat.name);
+              const itemLabel = resolveSortLabel(targetId, rawLabel);
               const isAsc = isActive && currentSort.direction === 'asc';
+              const dirText = isAsc ? t('common.ascending', 'ascendente') : t('common.descending', 'descendente');
               const optionAriaLabel = isActive
-                ? `${itemLabel}, orden ${isAsc ? 'ascendente' : 'descendente'}. Presione para alternar dirección.`
+                ? `${itemLabel}, ${orderText} ${dirText}. Presione para alternar dirección.`
                 : `${itemLabel}.`;
 
               return (

@@ -12,6 +12,7 @@ import PageHeader from '../../components/common/PageHeader';
 import SortDropdown from '../../components/common/SortDropdown';
 import { getYearOptions } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { runSafe } from '../../utils/asyncHandler';
 import {
   cardClass,
@@ -42,8 +43,6 @@ export { AdjustScheduleDialog, NewGlobalMilestoneDialog };
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 
-const months = planningMonths.map((month) => month.short);
-
 export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false, initialYear = null }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false);
@@ -53,6 +52,11 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const [selectedYear, setSelectedYear] = useState(() => initialYear ? String(initialYear) : String(new Date().getFullYear()));
   const [milestonePage, setMilestonePage] = useState(1);
   const { showToast } = useToast();
+  const { t } = useLanguage();
+  const localizedMonths = useMemo(
+    () => planningMonths.map((m) => t(`months.${m.number}`, m.short)),
+    [t]
+  );
   const projects = useMemo(() => data?.projects || [], [data]);
   const milestones = useMemo(() => data?.milestones ?? [], [data]);
   const adjustments = useMemo(() => data?.adjustments || [], [data]);
@@ -159,8 +163,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     if (updated === data) {
       setDialogOpen(false);
       showToast({
-        title: 'Calendario de Proyecto',
-        message: 'No había cambios que guardar.',
+        title: t('strategicPlanning.projectSchedule', 'Calendario de Proyecto'),
+        message: t('strategicPlanning.noChangesToSave', 'No había cambios que guardar.'),
         type: 'info',
       });
       return;
@@ -203,8 +207,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         },
         {
           showToast,
-          fallbackError: 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.',
-          errorTitle: 'Error de Sincronización',
+          fallbackError: t('strategicPlanning.syncErrorMsg', 'No se pudo guardar el nuevo cronograma en el servidor. Inténtalo nuevamente.'),
+          errorTitle: t('toasts.Error de Sincronización', 'Error de Sincronización'),
         }
       );
 
@@ -217,10 +221,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     setDialogOpen(false);
 
     showToast({
-      title: 'Calendario de Proyecto',
+      title: t('strategicPlanning.projectSchedule', 'Calendario de Proyecto'),
       message: auditSaved
-        ? 'Calendario actualizado y registrado en el historial de auditoría.'
-        : 'Cronograma guardado en el servidor, pero no se pudo registrar el reajuste en el historial.',
+        ? t('strategicPlanning.scheduleUpdatedAudit', 'Calendario actualizado y registrado en el historial de auditoría.')
+        : t('strategicPlanning.scheduleSavedAuditFailed', 'Cronograma guardado en el servidor, pero no se pudo registrar el reajuste en el historial.'),
       type: auditSaved ? 'success' : 'warning',
     });
   };
@@ -334,8 +338,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
     setTimeout(restoreTitle, 3000);
     showToast({
-      title: 'Exportación de Calendario',
-      message: `Vista de exportación abierta para guardar o imprimir “${fileName}.pdf”.`,
+      title: t('strategicPlanning.calendarExport', 'Exportación de Calendario'),
+      message: t('strategicPlanning.pdfExportOpened', `Vista de exportación abierta para guardar o imprimir “${fileName}.pdf”.`, { fileName }),
       type: 'info',
     });
   };
@@ -351,25 +355,29 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-bold tracking-widest text-blue-700 uppercase">PROJECT PLANNER</span>
                 <span className="text-slate-300">|</span>
-                <span className="text-xs text-slate-500 font-medium">Sistema de Planificación Estratégica</span>
+                <span className="text-xs text-slate-500 font-medium">{t('strategicPlanning.systemSubtitle', 'Sistema de Planificación Estratégica')}</span>
               </div>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
                 {activeProject
-                  ? `Calendario de Proyecto 2026 — ${activeProject.code ? `${activeProject.code} · ` : ''}${activeProject.name}`
-                  : 'Calendario Maestro de Proyectos 2026'}
+                  ? t('strategicPlanning.printProjectCalendar', `Calendario de Proyecto ${selectedYear} — ${activeProject.code ? `${activeProject.code} · ` : ''}${activeProject.name}`, {
+                      year: selectedYear,
+                      code: activeProject.code ? `${activeProject.code} · ` : '',
+                      name: activeProject.name,
+                    })
+                  : t('strategicPlanning.printMasterCalendar', `Calendario Maestro de Proyectos ${selectedYear}`, { year: selectedYear })}
               </h1>
               <p className="mt-0.5 text-xs text-slate-600">
                 {activeProject
-                  ? `Cronograma de Ruta Crítica, Hitos Clave y Control Presupuestario (${activeProject.area})`
-                  : 'Cronograma Anual de Ruta Crítica, Hitos Clave y Asignación Presupuestaria'}
+                  ? t('strategicPlanning.printProjectSubtitle', `Cronograma de Ruta Crítica, Hitos Clave y Control Presupuestario (${activeProject.area})`, { area: activeProject.area })
+                  : t('strategicPlanning.printMasterSubtitle', 'Cronograma Anual de Ruta Crítica, Hitos Clave y Asignación Presupuestaria')}
               </p>
             </div>
             <div className="text-right text-xs text-slate-500">
-              <p><span className="font-semibold text-slate-700">Fecha de Emisión:</span> {new Date().toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p><span className="font-semibold text-slate-700">{t('strategicPlanning.issueDate', 'Fecha de Emisión:')}</span> {new Date().toLocaleDateString('es-PE', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               <p className="mt-0.5 text-[10px] text-slate-400">
                 {activeProject
-                  ? `Proyecto: ${activeProject.code || activeProject.name} · Hitos Asociados: ${filteredMilestones.length}`
-                  : `Total Proyectos: ${projects.length} · Total Hitos: ${milestones.length}`}
+                  ? `${t('strategicPlanning.project', 'Proyecto')}: ${activeProject.code || activeProject.name} · ${t('strategicPlanning.associatedMilestones', 'Hitos Asociados:')} ${filteredMilestones.length}`
+                  : `${t('strategicPlanning.totalProjects', 'Total Proyectos:')} ${projects.length} · ${t('strategicPlanning.totalMilestones', 'Total Hitos:')} ${milestones.length}`}
               </p>
             </div>
           </div>
@@ -378,22 +386,22 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         {/* ENCABEZADO INTERACTIVO EN PANTALLA */}
         <section className="flex flex-col gap-4 no-print print:hidden">
           <PageHeader
-            title="Calendario Maestro 2026"
-            subtitle="Planificación de ruta crítica y cronograma de infraestructura anual"
+            title={t('strategicPlanning.masterScheduleTitle', `Calendario Maestro ${selectedYear}`, { year: selectedYear })}
+            subtitle={t('strategicPlanning.masterScheduleSubtitle', 'Planificación de ruta crítica y cronograma de infraestructura anual')}
           >
             {canManage && (
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => { setAdjustingProjectId(null); setDialogOpen(true); }} className={secondaryButtonClass}>
-                  <SlidersHorizontal size={15} /> Ajustar Calendario
+                  <SlidersHorizontal size={15} /> {t('strategicPlanning.adjustSchedule', 'Ajustar Calendario')}
                 </button>
                 <button type="button" onClick={() => setAnalysisOpen(true)} className={secondaryButtonClass}>
-                  <SlidersHorizontal size={15} /> Analizar tiempos
+                  <SlidersHorizontal size={15} /> {t('strategicPlanning.analyzeTimelines', 'Analizar tiempos')}
                 </button>
                 <button type="button" onClick={exportToPdf} className={secondaryButtonClass}>
-                  <FileDown size={15} /> Exportar Gantt / PDF
+                  <FileDown size={15} /> {t('strategicPlanning.exportPdf', 'Exportar Gantt / PDF')}
                 </button>
                 <button type="button" onClick={() => { setMilestoneDialogOpen(true); }} className={primaryBtnClass}>
-                  <Plus size={15} /> Nuevo Hito Global
+                  <Plus size={15} /> {t('strategicPlanning.newGlobalMilestone', 'Nuevo Hito Global')}
                 </button>
               </div>
             )}
@@ -402,16 +410,16 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           {/* BARRA DE FILTROS SUPERIOR (PROYECTO Y AÑO) */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className={`text-xs font-medium ${mutedClass}`}>Filtros del cronograma:</span>
+              <span className={`text-xs font-medium ${mutedClass}`}>{t('strategicPlanning.scheduleFilters', 'Filtros del cronograma:')}</span>
               
               {/* SELECTOR DE PROYECTO */}
               <Select
                 value={selectedProjectFilter}
                 onChange={(e) => { setSelectedProjectFilter(e.target.value); setMilestonePage(1); setAdjustmentPage(1); }}
-                aria-label="Filtrar por proyecto"
+                aria-label={t('strategicPlanning.filterByProject', 'Filtrar por proyecto')}
                 className="max-w-[220px] truncate"
                 options={[
-                  { value: 'ALL', label: `Todos los proyectos (${projects.length})` },
+                  { value: 'ALL', label: `${t('strategicPlanning.allProjects', 'Todos los proyectos')} (${projects.length})` },
                   ...projects.map((p) => ({
                     value: p.id,
                     label: `${p.code ? `${p.code} · ` : ''}${p.name}`,
@@ -423,12 +431,15 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               <Select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                aria-label="Seleccionar año"
+                aria-label={t('strategicPlanning.selectYear', 'Seleccionar año')}
                 options={getYearOptions(
                   1,
                   3,
                   (data.projects || []).map((p) => (p.startDate ? new Date(p.startDate).getFullYear() : null)).filter(Number.isFinite)
-                )}
+                ).map((opt) => ({
+                  value: opt.value,
+                  label: `${t('common.year', 'Año')} ${opt.value}`,
+                }))}
               />
             </div>
 
@@ -440,7 +451,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
         <GanttScheduleSection
           displayedProjects={displayedProjects}
           selectedYear={selectedYear}
-          months={months}
+          months={localizedMonths}
           milestones={milestones}
           canManage={canManage}
           headingClass={headingClass}
@@ -466,11 +477,11 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           <section className={`${cardClass} p-5 md:p-6 xl:col-span-3 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className={`text-base font-semibold ${headingClass}`}>Hitos Globales</h2>
+                <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.globalMilestones', 'Hitos Globales')}</h2>
                 <p className={`text-xs ${mutedClass} hidden print:block`}>
                   {selectedProjectFilter === 'ALL'
-                    ? 'Mostrando todos los proyectos'
-                    : `Filtrado por: ${projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter}`}
+                    ? t('strategicPlanning.showingAllProjects', 'Mostrando todos los proyectos')
+                    : t('strategicPlanning.filteredBy', `Filtrado por: ${projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter}`, { project: projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter })}
                 </p>
               </div>
 
@@ -484,9 +495,9 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                   }}
                   categories={milestoneSortCategories}
                   optionsMap={milestoneSortOptionsMap}
-                  label="Ordenar:"
+                  label={t('strategicPlanning.sort', 'Ordenar:')}
                   buttonClassName="w-[225px]"
-                  ariaLabel="Ordenar hitos globales"
+                  ariaLabel={t('strategicPlanning.sortGlobalMilestones', 'Ordenar hitos globales')}
                 />
 
                 {activeProject ? (
@@ -495,7 +506,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                   </span>
                 ) : (
                   <span className={`text-xs ${mutedClass}`}>
-                    {filteredMilestones.length} {filteredMilestones.length === 1 ? 'hito registrado' : 'hitos registrados'}
+                    {filteredMilestones.length} {filteredMilestones.length === 1 ? t('strategicPlanning.milestoneRegistered', 'hito registrado') : t('strategicPlanning.milestonesRegistered', 'hitos registrados')}
                   </span>
                 )}
               </div>
@@ -505,8 +516,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               {filteredMilestones.length === 0 ? (
                 <div className={`p-6 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 ${nestedClass}`}>
                   {selectedProjectFilter === 'ALL'
-                    ? 'No hay hitos globales registrados.'
-                    : 'No hay hitos registrados para el proyecto seleccionado.'}
+                    ? t('strategicPlanning.noMilestones', 'No hay hitos globales registrados.')
+                    : t('strategicPlanning.noMilestonesForProject', 'No hay hitos registrados para el proyecto seleccionado.')}
                 </div>
               ) : (
                 <>
@@ -540,31 +551,31 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                                 <select
                                   value={(milestone.status || 'pending').toLowerCase()}
                                   onChange={(e) => handleStatusChange(milestone.id, e.target.value)}
-                                  aria-label={`Cambiar estado de ${milestone.title}`}
-                                  title="Cambiar estado del hito"
+                                  aria-label={t('strategicPlanning.changeMilestoneStatus', `Cambiar estado de ${milestone.title}`, { title: milestone.title })}
+                                  title={t('strategicPlanning.changeMilestoneStatusTitle', 'Cambiar estado del hito')}
                                   className={`cursor-pointer rounded border border-transparent px-2 py-1 text-[10px] font-semibold transition-colors duration-300 outline-none ${status.badge} hover:border-slate-300 dark:hover:border-slate-600 no-print print:hidden`}
                                 >
                                   {milestoneStatuses.map((s) => (
                                     <option key={s.id} value={s.id} className="bg-white text-slate-900 dark:bg-[#161b22] dark:text-white midnight:bg-[#0a1120] midnight:text-cyan-50">
-                                      {s.label}
+                                      {t(`statuses.${s.id}`, s.label)}
                                     </option>
                                   ))}
                                 </select>
                                 <span className={`hidden print:inline-block shrink-0 rounded px-2 py-1 text-[10px] font-semibold ${status.badge}`}>
-                                  {status.label}
+                                  {t(`statuses.${status.id}`, status.label)}
                                 </span>
                               </>
                             ) : (
                               <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold transition-colors duration-300 ${status.badge}`}>
-                                {status.label}
+                                {t(`statuses.${status.id}`, status.label)}
                               </span>
                             )}
                             {canManage && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteMilestone(milestone.id, milestone.title)}
-                                aria-label={`Eliminar hito ${milestone.title}`}
-                                title="Eliminar hito"
+                                aria-label={t('strategicPlanning.deleteMilestone', `Eliminar hito ${milestone.title}`, { title: milestone.title })}
+                                title={t('strategicPlanning.deleteMilestoneTitle', 'Eliminar hito')}
                                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10 midnight:hover:text-red-400 no-print print:hidden"
                               >
                                 <Trash2 size={13} />
@@ -574,10 +585,10 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                               type="button"
                               onClick={() => showToast({
                                 title: milestone.title,
-                                message: `${milestone.description || 'Sin descripción adicional.'} (Responsable: ${milestone.validator || 'PM'})`,
+                                message: `${milestone.description || t('strategicPlanning.noDescription', 'Sin descripción adicional.')} (${t('strategicPlanning.responsible', 'Responsable')}: ${milestone.validator || 'PM'})`,
                                 type: 'info',
                               })}
-                              aria-label={`Ver detalles de ${milestone.title}`}
+                              aria-label={t('strategicPlanning.viewMilestoneDetails', `Ver detalles de ${milestone.title}`, { title: milestone.title })}
                               className={`${closeBtnClass} no-print print:hidden`}
                             >
                               <MoreVertical size={14} />
@@ -613,7 +624,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-semibold ${status.badge}`}>
-                              {status.label}
+                              {t(`statuses.${status.id}`, status.label)}
                             </span>
                           </div>
                         </article>
@@ -629,7 +640,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               totalPages={totalMilestonePages}
               totalItems={sortedMilestones.length}
               pageSize={milestonePageSize}
-              itemLabel="hitos"
+              itemLabel={t('strategicPlanning.milestonesItemLabel', 'hitos')}
               onPageChange={setMilestonePage}
               hideOnSinglePage={true}
               className="mt-4 border-t border-slate-200/80 pt-3 dark:border-white/5 midnight:border-cyan-900/30"
@@ -639,7 +650,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           {/* CONTROL PRESUPUESTARIO */}
           <section className={`${cardClass} p-5 md:p-6 xl:col-span-2 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
             <div className="flex items-center justify-between">
-              <h2 className={`text-base font-semibold ${headingClass}`}>Control Presupuestario</h2>
+              <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.budgetControl', 'Control Presupuestario')}</h2>
               {activeProject && (
                 <span className="shrink-0 rounded bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
                   {activeProject.code || activeProject.name}
@@ -660,28 +671,28 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 <div className="flex h-[94px] w-[94px] flex-col items-center justify-center rounded-full bg-white transition-colors duration-300 dark:bg-[#161b22] midnight:bg-[#0a1120]">
                   <strong className={`text-xl ${headingClass}`}>{formatBudget(totalBudget)}</strong>
                   <span className={`mt-1 text-[10px] ${mutedClass}`}>
-                    {totalBudget > 0 ? 'Presupuesto' : 'Sin asignar'}
+                    {totalBudget > 0 ? t('strategicPlanning.budget', 'Presupuesto') : t('strategicPlanning.unassigned', 'Sin asignar')}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 border-b border-slate-200 pb-5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-white/10 dark:text-slate-400 midnight:border-cyan-900/30 midnight:text-cyan-600">
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> Disponible ({availablePct}%)</span>
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-500" /> Ejecutado ({executedPct}%)</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> {t('strategicPlanning.available', 'Disponible')} ({availablePct}%)</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-500" /> {t('strategicPlanning.executed', 'Ejecutado')} ({executedPct}%)</span>
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-3">
               <div>
-                <p className={`text-[10px] ${mutedClass}`}>Total</p>
+                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.total', 'Total')}</p>
                 <strong className={`mt-1 block text-sm ${headingClass}`}>{formatBudget(totalBudget)}</strong>
               </div>
               <div>
-                <p className={`text-[10px] ${mutedClass}`}>Ejecutado</p>
+                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.executed', 'Ejecutado')}</p>
                 <strong className="mt-1 block text-sm text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">{formatBudget(executedBudget)}</strong>
               </div>
               <div>
-                <p className={`text-[10px] ${mutedClass}`}>Disponible</p>
+                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.available', 'Disponible')}</p>
                 <strong className="mt-1 block text-sm text-blue-600 transition-colors duration-300 dark:text-blue-400 midnight:text-blue-400">{formatBudget(availableBudget)}</strong>
               </div>
             </div>

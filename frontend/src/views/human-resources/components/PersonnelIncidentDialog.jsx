@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
+import { useLanguage } from '../../../context/LanguageContext';
 import { runSafe } from '../../../utils/asyncHandler';
 import { personnelStatuses, personnelIncidentTypes } from '../../../constants/humanResources';
 import { getIncidentDuration } from '../../../utils/humanResources';
@@ -13,6 +14,7 @@ function formatDateInput(date) {
 }
 
 export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen = true }) {
+  const { t } = useLanguage();
   const members = data?.members || [];
   const today = new Date();
   const returnDate = new Date(today);
@@ -52,7 +54,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
 
   const footnote = (
     <p className="text-[11px] text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
-      <span className="text-cyan-600 dark:text-cyan-400 font-bold">●</span> Se registrará en el sistema como pendiente. El estado del integrante cambiará únicamente cuando se apruebe.
+      <span className="text-cyan-600 dark:text-cyan-400 font-bold">●</span> {t('humanResources.incidentFootnote', 'Se registrará en el sistema como pendiente. El estado del integrante cambiará únicamente cuando se apruebe.')}
     </p>
   );
 
@@ -61,11 +63,11 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
       isOpen={isOpen}
       onClose={onClose}
       onSubmit={submitDraft}
-      title="Registrar Incidencia / Licencia"
-      subtitle="Gestiona ausencias, permisos o variaciones temporales de disponibilidad del personal."
+      title={t('humanResources.incidentTitle', 'Registrar Incidencia / Licencia')}
+      subtitle={t('humanResources.incidentSubtitle', 'Gestiona ausencias, permisos o variaciones temporales de disponibilidad del personal.')}
       icon={<CalendarDays size={20} />}
-      submitLabel="Registrar incidencia"
-      cancelLabel="Cancelar"
+      submitLabel={t('humanResources.confirmIncident', 'Registrar incidencia')}
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       submitDisabled={!duration}
       submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
@@ -75,7 +77,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Integrante del personal <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.personnelMember', 'Integrante del personal')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <select
             autoFocus
             required
@@ -91,7 +93,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
             }}
             className={inputClass}
           >
-            {members.length === 0 && <option value="">Sin personal registrado</option>}
+            {members.length === 0 && <option value="">{t('humanResources.noPersonnelRegistered', 'Sin personal registrado')}</option>}
             {members.map((member) => (
               <option key={member.id} value={member.id}>
                 {member.name} ({member.area})
@@ -101,7 +103,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
         </label>
 
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Tipo de incidencia <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.incidentType', 'Tipo de incidencia')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <select required value={draft.type} onChange={changeField('type')} className={inputClass}>
             {personnelIncidentTypes.map((type) => (
               <option key={type.id} value={type.id}>
@@ -112,7 +114,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
         </label>
 
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Fecha de inicio / desde <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.startDate', 'Fecha de inicio / desde')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <input
             type="date"
             required
@@ -123,7 +125,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
         </label>
 
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Fecha de retorno / hasta <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.returnDate', 'Fecha de retorno / hasta')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <input
             type="date"
             required
@@ -138,28 +140,33 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
       <p className={`flex items-center gap-2 text-[11px] ${duration ? 'text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'text-red-600 dark:text-red-400'}`}>
         <CalendarDays size={13} />
         {duration
-          ? `Duración: ${duration.calendarDays} ${duration.calendarDays === 1 ? 'día calendario' : 'días calendario'} (${duration.businessDays} ${duration.businessDays === 1 ? 'día hábil' : 'días hábiles'})`
-          : 'La fecha de retorno no puede ser anterior al inicio.'}
+          ? t('humanResources.durationText', `Duración: ${duration.calendarDays} ${duration.calendarDays === 1 ? 'día calendario' : 'días calendario'} (${duration.businessDays} ${duration.businessDays === 1 ? 'día hábil' : 'días hábiles'})`, {
+              calendarDays: duration.calendarDays,
+              calLabel: duration.calendarDays === 1 ? t('humanResources.calDaySingular', 'día calendario') : t('humanResources.calDayPlural', 'días calendario'),
+              businessDays: duration.businessDays,
+              bizLabel: duration.businessDays === 1 ? t('humanResources.bizDaySingular', 'día hábil') : t('humanResources.bizDayPlural', 'días hábiles'),
+            })
+          : t('humanResources.dateError', 'La fecha de retorno no puede ser anterior al inicio.')}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Estado operativo resultante <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.resultingStatus', 'Estado operativo resultante')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
             {personnelStatuses.map((status) => (
               <option key={status.id} value={status.id}>
                 {status.id === 'standby'
-                  ? 'Stand-by (Fuera de obra)'
+                  ? t('humanResources.standbyLabel', 'Stand-by (Fuera de obra)')
                   : status.id === 'support'
-                    ? 'En apoyo (Disponibilidad parcial)'
-                    : 'Activo en obra'}
+                    ? t('humanResources.supportLabel', 'En apoyo (Disponibilidad parcial)')
+                    : t('humanResources.activeLabel', 'Activo en obra')}
               </option>
             ))}
           </select>
         </label>
 
         <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Disponibilidad en este periodo <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.availabilityInPeriod', 'Disponibilidad en este periodo')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <div className="relative">
             <input
               type="number"
@@ -177,9 +184,9 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
       </div>
 
       <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-        Técnico de respaldo / cobertura temporal <span className="normal-case text-slate-500 midnight:text-cyan-600">(opcional inteligente)</span>
+        {t('humanResources.backupTechnician', 'Técnico de respaldo / cobertura temporal')} <span className="normal-case text-slate-500 midnight:text-cyan-600">{t('humanResources.optionalSmart', '(opcional inteligente)')}</span>
         <select value={draft.backupMemberId} onChange={changeField('backupMemberId')} className={inputClass}>
-          <option value="">Sin técnico de respaldo</option>
+          <option value="">{t('humanResources.noBackupOption', 'Sin técnico de respaldo')}</option>
           {members
             .filter((member) => member.id !== draft.memberId)
             .map((member) => (
@@ -191,7 +198,7 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
       </label>
 
       <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-        Motivo / comentario detallado <span className="text-cyan-600 dark:text-cyan-400">*</span>
+        {t('humanResources.detailedReason', 'Motivo / comentario detallado')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
         <textarea
           required
           minLength={5}
@@ -199,14 +206,18 @@ export function PersonnelIncidentDialog({ data = {}, onSubmit, onClose, isOpen =
           rows={3}
           value={draft.comment}
           onChange={changeField('comment')}
-          placeholder="Describe el motivo, la entrega de turnos y las coordinaciones necesarias..."
+          placeholder={t('humanResources.commentIncidentPlaceholder', 'Describe el motivo, la entrega de turnos y las coordinaciones necesarias...')}
           className={`${inputClass} resize-y leading-relaxed`}
         />
       </label>
 
       {selectedMember && (
         <p className="text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-600">
-          Estado actual de {selectedMember.name}: {personnelStatuses.find((status) => status.id === selectedMember.status)?.label}, {selectedMember.availability}% de disponibilidad.
+          {t('humanResources.currentStatusSummary', `Estado actual de ${selectedMember.name}: ${personnelStatuses.find((status) => status.id === selectedMember.status)?.label}, ${selectedMember.availability}% de disponibilidad.`, {
+            name: selectedMember.name,
+            status: personnelStatuses.find((status) => status.id === selectedMember.status)?.label,
+            availability: selectedMember.availability,
+          })}
         </p>
       )}
 

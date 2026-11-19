@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Componente atómico de paginación accesible y multitema (Claro, Oscuro y Midnight).
@@ -20,12 +21,15 @@ export default function Pagination({
   totalPages = 1,
   totalItems,
   pageSize,
-  itemLabel = 'elementos',
+  itemLabel,
   onPageChange,
   hideOnSinglePage = false,
   className = '',
-  ariaLabel = 'Navegación de páginas',
+  ariaLabel,
 }) {
+  const { t } = useLanguage();
+  const resolvedAriaLabel = ariaLabel || t('pagination.ariaLabel', 'Navegación de páginas');
+  const resolvedItemLabel = itemLabel || 'elementos';
   const safeTotalPages = Math.max(1, totalPages);
   const safeCurrentPage = Math.min(Math.max(1, currentPage), safeTotalPages);
 
@@ -58,21 +62,34 @@ export default function Pagination({
   return (
     <nav
       role="navigation"
-      aria-label={ariaLabel}
+      aria-label={resolvedAriaLabel}
       className={`flex items-center justify-between gap-3 text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600 no-print print:hidden ${className}`}
     >
       <div className="min-w-0 truncate">
         {hasItemDetails ? (
           <span>
-            {startItem}–{endItem} de {totalItems} {itemLabel}
+            {t('pagination.itemsOf', '{start}–{end} de {total} {label}', {
+              start: startItem,
+              end: endItem,
+              total: totalItems,
+              label: resolvedItemLabel,
+            })}
           </span>
         ) : typeof totalItems === 'number' ? (
           <span>
-            {totalItems ? `1–${totalItems}` : '0'} de {totalItems} {itemLabel}
+            {t('pagination.itemsOf', '{start}–{end} de {total} {label}', {
+              start: totalItems ? 1 : 0,
+              end: totalItems,
+              total: totalItems,
+              label: resolvedItemLabel,
+            })}
           </span>
         ) : (
           <span>
-            Página {safeCurrentPage} de {safeTotalPages}
+            {t('pagination.pageOf', 'Página {current} de {total}', {
+              current: safeCurrentPage,
+              total: safeTotalPages,
+            })}
           </span>
         )}
       </div>
@@ -82,8 +99,8 @@ export default function Pagination({
           type="button"
           onClick={handlePrevious}
           disabled={safeCurrentPage <= 1}
-          aria-label="Página anterior"
-          title="Página anterior"
+          aria-label={t('pagination.prevPage', 'Página anterior')}
+          title={t('pagination.prevPage', 'Página anterior')}
           className={buttonBaseClass}
         >
           <ChevronLeft size={14} />
@@ -100,8 +117,8 @@ export default function Pagination({
           type="button"
           onClick={handleNext}
           disabled={safeCurrentPage >= safeTotalPages}
-          aria-label="Página siguiente"
-          title="Página siguiente"
+          aria-label={t('pagination.nextPage', 'Página siguiente')}
+          title={t('pagination.nextPage', 'Página siguiente')}
           className={buttonBaseClass}
         >
           <ChevronRight size={14} />

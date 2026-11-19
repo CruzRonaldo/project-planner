@@ -1,8 +1,9 @@
 import React from 'react';
-import { UserPen } from 'lucide-react';
+import { UserPen, CheckCircle2 } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import Input from '../../../components/common/Input';
 import InlineAlert from '../../../components/common/InlineAlert';
+import { useLanguage } from '../../../context/LanguageContext';
 
 /**
  * Modal de Edición de Perfil de Usuario con validación accesible.
@@ -17,16 +18,18 @@ export default function EditProfileModal({
   success,
   isSubmitting,
 }) {
+  const { t } = useLanguage();
+
   return (
     <ModalDialog
       isOpen={isOpen}
       onClose={onClose}
       onSubmit={onSubmit}
-      title="Editar Perfil"
-      subtitle="Actualice sus datos de identidad y contacto"
+      title={t('configuration.editProfileModalTitle', 'Editar Perfil')}
+      subtitle={t('configuration.editProfileModalSubtitle', 'Actualice sus datos de identidad y contacto')}
       icon={<UserPen size={20} />}
-      submitLabel={isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-      cancelLabel="Cancelar"
+      submitLabel={isSubmitting ? t('configuration.saving', 'Guardando...') : t('configuration.saveChanges', 'Guardar Cambios')}
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       showFooter={!success}
       maxWidth="max-w-md"
@@ -38,10 +41,10 @@ export default function EditProfileModal({
             <CheckCircle2 size={28} />
           </div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
-            ¡Perfil Actualizado!
+            {t('configuration.profileUpdatedTitle', '¡Perfil Actualizado!')}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-400">
-            Sus datos han sido guardados y sincronizados correctamente en el sistema.
+            {t('configuration.profileUpdatedDesc', 'Sus datos han sido guardados y sincronizados correctamente en el sistema.')}
           </p>
         </div>
       ) : (
@@ -53,32 +56,32 @@ export default function EditProfileModal({
           )}
 
           <Input
-            label="Nombre Completo / Mostrar como"
+            label={t('configuration.fullNameLabel', 'Nombre Completo / Mostrar como')}
             required
             maxLength={80}
             value={form.name}
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-            placeholder="Ej. Carlos Mendoza"
+            placeholder={t('configuration.fullNamePlaceholder', 'Ej. Carlos Mendoza')}
           />
 
           <Input
-            label="Teléfono de Contacto (Opcional)"
+            label={t('configuration.phoneOptionalLabel', 'Teléfono de Contacto (Opcional)')}
             type="tel"
             maxLength={30}
             value={form.phone}
             onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-            placeholder="Ej. +51 987 654 321"
+            placeholder={t('configuration.phonePlaceholder', 'Ej. +51 987 654 321')}
           />
 
           <Input
-            label="Correo Electrónico (Gmail, Outlook u otro)"
+            label={t('configuration.emailInputLabel', 'Correo Electrónico (Gmail, Outlook u otro)')}
             type="email"
             required
             maxLength={120}
             value={form.email}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-            placeholder="nombre@gmail.com"
-            helperText="Se utilizará para iniciar sesión. Todo cambio de correo queda registrado en la bitácora de auditoría para el administrador."
+            placeholder={t('configuration.emailPlaceholder', 'nombre@gmail.com')}
+            helperText={t('configuration.emailHelperText', 'Se utilizará para iniciar sesión. Todo cambio de correo queda registrado en la bitácora de auditoría para el administrador.')}
           />
         </div>
       )}

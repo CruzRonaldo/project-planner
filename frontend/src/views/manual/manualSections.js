@@ -11,22 +11,31 @@ import {
 } from 'lucide-react';
 
 // Carga en caliente/compilación de todos los archivos .md canónicos del manual
-const rawMarkdownFiles = import.meta.glob('../../content/manual/*.md', {
+const rawMarkdownFiles = import.meta.glob('../../content/manual/**/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 });
 
-function getMarkdownContent(filename) {
-  for (const [path, content] of Object.entries(rawMarkdownFiles)) {
-    if (path.endsWith(filename)) {
-      return content;
-    }
-  }
+export function getMarkdownContent(filename, lang = 'es') {
+  const entries = Object.entries(rawMarkdownFiles);
+
+  // 1º Coincidencia en /${lang}/${filename}
+  const langMatch = entries.find(([path]) => path.endsWith(`/${lang}/${filename}`));
+  if (langMatch) return langMatch[1];
+
+  // 2º Fallback a /es/${filename}
+  const esMatch = entries.find(([path]) => path.endsWith(`/es/${filename}`));
+  if (esMatch) return esMatch[1];
+
+  // 3º Fallback a /${filename}
+  const rootMatch = entries.find(([path]) => path.endsWith(`/${filename}`));
+  if (rootMatch) return rootMatch[1];
+
   return '';
 }
 
-export const MANUAL_SECTIONS = [
+const BASE_SECTIONS = [
   {
     id: 'intro',
     number: '0',
@@ -144,11 +153,22 @@ export const MANUAL_SECTIONS = [
     moduleShortcut: null,
     summary: 'Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas de seguridad.',
   },
-].map((section) => ({
-  ...section,
-  content: getMarkdownContent(section.filename),
-}));
+];
 
-export function getSectionById(id) {
-  return MANUAL_SECTIONS.find((sec) => sec.id === id) || MANUAL_SECTIONS[0];
+export function getManualSections(lang = 'es', t = null) {
+  const hasT = typeof t === 'function';
+  return BASE_SECTIONS.map((section) => ({
+    ...section,
+    title: hasT ? t(`manual.sections.${section.id}.title`, section.title) : section.title,
+    shortTitle: hasT ? t(`manual.sections.${section.id}.shortTitle`, section.shortTitle) : section.shortTitle,
+    summary: hasT ? t(`manual.sections.${section.id}.summary`, section.summary) : section.summary,
+    content: getMarkdownContent(section.filename, lang),
+  }));
+}
+
+export const MANUAL_SECTIONS = getManualSections('es');
+
+export function getSectionById(id, lang = 'es', t = null) {
+  const sections = getManualSections(lang, t);
+  return sections.find((sec) => sec.id === id) || sections[0];
 }

@@ -4,6 +4,13 @@
  * y cruces de año sin lógica hardcodeada.
  */
 
+/**
+ * Calcula el índice numérico absoluto de mes transcurrido desde el año 0 (año * 12 + mes)
+ * para realizar cálculos de intervalos temporales homogéneos sin saltos al cruzar años.
+ *
+ * @param {Date} d - Objeto Date a evaluar.
+ * @returns {number} Índice entero continuo de mes.
+ */
 export const monthIndex = (d) => d.getFullYear() * 12 + d.getMonth();
 
 /**
@@ -78,6 +85,19 @@ export function getBarGeometry({ startDate, endDate, windowStart, windowMonths =
     clippedRight: eIdx > winEnd,
   };
 }
+
+/**
+ * Calcula la geometría porcentual (leftPct, widthPct) de una barra dentro de una ventana temporal para diagramas de Gantt.
+ * Alias semántico de getBarGeometry.
+ *
+ * @param {Object} params
+ * @param {string|Date} params.startDate - Fecha de inicio de la actividad o proyecto.
+ * @param {string|Date} params.endDate - Fecha límite o final del proyecto.
+ * @param {string|Date} params.windowStart - Fecha del primer mes visible de la ventana.
+ * @param {number} [params.windowMonths=12] - Duración de la ventana visible en meses.
+ * @returns {{ leftPct: number, widthPct: number, clippedLeft: boolean, clippedRight: boolean }|null}
+ */
+export const calculateGanttBarGeometry = getBarGeometry;
 
 /**
  * Calcula la posición porcentual de un hito puntual dentro de una ventana temporal visible.

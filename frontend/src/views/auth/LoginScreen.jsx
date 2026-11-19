@@ -23,8 +23,10 @@ import Input from "../../components/common/Input";
 import PasswordInput from "../../components/common/PasswordInput";
 import { PasswordRequirements } from "../../components/common";
 import { evaluatePassword } from "../../utils/passwordValidation";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function LoginScreen({ onLogin }) {
+  const { t } = useLanguage();
   const [role, setRole] = useState("admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -139,11 +141,14 @@ export default function LoginScreen({ onLogin }) {
       // --- PASO 3: Restablecer contraseña con código ya verificado ---
       const passwordCheck = evaluatePassword(
         forgotNewPassword,
-        forgotConfirmPassword
+        forgotConfirmPassword,
+        { t }
       );
       if (!passwordCheck.isValid) {
         setForgotError(
-          `La contraseña aún no cumple con: ${passwordCheck.failedLabels.join(", ")}.`
+          t('auth.passwordPolicyError', 'La contraseña aún no cumple con: {errors}.', {
+            errors: passwordCheck.failedLabels.join(', '),
+          })
         );
         return;
       }
@@ -380,12 +385,10 @@ export default function LoginScreen({ onLogin }) {
             Project Planner
           </h1>
           <h2 className="text-xl sm:text-2xl font-semibold text-cyan-400">
-            Gestión y Optimización de Proyectos
+            {t('auth.heroSubtitle', 'Gestión y Optimización de Proyectos')}
           </h2>
           <p className="text-slate-400 text-sm sm:text-base leading-relaxed max-w-lg">
-            Planifique hitos, supervise presupuestos en tiempo real, asigne
-            tareas críticas y dirija a sus equipos técnicos con la herramienta
-            de ingeniería de proyectos más avanzada.
+            {t('auth.heroDescription', 'Planifique hitos, supervise presupuestos en tiempo real, asigne tareas críticas y dirija a sus equipos técnicos con la herramienta de ingeniería de proyectos más avanzada.')}
           </p>
         </div>
 
@@ -418,10 +421,10 @@ export default function LoginScreen({ onLogin }) {
 
                   <div className="text-center space-y-1">
                     <h3 className="text-xl font-bold text-white tracking-tight">
-                      Recuperación de Cuenta
+                      {t('auth.recoveryTitle', 'Restablecimiento de 2FA')}
                     </h3>
                     <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
-                      Se ha enviado un código de 6 dígitos a tu correo corporativo. Ingrésalo para restablecer tu 2FA.
+                      {t('auth.recoveryDesc', 'Hemos enviado un código numérico a tu correo corporativo:')}
                     </p>
                   </div>
 
@@ -435,6 +438,7 @@ export default function LoginScreen({ onLogin }) {
                     value={recoveryCode}
                     onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
+                    aria-label={t('auth.recoveryCodeInput', 'Código de 6 dígitos')}
                     className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
 
@@ -454,10 +458,10 @@ export default function LoginScreen({ onLogin }) {
                     {isResetLoading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                        <span>Restableciendo 2FA...</span>
+                        <span>{t('auth.resetting2FA', 'Restableciendo 2FA...')}</span>
                       </>
                     ) : (
-                      'Verificar Código de Recuperación'
+                      t('auth.verifyRecovery', 'Verificar Código de Recuperación')
                     )}
                   </button>
 
@@ -468,7 +472,7 @@ export default function LoginScreen({ onLogin }) {
                     disabled={isResetLoading}
                     className="text-xs text-cyan-400/80 hover:text-cyan-300 hover:underline transition-colors cursor-pointer"
                   >
-                    ¿No recibiste el código? Reenviar
+                    {t('auth.resendCode', '¿No recibiste el código? Reenviar')}
                   </button>
 
                   {/* Volver a TOTP */}
@@ -481,7 +485,7 @@ export default function LoginScreen({ onLogin }) {
                     }}
                     className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
                   >
-                    Volver a ingresar código TOTP
+                    {t('auth.backToTOTP', 'Volver a ingresar código TOTP')}
                   </button>
                 </form>
               ) : (
@@ -493,12 +497,13 @@ export default function LoginScreen({ onLogin }) {
                   
                   <div className="text-center space-y-1">
                     <h3 className="text-xl font-bold text-white tracking-tight">
-                      Autenticación de Dos Factores
+                      {t('auth.twoFactorTitle', 'Autenticación de Dos Factores')}
                     </h3>
                     <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
-                      Ingresa el código de 6 dígitos generado por{" "}
-                      <strong className="text-slate-300">Google Authenticator</strong> o{" "}
-                      <strong className="text-slate-300">Authy</strong>.
+                      {t('auth.twoFactorDesc', 'Ingresa el código de 6 dígitos generado por {app1} o {app2}.', {
+                        app1: 'Google Authenticator',
+                        app2: 'Authy',
+                      })}
                     </p>
                   </div>
 
@@ -506,7 +511,7 @@ export default function LoginScreen({ onLogin }) {
                   {qrCodeData && (
                     <div className="w-full bg-[#080E1C] p-4 rounded-2xl border border-cyan-500/30 flex flex-col items-center gap-2.5 animate-in fade-in duration-300">
                       <p className="text-xs font-semibold text-cyan-300 text-center">
-                        Escanea este código con tu app:
+                        {t('auth.scanQr', 'Escanea este código con tu app:')}
                       </p>
                       <img
                         src={qrCodeData}
@@ -518,7 +523,7 @@ export default function LoginScreen({ onLogin }) {
                         onClick={() => setQrCodeData(null)}
                         className="text-[11px] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                       >
-                        Ocultar código QR
+                        {t('auth.hideQr', 'Ocultar código QR')}
                       </button>
                     </div>
                   )}
@@ -533,6 +538,7 @@ export default function LoginScreen({ onLogin }) {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
+                    aria-label={t('auth.recoveryCodeInput', 'Código de 6 dígitos')}
                     className="w-51 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
 
@@ -552,10 +558,10 @@ export default function LoginScreen({ onLogin }) {
                     {is2FALoading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                        <span>Verificando...</span>
+                        <span>{t('auth.verifyingCode', 'Verificando...')}</span>
                       </>
                     ) : (
-                      'Verificar Código'
+                      t('auth.verifyCode', 'Verificar Código')
                     )}
                   </button>
 
@@ -570,10 +576,10 @@ export default function LoginScreen({ onLogin }) {
                       {isQrLoading ? (
                         <>
                           <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                          <span>Generando QR...</span>
+                          <span>{t('auth.generatingQr', 'Generando QR...')}</span>
                         </>
                       ) : (
-                        '¿Primera vez? Configurar Autenticador'
+                        t('auth.firstTime2FA', '¿Primera vez? Configurar Autenticador')
                       )}
                     </button>
                   )}
@@ -589,10 +595,10 @@ export default function LoginScreen({ onLogin }) {
                       {isResetLoading ? (
                         <>
                           <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                          <span>Enviando código al correo...</span>
+                          <span>{t('auth.sendingEmailCode', 'Enviando código al correo...')}</span>
                         </>
                       ) : (
-                        '¿Perdiste tu dispositivo?'
+                        t('auth.lostDevice', '¿Perdiste tu dispositivo?')
                       )}
                     </button>
                   )}
@@ -603,7 +609,7 @@ export default function LoginScreen({ onLogin }) {
                     onClick={handleCancel2FA}
                     className="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
                   >
-                    Volver al login
+                    {t('auth.backToLogin', 'Volver al login')}
                   </button>
                 </form>
               )}
@@ -612,10 +618,10 @@ export default function LoginScreen({ onLogin }) {
           <div className="w-full max-w-md bg-[#0D1527]/90 backdrop-blur-md border border-slate-800/80 rounded-3xl p-8 sm:p-10 shadow-2xl relative ">
             <div className="space-y-1 mb-8 text-left">
               <h3 className="text-2xl font-bold text-white tracking-tight">
-                Iniciar Sesión
+                {t('auth.loginTitle', 'Iniciar Sesión')}
               </h3>
               <p className="text-xs text-slate-400 tracking-wide uppercase">
-                Bienvenido al sistema PROJECT PLANNER
+                {t('auth.welcome', 'Bienvenido al sistema PROJECT PLANNER')}
               </p>
             </div>
 
@@ -623,7 +629,7 @@ export default function LoginScreen({ onLogin }) {
               {/* Selección de Rol */}
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-400 tracking-wider uppercase">
-                  Seleccione su rol
+                  {t('auth.selectRole', 'Seleccione su rol')}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   {/* Tarjeta Admin */}
@@ -644,13 +650,12 @@ export default function LoginScreen({ onLogin }) {
                         <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
                       )}
                     </div>
-                    <div className="font-bold text-sm text-white">ADMIN</div>
+                    <div className="font-bold text-sm text-white">{t('auth.admin', 'ADMIN')}</div>
                     <div className="text-xs font-semibold text-cyan-400 mb-1">
-                      Project Manager
+                      {t('auth.projectManager', 'Project Manager')}
                     </div>
                     <div className="text-[10px] text-slate-400 leading-snug">
-                      Control total del sistema, gestión de proyectos,
-                      presupuestos y equipos
+                      {t('auth.adminRoleDesc', 'Control total del sistema, gestión de proyectos, presupuestos y equipos')}
                     </div>
                   </button>
 
@@ -672,13 +677,12 @@ export default function LoginScreen({ onLogin }) {
                         <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
                       )}
                     </div>
-                    <div className="font-bold text-sm text-white">USUARIO</div>
+                    <div className="font-bold text-sm text-white">{t('auth.user', 'USUARIO')}</div>
                     <div className="text-xs font-semibold text-slate-300 mb-1">
-                      Equipo Técnico
+                      {t('auth.technicalTeam', 'Equipo Técnico')}
                     </div>
                     <div className="text-[10px] text-slate-400 leading-snug">
-                      Acceso a proyectos asignados, documentación y estado del
-                      equipo
+                      {t('auth.userRoleDesc', 'Acceso a proyectos asignados, documentación y estado del equipo')}
                     </div>
                   </button>
                 </div>
@@ -687,7 +691,7 @@ export default function LoginScreen({ onLogin }) {
               {/* Input Email */}
               <div className="space-y-1.5">
                 <label htmlFor="login-email" className="text-xs font-medium text-slate-300">
-                  Correo electrónico
+                  {t('auth.email', 'Correo electrónico')}
                 </label>
                 <Input
                   id="login-email"
@@ -695,7 +699,7 @@ export default function LoginScreen({ onLogin }) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nombre@empresa.com"
+                  placeholder={t('auth.emailPlaceholder', 'nombre@empresa.com')}
                   required
                   icon={<Mail className="w-4 h-4" />}
                 />
@@ -704,7 +708,7 @@ export default function LoginScreen({ onLogin }) {
               {/* Input Password */}
               <div className="space-y-1.5">
                 <label htmlFor="login-password" className="text-xs font-medium text-slate-300">
-                  Contraseña
+                  {t('auth.password', 'Contraseña')}
                 </label>
                 <PasswordInput
                   id="login-password"
@@ -726,7 +730,7 @@ export default function LoginScreen({ onLogin }) {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-slate-800 bg-[#080E1C] text-cyan-500 accent-cyan-500 focus:ring-0 cursor-pointer"
                   />
-                  <span>Recordarme</span>
+                  <span>{t('auth.rememberMe', 'Recordarme')}</span>
                 </label>
                 <button
                   type="button"
@@ -741,7 +745,7 @@ export default function LoginScreen({ onLogin }) {
                   }}
                   className="text-cyan-400 hover:text-cyan-300 hover:underline bg-transparent border-none p-0 cursor-pointer text-xs"
                 >
-                  ¿Olvidaste tu contraseña?
+                  {t('auth.forgotPassword', '¿Olvidaste tu contraseña?')}
                 </button>
               </div>
 
@@ -772,10 +776,10 @@ export default function LoginScreen({ onLogin }) {
                 {isLoading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Verificando credenciales...</span>
+                    <span>{t('auth.verifying', 'Verificando credenciales...')}</span>
                   </>
                 ) : (
-                  "Iniciar Sesión"
+                  t('auth.loginButton', 'Iniciar Sesión')
                 )}
               </button>
             </form>
@@ -786,15 +790,15 @@ export default function LoginScreen({ onLogin }) {
 
       {/* Footer */}
       <footer className="relative z-10 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4 pt-6 border-t border-slate-900/60 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div>v2.0 — Sistema Integral de Planificación</div>
+        <div>{t('auth.version', 'v2.0 — Sistema Integral de Planificación')}</div>
         <div>
-          ¿Necesitas acceso?{" "}
+          {t('auth.needAccess', '¿Necesitas acceso?')}{" "}
           <button
             type="button"
             onClick={() => setIsContactModalOpen(true)}
             className="text-cyan-400 hover:underline bg-transparent border-none p-0 cursor-pointer inline text-[11px]"
           >
-            Contacta al administrador del sistema
+            {t('auth.contactAdmin', 'Contacta al administrador del sistema')}
           </button>
         </div>
         <div>© 2026</div>
@@ -827,17 +831,17 @@ export default function LoginScreen({ onLogin }) {
                 <div>
                   <h3 id="forgot-password-title" className="text-lg font-bold text-white">
                     {forgotStep === 1
-                      ? "Recuperar Contraseña"
+                      ? t('auth.forgotModalTitle1', 'Recuperar Contraseña')
                       : forgotStep === 2
-                      ? "Verificar Código"
-                      : "Nueva Contraseña"}
+                      ? t('auth.forgotModalTitle2', 'Verificar Código')
+                      : t('auth.forgotModalTitle3', 'Nueva Contraseña')}
                   </h3>
                   <p className="text-xs text-slate-400">
                     {forgotStep === 1
-                      ? "Paso 1 de 3: Solicitar código de verificación"
+                      ? t('auth.forgotStep1', 'Paso 1 de 3: Solicitar código de verificación')
                       : forgotStep === 2
-                      ? "Paso 2 de 3: Ingresar código de 6 dígitos"
-                      : "Paso 3 de 3: Establecer nueva clave de acceso"}
+                      ? t('auth.forgotStep2', 'Paso 2 de 3: Ingresar código de 6 dígitos')
+                      : t('auth.forgotStep3', 'Paso 3 de 3: Establecer nueva clave de acceso')}
                   </p>
                 </div>
               </div>
@@ -846,12 +850,12 @@ export default function LoginScreen({ onLogin }) {
               {forgotStep === 1 && (
                 <>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Ingresa tu correo corporativo. Te enviaremos un código numérico de 6 dígitos para restablecer tu contraseña.
+                    {t('auth.forgotEmailDesc', 'Ingresa tu correo corporativo. Te enviaremos un código numérico de 6 dígitos para restablecer tu contraseña.')}
                   </p>
 
                   <div className="space-y-1.5">
                     <label htmlFor="forgot-email" className="text-xs font-medium text-slate-300">
-                      Correo electrónico corporativo
+                      {t('auth.corporateEmail', 'Correo electrónico corporativo')}
                     </label>
                     <Input
                       id="forgot-email"
@@ -859,7 +863,7 @@ export default function LoginScreen({ onLogin }) {
                       type="email"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="nombre@empresa.com"
+                      placeholder={t('auth.emailPlaceholder', 'nombre@empresa.com')}
                       required
                       icon={<Mail className="w-4 h-4" />}
                     />
@@ -871,7 +875,7 @@ export default function LoginScreen({ onLogin }) {
               {forgotStep === 2 && (
                 <>
                   <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-xl p-3 text-xs text-slate-300 leading-relaxed">
-                    Hemos enviado un código a <strong className="text-cyan-400">{forgotEmail}</strong>. Válido por 15 minutos.
+                    {t('auth.codeSentNotice', 'Hemos enviado un código a {email}. Válido por 15 minutos.', { email: forgotEmail })}
                   </div>
 
                   <input
@@ -885,6 +889,7 @@ export default function LoginScreen({ onLogin }) {
                       setForgotCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
                     placeholder="000000"
+                    aria-label={t('auth.recoveryCodeInput', 'Código de 6 dígitos')}
                     required
                     className="w-51 block mx-auto my-6 text-center text-2xl font-mono font-bold tracking-[0.5em] indent-[0.5em] rounded-2xl border border-slate-700 bg-[#080E1C] py-3 text-white placeholder-slate-700 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors [&:-webkit-autofill]:[box-shadow:0_0_0_30px_#080E1C_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
@@ -895,13 +900,13 @@ export default function LoginScreen({ onLogin }) {
               {forgotStep === 3 && (
                 <>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Código verificado. Ingresa y confirma tu nueva clave de acceso corporativa.
+                    {t('auth.codeVerifiedNotice', 'Código verificado. Ingresa y confirma tu nueva clave de acceso corporativa.')}
                   </p>
 
                   {/* Input Nueva Contraseña */}
                   <div className="space-y-1.5">
                     <label htmlFor="forgot-new-password" className="text-xs font-medium text-slate-300">
-                      Nueva Contraseña
+                      {t('auth.newPassword', 'Nueva Contraseña')}
                     </label>
                     <PasswordInput
                       id="forgot-new-password"
@@ -914,7 +919,7 @@ export default function LoginScreen({ onLogin }) {
                         setForgotNewPassword(e.target.value);
                         setForgotError("");
                       }}
-                      placeholder="Mínimo 12 caracteres"
+                      placeholder={t('auth.newPasswordPlaceholder', 'Mínimo 12 caracteres')}
                       required
                       icon={<Lock className="w-4 h-4" />}
                     />
@@ -923,7 +928,7 @@ export default function LoginScreen({ onLogin }) {
                   {/* Input Confirmar Contraseña */}
                   <div className="space-y-1.5">
                     <label htmlFor="forgot-confirm-password" className="text-xs font-medium text-slate-300">
-                      Confirmar Nueva Contraseña
+                      {t('auth.confirmNewPassword', 'Confirmar Nueva Contraseña')}
                     </label>
                     <PasswordInput
                       id="forgot-confirm-password"
@@ -936,7 +941,7 @@ export default function LoginScreen({ onLogin }) {
                         setForgotConfirmPassword(e.target.value);
                         setForgotError("");
                       }}
-                      placeholder="Repite la nueva contraseña"
+                      placeholder={t('auth.confirmPasswordPlaceholder', 'Repite la nueva contraseña')}
                       required
                       icon={<Lock className="w-4 h-4" />}
                       showPasswordLabel="Ver confirmación de contraseña"
@@ -967,7 +972,7 @@ export default function LoginScreen({ onLogin }) {
                     onClick={handleCloseForgotModal}
                     className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
                   >
-                    Cancelar
+                    {t('auth.cancel', 'Cancelar')}
                   </button>
                 )}
                 {forgotStep === 2 && (
@@ -980,7 +985,7 @@ export default function LoginScreen({ onLogin }) {
                     }}
                     className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
                   >
-                    Volver
+                    {t('auth.back', 'Volver')}
                   </button>
                 )}
                 {forgotStep === 3 && (
@@ -994,7 +999,7 @@ export default function LoginScreen({ onLogin }) {
                     }}
                     className="flex-1 bg-transparent border border-slate-700 hover:border-slate-600 text-slate-300 font-medium py-2.5 rounded-xl transition-colors text-xs cursor-pointer"
                   >
-                    Volver
+                    {t('auth.back', 'Volver')}
                   </button>
                 )}
                 <button
@@ -1005,11 +1010,11 @@ export default function LoginScreen({ onLogin }) {
                   {isSubmittingForgot ? (
                     <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                   ) : forgotStep === 1 ? (
-                    "Enviar código"
+                    t('auth.sendCode', 'Enviar código')
                   ) : forgotStep === 2 ? (
-                    "Verificar código"
+                    t('auth.verifyCodeBtn', 'Verificar código')
                   ) : (
-                    "Restablecer Contraseña"
+                    t('auth.resetPasswordBtn', 'Restablecer Contraseña')
                   )}
                 </button>
               </div>
@@ -1042,23 +1047,23 @@ export default function LoginScreen({ onLogin }) {
               </div>
               <div>
                 <h3 id="contact-admin-title" className="text-lg font-bold text-white">
-                  Soporte y Administración
+                  {t('auth.supportTitle', 'Soporte y Administración')}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Canales de atención para gestión de cuentas y accesos
+                  {t('auth.supportSubtitle', 'Canales de atención para gestión de cuentas y accesos')}
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-5">
-              Si requieres acceso al sistema, asignación de proyectos o desbloqueo de perfil, comunícate con la administración general de Project Planner:
+              {t('auth.supportDesc', 'Si requieres acceso al sistema, asignación de proyectos o desbloqueo de perfil, comunícate con la administración general de Project Planner:')}
             </p>
 
             <div className="space-y-3 mb-6">
               <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
                 <Mail className="w-4 h-4 text-cyan-400 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Soporte</div>
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">{t('auth.supportLabel', 'Soporte')}</div>
                   <div className="text-xs font-medium text-slate-200">soporte.ti.empresa@gmail.com</div>
                 </div>
               </div>
@@ -1066,7 +1071,7 @@ export default function LoginScreen({ onLogin }) {
               <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
                 <Phone className="w-4 h-4 text-cyan-400 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Central Telefónica TI</div>
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">{t('auth.phoneSupportLabel', 'Central Telefónica TI')}</div>
                   <div className="text-xs font-medium text-slate-200">+51 XXX XXX XXX</div>
                 </div>
               </div>
@@ -1074,14 +1079,14 @@ export default function LoginScreen({ onLogin }) {
               <div className="flex items-center gap-3.5 p-3 rounded-xl bg-[#080E1C] border border-slate-800/80">
                 <Clock className="w-4 h-4 text-cyan-400 shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Horario de Operaciones</div>
-                  <div className="text-xs font-medium text-slate-200">Lunes a Viernes</div>
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">{t('auth.hoursLabel', 'Horario de Operaciones')}</div>
+                  <div className="text-xs font-medium text-slate-200">{t('auth.hoursValue', 'Lunes a Viernes')}</div>
                 </div>
               </div>
             </div>
 
             <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-[11px] text-cyan-300 mb-6 leading-relaxed">
-              <strong>Nota de Seguridad:</strong> Todo nuevo usuario requiere aprobación del administrador antes de ser dado de alta en los módulos operativos.
+              <strong>{t('auth.securityNoticeTitle', 'Nota de Seguridad:')}</strong> {t('auth.securityNoticeDesc', 'Todo nuevo usuario requiere aprobación del administrador antes de ser dado de alta en los módulos operativos.')}
             </div>
 
             <button
@@ -1089,7 +1094,7 @@ export default function LoginScreen({ onLogin }) {
               onClick={() => setIsContactModalOpen(false)}
               className="w-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] text-xs cursor-pointer"
             >
-              Entendido
+              {t('auth.understood', 'Entendido')}
             </button>
           </div>
         </div>

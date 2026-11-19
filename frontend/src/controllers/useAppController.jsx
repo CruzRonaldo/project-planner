@@ -233,7 +233,7 @@ export function useAppController() {
           canManage={auth.canManage}
           projectOptions={projects.projectOptions}
           syncLoading={team.teamMembersLoading || (auth.canManage && team.humanResourcesRecordsLoading)}
-          syncError={[team.teamMembersError, auth.canManage ? team.humanResourcesRecordsError : ''].filter(Boolean).join(' ')}
+          syncError={Array.from(new Set([team.teamMembersError, auth.canManage ? team.humanResourcesRecordsError : ''].filter(Boolean))).join(' ')}
           syncedAt={team.teamMembersSyncedAt}
         />
       );

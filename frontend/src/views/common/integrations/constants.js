@@ -29,3 +29,15 @@ export const activityStyles = {
       'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 midnight:bg-cyan-500/10 midnight:text-cyan-300',
   },
 };
+
+export const resolveLastActivity = (act, t) => {
+  if (!act || act === 'Sin actividad') return t('integrations.noActivity', 'Sin actividad');
+  if (act === 'Sin conexión') return t('integrations.noConnection', 'Sin conexión');
+  if (act === 'Verificado ahora') return t('integrations.verifiedNow', 'Verificado ahora');
+  if (act === 'Hace 10 minutos') return t('integrations.tenMinutesAgo', 'Hace 10 minutos');
+  if (act === 'Hace 1 hora') return t('integrations.oneHourAgo', 'Hace 1 hora');
+  if (act === 'Hace 2 horas') return t('integrations.twoHoursAgo', 'Hace 2 horas');
+  if (act === 'Ahora') return t('integrations.now', 'Ahora');
+  return act;
+};
+

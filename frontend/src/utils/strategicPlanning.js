@@ -6,6 +6,13 @@ import {
 } from '../constants/strategicPlanning.js';
 import { getProjectDuration } from './portfolio.js';
 
+/**
+ * Formatea un rango mensual en texto legible (ej. 'Ene - Mar (3 Meses)').
+ *
+ * @param {number} start - Mes de inicio (1 a 12).
+ * @param {number} duration - Duración en meses.
+ * @returns {string} Intervalo legible de planificación.
+ */
 export function formatPlanningPeriod(start, duration) {
   const startMonth = planningMonths[start - 1];
   const endMonth = planningMonths[start + duration - 2];
@@ -13,6 +20,12 @@ export function formatPlanningPeriod(start, duration) {
   return `${startMonth.short} - ${endMonth.short} (${duration} ${duration === 1 ? 'Mes' : 'Meses'})`;
 }
 
+/**
+ * Parsea una cadena de fecha YYYY-MM-DD en un objeto Date en UTC a las 00:00:00.
+ *
+ * @param {string} value - Cadena de fecha en formato ISO.
+ * @returns {Date|null} Instancia Date válida o null si el formato es inválido.
+ */
 export function parsePlanningDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split('-').map(Number);
@@ -23,6 +36,14 @@ export function parsePlanningDate(value) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? date : null;
 }
 
+/**
+ * Valida que las fechas de inicio y fin sean strings válidos y que el fin no preceda al inicio.
+ *
+ * @param {string} startDate - Fecha inicial YYYY-MM-DD.
+ * @param {string} endDate - Fecha final YYYY-MM-DD.
+ * @throws {Error} Si alguna fecha es inválida o el rango está invertido.
+ * @returns {{ start: Date, end: Date }} Fechas validadas en UTC.
+ */
 export function validateScheduleDates(startDate, endDate) {
   const start = parsePlanningDate(startDate);
   const end = parsePlanningDate(endDate);
@@ -31,6 +52,13 @@ export function validateScheduleDates(startDate, endDate) {
   return { start, end };
 }
 
+/**
+ * Formatea un periodo de cronograma entre dos fechas (ej. '01 ene 2026 — 31 mar 2026').
+ *
+ * @param {string} startDate - Fecha de inicio.
+ * @param {string} endDate - Fecha de fin.
+ * @returns {string} Periodo formateado o cadena vacía si es inválido.
+ */
 export function formatSchedulePeriod(startDate, endDate) {
   try {
     const { start, end } = validateScheduleDates(startDate, endDate);
@@ -41,6 +69,14 @@ export function formatSchedulePeriod(startDate, endDate) {
   }
 }
 
+/**
+ * Calcula la posición porcentual de una fecha dentro de un año de 12 meses para el Gantt.
+ *
+ * @param {string} value - Fecha YYYY-MM-DD.
+ * @param {number|string} year - Año de evaluación.
+ * @param {boolean} [inclusiveEnd=false] - Indica si el cálculo incluye el final del día.
+ * @returns {number|null} Porcentaje entre 0 y 100, o null si la fecha no pertenece al año.
+ */
 export function planningDatePosition(value, year, inclusiveEnd = false) {
   const date = parsePlanningDate(value);
   if (!date || date.getUTCFullYear() !== Number(year)) return null;
@@ -50,6 +86,13 @@ export function planningDatePosition(value, year, inclusiveEnd = false) {
   return ((month + (date.getUTCDate() - (inclusiveEnd ? 0 : 1)) / monthEnd.getUTCDate()) / 12) * 100;
 }
 
+/**
+ * Calcula la posición (left, width) porcentual de la barra de un proyecto dentro de un año calendario.
+ *
+ * @param {Object} project - Proyecto con startDate y endDate.
+ * @param {number|string} year - Año visualizado.
+ * @returns {{ left: number, width: number }|null} Geometría de barra o null si queda fuera del año.
+ */
 export function projectYearBar(project, year) {
   const startDate = project.startDate || project.start_date;
   const endDate = project.endDate || project.end_date;
@@ -66,6 +109,12 @@ export function projectYearBar(project, year) {
   }
 }
 
+/**
+ * Formatea la fecha de un hito estratégico (ej. 'Programado para el 15 Feb 2026').
+ *
+ * @param {string} targetDate - Fecha límite del hito.
+ * @returns {string} Texto representativo formateado.
+ */
 export function formatMilestoneDate(targetDate) {
   const date = parsePlanningDate(targetDate);
   if (!date) return '';
@@ -73,6 +122,14 @@ export function formatMilestoneDate(targetDate) {
   return `Programado para el ${String(date.getUTCDate()).padStart(2, '0')} ${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getUTCFullYear()}`;
 }
 
+/**
+ * Transforma un proyecto del modelo backend/portafolio al contrato visual para diagramas de Gantt,
+ * resolviendo colores por área temática, duración en meses y etiquetas de gobernanza ($100k).
+ *
+ * @param {Object} p - Objeto proyecto origen.
+ * @param {Object|null} [existing=null] - Proyecto previo en caché para preservar colores o atributos fijados.
+ * @returns {Object} Proyecto adaptado con propiedades de escala temporal, estado y aprobación.
+ */
 export function mapToGanttProject(p, existing = null) {
   const areaColors = {
     'Arquitectura': '#24559a', 'Edificaciones Comerciales': '#24559a',
@@ -130,6 +187,16 @@ export function mapToGanttProject(p, existing = null) {
   };
 }
 
+/**
+ * Registra un nuevo hito global en la colección de planificación estratégica validando
+ * proyecto asociado, estado inicial, fechas límite y responsable de validación.
+ *
+ * @param {Object} data - Estado actual de planificación (con colecciones projects y milestones).
+ * @param {Object} draft - Borrador del hito a registrar.
+ * @param {Date} [date=new Date()] - Fecha de registro usada para generar identificadores estables.
+ * @throws {Error} Si algún campo obligatorio no supera la validación de negocio.
+ * @returns {Object} Estado clonado e inmutable con el nuevo hito prepended.
+ */
 export function createGlobalMilestone(data, draft, date = new Date()) {
   const projects = data?.projects || [];
   const milestones = data?.milestones || [];
@@ -155,6 +222,16 @@ export function createGlobalMilestone(data, draft, date = new Date()) {
   return { ...data, milestones: [milestone, ...milestones] };
 }
 
+/**
+ * Reajusta las fechas de inicio y fin de un proyecto en el cronograma, registrando
+ * la entrada de auditoría correspondiente con motivo de gobernanza y preservando la inmutabilidad.
+ *
+ * @param {Object} data - Estado actual de planificación (projects, adjustments).
+ * @param {Object} draft - Datos de reajuste (projectId, startDate, endDate, start, duration, reason).
+ * @param {Date} [date=new Date()] - Fecha en la que se ejecuta el ajuste para generar el historial.
+ * @throws {Error} Si el proyecto no existe, las fechas son inválidas o el motivo no está catalogado.
+ * @returns {Object} Nuevo estado con el proyecto actualizado y la entrada de historial añadida.
+ */
 export function adjustProjectSchedule(data, draft, date = new Date()) {
   const projects = data?.projects || [];
   const project = projects.find((item) => String(item.id) === String(draft.projectId));
@@ -235,6 +312,15 @@ export function adjustProjectSchedule(data, draft, date = new Date()) {
   };
 }
 
+/**
+ * Aplica el ajuste de cronograma y lo persiste asíncronamente en el backend Django mediante saveProject.
+ *
+ * @param {Object} data - Estado actual de planificación.
+ * @param {Object} draft - Datos del reajuste.
+ * @param {Function} saveProject - Función de guardado de proyecto (recibe id y payload de fechas).
+ * @throws {Error} Si el guardado en el servidor falla o el ID no es numérico de BD.
+ * @returns {Promise<Object>} Estado de planificación actualizado tras la persistencia.
+ */
 export async function persistProjectSchedule(data, draft, saveProject) {
   const updated = adjustProjectSchedule(data, draft);
   if (updated === data) return data;
@@ -249,6 +335,14 @@ export async function persistProjectSchedule(data, draft, saveProject) {
   return updated;
 }
 
+/**
+ * Sincroniza las fechas y duraciones de los proyectos en la colección de Portafolio
+ * para mantener consistencia con los cambios realizados en el Cronograma Maestro.
+ *
+ * @param {Object} portfolio - Estado de portafolio con array de proyectos.
+ * @param {Array<Object>} scheduleProjects - Proyectos del cronograma con startDate y endDate actualizados.
+ * @returns {Object} Estado de portafolio sincronizado (o la misma referencia si no hubo cambios).
+ */
 export function syncPortfolioSchedule(portfolio, scheduleProjects) {
   let changed = false;
   const projects = (portfolio.projects || []).map((project) => {

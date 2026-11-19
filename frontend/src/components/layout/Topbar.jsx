@@ -2,6 +2,7 @@ import React from 'react';
 import { Menu, Search, BookOpen } from 'lucide-react';
 import ProfileControls from './ProfileControls';
 import { usePlatform } from '../../hooks/usePlatform';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function Topbar({
   activeView,
@@ -17,6 +18,7 @@ export default function Topbar({
 }) {
   const searchInputRef = React.useRef(null);
   const { isMac, isMobile, formatShortcut } = usePlatform();
+  const { t } = useLanguage();
 
   React.useEffect(() => {
     const handleGlobalKeyDown = (event) => {
@@ -35,17 +37,19 @@ export default function Topbar({
   }, []);
 
   const placeholders = {
-    dashboard: 'Buscar proyectos, hitos o equipos...',
-    planning: 'Buscar en planificación maestra...',
-    portfolio: 'Buscar por nombre de proyecto, líder, etiquetas...',
-    operations: 'Buscar órdenes de trabajo, tareas o alertas...',
-    roles: 'Buscar usuarios, correos o roles...',
-    'human-resources': 'Buscar personal, disponibilidad o estados...',
-    integrations: 'Buscar integración, actividad o estado...',
-    'technical-team': 'Buscar técnico, área, especialidad o proyecto...',
-    configuracion: 'Buscar en configuración...',
+    dashboard: t('topbar.searchDashboard', 'Buscar proyectos, hitos o equipos...'),
+    planning: t('topbar.searchPlanning', 'Buscar en planificación maestra...'),
+    portfolio: t('topbar.searchPortfolio', 'Buscar por nombre de proyecto, líder, etiquetas...'),
+    operations: t('topbar.searchOperations', 'Buscar órdenes de trabajo, tareas o alertas...'),
+    roles: t('topbar.searchRoles', 'Buscar usuarios, correos o roles...'),
+    'human-resources': t('topbar.searchHumanResources', 'Buscar personal, disponibilidad o estados...'),
+    integrations: t('topbar.searchIntegrations', 'Buscar integración, actividad o estado...'),
+    'technical-team': t('topbar.searchTechnicalTeam', 'Buscar técnico, área, especialidad o proyecto...'),
+    configuracion: t('topbar.searchConfiguration', 'Buscar en configuración...'),
+    manual: t('topbar.searchManualPlaceholder', 'Buscar en el manual de usuario o atajos...'),
   };
-  const placeholder = searchPlaceholder || placeholders[activeView] || placeholders.dashboard;
+  const defaultSearchPlaceholder = t('topbar.searchDefault', 'Buscar proyectos, hitos o equipos...');
+  const placeholder = placeholders[activeView] || defaultSearchPlaceholder;
 
   return (
     <header className="flex items-center justify-between gap-3 px-3 py-2 sm:gap-4 sm:px-5 sm:py-2.5 transition-colors duration-300 bg-white border-b border-slate-200 dark:bg-[#0d1117] dark:border-[#30363d] midnight:bg-[#050B14] midnight:border-cyan-900/30">
@@ -54,7 +58,7 @@ export default function Topbar({
         <button
           type="button"
           onClick={onOpenMobileMenu}
-          aria-label="Abrir menú"
+          aria-label={t('topbar.menu', 'Menú')}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-50 transition-colors md:hidden cursor-pointer"
         >
           <Menu size={18} />
@@ -83,10 +87,10 @@ export default function Topbar({
           />
           {!isMobile && (
             <kbd
-              title={`Atajo de búsqueda: ${isMac ? '⌘K' : 'Ctrl + K'}`}
+              title={t('topbar.searchShortcutTooltip', 'Atajo de búsqueda: {shortcut}', { shortcut: isMac ? '⌘K' : t('topbar.searchShortcut', 'Ctrl K') })}
               className="hidden sm:inline-flex items-center gap-1 rounded bg-slate-200/70 dark:bg-slate-800 midnight:bg-cyan-950/70 px-1.5 py-0.5 text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 midnight:text-cyan-400 border border-slate-300/80 dark:border-slate-700/60 midnight:border-cyan-800/40 select-none shrink-0"
             >
-              {isMac ? '⌘K' : 'Ctrl K'}
+              {isMac ? '⌘K' : t('topbar.searchShortcut', 'Ctrl K')}
             </kbd>
           )}
         </div>
@@ -95,8 +99,8 @@ export default function Topbar({
         <button
           type="button"
           onClick={() => onNavigate && onNavigate('manual')}
-          title={`Manual de Usuario (${formatShortcut('Shift + 8')})`}
-          aria-label="Manual de Usuario"
+          title={t('topbar.manualShortcutTooltip', '{title} ({shortcut})', { title: t('topbar.searchManual', 'Manual de Usuario'), shortcut: formatShortcut('Shift + 8') })}
+          aria-label={t('topbar.searchManual', 'Manual de Usuario')}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-50 transition-colors cursor-pointer"
         >
           <BookOpen size={17} />

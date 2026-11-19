@@ -7,11 +7,14 @@ if %errorLevel% neq 0 (
     exit /b
 )
 
+set "VECTOR_DIR=%~dp0vector_pg17"
+if not exist "%VECTOR_DIR%" set "VECTOR_DIR=%~dp0..\vector_pg17"
+
 echo Copiando archivos de pgvector a C:\Program Files\PostgreSQL\17...
-copy /Y "%~dp0vector_pg17\lib\vector.dll" "C:\Program Files\PostgreSQL\17\lib\"
-copy /Y "%~dp0vector_pg17\share\extension\*.*" "C:\Program Files\PostgreSQL\17\share\extension\"
+copy /Y "%VECTOR_DIR%\lib\vector.dll" "C:\Program Files\PostgreSQL\17\lib\"
+copy /Y "%VECTOR_DIR%\share\extension\*.*" "C:\Program Files\PostgreSQL\17\share\extension\"
 if not exist "C:\Program Files\PostgreSQL\17\include\server\extension\vector\" mkdir "C:\Program Files\PostgreSQL\17\include\server\extension\vector\"
-copy /Y "%~dp0vector_pg17\include\server\extension\vector\*.*" "C:\Program Files\PostgreSQL\17\include\server\extension\vector\"
+copy /Y "%VECTOR_DIR%\include\server\extension\vector\*.*" "C:\Program Files\PostgreSQL\17\include\server\extension\vector\"
 
 echo =======================================================
 echo pgvector instalado con exito en PostgreSQL 17.

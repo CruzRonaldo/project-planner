@@ -752,7 +752,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("no puede ser idéntica", response.data["message"])
+        self.assertIn("debe ser distinta a la contraseña actual", response.data["message"])
 
     def test_change_password_mismatched_confirmation(self):
         payload = {
@@ -763,7 +763,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("no coinciden", response.data["message"])
+        self.assertIn("las contraseñas deben coincidir", response.data["message"])
 
     def test_change_password_requires_confirmation(self):
         response = self.client.post(
@@ -776,7 +776,7 @@ class ChangePasswordTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Debe confirmar", response.data["message"])
+        self.assertIn("las contraseñas deben coincidir", response.data["message"])
 
     def test_change_password_too_short(self):
         payload = {
@@ -787,7 +787,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("al menos 6 caracteres", response.data["message"])
+        self.assertIn("mínimo 12 caracteres", response.data["message"])
 
     def test_change_password_requires_authenticated_session(self):
         self.client.credentials()
@@ -892,9 +892,7 @@ class UserProfileAPITests(TestCase):
             self.assertEqual(login_resp.data["user"]["phone"], "+51 987 654 321")
 
     def test_remove_profile_photo(self):
-        # Primero guardar foto
         self.client.patch(self.profile_url, {"identifier": self.email, "photo": "data:image/png;base64,mock"}, format="json")
-        # Luego remover foto
         remove_resp = self.client.patch(self.profile_url, {"identifier": self.email, "photo": None}, format="json")
         self.assertEqual(remove_resp.status_code, status.HTTP_200_OK)
         self.assertIsNone(remove_resp.data["profile"]["photo"])

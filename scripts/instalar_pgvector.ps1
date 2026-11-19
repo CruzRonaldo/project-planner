@@ -1,6 +1,9 @@
-# Script de instalación de pgvector para PostgreSQL 17 en Windows (Ejecutar como Administrador)
+﻿# Script de instalación de pgvector para PostgreSQL 17 en Windows (Ejecutar como Administrador)
 $ErrorActionPreference = "Stop"
 $SourceDir = "$PSScriptRoot\vector_pg17"
+if (!(Test-Path $SourceDir)) {
+    $SourceDir = "$PSScriptRoot\..\vector_pg17"
+}
 $PgTarget = "C:\Program Files\PostgreSQL\17"
 
 if (!(Test-Path $PgTarget)) {

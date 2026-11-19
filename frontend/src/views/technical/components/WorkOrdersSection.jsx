@@ -1,5 +1,6 @@
 import React from 'react';
 import { MoreVertical } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import Pagination from '../../../components/common/Pagination';
 import {
   StatusBadge,
@@ -36,21 +37,28 @@ export default function WorkOrdersSection({
   mutedClass = '',
   cardClass = '',
 }) {
+  const { t } = useLanguage();
   const filterOptions = [
-    { id: 'all', label: 'Todas' },
-    { id: 'high', label: 'Alta prioridad' },
-    { id: 'in-progress', label: 'En curso' },
+    { id: 'all', label: t('portfolio.all', 'Todas') },
+    { id: 'high', label: t('statuses.high', 'Alta prioridad') },
+    { id: 'in-progress', label: t('statuses.inProgress', 'En curso') },
   ];
+
+  const resolveStatusLabel = (val, fallback) => {
+    if (!val) return fallback;
+    const key = val.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+    return t(`statuses.${key}`, t(`statuses.${val}`, fallback));
+  };
 
   return (
     <section className={`min-w-0 overflow-hidden ${cardClass}`} aria-labelledby="work-orders-title">
       <header className="flex flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-5">
         <div>
           <h2 id="work-orders-title" className={`text-base font-semibold ${headingClass}`}>
-            Órdenes de Trabajo Activas
+            {t('operations.activeWorkOrders', 'Órdenes de Trabajo Activas')}
           </h2>
           <p className={`mt-1 text-[10px] ${mutedClass}`}>
-            Últimas órdenes de operación en terreno
+            {t('operations.activeWorkOrdersSubtitle', 'Últimas órdenes de operación en terreno')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -58,10 +66,10 @@ export default function WorkOrdersSection({
             <Select
               value={projectFilter}
               onChange={(event) => setProjectFilter(event.target.value)}
-              aria-label="Filtrar por proyecto operativo"
+              aria-label={t('operations.filterByProjectAria', 'Filtrar por proyecto operativo')}
               className="w-[190px] py-1.5 text-xs"
               options={[
-                { value: 'all', label: 'Todos los proyectos' },
+                { value: 'all', label: t('strategicPlanning.allProjects', 'Todos los proyectos') },
                 ...availableProjects.map((project) => ({
                   value: project,
                   label: project.split(' (')[0],
@@ -74,9 +82,9 @@ export default function WorkOrdersSection({
               value={sortOrder}
               onChange={onSortChange}
               categories={sortCategories}
-              label="Ordenar:"
+              label={t('common.sort', 'Ordenar:')}
               buttonClassName="w-[225px]"
-              ariaLabel="Ordenar órdenes de trabajo"
+              ariaLabel={t('operations.sortWorkOrders', 'Ordenar órdenes de trabajo')}
             />
           )}
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1 transition-colors duration-300 dark:bg-[#0d1117] midnight:bg-[#050B14]">
@@ -102,7 +110,15 @@ export default function WorkOrdersSection({
       <div className="mt-3 px-4 sm:px-5">
         <Table className="min-w-[760px] border-collapse">
           <TableHead
-            columns={['ID', 'Proyecto', 'Tarea / Operación', 'Responsable', 'Prioridad', 'Estado', 'Acción']}
+            columns={[
+              t('operations.colId', 'ID'),
+              t('operations.colProject', 'Proyecto'),
+              t('operations.colTaskOperation', 'Tarea / Operación'),
+              t('operations.colResponsible', 'Responsable'),
+              t('operations.colPriority', 'Prioridad'),
+              t('operations.colStatus', 'Estado'),
+              t('operations.colAction', 'Acción'),
+            ]}
           />
           <tbody>
             {paginatedOrders.map((order) => (
@@ -123,23 +139,33 @@ export default function WorkOrdersSection({
                     {order.title || order.type}
                   </div>
                   <div className={`text-[10px] mt-0.5 ${mutedClass}`}>
-                    {order.type} • {order.area}
+                    {t('operations.types.' + order.type, order.type)} • {t('operations.areas.' + order.area, order.area)}
                   </div>
                 </td>
                 <td className="px-2 py-3.5 text-[10px] text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
                   {order.responsible}
                 </td>
                 <td className="px-2 py-3.5">
-                  <StatusBadge status={order.priority} items={workOrderPriorities} size="xs" />
+                  <StatusBadge
+                    status={order.priority}
+                    items={workOrderPriorities}
+                    label={resolveStatusLabel(order.priority, workOrderPriorities.find((p) => p.id === order.priority)?.label)}
+                    size="xs"
+                  />
                 </td>
                 <td className="px-2 py-3.5">
-                  <StatusBadge status={order.status} items={workOrderStatuses} size="xs" />
+                  <StatusBadge
+                    status={order.status}
+                    items={workOrderStatuses}
+                    label={resolveStatusLabel(order.status, workOrderStatuses.find((s) => s.id === order.status)?.label)}
+                    size="xs"
+                  />
                 </td>
                 <td className="py-3.5 pl-2 text-right">
                   <button
                     type="button"
                     onClick={() => onViewOrder && onViewOrder(order)}
-                    aria-label={`Ver orden ${order.code}`}
+                    aria-label={t('operations.viewOrderAria', `Ver orden ${order.code}`, { code: order.code })}
                     className="rounded p-1.5 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
                   >
                     <MoreVertical size={15} />
@@ -150,7 +176,7 @@ export default function WorkOrdersSection({
             {!orders.length && (
               <TableRow>
                 <td colSpan={7} className="py-12 text-center text-sm text-slate-500 midnight:text-cyan-500/70">
-                  No se encontraron órdenes con estos filtros.
+                  {t('operations.noMatchingOrders', 'No se encontraron órdenes con estos filtros.')}
                 </td>
               </TableRow>
             )}
@@ -166,7 +192,7 @@ export default function WorkOrdersSection({
               totalPages={totalOrderPages}
               totalItems={orders.length}
               pageSize={pageSize}
-              itemLabel="órdenes"
+              itemLabel={t('operations.ordersCountLabel', 'órdenes')}
               onPageChange={onPageChange}
               hideOnSinglePage={false}
             />
