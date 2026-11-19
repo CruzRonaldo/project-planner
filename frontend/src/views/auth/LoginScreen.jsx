@@ -5,8 +5,6 @@ import {
   User,
   Mail,
   Lock,
-  Eye,
-  EyeOff,
   AlertCircle,
   X,
   KeyRound,
@@ -23,6 +21,8 @@ import api, {
 } from "../../services/api";
 import Input from "../../components/common/Input";
 import PasswordInput from "../../components/common/PasswordInput";
+import { PasswordRequirements } from "../../components/common";
+import { evaluatePassword } from "../../utils/passwordValidation";
 
 export default function LoginScreen({ onLogin }) {
   const [role, setRole] = useState("admin");
@@ -35,13 +35,11 @@ export default function LoginScreen({ onLogin }) {
 
   // Estados para modal de recuperación de contraseña
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1: Solicitud de código, 2: Validación y cambio
+  const [forgotStep, setForgotStep] = useState(1); // 1: Solicitud de código, 2: Validación, 3: Nueva clave
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotCode, setForgotCode] = useState("");
   const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
-  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
-  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotError, setForgotError] = useState("");
   const [isSubmittingForgot, setIsSubmittingForgot] = useState(false);
 
@@ -66,8 +64,6 @@ export default function LoginScreen({ onLogin }) {
     setForgotCode("");
     setForgotNewPassword("");
     setForgotConfirmPassword("");
-    setShowForgotNewPassword(false);
-    setShowForgotConfirmPassword(false);
     setForgotError("");
     setIsSubmittingForgot(false);
   };
@@ -141,16 +137,14 @@ export default function LoginScreen({ onLogin }) {
       }
     } else if (forgotStep === 3) {
       // --- PASO 3: Restablecer contraseña con código ya verificado ---
-      if (!forgotNewPassword) {
-        setForgotError("Por favor, ingresa una nueva contraseña.");
-        return;
-      }
-      if (forgotNewPassword.length < 8) {
-        setForgotError("La nueva contraseña debe tener al menos 8 caracteres.");
-        return;
-      }
-      if (forgotNewPassword !== forgotConfirmPassword) {
-        setForgotError("Las contraseñas no coinciden. Verifícalas e inténtalo nuevamente.");
+      const passwordCheck = evaluatePassword(
+        forgotNewPassword,
+        forgotConfirmPassword
+      );
+      if (!passwordCheck.isValid) {
+        setForgotError(
+          `La contraseña aún no cumple con: ${passwordCheck.failedLabels.join(", ")}.`
+        );
         return;
       }
 
@@ -280,7 +274,6 @@ export default function LoginScreen({ onLogin }) {
   };
 
   // Lógica para Configurar 2FA (obtener secreto y QR)
-  // Acepta un userId explícito para poder ser invocada antes de que el estado tempUserId se actualice
   const handleSetup2FA = async (overrideUserId) => {
     const userId = overrideUserId || tempUserId;
     if (!userId) return;
@@ -913,10 +906,15 @@ export default function LoginScreen({ onLogin }) {
                     <PasswordInput
                       id="forgot-new-password"
                       variant="auth"
+                      minLength={12}
+                      maxLength={128}
                       autoComplete="new-password"
                       value={forgotNewPassword}
-                      onChange={(e) => setForgotNewPassword(e.target.value)}
-                      placeholder="Mínimo 8 caracteres"
+                      onChange={(e) => {
+                        setForgotNewPassword(e.target.value);
+                        setForgotError("");
+                      }}
+                      placeholder="Mínimo 12 caracteres"
                       required
                       icon={<Lock className="w-4 h-4" />}
                     />
@@ -930,9 +928,14 @@ export default function LoginScreen({ onLogin }) {
                     <PasswordInput
                       id="forgot-confirm-password"
                       variant="auth"
+                      minLength={12}
+                      maxLength={128}
                       autoComplete="new-password"
                       value={forgotConfirmPassword}
-                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setForgotConfirmPassword(e.target.value);
+                        setForgotError("");
+                      }}
                       placeholder="Repite la nueva contraseña"
                       required
                       icon={<Lock className="w-4 h-4" />}
@@ -940,6 +943,11 @@ export default function LoginScreen({ onLogin }) {
                       hidePasswordLabel="Ocultar confirmación de contraseña"
                     />
                   </div>
+
+                  <PasswordRequirements
+                    password={forgotNewPassword}
+                    confirmPassword={forgotConfirmPassword}
+                  />
                 </>
               )}
 

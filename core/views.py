@@ -83,6 +83,10 @@ from .services.google_drive import (
     rename_file,
     upload_file,
 )
+from .services.password_policy import (
+    format_password_policy_error,
+    get_password_policy_errors,
+)
 from core.services.aps_service import APSService
 
 
@@ -341,7 +345,7 @@ def change_password_view(request):
     """
     Endpoint para cambiar la contraseña de un usuario validando su contraseña actual.
     Garantiza que la clave anterior coincida y que la nueva contraseña se almacene
-    encriptada en la Base de Datos.
+    encriptada en la Base de Datos cumpliendo toda la política de seguridad.
     """
     data = request.data
     current_password = data.get('current_password') or data.get('currentPassword') or ''
@@ -375,35 +379,16 @@ def change_password_view(request):
             'message': 'Contraseña actual verificada correctamente.'
         }, status=status.HTTP_200_OK)
 
-    # 3. Validar nueva contraseña
-    if not new_password:
+    # 3. Validar nueva contraseña con política unificada
+    policy_errors = get_password_policy_errors(
+        new_password,
+        confirm_password=confirm_password,
+        current_password=current_password,
+    )
+    if policy_errors:
         return Response({
             'status': 'error',
-            'message': 'Debe ingresar una nueva contraseña.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if len(new_password) < 6:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña debe contener al menos 6 caracteres.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if current_password == new_password:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña no puede ser idéntica a la contraseña actual.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if not confirm_password:
-        return Response({
-            'status': 'error',
-            'message': 'Debe confirmar la nueva contraseña.'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if new_password != confirm_password:
-        return Response({
-            'status': 'error',
-            'message': 'La nueva contraseña y su confirmación no coinciden.'
+            'message': format_password_policy_error(policy_errors),
         }, status=status.HTTP_400_BAD_REQUEST)
 
     # 4. Actualizar contraseña cifrada en la base de datos
@@ -493,10 +478,10 @@ def user_profile_view(request):
 
             if new_email != old_email:
                 from django.core.validators import validate_email
-                from django.core.exceptions import ValidationError
+                from django.core.exceptions import ValidationError as DjangoValidationError
                 try:
                     validate_email(new_email)
-                except ValidationError:
+                except DjangoValidationError:
                     return Response({
                         'status': 'error',
                         'message': 'El formato del correo electrónico ingresado no es válido.'
@@ -972,8 +957,6 @@ class PersonnelIncidentViewSet(viewsets.ModelViewSet):
             comment=request.data.get('comment', ''),
         )
         return Response(self.get_serializer(incident).data, status=status.HTTP_200_OK)
-    
-
 
 
 class TeamMemberChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1859,6 +1842,7 @@ class APSTokenView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
 class APSDownloadView(APIView):
     """
     GET /api/integrations/aps/models/<id>/download/
@@ -1900,7 +1884,6 @@ class CreateTechnicianView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 
 # ==========================================================================
@@ -2029,7 +2012,7 @@ class PasswordResetConfirmView(APIView):
     Body: { "email": "...", "code": "123456", "new_password": "...", "confirm_password": "..." }
 
     Valida el codigo OTP, comprueba que no haya expirado (15 min),
-    cambia la contrasena y elimina el codigo usado.
+    valida la politica unificada de contraseña, la actualiza y elimina el codigo usado.
     """
     permission_classes = [AllowAny]
 
@@ -2048,15 +2031,13 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if new_password != confirm_password:
+        policy_errors = get_password_policy_errors(
+            new_password,
+            confirm_password=confirm_password,
+        )
+        if policy_errors:
             return Response(
-                {'status': 'error', 'message': 'Las contrasenas nuevas no coinciden.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if len(new_password) < 8:
-            return Response(
-                {'status': 'error', 'message': 'La contrasena debe tener al menos 8 caracteres.'},
+                {'status': 'error', 'message': format_password_policy_error(policy_errors)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -2123,7 +2104,6 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
-
 
 
 class ProjectChangeLogViewSet(viewsets.ModelViewSet):
@@ -2315,7 +2295,6 @@ class Verify2FAView(APIView):
                 "session_token": session_token,
             },
         }, status=status.HTTP_200_OK)
-
 
 
 class Request2FAResetView(APIView):

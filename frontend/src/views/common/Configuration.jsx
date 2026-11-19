@@ -11,7 +11,7 @@ import {
   AuditLogCard,
   EditProfileModal,
   ChangePasswordModal,
-} from './configuration';
+} from './configuration/index.js';
 
 /**
  * Vista unificada de Configuración del Sistema.

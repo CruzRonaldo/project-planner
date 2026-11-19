@@ -4,6 +4,8 @@ import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
 import Button from '../../../components/common/Button';
 import InlineAlert from '../../../components/common/InlineAlert';
+import { PasswordRequirements } from '../../../components/common';
+import { evaluatePassword } from '../../../utils/passwordValidation';
 
 /**
  * Modal de Cambio de Contraseña en dos pasos:
@@ -29,6 +31,17 @@ export default function ChangePasswordModal({
     if (step === 'current') {
       onVerifyCurrent(e);
     } else {
+      const passwordCheck = evaluatePassword(
+        form.newPassword,
+        form.confirmPassword,
+        { currentPassword: form.currentPassword }
+      );
+      if (!passwordCheck.isValid) {
+        setError(
+          `La contraseña aún no cumple con: ${passwordCheck.failedLabels.join(', ')}.`
+        );
+        return;
+      }
       onSubmitNewPassword(e);
     }
   };
@@ -77,7 +90,10 @@ export default function ChangePasswordModal({
               </label>
               <PasswordInput
                 value={form.currentPassword}
-                onChange={(e) => setForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                onChange={(e) => {
+                  setForm((prev) => ({ ...prev, currentPassword: e.target.value }));
+                  if (error) setError('');
+                }}
                 required
                 autoFocus
                 placeholder="••••••••"
@@ -100,10 +116,15 @@ export default function ChangePasswordModal({
                 </label>
                 <PasswordInput
                   value={form.newPassword}
-                  onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, newPassword: e.target.value }));
+                    if (error) setError('');
+                  }}
                   required
+                  minLength={12}
+                  maxLength={128}
                   autoFocus
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 12 caracteres"
                   autoComplete="new-password"
                   showPasswordLabel="Mostrar nueva contraseña"
                   hidePasswordLabel="Ocultar nueva contraseña"
@@ -116,14 +137,25 @@ export default function ChangePasswordModal({
                 </label>
                 <PasswordInput
                   value={form.confirmPassword}
-                  onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
+                    if (error) setError('');
+                  }}
                   required
+                  minLength={12}
+                  maxLength={128}
                   placeholder="Repita la nueva contraseña"
                   autoComplete="new-password"
                   showPasswordLabel="Mostrar confirmación de contraseña"
                   hidePasswordLabel="Ocultar confirmación de contraseña"
                 />
               </div>
+
+              <PasswordRequirements
+                password={form.newPassword}
+                confirmPassword={form.confirmPassword}
+                currentPassword={form.currentPassword}
+              />
             </>
           )}
 

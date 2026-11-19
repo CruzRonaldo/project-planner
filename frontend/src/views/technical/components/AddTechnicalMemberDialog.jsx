@@ -2,21 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { Camera, UserPlus, Users } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
-import { FootnoteText, InlineAlert } from '../../../components/common';
+import {
+  FootnoteText,
+  InlineAlert,
+  PasswordRequirements,
+} from '../../../components/common';
 import {
   technicalAreas,
   technicalProjects,
   technicalStatuses,
 } from '../../../constants/technicalTeam';
 import { getRequestErrorMessage } from '../../../utils/technicalTeam';
+import { evaluatePassword } from '../../../utils/passwordValidation';
 import {
   inputClass,
   labelClass,
   nestedClass,
-  errorClass,
 } from '../../../constants/themeClasses';
 
-const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
+const mutedClass =
+  'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 
 /**
  * Diálogo modal para registrar un nuevo integrante en el equipo técnico.
@@ -53,6 +58,18 @@ export default function AddTechnicalMemberDialog({
   const submitDraft = async (event) => {
     if (event?.preventDefault) event.preventDefault();
     setError('');
+
+    const passwordCheck = evaluatePassword(
+      draft.password,
+      draft.passwordConfirm
+    );
+    if (!passwordCheck.isValid) {
+      setError(
+        `La contraseña aún no cumple con: ${passwordCheck.failedLabels.join(', ')}.`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmit(draft);
@@ -96,7 +113,9 @@ export default function AddTechnicalMemberDialog({
 
   const membersCount = existingData?.members?.length ?? 0;
   const footnote = (
-    <FootnoteText text={`Campos requeridos para el alta técnica. Actualmente hay ${membersCount} integrantes.`} />
+    <FootnoteText
+      text={`Campos requeridos para el alta técnica. Actualmente hay ${membersCount} integrantes.`}
+    />
   );
 
   return (
@@ -115,9 +134,15 @@ export default function AddTechnicalMemberDialog({
       maxWidth="max-w-3xl"
       id="new-technician"
     >
-      <div className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center ${nestedClass}`}>
+      <div
+        className={`flex flex-col gap-4 p-4 sm:flex-row sm:items-center ${nestedClass}`}
+      >
         {draft.avatar ? (
-          <img src={draft.avatar} alt="Vista previa de la foto" className="h-16 w-16 rounded-full object-cover" />
+          <img
+            src={draft.avatar}
+            alt="Vista previa de la foto"
+            className="h-16 w-16 rounded-full object-cover"
+          />
         ) : (
           <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 transition-colors duration-300 dark:border-slate-500 midnight:border-cyan-800/40 midnight:text-cyan-600">
             <Users size={27} />
@@ -126,15 +151,26 @@ export default function AddTechnicalMemberDialog({
         <div>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors duration-300 hover:border-cyan-400/50 dark:border-slate-600 dark:bg-[#161b22] dark:text-slate-200 midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-100">
             <Camera size={15} /> Subir foto de perfil
-            <input type="file" accept="image/png,image/jpeg" onChange={selectPhoto} className="sr-only" />
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={selectPhoto}
+              className="sr-only"
+            />
           </label>
-          <p className={`mt-2 text-[10px] ${mutedClass}`}>PNG o JPG (máx. 2 MB){photoName && ` · ${photoName}`}</p>
+          <p className={`mt-2 text-[10px] ${mutedClass}`}>
+            PNG o JPG (máx. 2 MB)
+            {photoName && ` · ${photoName}`}
+          </p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label className={labelClass}>
-          Nombres <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Nombres{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <input
             autoFocus
             required
@@ -146,7 +182,10 @@ export default function AddTechnicalMemberDialog({
           />
         </label>
         <label className={labelClass}>
-          Apellidos <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Apellidos{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <input
             required
             maxLength={80}
@@ -157,7 +196,10 @@ export default function AddTechnicalMemberDialog({
           />
         </label>
         <label className={labelClass}>
-          Correo electrónico corporativo <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Correo electrónico corporativo{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <input
             type="email"
             required
@@ -169,25 +211,31 @@ export default function AddTechnicalMemberDialog({
           />
         </label>
         <label className={labelClass}>
-          Contraseña inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Contraseña inicial{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <div className="mt-2">
             <PasswordInput
               required
-              minLength={8}
+              minLength={12}
               maxLength={128}
               autoComplete="new-password"
               value={draft.password}
               onChange={changeField('password')}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Mínimo 12 caracteres"
             />
           </div>
         </label>
         <label className={labelClass}>
-          Confirmar contraseña <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Confirmar contraseña{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <div className="mt-2">
             <PasswordInput
               required
-              minLength={8}
+              minLength={12}
               maxLength={128}
               autoComplete="new-password"
               value={draft.passwordConfirm}
@@ -198,8 +246,19 @@ export default function AddTechnicalMemberDialog({
             />
           </div>
         </label>
+
+        <div className="sm:col-span-2">
+          <PasswordRequirements
+            password={draft.password}
+            confirmPassword={draft.passwordConfirm}
+          />
+        </div>
+
         <label className={labelClass}>
-          Especialidad / Rol <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Especialidad / Rol{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <input
             required
             maxLength={100}
@@ -210,8 +269,16 @@ export default function AddTechnicalMemberDialog({
           />
         </label>
         <label className={labelClass}>
-          Área técnica <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <select required value={draft.area} onChange={changeField('area')} className={inputClass}>
+          Área técnica{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
+          <select
+            required
+            value={draft.area}
+            onChange={changeField('area')}
+            className={inputClass}
+          >
             {technicalAreas.map((area) => (
               <option key={area.id} value={area.id}>
                 {area.label}
@@ -221,15 +288,27 @@ export default function AddTechnicalMemberDialog({
         </label>
         <label className={labelClass}>
           Proyecto asignado inicial
-          <select value={draft.project} onChange={changeField('project')} className={inputClass}>
+          <select
+            value={draft.project}
+            onChange={changeField('project')}
+            className={inputClass}
+          >
             {projectOptions.map((project) => (
               <option key={project}>{project}</option>
             ))}
           </select>
         </label>
         <label className={labelClass}>
-          Estado de disponibilidad <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
-          <select required value={draft.status} onChange={changeField('status')} className={inputClass}>
+          Estado de disponibilidad{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
+          <select
+            required
+            value={draft.status}
+            onChange={changeField('status')}
+            className={inputClass}
+          >
             {technicalStatuses.map((status) => (
               <option key={status.id} value={status.id}>
                 {status.label}
@@ -238,7 +317,10 @@ export default function AddTechnicalMemberDialog({
           </select>
         </label>
         <label className={labelClass}>
-          Disponibilidad / carga inicial <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+          Disponibilidad / carga inicial{' '}
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">
+            *
+          </span>
           <div className="relative">
             <input
               type="number"
@@ -250,12 +332,18 @@ export default function AddTechnicalMemberDialog({
               onChange={changeField('workload')}
               className={`${inputClass} pr-10`}
             />
-            <span className={`absolute bottom-2.5 right-3 text-xs ${mutedClass}`}>%</span>
+            <span className={`absolute bottom-2.5 right-3 text-xs ${mutedClass}`}>
+              %
+            </span>
           </div>
         </label>
       </div>
 
-      {error && <InlineAlert variant="error" className="mt-4">{error}</InlineAlert>}
+      {error && (
+        <InlineAlert variant="error" className="mt-4">
+          {error}
+        </InlineAlert>
+      )}
     </ModalDialog>
   );
 }

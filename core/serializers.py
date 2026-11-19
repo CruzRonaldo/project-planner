@@ -23,7 +23,10 @@ from .models import (
     ProjectChangeLog,
     ScheduleAdjustment,
 )
-
+from .services.password_policy import (
+    format_password_policy_error,
+    get_password_policy_errors,
+)
 
 class TechnicalAreaSerializer(serializers.ModelSerializer):
     """
@@ -748,17 +751,11 @@ class CreateTechnicianSerializer(serializers.Serializer):
         return email
 
     def validate(self, attrs):
-        user_model = get_user_model()
-        pending_user = user_model(
-            username=attrs['email'],
-            email=attrs['email'],
-            first_name=attrs['first_name'].strip(),
-            last_name=attrs['last_name'].strip(),
-        )
-        try:
-            validate_password(attrs['password'], user=pending_user)
-        except DjangoValidationError as error:
-            raise serializers.ValidationError({'password': list(error.messages)}) from error
+        policy_errors = get_password_policy_errors(attrs['password'])
+        if policy_errors:
+            raise serializers.ValidationError({
+                'password': [format_password_policy_error(policy_errors)]
+            })
         return attrs
 
     def _resolve_area(self, area_code):
