@@ -202,7 +202,13 @@
     "nameEmptyError": "El nombre no puede estar vacío.",
     "emailEmptyError": "El correo electrónico no puede estar vacío.",
     "emailInvalidError": "Ingrese un formato de correo electrónico válido (ej. usuario@gmail.com).",
-    "photoProcessError": "No se pudo procesar la imagen seleccionada."
+    "photoProcessError": "No se pudo procesar la imagen seleccionada.",
+    "phoneHelperText": "9 dígitos para Perú (ej. 987 654 321) o formato internacional (+51...)",
+    "phoneEmptyError": "El teléfono no puede estar vacío.",
+    "phoneInvalidCharsError": "El teléfono no debe contener letras, puntos ni comas.",
+    "phonePeruInvalidError": "El número de Perú debe tener 9 dígitos y empezar con 9 (ej. 987 654 321).",
+    "phoneLengthError": "El teléfono no puede exceder los 20 caracteres.",
+    "phoneInternationalInvalidError": "Formato internacional no válido (debe tener entre 8 y 15 dígitos numéricos tras el +)."
   },
   "auth": {
     "heroSubtitle": "Gestión y Optimización de Proyectos",

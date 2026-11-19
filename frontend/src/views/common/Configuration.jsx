@@ -13,6 +13,7 @@ import {
   ChangePasswordModal,
 } from './configuration/index.js';
 import { useLanguage } from '../../context/LanguageContext';
+import { evaluatePhone } from '../../utils/phoneValidation';
 
 /**
  * Vista unificada de Configuración del Sistema.
@@ -275,8 +276,14 @@ export default function Configuration({
       return;
     }
 
+    const phoneCheck = evaluatePhone(profileEditForm.phone, { isOptional: true, t });
+    if (!phoneCheck.isValid) {
+      setProfileError(phoneCheck.error);
+      return;
+    }
+
     setIsSubmittingProfile(true);
-    const updatedPhone = profileEditForm.phone.trim();
+    const updatedPhone = phoneCheck.formattedPhone;
 
     try {
       const activeUser = currentUser || {};

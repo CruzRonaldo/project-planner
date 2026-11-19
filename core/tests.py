@@ -945,6 +945,92 @@ class UserProfileAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("ya está registrado", response.data["message"])
 
+    def test_update_phone_peru_format_normalizes_to_canonical(self):
+        # 9 dígitos sin prefijo se normalizan a canónico +51 9XX XXX XXX
+        payload = {
+            "identifier": self.email,
+            "phone": "987654321",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "+51 987 654 321")
+
+        # Con espacios
+        payload2 = {
+            "identifier": self.email,
+            "phone": "912 345 678",
+        }
+        response2 = self.client.patch(self.profile_url, payload2, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response2.data["profile"]["phone"], "+51 912 345 678")
+
+    def test_update_phone_international_valid(self):
+        payload = {
+            "identifier": self.email,
+            "phone": "+57 300 123 4567",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "+57 300 123 4567")
+
+        # Teléfono de México ingresado sin espacios (+525588694904) debe auto-formatearse con espacios
+        payload_mex = {
+            "identifier": self.email,
+            "phone": "+525588694904",
+        }
+        response_mex = self.client.patch(self.profile_url, payload_mex, format="json")
+        self.assertEqual(response_mex.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_mex.data["profile"]["phone"], "+52 55 8869 4904")
+
+        # Verificar persistencia en la base de datos
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.phone, "+52 55 8869 4904")
+
+        # Colombia y EE.UU. ingresados sin espacios también se auto-formatean
+        payload_col = {"identifier": self.email, "phone": "+573001234567"}
+        resp_col = self.client.patch(self.profile_url, payload_col, format="json")
+        self.assertEqual(resp_col.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_col.data["profile"]["phone"], "+57 300 123 4567")
+
+        payload_usa = {"identifier": self.email, "phone": "+12025550123"}
+        resp_usa = self.client.patch(self.profile_url, payload_usa, format="json")
+        self.assertEqual(resp_usa.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_usa.data["profile"]["phone"], "+1 202 555 0123")
+
+    def test_update_phone_rejects_invalid_formats(self):
+        invalid_phones = [
+            "887654321",          # Perú no empieza con 9
+            "98765432",           # Perú con 8 dígitos
+            "123456789",          # No empieza con 9
+            "+57 300 abc 4567",   # Letras
+            "+51 987.654.321",    # Puntos
+            "987,654,321",        # Comas
+            "+0123456789",        # Empieza con 0 tras el +
+            "+1234567",           # Menos de 8 dígitos tras el +
+            "+123456789012345678901",  # Excede 20 caracteres
+        ]
+        for phone in invalid_phones:
+            payload = {
+                "identifier": self.email,
+                "phone": phone,
+            }
+            response = self.client.patch(self.profile_url, payload, format="json")
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_400_BAD_REQUEST,
+                f"El teléfono '{phone}' debió ser rechazado con 400"
+            )
+            self.assertIn("no es válido", response.data["message"])
+
+    def test_update_phone_empty_clears_phone(self):
+        payload = {
+            "identifier": self.email,
+            "phone": "",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "")
+
 
 class BackupAuthenticationAndSecurityTests(TestCase):
     """Pruebas de seguridad y autenticación para la gestión de respaldos."""

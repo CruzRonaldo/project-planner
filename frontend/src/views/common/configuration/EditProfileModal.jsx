@@ -4,6 +4,7 @@ import ModalDialog from '../../../components/common/ModalDialog';
 import Input from '../../../components/common/Input';
 import InlineAlert from '../../../components/common/InlineAlert';
 import { useLanguage } from '../../../context/LanguageContext';
+import { sanitizePhoneInput } from '../../../utils/phoneValidation';
 
 /**
  * Modal de Edición de Perfil de Usuario con validación accesible.
@@ -67,10 +68,11 @@ export default function EditProfileModal({
           <Input
             label={t('configuration.phoneOptionalLabel', 'Teléfono de Contacto (Opcional)')}
             type="tel"
-            maxLength={30}
+            maxLength={20}
             value={form.phone}
-            onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+            onChange={(e) => setForm((prev) => ({ ...prev, phone: sanitizePhoneInput(e.target.value) }))}
             placeholder={t('configuration.phonePlaceholder', 'Ej. +51 987 654 321')}
+            helperText={t('configuration.phoneHelperText', '9 dígitos para Perú (ej. 987 654 321) o formato internacional (+51...)')}
           />
 
           <Input

@@ -202,7 +202,13 @@
     "nameEmptyError": "The name cannot be empty.",
     "emailEmptyError": "The email address cannot be empty.",
     "emailInvalidError": "Please enter a valid email format (e.g., user@gmail.com).",
-    "photoProcessError": "Could not process the selected image."
+    "photoProcessError": "Could not process the selected image.",
+    "phoneHelperText": "9 digits for Peru (e.g., 987 654 321) or international format (+51...)",
+    "phoneEmptyError": "Phone number cannot be empty.",
+    "phoneInvalidCharsError": "Phone number must not contain letters, dots, or commas.",
+    "phonePeruInvalidError": "Peru phone numbers must have 9 digits starting with 9 (e.g., 987 654 321).",
+    "phoneLengthError": "Phone number cannot exceed 20 characters.",
+    "phoneInternationalInvalidError": "Invalid international format (must have between 8 and 15 numeric digits after +)."
   },
   "auth": {
     "heroSubtitle": "Project Management and Optimization",

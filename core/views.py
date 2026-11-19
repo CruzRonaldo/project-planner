@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import re
 import time
 from datetime import date, timedelta
 
@@ -418,6 +419,52 @@ def change_password_view(request):
     }, status=status.HTTP_200_OK)
 
 
+def format_known_country_phone(digits_after_plus: str) -> str | None:
+    """
+    Formatea canónicamente números internacionales con prefijo de países reconocidos
+    (Perú, México, Colombia, Chile, España, EE.UU./Canadá, Argentina).
+    """
+    if not digits_after_plus or not isinstance(digits_after_plus, str):
+        return None
+
+    # Perú (+51): 9 dígitos iniciando en 9
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('519'):
+        d = digits_after_plus[2:]
+        return f"+51 {d[0:3]} {d[3:6]} {d[6:9]}"
+
+    # México (+52): 10 dígitos nacionales (ej. +52 55 8869 4904)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('52'):
+        d = digits_after_plus[2:]
+        return f"+52 {d[0:2]} {d[2:6]} {d[6:10]}"
+
+    # Colombia (+57): 10 dígitos nacionales (ej. +57 300 123 4567)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('57'):
+        d = digits_after_plus[2:]
+        return f"+57 {d[0:3]} {d[3:6]} {d[6:10]}"
+
+    # Chile (+56): 9 dígitos nacionales (ej. +56 9 1234 5678)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('56'):
+        d = digits_after_plus[2:]
+        return f"+56 {d[0:1]} {d[1:5]} {d[5:9]}"
+
+    # España (+34): 9 dígitos nacionales (ej. +34 612 345 678)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('34'):
+        d = digits_after_plus[2:]
+        return f"+34 {d[0:3]} {d[3:6]} {d[6:9]}"
+
+    # EE.UU. / Canadá (+1): 10 dígitos nacionales (ej. +1 555 123 4567)
+    if len(digits_after_plus) == 11 and digits_after_plus.startswith('1'):
+        d = digits_after_plus[1:]
+        return f"+1 {d[0:3]} {d[3:6]} {d[6:10]}"
+
+    # Argentina (+54): 10 dígitos nacionales (ej. +54 11 2345 6789)
+    if len(digits_after_plus) == 12 and digits_after_plus.startswith('54'):
+        d = digits_after_plus[2:]
+        return f"+54 {d[0:2]} {d[2:6]} {d[6:10]}"
+
+    return None
+
+
 @api_view(['GET', 'PATCH', 'POST'])
 @permission_classes([AllowAny])
 def user_profile_view(request):
@@ -457,7 +504,57 @@ def user_profile_view(request):
 
         # 2. Actualizar teléfono
         if 'phone' in data:
-            profile.phone = (data.get('phone') or '').strip()
+            raw_phone = (data.get('phone') or '').strip()
+            if raw_phone:
+                if len(raw_phone) > 20:
+                    return Response({
+                        'status': 'error',
+                        'message': 'El formato del teléfono ingresado no es válido.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar que no contenga letras, puntos ni comas
+                if re.search(r'[a-zA-Z.,]', raw_phone):
+                    return Response({
+                        'status': 'error',
+                        'message': 'El formato del teléfono ingresado no es válido.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Si no empieza con '+': asumimos Perú (9 dígitos iniciando con 9)
+                if not raw_phone.startswith('+'):
+                    digits = re.sub(r'\D', '', raw_phone)
+                    if len(digits) == 9 and digits.startswith('9'):
+                        profile.phone = f"+51 {digits[0:3]} {digits[3:6]} {digits[6:9]}"
+                    else:
+                        return Response({
+                            'status': 'error',
+                            'message': 'El formato del teléfono ingresado no es válido.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    # Formato internacional: tras el '+' debe tener entre 8 y 15 dígitos y no iniciar en '0'
+                    digits_after_plus = re.sub(r'\D', '', raw_phone[1:])
+                    if (
+                        len(digits_after_plus) < 8
+                        or len(digits_after_plus) > 15
+                        or digits_after_plus.startswith('0')
+                    ):
+                        return Response({
+                            'status': 'error',
+                            'message': 'El formato del teléfono ingresado no es válido.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+                    formatted_known = format_known_country_phone(digits_after_plus)
+                    if formatted_known:
+                        profile.phone = formatted_known
+                    else:
+                        clean_intl = '+' + re.sub(r'\s+', ' ', raw_phone[1:]).strip()
+                        if len(clean_intl) > 20:
+                            return Response({
+                                'status': 'error',
+                                'message': 'El formato del teléfono ingresado no es válido.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        profile.phone = clean_intl
+            else:
+                profile.phone = ""
 
         profile.save()
 
