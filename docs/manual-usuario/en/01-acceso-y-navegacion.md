@@ -22,7 +22,7 @@ If it is not working,
 - If a Django connection notice appears, confirm that the backend is available.
 - If the account is deactivated, contact the administrator.
 
-![Login screen](../assets/manual/01-login-seleccion-roles.png)
+![Login screen](../../assets/manual/01-login-seleccion-roles.png)
 *Figure 1.1: Login screen with role selector (User / Administrator) and credentials form.*
 
 ## Log in as Administrator
@@ -44,7 +44,7 @@ If this is the first administrative login:
 
 **Expected result:** The Dashboard opens with the administrative actions enabled.
 
-![2FA TOTP Verification Screen](../assets/manual/14-verificacion-2fa-totp.png)
+![2FA TOTP Verification Screen](../../assets/manual/14-verificacion-2fa-totp.png)
 *Figure 1.2: Two-Factor Authentication (2FA/TOTP) Screen for Administrative Accounts with a Six-Digit Temporary Code.*
 
 ## 1.3 Recovering a password

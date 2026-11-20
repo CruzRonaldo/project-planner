@@ -22,7 +22,7 @@
 - Si aparece un aviso de conexión con Django, confirme que el backend esté disponible.
 - Si la cuenta está desactivada, contacte al administrador.
 
-![Pantalla de inicio de sesión](../assets/manual/01-login-seleccion-roles.png)
+![Pantalla de inicio de sesión](../../assets/manual/01-login-seleccion-roles.png)
 *Figura 1.1: Pantalla de inicio de sesión con selector de roles (Usuario / Administrador) y formulario de credenciales.*
 
 ## 1.2 Iniciar sesión como Administrador
@@ -44,7 +44,7 @@ Si es el primer acceso administrativo:
 
 **Resultado esperado:** se abre el Dashboard con las acciones administrativas habilitadas.
 
-![Pantalla de Verificación 2FA TOTP](../assets/manual/14-verificacion-2fa-totp.png)
+![Pantalla de Verificación 2FA TOTP](../../assets/manual/14-verificacion-2fa-totp.png)
 *Figura 1.2: Pantalla de Verificación de Dos Factores (2FA/TOTP) para cuentas administrativas con código temporal de seis dígitos.*
 
 ## 1.3 Recuperar una contraseña

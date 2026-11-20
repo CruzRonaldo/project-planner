@@ -15,6 +15,8 @@
 
 Si no obtiene resultados, borre la búsqueda y restablezca los filtros.
 
+> [!NOTE] Indicador de Liderazgo Técnico: Cuando un integrante del equipo técnico asignado como líder accede al portafolio, la tarjeta del proyecto exhibe el distintivo **“Tu Liderazgo”**, permitiéndole reconocer de inmediato sus obras bajo coordinación técnica.
+
 ## 3.2 Crear un proyecto
 
 **Disponible para:** Administrador y Subadministrador.
@@ -75,6 +77,8 @@ Esta acción puede eliminar información relacionada. Antes de usarla, confirme 
 5. En una fila, presione el botón de acción para abrir la ficha.
 6. Revise proyecto, área, responsable, prioridad, fechas, progreso, ruta crítica e instrucciones.
 7. Use **“Abrir en Drive”** cuando exista documentación vinculada.
+
+> [!TIP] Vista Operativa del Técnico: Los miembros del equipo técnico asignados como responsables visualizan directamente en su panel las órdenes de trabajo asignadas con su prioridad, ruta crítica y enlaces a planos en Drive, permitiéndoles consultar instrucciones y actualizar el avance en terreno.
 
 ## 3.7 Crear una orden de trabajo
 

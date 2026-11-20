@@ -67,6 +67,6 @@ Antes de eliminar, compruebe que el archivo no sea requerido por otro proyecto.
 5. No introduzca nuevamente secretos en formularios no previstos.
 6. Envíe al responsable técnico el nombre de la integración, hora del error y mensaje mostrado, sin adjuntar claves.
 
-![Panel de Integraciones](../assets/manual/09-integraciones-servicios.png)
+![Panel de Integraciones](../../assets/manual/09-integraciones-servicios.png)
 *Figura 5.1: Panel central de integraciones de servicios externos (Autodesk Platform Services BIM 3D, Google Drive y Make).*
 

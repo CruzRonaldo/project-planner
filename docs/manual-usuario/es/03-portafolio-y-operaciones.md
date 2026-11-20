@@ -15,6 +15,8 @@
 
 Si no obtiene resultados, borre la búsqueda y restablezca los filtros.
 
+> [!NOTE] Indicador de Liderazgo Técnico: Cuando un integrante del equipo técnico asignado como líder accede al portafolio, la tarjeta del proyecto exhibe el distintivo **“Tu Liderazgo”**, permitiéndole reconocer de inmediato sus obras bajo coordinación técnica.
+
 ## 3.2 Crear un proyecto
 
 **Disponible para:** Administrador y Subadministrador.
@@ -33,10 +35,10 @@ Si no obtiene resultados, borre la búsqueda y restablezca los filtros.
 
 **Errores frecuentes:** código repetido, fecha final anterior a la inicial, presupuesto inválido o campos obligatorios vacíos.
 
-![Portafolio de Proyectos y Gobernanza](../assets/manual/04-portafolio-tarjetas-gobernanza.png)
+![Portafolio de Proyectos y Gobernanza](../../assets/manual/04-portafolio-tarjetas-gobernanza.png)
 *Figura 3.1: Vista general del Portafolio de Proyectos con distinción de gobernanza presupuestaria `Comité (>$100k)`.*
 
-![Formulario Crear Nuevo Proyecto](../assets/manual/05-nuevo-proyecto-modal.png)
+![Formulario Crear Nuevo Proyecto](../../assets/manual/05-nuevo-proyecto-modal.png)
 *Figura 3.2: Diálogo para dar de alta un nuevo proyecto con presupuesto, fechas y líder asignado.*
 
 ## 3.3 Editar un proyecto
@@ -76,6 +78,8 @@ Esta acción puede eliminar información relacionada. Antes de usarla, confirme 
 6. Revise proyecto, área, responsable, prioridad, fechas, progreso, ruta crítica e instrucciones.
 7. Use **“Abrir en Drive”** cuando exista documentación vinculada.
 
+> [!TIP] Vista Operativa del Técnico: Los miembros del equipo técnico asignados como responsables visualizan directamente en su panel las órdenes de trabajo asignadas con su prioridad, ruta crítica y enlaces a planos en Drive, permitiéndoles consultar instrucciones y actualizar el avance en terreno.
+
 ## 3.7 Crear una orden de trabajo
 
 **Disponible para:** Administrador y Subadministrador.
@@ -113,6 +117,6 @@ Revise el mensaje de confirmación y los indicadores del módulo.
 3. Espere el mensaje **“Reporte Exportado”**.
 4. Abra el archivo descargado y compruebe los registros.
 
-![Ficha Técnica de Terreno](../assets/manual/06-ficha-tecnica-operaciones.png)
+![Ficha Técnica de Terreno](../../assets/manual/06-ficha-tecnica-operaciones.png)
 *Figura 3.3: Ficha técnica de órdenes de trabajo en terreno (`WorkOrderDetailDialog`) con avance, ruta crítica y acceso a planos Drive.*
 

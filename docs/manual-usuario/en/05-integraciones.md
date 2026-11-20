@@ -67,6 +67,6 @@ Before deleting, check that the file is not required by another project.
 5. Do not re-enter secrets in forms not intended for this purpose.
 6. Send the technical manager the name of the integration, the time of the error and the message displayed, without attaching any passwords.
 
-![Integrations Dashboard](../assets/manual/09-integraciones-servicios.png)
+![Integrations Dashboard](../../assets/manual/09-integraciones-servicios.png)
 *Figure 5.1: Central panel for external service integrations (Autodesk Platform Services BIM 3D, Google Drive, and Make).*
 

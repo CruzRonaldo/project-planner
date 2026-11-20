@@ -39,7 +39,7 @@
 
 **Common errors:** Duplicate email, different passwords, password less than eight characters, invalid photo, or catalogs not uploaded.
 
-![Technical Directory](../assets/manual/07-directorio-tecnico.png)
+![Technical Directory](../../assets/manual/07-directorio-tecnico.png)
 *Figure 4.1: Technical Team Directory with Availability Metrics and Specialties.*
 
 ## 4.4 Reassigning a project
@@ -99,6 +99,6 @@ The file includes the members available in the matrix, their assignment, status,
 
 Check the member's status, availability, and history later.
 
-![Human Resources Matrix](../assets/manual/08-matriz-rrhh-incidencias.png)
+![Human Resources Matrix](../../assets/manual/08-matriz-rrhh-incidencias.png)
 *Figure 4.2: Human Resources Matrix with management of absences, incidents, and workload balance.*
 

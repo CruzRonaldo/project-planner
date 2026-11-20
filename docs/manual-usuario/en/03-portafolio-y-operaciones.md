@@ -15,6 +15,8 @@
 
 If you don't get any results, clear the search and reset the filters.
 
+> [!NOTE] Technical Leadership Indicator: When a technical team member assigned as project leader accesses the portfolio, the project card displays the **“Tu Liderazgo”** badge, allowing immediate identification of projects under their technical coordination.
+
 ## 3.2 Create a project
 
 **Available to:** Administrator and Sub-administrator.
@@ -33,10 +35,10 @@ If you don't get any results, clear the search and reset the filters.
 
 **Common errors:** Duplicate code, end date before start date, invalid budget, or empty required fields.
 
-![Project Portfolio and Governance](../assets/manual/04-portafolio-tarjetas-gobernanza.png)
+![Project Portfolio and Governance](../../assets/manual/04-portafolio-tarjetas-gobernanza.png)
 *Figure 3.1: Overview of the Project Portfolio with distinction of budget governance `Comité (>$100k)`.*
 
-![Create New Project Form](../assets/manual/05-nuevo-proyecto-modal.png)
+![Create New Project Form](../../assets/manual/05-nuevo-proyecto-modal.png)
 *Figure 3.2: Dialog box for creating a new project with budget, dates, and assigned leader.*
 
 ## 3.3 Editing a project
@@ -76,6 +78,8 @@ This action may delete related information. Before using it, confirm that the pr
 6. Review project, area, person responsible, priority, dates, progress, critical path, and instructions.
 7. Use **“Open in Drive”** when there is linked documentation.
 
+> [!TIP] Technician Operational View: Technical team members assigned as task assignees directly view their assigned work orders on their dashboard with priority, critical path, and Drive drawing links, enabling fast instruction reviews and on-site field updates.
+
 ## 3.7 Creating a Work Order
 
 **Available to:** Administrator and Sub-administrator.
@@ -113,6 +117,6 @@ Check the confirmation message and the module indicators.
 3. Wait for the message **“Report Exported”**.
 4. Open the downloaded file and check the records.
 
-![Land Data Sheet](../assets/manual/06-ficha-tecnica-operaciones.png)
+![Land Data Sheet](../../assets/manual/06-ficha-tecnica-operaciones.png)
 *Figure 3.3: Data sheet for field work orders (`WorkOrderDetailDialog`) with progress, critical path and access to Drive drawings.*
 
