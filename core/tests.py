@@ -1633,6 +1633,42 @@ class UserProfileAPITests(TestCase):
         self.assertEqual(audit_resp.status_code, status.HTTP_200_OK)
         self.assertTrue(any(log["newValue"] == new_email for log in audit_resp.data["logs"]))
 
+    def test_update_email_invalidates_previous_sessions(self):
+        # 1. Sesión inicial del usuario
+        initial_token = issue_session_token(self.user)
+        session_client = APIClient()
+        session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {initial_token}")
+
+        # Comprobar que la sesión inicial es válida
+        validate_initial = session_client.get("/api/auth/session/validate/")
+        self.assertEqual(validate_initial.status_code, status.HTTP_200_OK)
+
+        # 2. Actualizar correo electrónico
+        new_email = "sesion.renovada@gmail.com"
+        payload = {
+            "identifier": self.email,
+            "email": new_email,
+        }
+        response = session_client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("session_token", response.data)
+        new_token = response.data["session_token"]
+        self.assertNotEqual(initial_token, new_token)
+
+        # 3. Comprobar que la sesión previa (initial_token) ahora está INVALIDADA (HTTP 401)
+        old_session_client = APIClient()
+        old_session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {initial_token}")
+        old_validate = old_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(old_validate.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("cerrada", old_validate.data["detail"])
+
+        # 4. Comprobar que el nuevo token es válido (HTTP 200)
+        new_session_client = APIClient()
+        new_session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {new_token}")
+        new_validate = new_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(new_validate.status_code, status.HTTP_200_OK)
+        self.assertTrue(new_validate.data["valid"])
+
     def test_update_email_rejects_invalid_format(self):
         payload = {
             "identifier": self.email,

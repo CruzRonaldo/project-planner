@@ -573,6 +573,7 @@ def user_profile_view(request):
             user_update_fields.extend(['first_name', 'last_name'])
 
         # 4. Actualizar correo electrónico (Gmail, Outlook u otro dominio)
+        email_changed = False
         if 'email' in data and data.get('email'):
             new_email = data.get('email').strip().lower()
             old_email = (user.email or '').strip().lower()
@@ -630,12 +631,22 @@ def user_profile_view(request):
                 except Exception:
                     pass
 
+                email_changed = True
+
         if user_update_fields:
             user.save(update_fields=list(set(user_update_fields)))
 
-        return Response({
+        new_session_token = None
+        if email_changed:
+            new_session_token = issue_session_token(user)
+
+        response_payload = {
             'status': 'success',
-            'message': 'Perfil actualizado correctamente.',
+            'message': (
+                'Perfil actualizado correctamente. Las demás sesiones activas fueron cerradas.'
+                if email_changed else
+                'Perfil actualizado correctamente.'
+            ),
             'profile': {
                 'id': user.id,
                 'username': user.username,
@@ -645,7 +656,11 @@ def user_profile_view(request):
                 'avatar': profile.avatar,
                 'phone': profile.phone,
             }
-        }, status=status.HTTP_200_OK)
+        }
+        if new_session_token:
+            response_payload['session_token'] = new_session_token
+
+        return Response(response_payload, status=status.HTTP_200_OK)
 
     # GET
     return Response({

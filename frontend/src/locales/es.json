@@ -151,7 +151,7 @@
     "phoneHelperText": "9 dígitos para Perú (ej. 987 654 321) o formato internacional (+51...)",
     "emailInputLabel": "Correo Electrónico (Gmail, Outlook u otro)",
     "emailPlaceholder": "nombre@gmail.com",
-    "emailHelperText": "Se utilizará para iniciar sesión. Todo cambio de correo queda registrado en la bitácora de auditoría para el administrador.",
+    "emailHelperText": "Se utilizará para iniciar sesión. Al modificarlo, las demás sesiones activas serán cerradas automáticamente por seguridad.",
     "changePasswordModalTitle": "Cambiar Contraseña",
     "verifyCurrentPasswordSubtitle": "Primero verifique su contraseña actual",
     "enterNewPasswordSubtitle": "Ingrese y confirme su nueva clave de acceso",

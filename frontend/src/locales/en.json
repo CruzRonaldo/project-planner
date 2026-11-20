@@ -151,7 +151,7 @@
     "phoneHelperText": "9 digits for Peru (e.g., 987 654 321) or international format (+51...)",
     "emailInputLabel": "Email Address (Gmail, Outlook or other)",
     "emailPlaceholder": "name@gmail.com",
-    "emailHelperText": "Used to sign in. Any email change is recorded in the audit log for the administrator.",
+    "emailHelperText": "Used to sign in. Changing it will automatically invalidate all other active sessions for security.",
     "changePasswordModalTitle": "Change Password",
     "verifyCurrentPasswordSubtitle": "First verify your current password",
     "enterNewPasswordSubtitle": "Enter and confirm your new access password",

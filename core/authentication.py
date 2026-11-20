@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core import signing
-from django.utils.crypto import constant_time_compare
+from django.utils.crypto import constant_time_compare, salted_hmac
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -9,12 +9,25 @@ SESSION_TOKEN_SALT = 'project-planner.session'
 SESSION_TOKEN_MAX_AGE = 60 * 60 * 24 * 30
 
 
+def get_user_session_auth_hash(user):
+    """
+    Calcula un hash criptográfico HMAC que vincula la sesión activa a las credenciales
+    canónicas del usuario: su contraseña vigente (get_session_auth_hash) y su correo
+    electrónico principal. Cualquier cambio de contraseña o cambio de correo altera este hash,
+    invalidando de inmediato todos los tokens de sesión emitidos previamente.
+    """
+    key_salt = 'core.authentication.get_user_session_auth_hash'
+    canonical_email = (getattr(user, 'email', '') or '').strip().lower()
+    raw_credentials = f"{user.get_session_auth_hash()}:{canonical_email}"
+    return salted_hmac(key_salt, raw_credentials, algorithm='sha256').hexdigest()
+
+
 def issue_session_token(user):
-    """Crea un token firmado que deja de ser válido al cambiar la contraseña."""
+    """Crea un token firmado que deja de ser válido al cambiar la contraseña o el correo electrónico."""
     return signing.dumps(
         {
             'user_id': user.pk,
-            'auth_hash': user.get_session_auth_hash(),
+            'auth_hash': get_user_session_auth_hash(user),
         },
         salt=SESSION_TOKEN_SALT,
         compress=True,
@@ -22,7 +35,7 @@ def issue_session_token(user):
 
 
 class PasswordBoundAuthentication(BaseAuthentication):
-    """Autentica tokens firmados y vinculados a la contraseña vigente."""
+    """Autentica tokens firmados y vinculados a la contraseña y credenciales vigentes."""
 
     def authenticate_header(self, request):
         return 'Bearer'
@@ -58,7 +71,7 @@ class PasswordBoundAuthentication(BaseAuthentication):
         if not user.is_active:
             raise AuthenticationFailed('Esta cuenta de usuario fue desactivada.')
 
-        if not constant_time_compare(token_auth_hash, user.get_session_auth_hash()):
+        if not constant_time_compare(token_auth_hash, get_user_session_auth_hash(user)):
             raise AuthenticationFailed(
                 'La sesión fue cerrada porque las credenciales de la cuenta cambiaron.'
             )

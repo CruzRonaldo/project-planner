@@ -83,7 +83,7 @@ export default function EditProfileModal({
             value={form.email}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
             placeholder={t('configuration.emailPlaceholder', 'nombre@gmail.com')}
-            helperText={t('configuration.emailHelperText', 'Se utilizará para iniciar sesión. Todo cambio de correo queda registrado en la bitácora de auditoría para el administrador.')}
+            helperText={t('configuration.emailHelperText', 'Se utilizará para iniciar sesión. Al modificarlo, las demás sesiones activas serán cerradas automáticamente por seguridad.')}
           />
         </div>
       )}
