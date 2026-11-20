@@ -5,6 +5,9 @@ import {
   Download,
   Pencil,
   RefreshCw,
+  Trash2,
+  UserMinus,
+  UserX,
   X,
 } from 'lucide-react';
 import { personnelStatuses } from '../../constants/humanResources';
@@ -17,12 +20,14 @@ import {
   personnelSortCategories,
 } from '../../utils/humanResources';
 import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
+import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { runSafe } from '../../utils/asyncHandler';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
+import DeleteTechnicalMemberDialog from '../technical/components/DeleteTechnicalMemberDialog';
 import KpiCard from '../../components/common/KpiCard';
 import Button from '../../components/common/Button';
 import Pagination from '../../components/common/Pagination';
@@ -112,6 +117,7 @@ export default function HumanResources({
   data = {},
   onChange,
   onPersistMember,
+  onRemoveMember,
   onCreateIncident,
   onTransitionIncident,
   onRefreshRecords,
@@ -158,6 +164,7 @@ export default function HumanResources({
   const [incidentPageSelection, setIncidentPageSelection] = useState({ query: '', page: 1 });
   const [historyPageSelection, setHistoryPageSelection] = useState({ query: '', page: 1 });
   const [editing, setEditing] = useState(null);
+  const [memberActionModal, setMemberActionModal] = useState(null);
   const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
   const [incidentAction, setIncidentAction] = useState(null);
   const [feedback, setFeedback] = useState('');
@@ -275,6 +282,68 @@ export default function HumanResources({
     if (error) {
       throw error;
     }
+  };
+
+  const handleRemoveMember = async (memberId, { mode = 'deactivate' } = {}) => {
+    if (onRemoveMember) {
+      await onRemoveMember(memberId, { mode });
+    } else {
+      const target = members.find(
+        (m) => String(m.id) === String(memberId) || String(m.dbId) === String(memberId)
+      );
+      let backendId = target?.dbId;
+      if (!backendId && typeof memberId === 'string' && memberId.includes('-db-')) {
+        const parsed = memberId.split('-db-')[1];
+        if (/^\d+$/.test(parsed)) backendId = Number(parsed);
+      } else if (!backendId && (typeof memberId === 'number' || /^\d+$/.test(String(memberId)))) {
+        backendId = Number(memberId);
+      }
+      if (backendId) {
+        await projectsApi.deleteTeamMember(backendId, { mode });
+      }
+      if (mode === 'hard_delete') {
+        onChange({
+          ...data,
+          members: (data.members ?? []).filter(
+            (m) => String(m.id) !== String(memberId) && String(m.dbId) !== String(memberId)
+          ),
+        });
+      } else {
+        onChange({
+          ...data,
+          members: (data.members ?? []).map((m) => {
+            if (String(m.id) !== String(memberId) && String(m.dbId) !== String(memberId)) return m;
+            return {
+              ...m,
+              is_active: false,
+              isActive: false,
+              availability: 0,
+              status: 'offline',
+              project: null,
+            };
+          }),
+        });
+      }
+    }
+    if (onRefreshRecords) {
+      await onRefreshRecords().catch(() => {});
+    }
+    const targetMember = members.find(
+      (m) => String(m.id) === String(memberId) || String(m.dbId) === String(memberId)
+    );
+    const memberName = targetMember?.name || t('technicalTeam.defaultMemberName', 'Integrante');
+    const msg =
+      mode === 'hard_delete'
+        ? t('technicalTeam.deleteSuccessToast', `${memberName} y su cuenta de acceso han sido eliminados completamente.`, { name: memberName })
+        : t('technicalTeam.deactivateSuccessToast', `${memberName} ha sido dado de baja y su estado marcado como 'No disponible'.`, { name: memberName });
+    setFeedbackType('success');
+    setFeedback(msg);
+    showToast({
+      title: mode === 'hard_delete' ? t('toasts.Integrante Eliminado', 'Integrante Eliminado') : t('toasts.Baja Registrada', 'Baja Registrada'),
+      message: msg,
+      type: 'success',
+    });
+    setMemberActionModal(null);
   };
 
   const saveIncident = async (draft) => {
@@ -528,6 +597,22 @@ export default function HumanResources({
                           <div className="flex items-center justify-end gap-1">
                             <button type="button" onClick={() => openEditor(member, 'status')} title={t('humanResources.editTooltip', 'Editar disponibilidad y estado')} className={iconButtonClass}><Pencil size={14} /></button>
                             <button type="button" onClick={() => openEditor(member, 'project')} className="rounded border border-slate-200 px-2 py-1 text-[10px] text-slate-600 transition-colors duration-300 hover:border-cyan-400/50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">{t('humanResources.assignBtn', 'Asignar')}</button>
+                            <button
+                              type="button"
+                              onClick={() => setMemberActionModal({ member, mode: 'deactivate' })}
+                              title={t('humanResources.deactivateTooltip', 'Dar de baja (Inactivar acceso)')}
+                              className="rounded p-1.5 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 midnight:text-cyan-400 midnight:hover:bg-cyan-950/40"
+                            >
+                              <UserX size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMemberActionModal({ member, mode: 'hard_delete' })}
+                              title={t('humanResources.deleteTooltip', 'Eliminar permanentemente del sistema')}
+                              className="rounded p-1.5 text-rose-500 transition-colors duration-300 hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-300 midnight:text-rose-400 midnight:hover:bg-rose-950/30 midnight:hover:text-rose-300"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         ) : (
                           <span className="text-[10px] text-slate-400 dark:text-slate-600 midnight:text-cyan-600">{t('humanResources.readOnly', 'Solo lectura')}</span>
@@ -760,6 +845,15 @@ export default function HumanResources({
           action={incidentAction.action}
           onSubmit={submitIncidentAction}
           onClose={() => setIncidentAction(null)}
+        />
+      )}
+
+      {memberActionModal && canManage && (
+        <DeleteTechnicalMemberDialog
+          member={memberActionModal.member}
+          mode={memberActionModal.mode}
+          onConfirm={handleRemoveMember}
+          onClose={() => setMemberActionModal(null)}
         />
       )}
     </main>

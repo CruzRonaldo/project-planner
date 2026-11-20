@@ -717,6 +717,7 @@ def notifications_view(request):
         user = request.user
         username = (user.username or '').strip().lower()
         email = (user.email or '').strip().lower()
+        target_ident = email or username
 
     is_admin = bool(
         (user and (user.is_superuser or user.is_staff)) or
@@ -906,6 +907,21 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def get_object(self):
+        """Tolera identificadores prefijados del cliente (ej. 'tech-db-1', 'hr-db-1') extrayendo el ID numérico real."""
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        raw_val = self.kwargs.get(lookup_url_kwarg)
+        if isinstance(raw_val, str) and '-db-' in raw_val:
+            cleaned = raw_val.split('-db-')[-1]
+            if cleaned.isdigit():
+                self.kwargs[lookup_url_kwarg] = cleaned
+        elif isinstance(raw_val, str) and not raw_val.isdigit():
+            import re
+            digits = re.findall(r'\d+', raw_val)
+            if digits:
+                self.kwargs[lookup_url_kwarg] = digits[-1]
+        return super().get_object()
+
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         from .services.personnel_incidents import process_incident_lifecycle
@@ -975,20 +991,49 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             )
 
     @transaction.atomic
-    def perform_destroy(self, instance):
-        from .services.personnel_incidents import capture_member_state, create_change_log
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        raw_mode = request.query_params.get('mode')
+        if not raw_mode and hasattr(request, 'data') and hasattr(request.data, 'get'):
+            raw_mode = request.data.get('mode')
+        mode = (raw_mode or 'deactivate').lower()
+        member_name = f"{instance.first_name} {instance.last_name}".strip()
+        member_email = instance.email
 
-        state = capture_member_state(instance)
-        create_change_log(
-            member=instance,
-            action='member_deleted',
-            source='manual',
-            previous=state,
-            current=state,
-            comment='Integrante eliminado del directorio técnico.',
-            actor=self.request.user,
-        )
-        instance.delete()
+        if mode == 'hard_delete':
+            # 1. Eliminar cuenta de usuario vinculada si existe
+            user_model = get_user_model()
+            if member_email:
+                user_model.objects.filter(Q(username__iexact=member_email) | Q(email__iexact=member_email)).delete()
+            # 2. Eliminar TeamMember (las tareas con assigned_to pasan a null por SET_NULL)
+            instance.delete()
+            return Response({
+                'status': 'success',
+                'action': 'hard_delete',
+                'message': f"El técnico '{member_name}' y su cuenta de acceso han sido eliminados completamente.",
+            }, status=status.HTTP_200_OK)
+        else:
+            # Baja lógica (deactivate)
+            offline_status = TeamStatus.objects.filter(Q(name__icontains='no disponible') | Q(name__icontains='offline')).first() or \
+                             TeamStatus.objects.filter(name__icontains='stand-by').first()
+            instance.is_active = False
+            instance.availability = 0
+            instance.allocation_percentage = 0
+            instance.project = None
+            if offline_status:
+                instance.status = offline_status
+            instance.save()
+
+            # Desactivar cuenta User
+            user_model = get_user_model()
+            if member_email:
+                user_model.objects.filter(Q(username__iexact=member_email) | Q(email__iexact=member_email)).update(is_active=False)
+
+            return Response({
+                'status': 'success',
+                'action': 'deactivate',
+                'message': f"El técnico '{member_name}' ha sido dado de baja. Su acceso fue revocado y su estado marcado como 'No disponible'.",
+            }, status=status.HTTP_200_OK)
 
 
 class PersonnelIncidentViewSet(viewsets.ModelViewSet):

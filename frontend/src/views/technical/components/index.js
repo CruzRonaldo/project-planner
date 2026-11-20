@@ -1,6 +1,7 @@
 export { default as AddTechnicalMemberDialog } from './AddTechnicalMemberDialog';
 export { default as ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 export { default as CriticalScheduleSection } from './CriticalScheduleSection';
+export { default as DeleteTechnicalMemberDialog } from './DeleteTechnicalMemberDialog';
 export { default as EditProjectDialog } from './EditProjectDialog';
 export { default as MemberAvatar } from './MemberAvatar';
 export { default as NewProjectDialog } from './NewProjectDialog';

@@ -184,6 +184,25 @@ export const projectsApi = {
     return response.data;
   },
 
+  /**
+   * Da de baja lógica o elimina permanentemente un registro TeamMember.
+   * @param {string|number} id Identificador del integrante técnico
+   * @param {Object} [options]
+   * @param {'deactivate'|'hard_delete'} [options.mode='deactivate'] Modo de baja o eliminación
+   */
+  deleteTeamMember: async (id, { mode = 'deactivate' } = {}) => {
+    let resolvedId = id;
+    if (typeof id === 'string' && id.includes('-db-')) {
+      const parts = id.split('-db-');
+      resolvedId = parts[1] || id;
+    }
+    const response = await api.delete(`/team-members/${resolvedId}/`, {
+      params: { mode },
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
   /** Obtiene las incidencias y licencias persistidas (admite paginación DRF). */
   getPersonnelIncidents: async (params = {}) => {
     const response = await api.get('/personnel-incidents/', {

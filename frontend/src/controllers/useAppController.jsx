@@ -212,6 +212,7 @@ export function useAppController() {
           onMemberCreated={team.registerPersistedTeamMember}
           onRefreshMembers={team.refreshTeamMembers}
           onPersistMember={team.persistTechnicalMember}
+          onRemoveMember={team.handleRemoveMember}
           query={team.technicalTeamQuery}
           onQueryChange={team.setTechnicalTeamQuery}
           canManage={auth.canManage}
@@ -227,6 +228,7 @@ export function useAppController() {
           data={team.humanResourcesData}
           onChange={team.setHumanResourcesData}
           onPersistMember={team.persistHumanResourcesMember}
+          onRemoveMember={auth.canManage ? team.handleRemoveMember : undefined}
           onCreateIncident={auth.canManage ? team.createPersonnelIncident : undefined}
           onTransitionIncident={auth.canManage ? team.transitionPersonnelIncident : undefined}
           onRefreshRecords={auth.canManage ? team.refreshHumanResourcesRecords : undefined}
@@ -315,6 +317,7 @@ export function useAppController() {
     team.registerPersistedTeamMember,
     team.refreshTeamMembers,
     team.persistTechnicalMember,
+    team.handleRemoveMember,
     team.technicalTeamQuery,
     team.setTechnicalTeamQuery,
     team.teamMembersLoading,
