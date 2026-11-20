@@ -1,7 +1,9 @@
-import React from 'react';
-import { Camera, Trash2, UserPen, KeyRound, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Camera, Trash2, UserPen, KeyRound, AlertCircle, Eye } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import ReadOnlyField from '../../../components/common/ReadOnlyField';
+import { useLanguage } from '../../../context/LanguageContext';
+import AvatarPreviewModal from './AvatarPreviewModal';
 
 /**
  * Tarjeta de Perfil de Usuario:
@@ -22,6 +24,9 @@ export default function ProfileCard({
   onOpenChangePassword,
   isSubAdmin,
 }) {
+  const { t } = useLanguage();
+  const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
+
   return (
     <section
       aria-labelledby="profile-card-title"
@@ -31,7 +36,7 @@ export default function ProfileCard({
         id="profile-card-title"
         className="text-lg font-bold mb-6 text-slate-900 dark:text-white midnight:text-cyan-100"
       >
-        Perfil de Usuario
+        {t('configuration.profileTitle', 'Perfil de Usuario')}
       </h2>
 
       {photoError && (
@@ -52,7 +57,7 @@ export default function ProfileCard({
               {userPhoto ? (
                 <img
                   src={userPhoto}
-                  alt={`Avatar de ${userName || 'Usuario'}`}
+                  alt={t('configuration.avatarAlt', 'Avatar de {name}', { name: userName || t('configuration.user', 'Usuario') })}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -62,12 +67,14 @@ export default function ProfileCard({
 
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Cambiar foto de perfil"
-              className="absolute inset-0 rounded-full bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer shadow-lg"
+              onClick={() => setIsAvatarPreviewOpen(true)}
+              aria-label={t('configuration.viewAvatarAria', 'Ver o gestionar foto de perfil')}
+              className="absolute inset-0 rounded-full bg-slate-950/70 backdrop-blur-[2px] flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer shadow-lg focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2"
             >
-              <Camera size={18} className="mb-0.5 text-cyan-300" />
-              <span className="text-[8px] font-bold tracking-wider uppercase text-cyan-100">Cambiar</span>
+              <Eye size={18} className="mb-0.5 text-cyan-300" />
+              <span className="text-[8px] font-bold tracking-wider uppercase text-cyan-100">
+                {t('configuration.previewAvatar', 'Ver foto')}
+              </span>
             </button>
 
             <input
@@ -76,20 +83,19 @@ export default function ProfileCard({
               accept="image/png,image/jpeg,image/webp"
               onChange={onPhotoChange}
               className="sr-only"
-              aria-label="Seleccionar foto de perfil"
+              aria-label={t('configuration.selectPhotoAria', 'Seleccionar foto de perfil')}
             />
           </div>
 
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-50">
-                {userName || 'Usuario'}
+                {userName || t('configuration.user', 'Usuario')}
               </span>
             </div>
             <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400 block">
-              {currentUser?.roleLabel || 'Equipo Técnico'}
+              {currentUser?.roleLabel || t('configuration.technicalTeam', 'Equipo Técnico')}
             </span>
-
             {userPhoto && (
               <button
                 type="button"
@@ -97,9 +103,10 @@ export default function ProfileCard({
                 className="mt-1 inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 midnight:text-rose-400 font-medium cursor-pointer transition-colors"
               >
                 <Trash2 size={12} />
-                <span>Eliminar foto</span>
+                <span>{t('configuration.removePhoto', 'Eliminar foto')}</span>
               </button>
             )}
+
           </div>
         </div>
 
@@ -109,7 +116,7 @@ export default function ProfileCard({
             icon={UserPen}
             onClick={onOpenEditProfile}
           >
-            Editar Perfil
+            {t('configuration.editProfile', 'Editar Perfil')}
           </Button>
 
           <Button
@@ -117,7 +124,7 @@ export default function ProfileCard({
             icon={KeyRound}
             onClick={onOpenChangePassword}
           >
-            Cambiar Contraseña
+            {t('configuration.changePassword', 'Cambiar Contraseña')}
           </Button>
         </div>
       </div>
@@ -125,21 +132,21 @@ export default function ProfileCard({
       {/* Credenciales y estado de cuenta */}
       <div className="mt-6 pt-6 border-t border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/30 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <ReadOnlyField
-          label="Correo Electrónico"
-          value={userEmail || currentUser?.email || currentUser?.username || 'Sin correo registrado'}
+          label={t('configuration.emailLabel', 'Correo Electrónico')}
+          value={userEmail || currentUser?.email || currentUser?.username || t('configuration.noEmailRegistered', 'Sin correo registrado')}
           valueClassName="truncate"
         />
         <ReadOnlyField
-          label="Teléfono de Contacto"
-          value={userPhone || 'No registrado'}
+          label={t('configuration.phoneLabel', 'Teléfono de Contacto')}
+          value={userPhone || t('configuration.notRegistered', 'No registrado')}
         />
         <ReadOnlyField
-          label="Estado de Cuenta"
+          label={t('configuration.accountStatusLabel', 'Estado de Cuenta')}
           value={
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
-                Activo / En línea
+                {t('configuration.activeOnline', 'Activo / En línea')}
               </span>
             </div>
           }
@@ -151,14 +158,27 @@ export default function ProfileCard({
         <div className="mt-4 p-3 rounded-lg border border-cyan-200 bg-cyan-50 dark:border-cyan-500/30 dark:bg-cyan-950/40 midnight:border-cyan-700/50 midnight:bg-cyan-900/20">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-cyan-800 dark:text-cyan-300 midnight:text-cyan-200">
-              🛡️ Privilegios Delegados de Gestión
+              {t('configuration.delegatedPrivileges', '🛡️ Privilegios Delegados de Gestión')}
             </span>
           </div>
           <p className="text-xs mt-1 text-slate-600 dark:text-slate-300 midnight:text-cyan-400/80">
-            Usted cuenta con permisos delegados para crear y editar cronogramas e hitos de proyectos.
+            {t('configuration.delegatedPrivilegesDesc', 'Usted cuenta con permisos delegados para crear y editar cronogramas e hitos de proyectos.')}
           </p>
         </div>
       )}
+      {/* Modal de Previsualización y Gestión de Avatar */}
+      <AvatarPreviewModal
+        isOpen={isAvatarPreviewOpen}
+        onClose={() => setIsAvatarPreviewOpen(false)}
+        userPhoto={userPhoto}
+        userName={userName}
+        onPhotoChange={(e) => {
+          if (onPhotoChange) onPhotoChange(e);
+        }}
+        onRemovePhoto={() => {
+          if (onRemovePhoto) onRemovePhoto();
+        }}
+      />
     </section>
   );
 }

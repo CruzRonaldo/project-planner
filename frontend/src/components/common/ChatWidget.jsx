@@ -2,14 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, X, Sparkles, Loader2, Trash2 } from 'lucide-react';
 import { baseURL } from '../../services/api';
 import FormattedAuditText from './FormattedAuditText';
+import { useLanguage } from '../../context/LanguageContext';
 
 
 export default function ChatWidget({ currentUser }) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState(() => [
     {
       role: 'ai',
-      text: '¡Hola! Soy tu Asistente de IA en Project Planner. Puedo ayudarte con la planificación de proyectos, dudas operativas, hitos o estado del equipo. ¿En qué te puedo colaborar hoy?',
+      text: t(
+        'chatWidget.welcomeMessage',
+        '¡Hola! Soy tu Asistente de IA en Project Planner. Puedo ayudarte con la planificación de proyectos, dudas operativas, hitos o estado del equipo. ¿En qué te puedo colaborar hoy?'
+      ),
     },
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -41,7 +46,7 @@ export default function ChatWidget({ currentUser }) {
       { role: 'user', text: trimmed },
       {
         role: 'ai',
-        text: 'Analizando información técnica del proyecto...',
+        text: t('chatWidget.optimisticAnalysis', 'Analizando información técnica del proyecto...'),
         isOptimistic: true,
       },
     ]);
@@ -173,7 +178,7 @@ export default function ChatWidget({ currentUser }) {
 
       const displayMessage = isNetworkFailure
         ? 'No se pudo conectar con el servidor backend (Django). Verifica que el servicio esté activo y accesible.'
-        : error?.message || 'Error de comunicación con el asistente.';
+        : error?.message || t('chatWidget.errorProcessing', 'Hubo un error al procesar tu solicitud. Por favor intenta de nuevo.');
 
       setMessages((prev) => {
         if (prev.length === 0) return prev;
@@ -202,7 +207,10 @@ export default function ChatWidget({ currentUser }) {
     setMessages([
       {
         role: 'ai',
-        text: 'Conversación reiniciada. ¿En qué más puedo asistirte hoy?',
+        text: t(
+          'chatWidget.welcomeMessage',
+          '¡Hola! Soy tu Asistente de IA en Project Planner. Puedo ayudarte con la planificación de proyectos, dudas operativas, hitos o estado del equipo. ¿En qué te puedo colaborar hoy?'
+        ),
       },
     ]);
   };
@@ -218,7 +226,7 @@ export default function ChatWidget({ currentUser }) {
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 p-3.5 rounded-full bg-gradient-to-tr from-cyan-600 to-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center group focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-[#080E1C]"
-          aria-label="Abrir Asistente de IA"
+          aria-label={t('chatWidget.openAssistantAria', 'Abrir Asistente de IA')}
         >
           <Sparkles className="w-6 h-6 transition-transform duration-300 group-hover:rotate-12" />
         </button>
@@ -235,14 +243,14 @@ export default function ChatWidget({ currentUser }) {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                  <span>Asistente AI</span>
+                  <span>{t('chatWidget.title', 'Asistente AI')}</span>
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/40">
                     Gemini SSE
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>En línea • {userRoleDisplay}</span>
+                  <span>{t('chatWidget.statusOnline', 'En línea · Modelo Gemini')}</span>
                 </p>
               </div>
             </div>
@@ -251,18 +259,18 @@ export default function ChatWidget({ currentUser }) {
               <button
                 type="button"
                 onClick={handleClearChat}
-                title="Limpiar conversación"
+                title={t('chatWidget.clearHistory', 'Limpiar historial')}
                 className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg transition-colors"
-                aria-label="Limpiar conversación"
+                aria-label={t('chatWidget.clearHistoryAria', 'Limpiar historial')}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                title="Cerrar chat"
+                title={t('chatWidget.closeAssistantAria', 'Cerrar asistente de IA')}
                 className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg transition-colors"
-                aria-label="Cerrar ventana"
+                aria-label={t('chatWidget.closeAssistantAria', 'Cerrar asistente de IA')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -312,7 +320,7 @@ export default function ChatWidget({ currentUser }) {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Pregúntale al Asistente..."
+              placeholder={t('chatWidget.inputPlaceholder', 'Escribe tu consulta sobre los proyectos...')}
               disabled={isStreaming}
               className="flex-1 bg-[#080E1C] border border-slate-700/70 text-slate-100 placeholder-slate-500 text-sm rounded-xl px-3.5 py-2.5 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all disabled:opacity-60"
             />
@@ -320,7 +328,7 @@ export default function ChatWidget({ currentUser }) {
               type="submit"
               disabled={!inputMessage.trim() || isStreaming}
               className="w-10 h-10 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-slate-950 font-medium flex items-center justify-center transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-cyan-500/20"
-              aria-label="Enviar mensaje"
+              aria-label={t('chatWidget.sendAria', 'Enviar mensaje')}
             >
               {isStreaming ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

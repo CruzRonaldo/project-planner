@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, UserRoundCog } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
+import { useLanguage } from '../../../context/LanguageContext';
 import { runSafe } from '../../../utils/asyncHandler';
 import { personnelStatuses } from '../../../constants/humanResources';
 
@@ -15,16 +16,29 @@ export function PersonnelEditorModal({
   editingProject = false,
   isOpen = true,
 }) {
-  if (!member) return null;
-
+  const { t } = useLanguage();
   const [draft, setDraft] = useState({
-    project: member.project,
-    status: member.status,
-    availability: member.availability,
+    project: member?.project || '',
+    status: member?.status || '',
+    availability: member?.availability || 0,
     comment: '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (member) {
+      setDraft({
+        project: member.project || '',
+        status: member.status || '',
+        availability: member.availability || 0,
+        comment: '',
+      });
+      setError('');
+    }
+  }, [member]);
+
+  if (!member) return null;
 
   const availableProjects = Array.from(
     new Set(['Ninguno', member.project, ...projectOptions].filter(Boolean))
@@ -51,18 +65,18 @@ export function PersonnelEditorModal({
       isOpen={isOpen}
       onClose={onCancel}
       onSubmit={submitDraft}
-      title={editingProject ? 'Asignar Proyecto' : 'Editar Disponibilidad y Estado'}
+      title={editingProject ? t('humanResources.assignProjectTitle', 'Asignar Proyecto') : t('humanResources.editStatusTitle', 'Editar Disponibilidad y Estado')}
       subtitle={`${member.name} · ${member.area}`}
       icon={editingProject ? <Briefcase size={20} /> : <UserRoundCog size={20} />}
-      submitLabel="Guardar cambios"
-      cancelLabel="Cancelar"
+      submitLabel={t('humanResources.saveChanges', 'Guardar cambios')}
+      cancelLabel={t('common.cancel', 'Cancelar')}
       isSubmitting={isSubmitting}
       maxWidth="max-w-xl"
       id="personnel-editor"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Proyecto asignado <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.assignedProject', 'Proyecto asignado')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <select
             autoFocus={editingProject}
             required
@@ -79,7 +93,7 @@ export function PersonnelEditorModal({
         </label>
 
         <label className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Estado operativo <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.operationalStatus', 'Estado operativo')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <select
             autoFocus={!editingProject}
             value={draft.status}
@@ -88,14 +102,14 @@ export function PersonnelEditorModal({
           >
             {personnelStatuses.map((status) => (
               <option key={status.id} value={status.id}>
-                {status.label}
+                {t(`statuses.${status.id}`, status.label)}
               </option>
             ))}
           </select>
         </label>
 
         <label className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Disponibilidad (%) <span className="text-cyan-600 dark:text-cyan-400">*</span>
+          {t('humanResources.availabilityPercent', 'Disponibilidad (%)')} <span className="text-cyan-600 dark:text-cyan-400">*</span>
           <div className="relative">
             <input
               type="number"
@@ -112,12 +126,12 @@ export function PersonnelEditorModal({
         </label>
 
         <label className="text-xs text-slate-600 dark:text-slate-300 midnight:text-cyan-200">
-          Motivo / Comentario <span className="text-slate-400 font-normal">(opcional)</span>
+          {t('humanResources.commentOptional', 'Motivo / Comentario')} <span className="text-slate-400 font-normal">{t('humanResources.optional', '(opcional)')}</span>
           <input
             maxLength={200}
             value={draft.comment}
             onChange={changeField('comment')}
-            placeholder="Comentario sobre el cambio"
+            placeholder={t('humanResources.commentPlaceholder', 'Comentario sobre el cambio')}
             className={inputClass}
           />
         </label>

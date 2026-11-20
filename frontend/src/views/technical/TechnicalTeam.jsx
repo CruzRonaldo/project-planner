@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ArrowLeftRight,
   BriefcaseBusiness,
@@ -23,6 +23,7 @@ import {
 } from '../../utils/technicalTeam';
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   cardClass,
   nestedClass,
@@ -48,12 +49,6 @@ const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-wh
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 const pageSize = 6;
 
-const areaDetails = {
-  architecture: { description: 'Renders, modelado Revit y recorridos 360°', valueClass: 'text-blue-600 dark:text-blue-400 midnight:text-blue-300' },
-  structures: { description: 'Modelado Revit, concreto y acero de refuerzo', valueClass: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300' },
-  systems: { description: 'Backend, APIs, Make y automatizaciones', valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
-};
-
 function getFilterBadgeClass(areaId) {
   switch (areaId) {
     case 'architecture':
@@ -66,49 +61,6 @@ function getFilterBadgeClass(areaId) {
       return 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300 midnight:bg-cyan-900/40 midnight:text-cyan-300';
   }
 }
-
-
-const sortCategories = [
-  {
-    id: 'availability',
-    name: 'Disponibilidad',
-    defaultId: 'availability-desc',
-    defaultLabel: 'Mayor disponibilidad',
-    descId: 'availability-desc',
-    ascId: 'availability-asc',
-    descLabel: 'Mayor disponibilidad',
-    ascLabel: 'Menor disponibilidad',
-  },
-  {
-    id: 'name',
-    name: 'Nombre',
-    defaultId: 'name',
-    defaultLabel: 'Nombre (A–Z)',
-    descId: 'name-desc',
-    ascId: 'name',
-    descLabel: 'Nombre (Z–A)',
-    ascLabel: 'Nombre (A–Z)',
-  },
-  {
-    id: 'recent',
-    name: 'Fecha de ingreso',
-    defaultId: 'recent',
-    defaultLabel: 'Incorporación reciente',
-    descId: 'recent',
-    ascId: 'recent-asc',
-    descLabel: 'Incorporación reciente',
-    ascLabel: 'Incorporación más antigua',
-  },
-];
-
-const sortOptionsMap = {
-  'availability-desc': { id: 'availability-desc', label: 'Mayor disponibilidad', category: 'availability', direction: 'desc' },
-  'availability-asc': { id: 'availability-asc', label: 'Menor disponibilidad', category: 'availability', direction: 'asc' },
-  'name': { id: 'name', label: 'Nombre (A–Z)', category: 'name', direction: 'asc' },
-  'name-desc': { id: 'name-desc', label: 'Nombre (Z–A)', category: 'name', direction: 'desc' },
-  'recent': { id: 'recent', label: 'Incorporación reciente', category: 'recent', direction: 'desc' },
-  'recent-asc': { id: 'recent-asc', label: 'Incorporación más antigua', category: 'recent', direction: 'asc' },
-};
 
 function WhatsAppIcon({ size = 13, className = '' }) {
   return (
@@ -126,6 +78,7 @@ function WhatsAppIcon({ size = 13, className = '' }) {
 }
 
 function WhatsAppButton({ member, onShowToast }) {
+  const { t } = useLanguage();
   const rawPhone = member.phone || member.telefono || member.celular || member.mobile;
   const cleanPhone = rawPhone ? String(rawPhone).replace(/\D/g, '') : '';
   const fullName = getMemberFullName(member);
@@ -136,8 +89,8 @@ function WhatsAppButton({ member, onShowToast }) {
         href={`https://wa.me/${cleanPhone}`}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`Escribir a ${fullName}`}
-        title={`Contactar por WhatsApp: ${rawPhone}`}
+        aria-label={t('technicalTeam.writeTo', 'Escribir a {name}', { name: fullName })}
+        title={t('technicalTeam.whatsappTooltip', 'Contactar por WhatsApp: {phone}', { phone: rawPhone })}
         className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-700 transition-colors duration-300 hover:bg-emerald-100 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 midnight:border-emerald-900/40 midnight:bg-emerald-900/20 midnight:text-emerald-300 midnight:hover:bg-emerald-900/40"
       >
         <WhatsAppIcon size={13} />
@@ -150,13 +103,13 @@ function WhatsAppButton({ member, onShowToast }) {
       type="button"
       onClick={() => {
         onShowToast?.({
-          title: 'Número no disponible',
-          message: `No hay un número de WhatsApp registrado para ${fullName}.`,
+          title: t('technicalTeam.phoneNotAvailable', 'Número no disponible'),
+          message: t('technicalTeam.noPhoneMessage', `No hay un número de WhatsApp registrado para ${fullName}.`, { name: fullName }),
           type: 'warning',
         });
       }}
-      aria-label={`Escribir a ${fullName}`}
-      title="Número no disponible"
+      aria-label={t('technicalTeam.writeTo', 'Escribir a {name}', { name: fullName })}
+      title={t('technicalTeam.phoneNotAvailable', 'Número no disponible')}
       className="inline-flex cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-400 opacity-50 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-500 midnight:border-cyan-900/30 midnight:bg-[#050B14] midnight:text-slate-600"
     >
       <WhatsAppIcon size={13} />
@@ -177,11 +130,60 @@ export default function TechnicalTeam({
   syncLoading = false,
   syncError = '',
 }) {
+  const { t } = useLanguage();
   const membersList = data?.members || [];
   const assignmentsList = data?.assignments || [];
 
   const [areaFilter, setAreaFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('availability-desc');
+
+  const areaDetails = useMemo(() => ({
+    architecture: { description: t('technicalTeam.descArchitecture', 'Renders, modelado Revit y recorridos 360°'), valueClass: 'text-blue-600 dark:text-blue-400 midnight:text-blue-300' },
+    structures: { description: t('technicalTeam.descStructures', 'Modelado Revit, concreto y acero de refuerzo'), valueClass: 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300' },
+    systems: { description: t('technicalTeam.descSystems', 'Backend, APIs, Make y automatizaciones'), valueClass: 'text-amber-600 dark:text-amber-400 midnight:text-amber-300' },
+  }), [t]);
+
+  const sortCategories = useMemo(() => [
+    {
+      id: 'availability',
+      name: t('technicalTeam.sortAvailability', 'Disponibilidad'),
+      defaultId: 'availability-desc',
+      defaultLabel: t('sort.availability-desc', 'Mayor disponibilidad'),
+      descId: 'availability-desc',
+      ascId: 'availability-asc',
+      descLabel: t('sort.availability-desc', 'Mayor disponibilidad'),
+      ascLabel: t('sort.availability-asc', 'Menor disponibilidad'),
+    },
+    {
+      id: 'name',
+      name: t('technicalTeam.sortName', 'Nombre'),
+      defaultId: 'name',
+      defaultLabel: t('sort.name_asc', 'Nombre (A–Z)'),
+      descId: 'name-desc',
+      ascId: 'name',
+      descLabel: t('sort.name_desc', 'Nombre (Z–A)'),
+      ascLabel: t('sort.name_asc', 'Nombre (A–Z)'),
+    },
+    {
+      id: 'recent',
+      name: t('technicalTeam.sortRecent', 'Fecha de ingreso'),
+      defaultId: 'recent',
+      defaultLabel: t('technicalTeam.sortRecentDesc', 'Incorporación reciente'),
+      descId: 'recent',
+      ascId: 'recent-asc',
+      descLabel: t('technicalTeam.sortRecentDesc', 'Incorporación reciente'),
+      ascLabel: t('technicalTeam.sortRecentAsc', 'Incorporación más antigua'),
+    },
+  ], [t]);
+
+  const sortOptionsMap = useMemo(() => ({
+    'availability-desc': { id: 'availability-desc', label: t('sort.availability-desc', 'Mayor disponibilidad'), category: 'availability', direction: 'desc' },
+    'availability-asc': { id: 'availability-asc', label: t('sort.availability-asc', 'Menor disponibilidad'), category: 'availability', direction: 'asc' },
+    'name': { id: 'name', label: t('sort.name_asc', 'Nombre (A–Z)'), category: 'name', direction: 'asc' },
+    'name-desc': { id: 'name-desc', label: t('sort.name_desc', 'Nombre (Z–A)'), category: 'name', direction: 'desc' },
+    'recent': { id: 'recent', label: t('technicalTeam.sortRecentDesc', 'Incorporación reciente'), category: 'recent', direction: 'desc' },
+    'recent-asc': { id: 'recent-asc', label: t('technicalTeam.sortRecentAsc', 'Incorporación más antigua'), category: 'recent', direction: 'asc' },
+  }), [t]);
   
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -198,7 +200,14 @@ export default function TechnicalTeam({
   const recentAssignments = showAllAssignments ? assignmentsList : assignmentsList.slice(0, 4);
   const reassignMember = membersList.find((member) => member.id === reassignMemberId);
   const availableProjects = Array.from(new Set(['Sin proyecto inicial', ...projectOptions]));
-  const filters = [{ id: 'all', label: 'Todos', count: summary.total }, ...technicalAreas.map((area) => ({ ...area, count: summary.areas[area.id] || 0 }))];
+  const filters = useMemo(() => [
+    { id: 'all', label: t('technicalTeam.filterAll', 'Todos'), count: summary.total },
+    ...technicalAreas.map((area) => ({
+      ...area,
+      label: t(`technicalTeam.area_${area.id}`, area.label),
+      count: summary.areas[area.id] || 0,
+    })),
+  ], [t, summary]);
   const addMember = async (draft) => {
     if (draft.password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
     if (draft.password !== draft.passwordConfirm) throw new Error('Las contraseñas no coinciden.');
@@ -273,8 +282,7 @@ export default function TechnicalTeam({
     link.download = 'equipo-tecnico.csv';
     link.click();
     URL.revokeObjectURL(url);
-    const msg = 'Reporte del equipo técnico exportado correctamente.';
-    setFeedback(msg);
+    const msg = t('toasts.technicalTeamReportExported', 'Reporte del equipo técnico exportado correctamente.');
     showToast({
       title: 'Nómina Exportada',
       message: msg,
@@ -286,13 +294,13 @@ export default function TechnicalTeam({
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
         <PageHeader
-          title="Gestión del Equipo Técnico"
-          subtitle="Coordinación de equipos especializados por área técnica"
+          title={t('technicalTeam.pageTitle', 'Gestión del Equipo Técnico')}
+          subtitle={t('technicalTeam.pageSubtitle', 'Coordinación de equipos especializados por área técnica')}
         >
           {canManage ? (
             <>
               <button type="button" onClick={exportReport} className={secondaryButtonClass}>
-                <Download size={15} /> Exportar Nómina / Reporte
+                <Download size={15} /> {t('technicalTeam.exportReport', 'Exportar Nómina / Reporte')}
               </button>
               <button
                 type="button"
@@ -302,17 +310,17 @@ export default function TechnicalTeam({
                 }}
                 className={primaryBtnClass}
               >
-                <UserPlus size={16} /> Añadir Técnico
+                <UserPlus size={16} /> {t('technicalTeam.addMember', 'Añadir Técnico')}
               </button>
             </>
           ) : (
             <span className="w-fit rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-800/40 midnight:bg-[#0a1120]">
-              Vista de consulta
+              {t('technicalTeam.viewOnly', 'Vista de consulta')}
             </span>
           )}
         </PageHeader>
-        <p role="status" className={feedback ? 'text-xs text-cyan-700 dark:text-cyan-300 midnight:text-cyan-300' : 'sr-only'}>{feedback}</p>
-        {syncLoading && <p className={`text-xs ${mutedClass}`}>Sincronizando con el servidor...</p>}
+        <p role="status" className="sr-only">{feedback}</p>
+        {syncLoading && <p className={`text-xs ${mutedClass}`}>{t('technicalTeam.syncing', 'Sincronizando con el servidor...')}</p>}
         {syncError && <InlineAlert variant="error" showIcon>{syncError}</InlineAlert>}
         <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between">
           {/* Píldoras de filtro por especialidad */}
@@ -353,9 +361,9 @@ export default function TechnicalTeam({
               }}
               categories={sortCategories}
               optionsMap={sortOptionsMap}
-              label="Ordenar por:"
+              label={t('common.sortBy', 'Ordenar por:')}
               buttonClassName="w-[225px]"
-              ariaLabel="Ordenar equipo técnico"
+              ariaLabel={t('technicalTeam.sortAriaLabel', 'Ordenar equipo técnico')}
             />
 
             {(query || areaFilter !== 'all') && (
@@ -371,30 +379,30 @@ export default function TechnicalTeam({
         </section>
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.3fr)_minmax(260px,0.8fr)]">
           <section className="min-w-0" aria-labelledby="technical-directory-title">
-            <div className="sr-only"><h2 id="technical-directory-title">Directorio Técnico</h2></div>
+            <div className="sr-only"><h2 id="technical-directory-title">{t('technicalTeam.directoryTitle', 'Directorio Técnico')}</h2></div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleMembers.map((member) => <article key={member.id} className={`${cardClass} relative flex min-h-[286px] min-w-0 flex-col p-4 transition-transform hover:-translate-y-0.5 hover:border-cyan-400/40 dark:hover:border-blue-400/25 midnight:hover:border-cyan-500/50`}>
-                <header className="flex min-w-0 items-start gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><MemberAvatar member={member} sizeClass="h-11 w-11" /><div className="min-w-0 flex-1"><h3 className={`line-clamp-2 text-sm font-semibold leading-tight ${headingClass}`}>{member.area === 'architecture' ? 'Arq.' : 'Ing.'} {getMemberFullName(member)}</h3><p className={`mt-1 truncate text-[10px] ${mutedClass}`} title={member.specialty}>{member.specialty}</p></div><button type="button" onClick={() => setOpenMenuId((current) => current === member.id ? null : member.id)} aria-label={`Abrir acciones de ${getMemberFullName(member)}`} className={closeBtnClass}><MoreVertical size={15} /></button></header>
-                {openMenuId === member.id && <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">{canManage && <button type="button" onClick={() => openReassignment(member.id)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><ArrowLeftRight size={13} /> Reasignar proyecto</button>}<a href={`mailto:${member.email}`} onClick={() => setOpenMenuId(null)} className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><Mail size={13} /> Enviar correo</a></div>}
-                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>Proyecto asignado</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
-                <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>Progreso de tarea</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={`Progreso de ${getMemberFullName(member)}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
-                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>Enlaces de trabajo</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={`Ver proyecto de ${getMemberFullName(member)}`} title="Ver proyecto asignado" className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={`Reasignar a ${getMemberFullName(member)}`} title="Reasignar proyecto" className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
+                <header className="flex min-w-0 items-start gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><MemberAvatar member={member} sizeClass="h-11 w-11" /><div className="min-w-0 flex-1"><h3 className={`line-clamp-2 text-sm font-semibold leading-tight ${headingClass}`}>{member.area === 'architecture' ? t('technicalTeam.prefixArch', 'Arq.') : t('technicalTeam.prefixEng', 'Ing.')} {getMemberFullName(member)}</h3><p className={`mt-1 truncate text-[10px] ${mutedClass}`} title={member.specialty}>{member.specialty}</p></div><button type="button" onClick={() => setOpenMenuId((current) => current === member.id ? null : member.id)} aria-label={t('technicalTeam.openActions', `Abrir acciones de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} className={closeBtnClass}><MoreVertical size={15} /></button></header>
+                {openMenuId === member.id && <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">{canManage && <button type="button" onClick={() => openReassignment(member.id)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><ArrowLeftRight size={13} /> {t('technicalTeam.reassignProject', 'Reasignar proyecto')}</button>}<a href={`mailto:${member.email}`} onClick={() => setOpenMenuId(null)} className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><Mail size={13} /> {t('technicalTeam.sendEmail', 'Enviar correo')}</a></div>}
+                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>{t('technicalTeam.assignedProject', 'Proyecto asignado')}</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
+                <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>{t('technicalTeam.taskProgress', 'Progreso de tarea')}</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={t('technicalTeam.progressOf', `Progreso de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
+                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>{t('technicalTeam.workLinks', 'Enlaces de trabajo')}</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={t('technicalTeam.viewProjectOf', `Ver proyecto de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.viewAssignedProject', 'Ver proyecto asignado')} className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={t('technicalTeam.reassignTo', `Reasignar a ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.reassignProject', 'Reasignar proyecto')} className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
               </article>)}
-              {!visibleMembers.length && <div className={`${cardClass} p-12 text-center text-sm ${mutedClass} sm:col-span-2 xl:col-span-3`}>No se encontraron técnicos con estos filtros.</div>}
+              {!visibleMembers.length && <div className={`${cardClass} p-12 text-center text-sm ${mutedClass} sm:col-span-2 xl:col-span-3`}>{t('technicalTeam.noMembers', 'No se encontraron técnicos con estos filtros.')}</div>}
             </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               totalItems={members.length}
               pageSize={pageSize}
-              itemLabel="técnicos"
+              itemLabel={t('technicalTeam.technicians', 'técnicos')}
               onPageChange={setPage}
               className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-[#30363d] dark:bg-[#161b22] midnight:border-cyan-900/30 midnight:bg-[#0a1120]"
             />
           </section>
           <div className="space-y-5">
-            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="area-summary-title"><div className="flex items-center justify-between gap-3"><h2 id="area-summary-title" className={`text-base font-semibold ${headingClass}`}>Resumen por Área</h2><span className="rounded bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600 transition-colors duration-300 dark:bg-slate-700/40 dark:text-slate-400 midnight:bg-cyan-900/30 midnight:text-cyan-500/70">{summary.total} Total</span></div><div className="mt-4 space-y-3">{technicalAreas.map((area) => <article key={area.id} className={`p-3 ${nestedClass}`}><div className="flex items-center justify-between gap-3"><h3 className={`text-xs font-medium ${headingClass}`}>{area.label}</h3><strong className={`rounded bg-white px-2 py-1 text-[10px] shadow-sm transition-colors duration-300 dark:bg-white/[0.03] dark:shadow-none midnight:bg-[#050B14] ${areaDetails[area.id].valueClass}`}>{summary.areas[area.id]} Miembros</strong></div><p className={`mt-2 text-[10px] leading-relaxed ${mutedClass}`}>{areaDetails[area.id].description}</p></article>)}</div></aside>
-            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="recent-technicians-title"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><BriefcaseBusiness size={17} className="shrink-0 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" /><h2 id="recent-technicians-title" className={`truncate text-base font-semibold ${headingClass}`}>Asignaciones Recientes</h2></div><span className="whitespace-nowrap text-[9px] font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">Actualizado hoy</span></div><div className="mt-4 divide-y divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-900/30">{recentAssignments.map((assignment) => <article key={assignment.id} className="flex items-start gap-3 py-3 first:pt-0" title={assignment.reason}><time dateTime={assignment.date} className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded bg-slate-100 font-mono text-[8px] uppercase text-slate-500 transition-colors duration-300 dark:bg-[#0c1422] midnight:bg-[#050B14] midnight:text-cyan-600"><strong className="text-[10px] text-slate-800 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit' })}</strong>{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')}</time><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{assignment.memberPrefix} {assignment.memberName}</p><p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{assignment.project}</p></div></article>)}{!recentAssignments.length && <p className={`py-4 text-xs ${mutedClass}`}>Aún no hay movimientos registrados.</p>}</div>{(data.assignments ?? []).length > 4 && <button type="button" onClick={() => setShowAllAssignments((current) => !current)} className="mt-4 w-full border-t border-slate-200 pt-4 text-center text-[10px] font-medium text-blue-600 transition-colors duration-300 hover:text-blue-500 dark:border-[#263244] dark:text-blue-400 dark:hover:text-blue-300 midnight:border-cyan-900/30 midnight:text-cyan-400 midnight:hover:text-cyan-300">{showAllAssignments ? 'Ver menos asignaciones' : 'Ver todo el historial de asignaciones →'}</button>}</aside>
+            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="area-summary-title"><div className="flex items-center justify-between gap-3"><h2 id="area-summary-title" className={`text-base font-semibold ${headingClass}`}>{t('technicalTeam.areaSummary', 'Resumen por Área')}</h2><span className="rounded bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600 transition-colors duration-300 dark:bg-slate-700/40 dark:text-slate-400 midnight:bg-cyan-900/30 midnight:text-cyan-500/70">{summary.total} {t('technicalTeam.totalSuffix', 'Total')}</span></div><div className="mt-4 space-y-3">{technicalAreas.map((area) => <article key={area.id} className={`p-3 ${nestedClass}`}><div className="flex items-center justify-between gap-3"><h3 className={`text-xs font-medium ${headingClass}`}>{t(`technicalTeam.area_${area.id}`, area.label)}</h3><strong className={`rounded bg-white px-2 py-1 text-[10px] shadow-sm transition-colors duration-300 dark:bg-white/[0.03] dark:shadow-none midnight:bg-[#050B14] ${areaDetails[area.id].valueClass}`}>{summary.areas[area.id]} {t('technicalTeam.membersSuffix', 'Miembros')}</strong></div><p className={`mt-2 text-[10px] leading-relaxed ${mutedClass}`}>{areaDetails[area.id].description}</p></article>)}</div></aside>
+            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="recent-technicians-title"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><BriefcaseBusiness size={17} className="shrink-0 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" /><h2 id="recent-technicians-title" className={`truncate text-base font-semibold ${headingClass}`}>{t('technicalTeam.recentAssignments', 'Asignaciones Recientes')}</h2></div><span className="whitespace-nowrap text-[9px] font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">{t('technicalTeam.updatedToday', 'Actualizado hoy')}</span></div><div className="mt-4 divide-y divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-900/30">{recentAssignments.map((assignment) => <article key={assignment.id} className="flex items-start gap-3 py-3 first:pt-0" title={assignment.reason}><time dateTime={assignment.date} className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded bg-slate-100 font-mono text-[8px] uppercase text-slate-500 transition-colors duration-300 dark:bg-[#0c1422] midnight:bg-[#050B14] midnight:text-cyan-600"><strong className="text-[10px] text-slate-800 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit' })}</strong>{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')}</time><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{assignment.memberPrefix} {assignment.memberName}</p><p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{assignment.project}</p></div></article>)}{!recentAssignments.length && <p className={`py-4 text-xs ${mutedClass}`}>{t('technicalTeam.noRecentAssignments', 'Aún no hay movimientos registrados.')}</p>}</div>{(data.assignments ?? []).length > 4 && <button type="button" onClick={() => setShowAllAssignments((current) => !current)} className="mt-4 w-full border-t border-slate-200 pt-4 text-center text-[10px] font-medium text-blue-600 transition-colors duration-300 hover:text-blue-500 dark:border-[#263244] dark:text-blue-400 dark:hover:text-blue-300 midnight:border-cyan-900/30 midnight:text-cyan-400 midnight:hover:text-cyan-300">{showAllAssignments ? t('technicalTeam.viewLessAssignments', 'Ver menos asignaciones') : t('technicalTeam.viewAllAssignments', 'Ver todo el historial de asignaciones →')}</button>}</aside>
           </div>
         </div>
       </div>

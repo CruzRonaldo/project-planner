@@ -3,6 +3,7 @@ import { Box, Eye, RotateCw, Trash2, X, UploadCloud, Edit2, Check, XCircle, Down
 import ForgeViewer from './ForgeViewer';
 import { revitApi } from '../../../services/revitService';
 import { useToast } from '../../../context/ToastContext';
+import { useLanguage } from '../../../context/LanguageContext';
 
 const cardClass =
   'rounded-xl border border-slate-200 bg-white shadow-sm transition-colors duration-300 ' +
@@ -14,32 +15,26 @@ const nestedClass =
   'dark:border-blue-400/25 dark:bg-[#0d1117] ' +
   'midnight:border-cyan-800/40 midnight:bg-[#050B14]';
 
-const TABLE_COLUMNS = [
-  { key: 'name', label: 'Nombre del Modelo', align: 'left' },
-  { key: 'uploader', label: 'Subido por', align: 'left' },
-  { key: 'size', label: 'Tamaño', align: 'left' },
-  { key: 'synced', label: 'Última Sincronización', align: 'left' },
-  { key: 'actions', label: 'Acciones', align: 'right' },
-];
-
 function StatusBadge({ connected }) {
+  const { t } = useLanguage();
   if (connected) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 transition-colors duration-300 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:border-emerald-600/30 midnight:bg-emerald-500/10 midnight:text-emerald-300">
         <i className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-        Conectado
+        {t('integrations.status_connected', 'Conectado')}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 transition-colors duration-300 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400 midnight:border-amber-600/30 midnight:bg-amber-500/10 midnight:text-amber-300">
       <i className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-      Desconectado
+      {t('integrations.status_offline', 'Desconectado')}
     </span>
   );
 }
 
 function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(model.name);
 
@@ -78,7 +73,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
       </td>
       <td className="px-3 py-3">
         <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300 midnight:bg-cyan-900/30 midnight:text-cyan-200">
-          {model.uploaded_by_name || 'Desconocido'}
+          {model.uploaded_by_name || t('integrations.unknownUploader', 'Desconocido')}
         </span>
       </td>
       <td className="px-3 py-3 text-slate-500 dark:text-slate-400 midnight:text-cyan-600">{model.size}</td>
@@ -88,7 +83,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
           {!isEditing && (
             <button
               type="button"
-              title="Renombrar modelo"
+              title={t('integrations.renameModel', 'Cambiar nombre del modelo')}
               onClick={() => setIsEditing(true)}
               className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
             >
@@ -97,7 +92,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
           )}
           <button
             type="button"
-            title="Descargar modelo"
+            title={t('integrations.downloadOriginalRvt', 'Descargar archivo original .rvt')}
             onClick={() => onDownload(model)}
             className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
           >
@@ -105,7 +100,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
           </button>
           <button
             type="button"
-            title="Ver modelo en 3D"
+            title={t('integrations.viewIn3d', 'Visualizar en 3D')}
             onClick={() => onView(model)}
             className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-cyan-600 dark:hover:bg-white/5 dark:hover:text-cyan-300 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
           >
@@ -113,7 +108,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
           </button>
           <button
             type="button"
-            title="Eliminar modelo"
+            title={t('integrations.deleteModel', 'Eliminar modelo de la bóveda')}
             onClick={() => onDelete(model)}
             className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:hover:bg-red-500/10 midnight:hover:text-red-400"
           >
@@ -126,6 +121,7 @@ function ModelRow({ model, onDelete, onView, onRename, onDownload }) {
 }
 
 export default function RevitModal({ onClose }) {
+  const { t } = useLanguage();
   const [isConnected, setIsConnected] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -159,7 +155,7 @@ export default function RevitModal({ onClose }) {
       } else {
         setIsConnected(false);
       }
-    } catch (err) {
+    } catch {
       setIsConnected(false);
     } finally {
       setIsCheckingAuth(false);
@@ -169,7 +165,6 @@ export default function RevitModal({ onClose }) {
   const handleConnect = async () => {
     setIsCheckingAuth(true);
     try {
-      // Utilizamos getToken para golpear el endpoint que genera el token explícitamente y falla con status >= 400 si hay error
       const response = await revitApi.getToken();
       if (response.data?.access_token) {
         setIsConnected(true);
@@ -180,7 +175,6 @@ export default function RevitModal({ onClose }) {
       }
     } catch (err) {
       console.error("Error detallado al conectar con APS:", err);
-      console.error("Respuesta del servidor:", err.response?.data);
       showToast({ title: 'Error', message: 'Fallo al conectar con Autodesk APS. Verifica la consola para más detalles.', type: 'error' });
       setIsConnected(false);
     } finally {
@@ -193,7 +187,7 @@ export default function RevitModal({ onClose }) {
     try {
       const response = await revitApi.getModels();
       setModels(response.data.models || []);
-    } catch (err) {
+    } catch {
       showToast({ title: 'Error', message: 'No se pudieron cargar los modelos de la bóveda.', type: 'error' });
     } finally {
       setIsLoadingModels(false);
@@ -210,7 +204,7 @@ export default function RevitModal({ onClose }) {
       showToast({ title: 'Éxito', message: `El modelo ${file.name} se subió y agregó a la bóveda correctamente.`, type: 'success' });
       event.target.value = null;
       loadModels();
-    } catch (err) {
+    } catch {
       showToast({ title: 'Error', message: 'Error al subir y traducir el modelo.', type: 'error' });
     } finally {
       setIsUploading(false);
@@ -222,7 +216,7 @@ export default function RevitModal({ onClose }) {
       await revitApi.renameModel(id, newName);
       showToast({ title: 'Renombrado', message: 'El nombre del modelo ha sido actualizado.', type: 'success' });
       loadModels();
-    } catch (err) {
+    } catch {
       showToast({ title: 'Error', message: 'No se pudo renombrar el modelo.', type: 'error' });
     }
   };
@@ -234,7 +228,7 @@ export default function RevitModal({ onClose }) {
       showToast({ title: 'Eliminado', message: 'El modelo se ha eliminado localmente.', type: 'success' });
       setModelToDelete(null);
       loadModels();
-    } catch (err) {
+    } catch {
       showToast({ title: 'Error', message: 'No se pudo eliminar el modelo.', type: 'error' });
     }
   };
@@ -245,15 +239,22 @@ export default function RevitModal({ onClose }) {
       const response = await revitApi.getDownloadUrl(model.id);
 
       if (response.data?.status === 'success' && response.data.download_url) {
-        // Reemplazamos la creación del elemento <a> por una redirección directa
         window.location.href = response.data.download_url;
       } else {
         throw new Error('No se recibió la URL de descarga.');
       }
-    } catch (err) {
+    } catch {
       showToast({ title: 'Error', message: 'No se pudo descargar el modelo.', type: 'error' });
     }
   };
+
+  const tableColumns = [
+    { key: 'name', label: t('integrations.modelName', 'Nombre del Modelo'), align: 'left' },
+    { key: 'uploader', label: t('integrations.uploadedBy', 'Subido por'), align: 'left' },
+    { key: 'size', label: t('integrations.fileSize', 'Tamaño'), align: 'left' },
+    { key: 'synced', label: t('integrations.lastSync', 'Última Sincronización'), align: 'left' },
+    { key: 'actions', label: t('integrations.actions', 'Acciones'), align: 'right' },
+  ];
 
   return (
     <div
@@ -275,16 +276,17 @@ export default function RevitModal({ onClose }) {
             </span>
             <div>
               <h2 id="revit-modal-title" className="text-base font-bold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">
-                Bóveda BIM Colaborativa (APS)
+                {t('integrations.bimVaultTitle', 'Bóveda BIM Colaborativa (APS)')}
               </h2>
               <p className="mt-0.5 text-xs text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-                Gestiona y visualiza modelos 3D compartidos con todo el equipo.
+                {t('integrations.bimVaultSubtitle', 'Gestiona y visualiza modelos 3D compartidos con todo el equipo.')}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label={t('common.close', 'Cerrar')}
             className="rounded-lg p-2 text-slate-500 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
           >
             <X size={18} />
@@ -295,10 +297,10 @@ export default function RevitModal({ onClose }) {
           <div className={`flex flex-wrap items-center justify-between gap-4 rounded-lg p-4 ${nestedClass}`}>
             <div className="space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-600">
-                Estado de la integración
+                {t('integrations.integrationStatusLabel', 'Estado de la integración')}
               </p>
               {isCheckingAuth ? (
-                <span className="text-xs text-slate-500">Comprobando conexión...</span>
+                <span className="text-xs text-slate-500">{t('integrations.checkingConnection', 'Comprobando conexión...')}</span>
               ) : (
                 <StatusBadge connected={isConnected} />
               )}
@@ -310,7 +312,7 @@ export default function RevitModal({ onClose }) {
                 onClick={handleConnect}
                 className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition-colors duration-300 hover:bg-orange-400 active:scale-95"
               >
-                <RotateCw size={14} /> Conectar con Autodesk APS
+                <RotateCw size={14} /> {t('integrations.connectAps', 'Conectar con Autodesk APS')}
               </button>
             )}
           </div>
@@ -329,29 +331,39 @@ export default function RevitModal({ onClose }) {
                   <div className="rounded-full bg-slate-200 p-3 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                     <UploadCloud size={24} />
                   </div>
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">Subir modelo a la bóveda</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Sube un archivo de Revit (.rvt). Será procesado y visible para todos los miembros del proyecto.</p>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
+                    {t('integrations.uploadModelTitle', 'Subir modelo a la bóveda')}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t('integrations.uploadModelDesc', 'Sube un archivo de Revit (.rvt). Será procesado y visible para todos los miembros del proyecto.')}
+                  </p>
                   <button
                     type="button"
                     disabled={isUploading}
                     onClick={() => fileInputRef.current.click()}
                     className="mt-2 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 midnight:bg-cyan-600 midnight:text-white midnight:hover:bg-cyan-500"
                   >
-                    {isUploading ? <><RotateCw size={14} className="animate-spin" /> Subiendo y traduciendo...</> : 'Seleccionar archivo .rvt'}
+                    {isUploading ? (
+                      <>
+                        <RotateCw size={14} className="animate-spin" /> {t('integrations.uploadingAndTranslating', 'Subiendo y traduciendo...')}
+                      </>
+                    ) : (
+                      t('integrations.selectRvtFile', 'Seleccionar archivo .rvt')
+                    )}
                   </button>
                 </div>
               </div>
 
               <div className="mt-6">
                 <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-                  Modelos Compartidos ({models.length})
+                  {t('integrations.sharedModelsCount', 'Modelos Compartidos ({count})', { count: models.length })}
                 </h3>
 
                 <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40">
                   <table className="w-full min-w-[580px] text-left text-xs">
                     <thead className="bg-slate-100 text-[10px] uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400 midnight:bg-cyan-950/30 midnight:text-cyan-600">
                       <tr>
-                        {TABLE_COLUMNS.map((col) => (
+                        {tableColumns.map((col) => (
                           <th key={col.key} className={`px-3 py-2.5 font-medium ${col.align === 'right' ? 'text-right' : ''}`}>
                             {col.label}
                           </th>
@@ -362,7 +374,7 @@ export default function RevitModal({ onClose }) {
                       {isLoadingModels ? (
                         <tr><td colSpan={5} className="py-8 text-center text-slate-500"><RotateCw size={24} className="mx-auto animate-spin text-orange-500" /></td></tr>
                       ) : models.length === 0 ? (
-                        <tr><td colSpan={5} className="py-8 text-center text-slate-500">No hay modelos en la bóveda aún.</td></tr>
+                        <tr><td colSpan={5} className="py-8 text-center text-slate-500">{t('integrations.noModels', 'No hay modelos subidos a la bóveda.')}</td></tr>
                       ) : (
                         models.map((model) => (
                           <ModelRow
@@ -385,14 +397,14 @@ export default function RevitModal({ onClose }) {
 
         <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 px-5 py-3 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30">
           <p className="text-[10px] text-slate-400 dark:text-slate-500 midnight:text-cyan-700">
-            Bóveda colaborativa. Los archivos están disponibles para todos los miembros con acceso.
+            {t('integrations.vaultNotice', 'Bóveda colaborativa. Los archivos están disponibles para todos los miembros con acceso.')}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
           >
-            Cerrar
+            {t('common.close', 'Cerrar')}
           </button>
         </footer>
 
@@ -404,13 +416,19 @@ export default function RevitModal({ onClose }) {
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
                   <Trash2 size={18} />
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">¿Eliminar modelo?</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {t('integrations.confirmDeleteTitle', 'Confirmar eliminación')}
+                </h3>
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  Vas a eliminar <strong className="font-semibold">{modelToDelete.name}</strong> de la bóveda.
+                  {t('integrations.confirmDeleteDesc', '¿Estás seguro de que deseas eliminar este modelo de la bóveda? Esta acción no se puede deshacer.')}
                 </p>
                 <div className="mt-5 flex justify-end gap-2">
-                  <button onClick={() => setModelToDelete(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">Cancelar</button>
-                  <button onClick={confirmDelete} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500">Eliminar</button>
+                  <button onClick={() => setModelToDelete(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">
+                    {t('common.cancel', 'Cancelar')}
+                  </button>
+                  <button onClick={confirmDelete} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500">
+                    {t('common.delete', 'Eliminar')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -424,7 +442,9 @@ export default function RevitModal({ onClose }) {
                 <Box size={14} className="text-orange-400" />
                 <span className="max-w-[400px] truncate text-xs font-medium text-slate-200">{viewingModel.name}</span>
               </div>
-              <button onClick={() => setViewingModel(null)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">← Volver</button>
+              <button onClick={() => setViewingModel(null)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+                {t('common.back', '← Volver')}
+              </button>
             </div>
             <div className="flex-1 overflow-hidden">
               <ForgeViewer urn={viewingModel.urn} onClose={() => setViewingModel(null)} />

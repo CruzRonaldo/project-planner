@@ -55,6 +55,7 @@ from .chatbot_views import ChatbotView, RAGChatbotView
 from .views_make import (
     make_incoming_webhook_view,
     make_status_view,
+    save_make_config_view,
     test_make_connection_view,
     trigger_make_event_view,
 )
@@ -214,6 +215,11 @@ urlpatterns = [
         'integrations/make/status/',
         make_status_view,
         name='make_status',
+    ),
+    path(
+        'integrations/make/config/',
+        save_make_config_view,
+        name='make_config_save',
     ),
     path(
         'integrations/make/test/',

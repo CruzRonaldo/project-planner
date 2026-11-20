@@ -1,4 +1,5 @@
 from unittest.mock import patch, MagicMock
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
@@ -525,11 +526,20 @@ class MakeServiceUnitTests(TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["status_code"], 200)
 
+    def test_task_matches_event_supports_member_created(self):
+        from core.services.make_service import _task_matches_event
+        self.assertTrue(_task_matches_event({'event': 'project.assignment'}, 'member.created'))
+        self.assertTrue(_task_matches_event({'event': 'member.created'}, 'member.created'))
+        self.assertFalse(_task_matches_event({'event': 'other.event'}, 'member.created'))
+
 
 class MakeSignalsIntegrationTests(TestCase):
     """Pruebas de integración de Django Signals para notificaciones hacia Make (Integromat)."""
 
     def setUp(self):
+        from core.services.make_service import CONFIG_FILE_PATH
+        self._orig_webhook_url = getattr(settings, 'MAKE_WEBHOOK_URL', '')
+        self._orig_config_content = CONFIG_FILE_PATH.read_text(encoding='utf-8') if CONFIG_FILE_PATH.exists() else None
         self.area = TechnicalArea.objects.create(name="Estructuras y BIM", description="Área técnica de prueba")
         self.role_leader = Role.objects.create(
             name="Líder de Proyecto",
@@ -550,7 +560,7 @@ class MakeSignalsIntegrationTests(TestCase):
             duration_months=6,
             budget=200000.00,
         )
-        self.member_leader = TeamMember.objects.create(
+        self.member_leader = TeamMember(
             first_name="Elena",
             last_name="Rostova",
             email="elena.rostova@polyline.com",
@@ -558,7 +568,10 @@ class MakeSignalsIntegrationTests(TestCase):
             role=self.role_leader,
             status=self.status_active,
         )
-        self.member_dev = TeamMember.objects.create(
+        self.member_leader._skip_member_created_signal = True
+        self.member_leader.save()
+
+        self.member_dev = TeamMember(
             first_name="Lucas",
             last_name="Vargas",
             email="lucas.vargas@polyline.com",
@@ -566,6 +579,8 @@ class MakeSignalsIntegrationTests(TestCase):
             role=self.role_dev,
             status=self.status_active,
         )
+        self.member_dev._skip_member_created_signal = True
+        self.member_dev.save()
         self.user_dev = User.objects.create_user(
             username="lucas_vargas",
             email="lucas.vargas@polyline.com",
@@ -1070,6 +1085,154 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertIn("lucas.vargas@polyline.com", team_emails)
         self.assertEqual(len(team_emails), 2)  # lucas.vargas aparece una sola vez
 
+    @patch("core.services.make_service.send_make_webhook")
+    def test_member_created_signal_dispatches_webhook(self, mock_send):
+        """Al registrar un nuevo miembro técnico, despacha el webhook 'member.created' con sus detalles y correo."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        member = TeamMember.objects.create(
+            first_name="Mateo",
+            last_name="Silva",
+            email="mateo.silva@polyline.com",
+            technical_area=self.area,
+            role=self.role_dev,
+            status=self.status_active,
+            project=self.project,
+        )
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "member.created")
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("member_id"), member.id)
+        self.assertEqual(data.get("first_name"), "Mateo")
+        self.assertEqual(data.get("last_name"), "Silva")
+        self.assertEqual(data.get("name"), "Mateo Silva")
+        self.assertEqual(data.get("email"), "mateo.silva@polyline.com")
+        self.assertEqual(data.get("role"), "Desarrollador de Software")
+        self.assertEqual(data.get("technical_area"), "Estructuras y BIM")
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("status"), "Active")
+
+    def tearDown(self):
+        from core.services.make_service import CONFIG_FILE_PATH
+        if hasattr(self, '_orig_config_content') and self._orig_config_content is not None:
+            CONFIG_FILE_PATH.write_text(self._orig_config_content, encoding='utf-8')
+        elif CONFIG_FILE_PATH.exists():
+            try:
+                CONFIG_FILE_PATH.unlink()
+            except Exception:
+                pass
+        setattr(settings, 'MAKE_WEBHOOK_URL', getattr(self, '_orig_webhook_url', ''))
+
+    def test_make_config_persistence_and_status_api(self):
+        """Valida que la configuración de Make se guarde vía API y se refleje en status."""
+        api_client = APIClient()
+        config_payload = {
+            "webhook_url": "https://hook.eu2.make.com/main_endpoint",
+            "status": "connected",
+            "frequency": "Cada hora",
+            "tasks": [
+                {
+                    "id": "two_factor",
+                    "name": "Autenticación 2FA",
+                    "event": "auth.two_factor",
+                    "endpoint": "https://hook.eu2.make.com/2fa_endpoint",
+                    "enabled": True,
+                },
+                {
+                    "id": "notifications",
+                    "name": "Notificaciones",
+                    "event": "project.assignment",
+                    "endpoint": "",
+                    "enabled": False,
+                },
+            ],
+        }
+
+        response = api_client.post("/api/integrations/make/config/", config_payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("status"), "success")
+        saved_cfg = response.data.get("config", {})
+        self.assertEqual(saved_cfg.get("webhook_url"), "https://hook.eu2.make.com/main_endpoint")
+        self.assertEqual(saved_cfg.get("status"), "connected")
+        self.assertEqual(saved_cfg.get("frequency"), "Cada hora")
+        self.assertEqual(len(saved_cfg.get("tasks", [])), 2)
+
+        # Consultar status
+        status_resp = api_client.get("/api/integrations/make/status/")
+        self.assertEqual(status_resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(status_resp.data.get("is_configured"))
+        self.assertEqual(status_resp.data.get("webhook_url"), "https://hook.eu2.make.com/main_endpoint")
+        self.assertEqual(status_resp.data.get("status"), "connected")
+        self.assertEqual(status_resp.data.get("frequency"), "Cada hora")
+        self.assertEqual(len(status_resp.data.get("tasks", [])), 2)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_disabled_task_blocks_signal_dispatch(self, mock_send):
+        """Verifica que si una tarea está deshabilitada (enabled=False), el webhook no se despacha."""
+        from core.services.make_service import save_make_config
+        save_make_config({
+            "webhook_url": "https://hook.eu2.make.com/main",
+            "status": "connected",
+            "frequency": "Cada 30 min",
+            "tasks": [
+                {
+                    "id": "project_create",
+                    "name": "Creación de Proyecto",
+                    "event": "project.created",
+                    "endpoint": "https://hook.eu2.make.com/proj_create",
+                    "enabled": False,
+                }
+            ],
+        })
+
+        Project.objects.create(
+            code="PRJ-TEST-DISABLED",
+            name="Proyecto Deshabilitado",
+            start_date="2026-06-01",
+            end_date="2026-12-01",
+            duration_months=6,
+            budget=100000.00,
+        )
+
+        mock_send.assert_not_called()
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_specific_task_endpoint_used_in_dispatch(self, mock_send):
+        """Verifica que si una tarea define su propio endpoint, el webhook se despacha a dicha URL."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        from core.services.make_service import save_make_config
+        custom_endpoint = "https://hook.eu2.make.com/custom_task_endpoint"
+        save_make_config({
+            "webhook_url": "https://hook.eu2.make.com/main",
+            "status": "connected",
+            "frequency": "Cada 30 min",
+            "tasks": [
+                {
+                    "id": "project_create",
+                    "name": "Creación de Proyecto",
+                    "event": "project.created",
+                    "endpoint": custom_endpoint,
+                    "enabled": True,
+                }
+            ],
+        })
+
+        Project.objects.create(
+            code="PRJ-TEST-CUSTOM-URL",
+            name="Proyecto con Endpoint Dedicado",
+            start_date="2026-06-01",
+            end_date="2026-12-01",
+            duration_months=6,
+            budget=100000.00,
+        )
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.created")
+        self.assertEqual(kwargs.get("webhook_url"), custom_endpoint)
+
 
 class MilestoneStrategicPlanningTests(TestCase):
     """Pruebas del Módulo de Planificación Estratégica e Hitos Globales (/api/milestones/)."""
@@ -1298,7 +1461,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("no puede ser idéntica", response.data["message"])
+        self.assertIn("debe ser distinta a la contraseña actual", response.data["message"])
 
     def test_change_password_mismatched_confirmation(self):
         payload = {
@@ -1309,7 +1472,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("no coinciden", response.data["message"])
+        self.assertIn("las contraseñas deben coincidir", response.data["message"])
 
     def test_change_password_requires_confirmation(self):
         response = self.client.post(
@@ -1322,7 +1485,7 @@ class ChangePasswordTests(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Debe confirmar", response.data["message"])
+        self.assertIn("las contraseñas deben coincidir", response.data["message"])
 
     def test_change_password_too_short(self):
         payload = {
@@ -1333,7 +1496,7 @@ class ChangePasswordTests(APITestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("al menos 6 caracteres", response.data["message"])
+        self.assertIn("mínimo 12 caracteres", response.data["message"])
 
     def test_change_password_requires_authenticated_session(self):
         self.client.credentials()
@@ -1438,9 +1601,7 @@ class UserProfileAPITests(TestCase):
             self.assertEqual(login_resp.data["user"]["phone"], "+51 987 654 321")
 
     def test_remove_profile_photo(self):
-        # Primero guardar foto
         self.client.patch(self.profile_url, {"identifier": self.email, "photo": "data:image/png;base64,mock"}, format="json")
-        # Luego remover foto
         remove_resp = self.client.patch(self.profile_url, {"identifier": self.email, "photo": None}, format="json")
         self.assertEqual(remove_resp.status_code, status.HTTP_200_OK)
         self.assertIsNone(remove_resp.data["profile"]["photo"])
@@ -1492,6 +1653,92 @@ class UserProfileAPITests(TestCase):
         response = self.client.patch(self.profile_url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("ya está registrado", response.data["message"])
+
+    def test_update_phone_peru_format_normalizes_to_canonical(self):
+        # 9 dígitos sin prefijo se normalizan a canónico +51 9XX XXX XXX
+        payload = {
+            "identifier": self.email,
+            "phone": "987654321",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "+51 987 654 321")
+
+        # Con espacios
+        payload2 = {
+            "identifier": self.email,
+            "phone": "912 345 678",
+        }
+        response2 = self.client.patch(self.profile_url, payload2, format="json")
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response2.data["profile"]["phone"], "+51 912 345 678")
+
+    def test_update_phone_international_valid(self):
+        payload = {
+            "identifier": self.email,
+            "phone": "+57 300 123 4567",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "+57 300 123 4567")
+
+        # Teléfono de México ingresado sin espacios (+525588694904) debe auto-formatearse con espacios
+        payload_mex = {
+            "identifier": self.email,
+            "phone": "+525588694904",
+        }
+        response_mex = self.client.patch(self.profile_url, payload_mex, format="json")
+        self.assertEqual(response_mex.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_mex.data["profile"]["phone"], "+52 55 8869 4904")
+
+        # Verificar persistencia en la base de datos
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.profile.phone, "+52 55 8869 4904")
+
+        # Colombia y EE.UU. ingresados sin espacios también se auto-formatean
+        payload_col = {"identifier": self.email, "phone": "+573001234567"}
+        resp_col = self.client.patch(self.profile_url, payload_col, format="json")
+        self.assertEqual(resp_col.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_col.data["profile"]["phone"], "+57 300 123 4567")
+
+        payload_usa = {"identifier": self.email, "phone": "+12025550123"}
+        resp_usa = self.client.patch(self.profile_url, payload_usa, format="json")
+        self.assertEqual(resp_usa.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_usa.data["profile"]["phone"], "+1 202 555 0123")
+
+    def test_update_phone_rejects_invalid_formats(self):
+        invalid_phones = [
+            "887654321",          # Perú no empieza con 9
+            "98765432",           # Perú con 8 dígitos
+            "123456789",          # No empieza con 9
+            "+57 300 abc 4567",   # Letras
+            "+51 987.654.321",    # Puntos
+            "987,654,321",        # Comas
+            "+0123456789",        # Empieza con 0 tras el +
+            "+1234567",           # Menos de 8 dígitos tras el +
+            "+123456789012345678901",  # Excede 20 caracteres
+        ]
+        for phone in invalid_phones:
+            payload = {
+                "identifier": self.email,
+                "phone": phone,
+            }
+            response = self.client.patch(self.profile_url, payload, format="json")
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_400_BAD_REQUEST,
+                f"El teléfono '{phone}' debió ser rechazado con 400"
+            )
+            self.assertIn("no es válido", response.data["message"])
+
+    def test_update_phone_empty_clears_phone(self):
+        payload = {
+            "identifier": self.email,
+            "phone": "",
+        }
+        response = self.client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["profile"]["phone"], "")
 
 
 class BackupAuthenticationAndSecurityTests(TestCase):

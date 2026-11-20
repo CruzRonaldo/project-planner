@@ -1,0 +1,38 @@
+{
+  "01-acceso-y-navegacion.md": {
+    "hash": "ab56643ffa805b06d73efd2ac4f93e520960a0c9bb8604696177334eb929268f",
+    "translatedAt": "2026-11-19T06:11:26.049Z"
+  },
+  "02-dashboard-y-planificacion.md": {
+    "hash": "af19910e53467dd8fe262ffb5e48fe2b5c1248be655f529f34dfb3a4e9448514",
+    "translatedAt": "2026-11-19T06:12:58.069Z"
+  },
+  "03-portafolio-y-operaciones.md": {
+    "hash": "f2cb6662fb699bbae893bd7145cf5932b6e48b627e8ae722ed0c1b6856600253",
+    "translatedAt": "2026-11-19T06:14:23.014Z"
+  },
+  "04-equipo-tecnico-y-recursos-humanos.md": {
+    "hash": "68b5863bb66718c36883d830b84a8bc0770b165c87134b259e021705fe0c12a2",
+    "translatedAt": "2026-11-19T06:15:26.176Z"
+  },
+  "05-integraciones.md": {
+    "hash": "26e0ee121a7864e86a2ae970226221cdb26105d9fec12972437c7925c2db37b1",
+    "translatedAt": "2026-11-19T06:16:19.247Z"
+  },
+  "06-configuracion-y-seguridad.md": {
+    "hash": "6a240341c5c3088c610d91b98b967139a0e5f58986f38fb52e7ac1693c7cc047",
+    "translatedAt": "2026-11-19T06:17:13.169Z"
+  },
+  "07-administracion-y-respaldos.md": {
+    "hash": "ec5856015ead91a6744baf057063c2508e3d8271d48f37bd0562a06a1c8a2835",
+    "translatedAt": "2026-11-19T06:18:06.608Z"
+  },
+  "08-solucion-de-problemas.md": {
+    "hash": "e079f3d84b50728d8377a1f39807563a4c4d83a0ba9d5e5911beb4fb1b3bf427",
+    "translatedAt": "2026-11-19T06:18:50.394Z"
+  },
+  "README.md": {
+    "hash": "a9670106b7c28be8b1ed92de2fd647322d0f1cae6ea50a3937f9910501f2e72b",
+    "translatedAt": "2026-11-19T06:19:31.470Z"
+  }
+}

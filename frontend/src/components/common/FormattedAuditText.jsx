@@ -3,6 +3,18 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 /**
+ * Normaliza textos delimitados por comillas simples ('...'), tipográficas (“...”)
+ * o angulares («...») a negrita Markdown (**...**), respetando contracciones en inglés (don't, user's).
+ */
+export function normalizeQuotesToMarkdown(rawText) {
+  if (!rawText || typeof rawText !== 'string') return rawText;
+  return rawText
+    .replace(/«([^»\n]+)»/g, '**$1**')
+    .replace(/“([^”\n]+)”/g, '**$1**')
+    .replace(/(^|[\s(\[])'\s*([^'\n]+?)\s*'(?=[)\],\s.!?]|$)/g, '$1**$2**');
+}
+
+/**
  * Componente para renderizado de Markdown estándar con Tailwind CSS y soporte GFM.
  * Renderiza encabezados, negritas, bloques de código, listas y tablas con estilos
  * adaptados a temas claros, oscuros y medianoche (Midnight).
@@ -12,6 +24,8 @@ export default function FormattedAuditText({
   className = '',
   strongClassName = 'font-bold text-inherit transition-colors',
 }) {
+  const processedText = React.useMemo(() => (text ? normalizeQuotesToMarkdown(text) : ''), [text]);
+
   if (!text) return null;
 
   return (
@@ -131,7 +145,7 @@ export default function FormattedAuditText({
           hr: ({ node, ...props }) => <hr className="my-2.5 border-slate-200 dark:border-slate-800 midnight:border-cyan-900/40" {...props} />,
         }}
       >
-        {text}
+        {processedText}
       </ReactMarkdown>
     </div>
   );

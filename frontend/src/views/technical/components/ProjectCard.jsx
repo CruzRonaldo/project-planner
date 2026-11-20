@@ -1,5 +1,6 @@
 import React from 'react';
 import { ExternalLink, Pencil, Trash2, Video } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import { projectStatuses } from '../../../constants/portfolio';
 import { formatMoney, formatProjectTerm } from '../../../utils/portfolio';
 import { cardClass } from '../../../constants/themeClasses';
@@ -24,6 +25,7 @@ export default function ProjectCard({
   canManage = false,
   isProjectLeader = false,
 }) {
+  const { t } = useLanguage();
   const status = statusDetails(project.status);
   return (
     <article className={`${cardClass} p-5`}>
@@ -35,7 +37,7 @@ export default function ProjectCard({
             </p>
             {isProjectLeader && (
               <span className="rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300 midnight:bg-cyan-900/50 midnight:text-cyan-200">
-                Tu Liderazgo
+                {t('portfolio.yourLeadership', 'Tu Liderazgo')}
               </span>
             )}
           </div>
@@ -43,22 +45,22 @@ export default function ProjectCard({
             {project.name}
           </h2>
           <p className="mt-1 text-[10px] text-slate-500 midnight:text-cyan-600">
-            {project.area}
+            {t('portfolio.areas.' + project.area, project.area)}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span
             className={`rounded px-2 py-1 text-[10px] font-semibold ${status.className}`}
           >
-            {status.label}
+            {t(`statuses.${status.id}`, status.label)}
           </span>
           {onOpenMeetings && (
             <button
               type="button"
               onClick={() => onOpenMeetings(project)}
-              aria-label={`Videollamadas de ${project.name}`}
+              aria-label={t('portfolio.videoCallsOf', `Videollamadas de ${project.name}`, { name: project.name })}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-cyan-400/50 hover:bg-cyan-50 hover:text-cyan-700 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
-              title="Salas de Videoconferencia (Jitsi Meet)"
+              title={t('portfolio.videoCallRooms', 'Salas de Videoconferencia (Jitsi Meet)')}
             >
               <Video size={13} />
             </button>
@@ -69,7 +71,7 @@ export default function ProjectCard({
               onClick={() => onEdit(project)}
               aria-label={`Editar ${project.name}`}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-cyan-400/50 hover:bg-cyan-50 hover:text-cyan-700 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-cyan-500/10 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-300"
-              title="Editar proyecto"
+              title={t('portfolio.editProject', 'Editar proyecto')}
             >
               <Pencil size={13} />
             </button>
@@ -80,7 +82,7 @@ export default function ProjectCard({
               onClick={() => onDelete(project)}
               aria-label={`Eliminar ${project.name}`}
               className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-red-400/50 hover:bg-red-50 hover:text-red-600 dark:border-[#30363d] dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-400 midnight:border-cyan-800/40 midnight:text-cyan-500/70 midnight:hover:bg-red-900/30 midnight:hover:text-red-300"
-              title="Eliminar proyecto (Solo Administrador)"
+              title={t('portfolio.deleteProject', 'Eliminar proyecto (Solo Administrador)')}
             >
               <Trash2 size={13} />
             </button>
@@ -89,7 +91,7 @@ export default function ProjectCard({
       </header>
       <div className="mt-5">
         <div className="mb-2 flex justify-between text-[10px] text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-          <span>Progreso General</span>
+          <span>{t('portfolio.progress', 'Progreso General')}</span>
           <strong className="text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
             {project.progress}%
           </strong>
@@ -104,7 +106,7 @@ export default function ProjectCard({
       <div className="mt-5 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-[#30363d] midnight:border-cyan-900/30">
         <div>
           <p className="text-[10px] text-slate-500 midnight:text-cyan-600">
-            Presupuesto Usado / Total
+            {t('portfolio.usedBudget', 'Presupuesto utilizado')} / {t('portfolio.totalBudget', 'total')}
           </p>
           <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
             {formatMoney(project.usedBudget)}{' '}
@@ -114,7 +116,7 @@ export default function ProjectCard({
         </div>
         <div
           className="flex -space-x-2"
-          aria-label={`${(project.members || []).length} integrantes`}
+          aria-label={`${(project.members || []).length} ${t('portfolio.members', 'integrantes')}`}
         >
           {(project.members || []).map((member, index) => (
             <span
@@ -131,7 +133,7 @@ export default function ProjectCard({
           className="truncate"
           title={formatProjectTerm(project.startDate, project.endDate)}
         >
-          Plazo: {formatProjectTerm(project.startDate, project.endDate)}
+          {t('portfolio.duration', 'Duración')}: {formatProjectTerm(project.startDate, project.endDate)}
         </span>
         <div className="flex items-center gap-3 shrink-0">
           {onOpenMeetings && (
@@ -139,10 +141,10 @@ export default function ProjectCard({
               type="button"
               onClick={() => onOpenMeetings(project)}
               className="inline-flex items-center gap-1 font-medium text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
-              title="Abrir salas de videoconferencia"
+              title={t('portfolio.openVideoCalls', 'Abrir salas de videoconferencia')}
             >
               <Video size={13} />
-              <span>Videollamada</span>
+              <span>{t('portfolio.videoCall', 'Videollamada')}</span>
             </button>
           )}
           {project.driveFolder ? (
@@ -150,13 +152,13 @@ export default function ProjectCard({
               href={project.driveFolder}
               target="_blank"
               rel="noreferrer"
-              aria-label={`Abrir carpeta de ${project.name}`}
+              aria-label={t('portfolio.openDriveFolderOf', `Abrir carpeta de ${project.name}`, { name: project.name })}
               className="shrink-0 text-cyan-700 hover:text-cyan-600 dark:text-blue-400 dark:hover:text-blue-300 midnight:text-cyan-400 midnight:hover:text-cyan-200"
             >
               <ExternalLink size={14} />
             </a>
           ) : (
-            <span className="shrink-0">Sin carpeta Drive</span>
+            <span className="shrink-0">{t('portfolio.noDriveFolder', 'Sin carpeta Drive')}</span>
           )}
         </div>
       </footer>

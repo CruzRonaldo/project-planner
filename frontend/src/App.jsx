@@ -95,7 +95,6 @@ export default function App() {
           Numpad6: 'human-resources',
           Digit7: 'integrations',
           Numpad7: 'integrations',
-          // Shift + 8 para Manual de Usuario (Documentación Docs-as-Code)
           Digit8: 'manual',
           Numpad8: 'manual',
           Digit9: 'configuracion',

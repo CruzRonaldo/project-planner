@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Check, Minus, Plus, SlidersHorizontal } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import InlineAlert from '../../../components/common/InlineAlert';
 import { runSafe } from '../../../utils/asyncHandler';
+import { useLanguage } from '../../../context/LanguageContext';
 import {
   inputClass,
   labelClass,
@@ -19,8 +20,6 @@ const headingClass =
 const mutedClass =
   'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 
-const months = planningMonths.map((month) => month.short);
-
 /**
  * Modal interactivo para reprogramar el calendario de un proyecto
  * con selector de mes, controles de duración (+/-), simulación en tiempo real
@@ -33,6 +32,11 @@ const months = planningMonths.map((month) => month.short);
  * @param {Function} props.onClose - Cierra el diálogo
  */
 export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit, onClose }) {
+  const { t } = useLanguage();
+  const localizedMonths = useMemo(
+    () => planningMonths.map((m) => t(`months.${m.number}`, m.short)),
+    [t]
+  );
   const initialProject =
     data.projects.find((project) => String(project.id) === String(initialProjectId)) ??
     data.projects[1] ??
@@ -102,21 +106,23 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
       onClose={onClose}
       onSubmit={handleSubmit}
       isSubmitting={saving}
-      title="Ajustar Calendario de Proyecto"
-      subtitle="Modifica la ventana de meses y plazos en el diagrama de Gantt."
+      title={t('strategicPlanning.adjustScheduleTitle', 'Ajustar Calendario de Proyecto')}
+      subtitle={t('strategicPlanning.adjustScheduleSubtitle', 'Modifica la ventana de meses y plazos en el diagrama de Gantt.')}
       icon={<SlidersHorizontal size={20} />}
-      submitLabel="Guardar ajustes"
+      submitLabel={t('strategicPlanning.saveAdjustments', 'Guardar ajustes')}
       submitIcon={<Check size={15} />}
+      cancelLabel={t('common.cancel', 'Cancelar')}
       id="adjust-schedule"
       maxWidth="max-w-2xl"
     >
       <fieldset disabled={saving} className="space-y-4">
         <label className={`block ${labelClass}`}>
-          Proyecto a reprogramar <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+          {t('strategicPlanning.projectToReschedule', 'Proyecto a reprogramar')}{' '}
+          <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
           <select autoFocus required value={draft.projectId} onChange={selectProject} className={inputClass}>
             {data.projects.map((project) => (
               <option key={project.id} value={project.id}>
-                {project.name} — {project.area}
+                {project.name} — {t('portfolio.areas.' + project.area, project.area)}
               </option>
             ))}
           </select>
@@ -124,11 +130,12 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className={labelClass}>
-            Mes de inicio <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+            {t('strategicPlanning.startMonth', 'Mes de inicio')}{' '}
+            <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
             <select required value={draft.start} onChange={selectStart} className={inputClass}>
               {planningMonths.map((month) => (
                 <option key={month.number} value={month.number}>
-                  {month.label}
+                  {t(`months.${month.number}`, month.short)}
                 </option>
               ))}
             </select>
@@ -136,20 +143,21 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
 
           <fieldset>
             <legend className={labelClass}>
-              Duración total <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+              {t('strategicPlanning.totalDuration', 'Duración total')}{' '}
+              <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
             </legend>
             <div className={`mt-2 flex h-11 items-center justify-between gap-2 overflow-hidden px-1 ${nestedClass}`}>
               <button
                 type="button"
                 onClick={() => changeDuration(-1)}
                 disabled={duration <= 1}
-                aria-label="Reducir duración"
+                aria-label={t('strategicPlanning.reduceDuration', 'Reducir duración')}
                 className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
               >
                 <Minus size={15} />
               </button>
               <output className={`flex items-center justify-center text-sm font-semibold ${headingClass}`}>
-                {duration} {duration === 1 ? 'Mes' : 'Meses'}{' '}
+                {duration} {duration === 1 ? t('strategicPlanning.month', 'Mes') : t('strategicPlanning.months', 'Meses')}{' '}
                 <span className={`ml-1 text-[10px] font-normal ${mutedClass}`}>
                   ({previewPeriod.split(' (')[0]})
                 </span>
@@ -158,7 +166,7 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
                 type="button"
                 onClick={() => changeDuration(1)}
                 disabled={duration >= maxDuration}
-                aria-label="Aumentar duración"
+                aria-label={t('strategicPlanning.increaseDuration', 'Aumentar duración')}
                 className="flex h-full w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
               >
                 <Plus size={15} />
@@ -171,16 +179,16 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
         <section className={`mt-5 p-4 ${nestedClass}`} aria-labelledby="schedule-preview-title">
           <div className="flex items-center justify-between gap-3">
             <h3 id="schedule-preview-title" className={`text-xs font-medium ${mutedClass}`}>
-              Vista previa del cronograma resultante:
+              {t('strategicPlanning.schedulePreviewTitle', 'Vista previa del cronograma resultante:')}
             </h3>
             <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700 transition-colors duration-300 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 midnight:border-emerald-500/20 midnight:bg-emerald-500/10 midnight:text-emerald-300">
-              Ruta Crítica Activa
+              {t('strategicPlanning.activeCriticalPath', 'Ruta Crítica Activa')}
             </span>
           </div>
 
           <div className="mt-4 min-w-[420px] overflow-x-auto">
             <div className="grid grid-cols-12">
-              {months.map((month) => (
+              {localizedMonths.map((month) => (
                 <span key={month} className={`text-center text-[9px] ${mutedClass}`}>
                   {month}
                 </span>
@@ -211,7 +219,8 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
         </section>
 
         <label className={`block ${labelClass}`}>
-          Motivo del reajuste / historial de auditoría <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
+          {t('strategicPlanning.adjustmentReasonLabel', 'Motivo del reajuste / historial de auditoría')}{' '}
+          <span className="text-red-500 dark:text-red-400 midnight:text-red-400">*</span>
           <select
             required
             value={draft.reason}
@@ -230,7 +239,8 @@ export default function AdjustScheduleDialog({ data, initialProjectId, onSubmit,
         </label>
 
         <p className={`text-[10px] ${mutedClass}`}>
-          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">●</span> Se actualizará el Gantt general y quedará registro del cambio en el historial de auditoría.
+          <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">●</span>{' '}
+          {t('strategicPlanning.auditNotice', 'Se actualizará el Gantt general y quedará registro del cambio en el historial de auditoría.')}
         </p>
       </fieldset>
 

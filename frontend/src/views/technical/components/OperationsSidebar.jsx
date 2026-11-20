@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
+import { useLanguage } from '../../../context/LanguageContext';
 import EmptyState from '../../../components/common/EmptyState';
 
 export default function OperationsSidebar({
@@ -10,16 +11,17 @@ export default function OperationsSidebar({
   cardClass = '',
   nestedClass = '',
 }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-5">
       {/* Alertas Críticas de Operación */}
       <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="operation-alerts-title">
         <div className="flex items-center justify-between gap-3">
           <h2 id="operation-alerts-title" className={`text-sm font-semibold ${headingClass}`}>
-            Alertas Críticas de Operación
+            {t('operations.criticalAlerts', 'Alertas Críticas de Operación')}
           </h2>
           <span className="rounded bg-red-50 px-2 py-1 text-[9px] font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-400 midnight:bg-red-500/10 midnight:text-red-300">
-            {alertsList.length} Urgentes
+            {alertsList.length} {t('operations.urgent', 'Urgentes')}
           </span>
         </div>
 
@@ -56,13 +58,13 @@ export default function OperationsSidebar({
                       : 'border-amber-200 text-amber-700 dark:border-amber-500/25 dark:text-amber-400 midnight:text-amber-300'
                   }`}
                 >
-                  {alert.level === 'critical' ? 'Atender' : 'Revisar'}
+                  {alert.level === 'critical' ? t('operations.attend', 'Atender') : t('operations.review', 'Revisar')}
                 </button>
               </div>
             </article>
           ))}
           {!alertsList.length && (
-            <EmptyState description="Sin alertas operativas activas." className="py-4" />
+            <EmptyState description={t('operations.noActiveAlerts', 'Sin alertas operativas activas.')} className="py-4" />
           )}
         </div>
       </aside>
@@ -71,9 +73,9 @@ export default function OperationsSidebar({
       <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="quality-title">
         <div className="flex items-center justify-between gap-3">
           <h2 id="quality-title" className={`text-sm font-semibold ${headingClass}`}>
-            Aseguramiento de Calidad
+            {t('operations.qualityAssurance', 'Aseguramiento de Calidad')}
           </h2>
-          <span className="text-[9px] text-slate-500 midnight:text-cyan-600">Norma ISO-9001</span>
+          <span className="text-[9px] text-slate-500 midnight:text-cyan-600">{t('operations.isoNorm', 'Norma ISO-9001')}</span>
         </div>
 
         <div className="mt-4 space-y-3">
@@ -97,12 +99,12 @@ export default function OperationsSidebar({
                     : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 midnight:bg-amber-500/10 midnight:text-amber-300'
                 }`}
               >
-                {check.status}
+                {check.status === 'Aprobada' ? t('operations.approved', 'Aprobada') : t('operations.pending', check.status || 'Pendiente')}
               </span>
             </article>
           ))}
           {!qualityList.length && (
-            <EmptyState description="Sin controles de calidad registrados." className="py-4" />
+            <EmptyState description={t('operations.noQualityChecks', 'Sin verificaciones de calidad recientes.')} className="py-4" />
           )}
         </div>
       </aside>

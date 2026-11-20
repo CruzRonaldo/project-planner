@@ -4,6 +4,9 @@ import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
 import Button from '../../../components/common/Button';
 import InlineAlert from '../../../components/common/InlineAlert';
+import { PasswordRequirements } from '../../../components/common';
+import { evaluatePassword } from '../../../utils/passwordValidation';
+import { useLanguage } from '../../../context/LanguageContext';
 
 /**
  * Modal de Cambio de Contraseña en dos pasos:
@@ -24,11 +27,26 @@ export default function ChangePasswordModal({
   onVerifyCurrent,
   onSubmitNewPassword,
 }) {
+  const { t } = useLanguage();
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (step === 'current') {
       onVerifyCurrent(e);
     } else {
+      const passwordCheck = evaluatePassword(
+        form.newPassword,
+        form.confirmPassword,
+        { currentPassword: form.currentPassword, t }
+      );
+      if (!passwordCheck.isValid) {
+        setError(
+          t('configuration.passwordPolicyError', 'La contraseña aún no cumple con: {errors}.', {
+            errors: passwordCheck.failedLabels.join(', '),
+          })
+        );
+        return;
+      }
       onSubmitNewPassword(e);
     }
   };
@@ -38,11 +56,11 @@ export default function ChangePasswordModal({
       isOpen={isOpen}
       onClose={onClose}
       onSubmit={handleSubmit}
-      title="Cambiar Contraseña"
+      title={t('configuration.changePasswordModalTitle', 'Cambiar Contraseña')}
       subtitle={
         step === 'current'
-          ? 'Primero verifique su contraseña actual'
-          : 'Ingrese y confirme su nueva clave de acceso'
+          ? t('configuration.verifyCurrentPasswordSubtitle', 'Primero verifique su contraseña actual')
+          : t('configuration.enterNewPasswordSubtitle', 'Ingrese y confirme su nueva clave de acceso')
       }
       icon={<KeyRound size={20} />}
       showFooter={false}
@@ -55,17 +73,17 @@ export default function ChangePasswordModal({
             <CheckCircle2 size={28} />
           </div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
-            ¡Contraseña Actualizada!
+            {t('configuration.passwordUpdatedTitle', '¡Contraseña Actualizada!')}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-400 leading-relaxed">
-            Su contraseña fue modificada correctamente. Las demás sesiones abiertas con esta cuenta fueron cerradas.
+            {t('configuration.passwordUpdatedDesc', 'Su contraseña fue modificada correctamente. Las demás sesiones abiertas con esta cuenta fueron cerradas.')}
           </p>
           <Button
             variant="primary"
             className="w-full mt-3"
             onClick={onClose}
           >
-            Aceptar y Volver
+            {t('configuration.acceptAndBack', 'Aceptar y Volver')}
           </Button>
         </div>
       ) : (
@@ -73,16 +91,19 @@ export default function ChangePasswordModal({
           {step === 'current' && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                Contraseña actual
+                {t('configuration.currentPasswordLabel', 'Contraseña actual')}
               </label>
               <PasswordInput
                 value={form.currentPassword}
-                onChange={(e) => setForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                onChange={(e) => {
+                  setForm((prev) => ({ ...prev, currentPassword: e.target.value }));
+                  if (error) setError('');
+                }}
                 required
                 autoFocus
                 placeholder="••••••••"
-                showPasswordLabel="Mostrar contraseña actual"
-                hidePasswordLabel="Ocultar contraseña actual"
+                showPasswordLabel={t('configuration.showCurrentPassword', 'Mostrar contraseña actual')}
+                hidePasswordLabel={t('configuration.hideCurrentPassword', 'Ocultar contraseña actual')}
               />
             </div>
           )}
@@ -91,39 +112,55 @@ export default function ChangePasswordModal({
             <>
               <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 size={14} className="shrink-0" />
-                <span>Contraseña actual verificada</span>
+                <span>{t('configuration.currentPasswordVerified', 'Contraseña actual verificada')}</span>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                  Nueva contraseña
+                  {t('configuration.newPasswordLabel', 'Nueva contraseña')}
                 </label>
                 <PasswordInput
                   value={form.newPassword}
-                  onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, newPassword: e.target.value }));
+                    if (error) setError('');
+                  }}
                   required
+                  minLength={12}
+                  maxLength={128}
                   autoFocus
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={t('configuration.newPasswordPlaceholder', 'Mínimo 12 caracteres')}
                   autoComplete="new-password"
-                  showPasswordLabel="Mostrar nueva contraseña"
-                  hidePasswordLabel="Ocultar nueva contraseña"
+                  showPasswordLabel={t('configuration.showNewPassword', 'Mostrar nueva contraseña')}
+                  hidePasswordLabel={t('configuration.hideNewPassword', 'Ocultar nueva contraseña')}
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-200">
-                  Repetir nueva contraseña
+                  {t('configuration.confirmNewPasswordLabel', 'Repetir nueva contraseña')}
                 </label>
                 <PasswordInput
                   value={form.confirmPassword}
-                  onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
+                    if (error) setError('');
+                  }}
                   required
-                  placeholder="Repita la nueva contraseña"
+                  minLength={12}
+                  maxLength={128}
+                  placeholder={t('configuration.confirmNewPasswordPlaceholder', 'Repita la nueva contraseña')}
                   autoComplete="new-password"
-                  showPasswordLabel="Mostrar confirmación de contraseña"
-                  hidePasswordLabel="Ocultar confirmación de contraseña"
+                  showPasswordLabel={t('configuration.showConfirmPassword', 'Mostrar confirmación de contraseña')}
+                  hidePasswordLabel={t('configuration.hideConfirmPassword', 'Ocultar confirmación de contraseña')}
                 />
               </div>
+
+              <PasswordRequirements
+                password={form.newPassword}
+                confirmPassword={form.confirmPassword}
+                currentPassword={form.currentPassword}
+              />
             </>
           )}
 
@@ -147,7 +184,7 @@ export default function ChangePasswordModal({
                 }
               }}
             >
-              {step === 'new' ? 'Volver' : 'Cancelar'}
+              {step === 'new' ? t('common.back', 'Volver') : t('common.cancel', 'Cancelar')}
             </Button>
             <Button
               type="submit"
@@ -156,8 +193,8 @@ export default function ChangePasswordModal({
               isLoading={isSubmitting}
             >
               {isSubmitting
-                ? (step === 'current' ? 'Verificando...' : 'Actualizando...')
-                : (step === 'current' ? 'Verificar y Continuar' : 'Actualizar Clave')}
+                ? (step === 'current' ? t('configuration.verifying', 'Verificando...') : t('configuration.updating', 'Actualizando...'))
+                : (step === 'current' ? t('configuration.verifyAndContinue', 'Verificar y Continuar') : t('configuration.updatePassword', 'Actualizar Clave'))}
             </Button>
           </div>
         </div>

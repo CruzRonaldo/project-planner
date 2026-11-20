@@ -20,9 +20,15 @@ def _dispatch_async_webhook(event: str, data: dict):
     sujeto a transaction.on_commit para garantizar que la transacción en PostgreSQL
     haya sido confirmada antes de notificar externamente.
     """
+    if not make_service.is_event_enabled(event):
+        logger.info(f"[Make Webhook] Evento '{event}' desactivado en la configuración.")
+        return
+
+    target_url = make_service.get_configured_make_webhook_url(event)
+
     def _worker():
         try:
-            make_service.send_make_webhook(event=event, data=data)
+            make_service.send_make_webhook(event=event, data=data, webhook_url=target_url)
         except Exception as exc:
             logger.warning(f"[Make Webhook] Error al enviar evento '{event}': {exc}")
 
@@ -166,6 +172,29 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
             'technical_area': instance.technical_area.name if instance.technical_area else '',
         }
         _dispatch_async_webhook(event='project.leader_assigned', data=payload)
+
+
+@receiver(post_save, sender=TeamMember)
+def handle_member_created(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if getattr(instance, '_skip_member_created_signal', False):
+        return
+    # Evitar colisión si es líder, o enviar de todas formas los datos del nuevo miembro
+    name = f"{instance.first_name} {instance.last_name}".strip()
+    payload = {
+        'member_id': instance.id,
+        'first_name': instance.first_name,
+        'last_name': instance.last_name,
+        'name': name,
+        'email': instance.email or '',
+        'role': instance.role.name if instance.role else '',
+        'technical_area': instance.technical_area.name if instance.technical_area else '',
+        'project_name': instance.project.name if instance.project else '',
+        'project_code': instance.project.code if instance.project else '',
+        'status': instance.status.name if instance.status else '',
+    }
+    _dispatch_async_webhook(event='member.created', data=payload)
 
 
 # =========================================================================

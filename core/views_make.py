@@ -6,6 +6,8 @@ from rest_framework.response import Response
 
 from .services.make_service import (
     get_configured_make_webhook_url,
+    get_make_config,
+    save_make_config,
     send_make_webhook,
     test_make_connection,
 )
@@ -20,7 +22,8 @@ def make_status_view(request):
     """
     Retorna el estado de configuración de la integración con Make.
     """
-    webhook_url = get_configured_make_webhook_url()
+    cfg = get_make_config()
+    webhook_url = cfg.get('webhook_url', '') or ''
     is_configured = bool(webhook_url)
 
     # Enmascarar la URL por seguridad para el frontend
@@ -32,14 +35,38 @@ def make_status_view(request):
             masked_url = "***"
 
     return Response({
-        'status': 'success',
+        'status': cfg.get('status', 'connected' if is_configured else 'offline'),
         'integration': 'make',
         'name': 'Make (Integromat)',
         'is_configured': is_configured,
+        'webhook_url': webhook_url,
         'configured_endpoint': masked_url,
         'has_webhook_url': is_configured,
+        'frequency': cfg.get('frequency', 'Cada 30 min'),
+        'tasks': cfg.get('tasks', []),
         'message': 'Integración lista para recibir y enviar eventos.' if is_configured else 'Falta configurar la URL del Webhook de Make en el backend.'
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def save_make_config_view(request):
+    """
+    Guarda la configuración persistente de Make (webhook_url, tareas, estados y frecuencia).
+    """
+    try:
+        saved_cfg = save_make_config(request.data or {})
+        return Response({
+            'status': 'success',
+            'message': 'Configuración de Make guardada con éxito.',
+            'config': saved_cfg
+        }, status=status.HTTP_200_OK)
+    except Exception as exc:
+        logger.error(f"[Make Config View] Error al guardar configuración: {exc}")
+        return Response({
+            'status': 'error',
+            'message': f'Error al guardar la configuración de Make: {str(exc)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])

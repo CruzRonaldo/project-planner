@@ -24,6 +24,15 @@ export const makeApi = {
   },
 
   /**
+   * Guarda y persiste la configuración completa de Make (tareas, webhooks, frecuencia y estado).
+   * @param {object} configData - { webhook_url, status, frequency, tasks }
+   */
+  async saveConfig(configData) {
+    const response = await api.post('/integrations/make/config/', configData);
+    return response.data;
+  },
+
+  /**
    * Dispara un evento personalizado hacia Make.
    * @param {string} event - Nombre del evento (ej: 'project.created', 'task.alert').
    * @param {object} data - Datos asociados al evento.

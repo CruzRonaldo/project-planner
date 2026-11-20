@@ -11,6 +11,7 @@ from pathlib import Path
 
 # 1. Configurar entorno Django
 BASE_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(BASE_DIR.parent))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 import django
@@ -20,7 +21,7 @@ from core.models import DocumentEmbedding
 from core.services.ai_service import get_embedding
 
 
-MANUAL_PATH = BASE_DIR / "docs" / "manual_usuario_rbac.md"
+MANUAL_PATH = BASE_DIR.parent / "docs" / "manual_usuario_rbac.md"
 
 
 CHUNKS = [

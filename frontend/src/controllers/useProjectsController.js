@@ -11,10 +11,28 @@ import {
  * Controlador de Dominio para Portafolio, Planificación Estratégica (Gantt)
  * y Gestión Operativa.
  *
- * @param {Object} [options]
- * @param {boolean} [options.hideMocks=false] - Si es true, inicia colecciones vacías
- * @param {Function} [options.onAssignmentsLoaded] - Callback para propagar asignaciones al directorio técnico
- * @returns {Object} Estados de datos, queries de filtrado y acciones sincronizadas
+ * Centraliza la carga asíncrona de proyectos, hitos anuales, tareas operativas,
+ * reajustes de cronograma e historial de cambios desde Django REST Framework.
+ * Gestiona la sincronización bidireccional entre el Cronograma Maestro y el Portafolio.
+ *
+ * @param {Object} [options] - Parámetros de inicialización del controlador.
+ * @param {boolean} [options.hideMocks=false] - Si es true, inicia con colecciones vacías (modo estricto de producción).
+ * @param {(assignments: Array<Object>) => void} [options.onAssignmentsLoaded] - Callback para propagar las asignaciones recuperadas al directorio de equipo.
+ * @returns {{
+ *   strategicPlanningData: { projects: Array<Object>, milestones: Array<Object>, adjustments: Array<Object> },
+ *   setStrategicPlanningData: React.Dispatch<React.SetStateAction<Object>>,
+ *   handlePlanningChange: (updated: Object) => void,
+ *   portfolioData: { projects: Array<Object>, changes: Array<Object> },
+ *   setPortfolioData: React.Dispatch<React.SetStateAction<Object>>,
+ *   operationsData: { metrics: Object, orders: Array<Object>, activities: Array<Object>, alerts: Array<Object>, qualityChecks: Array<Object> },
+ *   setOperationsData: React.Dispatch<React.SetStateAction<Object>>,
+ *   portfolioQuery: string,
+ *   setPortfolioQuery: React.Dispatch<React.SetStateAction<string>>,
+ *   operationsQuery: string,
+ *   setOperationsQuery: React.Dispatch<React.SetStateAction<string>>,
+ *   projectOptions: Array<string>,
+ *   remoteAssignments: Array<Object>
+ * }} Estados de datos reactivos, setters, queries de filtrado y opciones de proyectos.
  */
 export function useProjectsController({
   hideMocks = false,

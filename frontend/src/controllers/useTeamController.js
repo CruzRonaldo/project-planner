@@ -23,10 +23,42 @@ import { useCrossTabListener } from '../utils/useCrossTabListener';
  * Controlador de Dominio para Equipo Técnico, Directorio y Recursos Humanos.
  * Desacopla la persistencia de integrantes, nómina, historial e incidencias laborales.
  *
- * @param {Object} [options]
- * @param {boolean} [options.hideMocks=false] - Oculta datos ficticios en producción
- * @param {Array} [options.projects=[]] - Lista de proyectos de portafolio para resolver asignaciones
- * @returns {Object} Estados de equipo y recursos humanos, queries y acciones CRUD
+ * Administra el ciclo de vida de los registros TeamMember en Django REST Framework,
+ * el catálogo de estados operativos, el soporte de sincronización de usuarios entre
+ * pestañas (cross-tab listener) y las transiciones de estado de incidencias laborales.
+ *
+ * @param {Object} [options] - Parámetros de inicialización.
+ * @param {boolean} [options.hideMocks=false] - Si es true, oculta datos ficticios y opera en modo producción.
+ * @param {Array<Object>} [options.projects=[]] - Lista de proyectos de portafolio para asociar identificadores válidos.
+ * @returns {{
+ *   users: Array<Object>,
+ *   setUsers: React.Dispatch<React.SetStateAction<Array<Object>>>,
+ *   technicalTeamData: { members: Array<Object>, assignments: Array<Object> },
+ *   setTechnicalTeamData: React.Dispatch<React.SetStateAction<Object>>,
+ *   humanResourcesData: { members: Array<Object>, history: Array<Object>, incidents: Array<Object> },
+ *   setHumanResourcesData: React.Dispatch<React.SetStateAction<Object>>,
+ *   teamStatusRecords: Array<Object>,
+ *   teamMembersLoading: boolean,
+ *   teamMembersError: string,
+ *   teamMembersSyncedAt: Date|null,
+ *   humanResourcesRecordsLoading: boolean,
+ *   humanResourcesRecordsError: string,
+ *   technicalTeamQuery: string,
+ *   setTechnicalTeamQuery: React.Dispatch<React.SetStateAction<string>>,
+ *   humanResourcesQuery: string,
+ *   setHumanResourcesQuery: React.Dispatch<React.SetStateAction<string>>,
+ *   handleToggleSubAdmin: (userId: number|string) => void,
+ *   handleAddMember: (newMember: Object) => void,
+ *   refreshTeamMembers: () => Promise<Array<Object>>,
+ *   refreshHumanResourcesRecords: () => Promise<void>,
+ *   registerPersistedTeamMember: (memberRecord: Object) => void,
+ *   findStatusId: (statusCode: string, fallbackId?: number) => number,
+ *   findProjectId: (projectLabel: string, fallbackId?: number) => number|null,
+ *   persistTechnicalMember: (memberId: string, draft: Object) => Promise<void>,
+ *   persistHumanResourcesMember: (memberId: string, draft: Object) => Promise<void>,
+ *   createPersonnelIncident: (draft: Object) => Promise<void>,
+ *   transitionPersonnelIncident: (incidentId: number|string, action: string, comment?: string) => Promise<void>
+ * }} Estados reactivos y operaciones de equipo y personal.
  */
 export function useTeamController({
   hideMocks = false,

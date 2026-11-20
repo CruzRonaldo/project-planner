@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { EmptyState, InlineAlert } from '../../components/common';
 
 /**
@@ -28,6 +29,7 @@ export default function ProjectDetail({
   isAdmin = false,
 }) {
   const { showToast } = useToast();
+  const { t, lang } = useLanguage();
   const [meetings, setMeetings] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -128,7 +130,7 @@ export default function ProjectDetail({
                 {project.code || 'PROYECTO'}
               </span>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                {project.area || 'Área Técnica'}
+                {t('portfolio.areas.' + project.area, project.area || t('portfolio.technicalArea', 'Área Técnica'))}
               </span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white midnight:text-cyan-50 truncate">
@@ -147,7 +149,7 @@ export default function ProjectDetail({
               onClick={fetchMeetings}
               disabled={isLoading}
               className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 midnight:text-cyan-500 midnight:hover:bg-cyan-900/30"
-              title="Actualizar reuniones"
+              title={t('portfolio.refreshMeetings', 'Actualizar reuniones')}
             >
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
             </button>
@@ -156,7 +158,7 @@ export default function ProjectDetail({
                 type="button"
                 onClick={onClose}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 midnight:text-cyan-500 midnight:hover:bg-cyan-900/30"
-                title="Cerrar ventana"
+                title={t('common.close', 'Cerrar')}
               >
                 <X size={18} />
               </button>
@@ -169,30 +171,30 @@ export default function ProjectDetail({
           {/* Sección de Resumen Compacto */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">
-              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">Estado</span>
+              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">{t('portfolio.status', 'Estado')}</span>
               <p className="mt-1 text-xs font-semibold capitalize text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
                 {project.status || 'En curso'}
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">
-              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">Progreso</span>
+              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">{t('portfolio.progress', 'Progreso')}</span>
               <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100">
                 {project.progress ?? 0}%
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">
-              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">Presupuesto</span>
+              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">{t('portfolio.budget', 'Presupuesto')}</span>
               <p className="mt-1 text-xs font-semibold text-slate-800 dark:text-slate-200 midnight:text-cyan-100 truncate">
                 ${project.totalBudget ? Number(project.totalBudget).toLocaleString() : '0.00'}
               </p>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">
-              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">Videollamadas</span>
+              <span className="text-[10px] text-slate-500 midnight:text-cyan-500/70">{t('portfolio.videoCalls', 'Videollamadas')}</span>
               <p className="mt-1 text-xs font-semibold text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300">
-                {meetings.length} activas
+                {t('portfolio.activeCount', '{count} activas', { count: meetings.length })}
               </p>
             </div>
           </div>
@@ -205,10 +207,10 @@ export default function ProjectDetail({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white midnight:text-cyan-50">
-                  Salas de Videoconferencia (Jitsi Meet)
+                  {t('portfolio.videoCallRooms', 'Salas de Videoconferencia (Jitsi Meet)')}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                  Comunícate con el equipo técnico sin límites y de forma segura.
+                  {t('portfolio.videoCallRoomsDesc', 'Comunícate con el equipo técnico sin límites y de forma segura.')}
                 </p>
               </div>
             </div>
@@ -221,7 +223,7 @@ export default function ProjectDetail({
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-cyan-600/20 transition-all hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-600/30"
               >
                 <Video size={14} />
-                <span>Nueva Videollamada</span>
+                <span>{t('portfolio.newVideoCall', 'Nueva Videollamada')}</span>
               </button>
             )}
           </div>
@@ -234,7 +236,7 @@ export default function ProjectDetail({
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-cyan-800 dark:text-cyan-300 midnight:text-cyan-200">
-                  Configurar Nueva Sala Jitsi
+                  {t('portfolio.configureNewRoom', 'Configurar Nueva Sala Jitsi')}
                 </span>
                 <button
                   type="button"
@@ -242,6 +244,7 @@ export default function ProjectDetail({
                     setIsCreating(false);
                     setNewTitle('');
                   }}
+                  aria-label={t('common.close', 'Cerrar')}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   <X size={14} />
@@ -253,7 +256,7 @@ export default function ProjectDetail({
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder={`Ej. Coordinación Estructural - ${project.code || ''}`}
+                  placeholder={t('portfolio.roomNamePlaceholder', 'Ej. Coordinación Estructural - {code}', { code: project.code || '' })}
                   className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition-colors focus:border-cyan-500 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-white dark:focus:border-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:text-cyan-50"
                   autoFocus
                 />
@@ -266,12 +269,12 @@ export default function ProjectDetail({
                     {isSubmitting ? (
                       <>
                         <RefreshCw size={13} className="animate-spin" />
-                        <span>Generando...</span>
+                        <span>{t('portfolio.generating', 'Generando...')}</span>
                       </>
                     ) : (
                       <>
                         <Sparkles size={13} />
-                        <span>Crear Sala</span>
+                        <span>{t('portfolio.createRoom', 'Crear Sala')}</span>
                       </>
                     )}
                   </button>
@@ -280,7 +283,7 @@ export default function ProjectDetail({
                     onClick={() => setIsCreating(false)}
                     className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-slate-800 midnight:border-cyan-800/40 midnight:text-cyan-300"
                   >
-                    Cancelar
+                    {t('common.cancel', 'Cancelar')}
                   </button>
                 </div>
               </div>
@@ -302,16 +305,16 @@ export default function ProjectDetail({
             {isLoading && meetings.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-xs text-slate-400">
                 <RefreshCw size={16} className="animate-spin mr-2" />
-                <span>Consultando salas activas...</span>
+                <span>{t('portfolio.checkingActiveRooms', 'Consultando salas activas...')}</span>
               </div>
             ) : meetings.length === 0 ? (
               <EmptyState
                 icon={Video}
-                title="No hay videollamadas registradas"
+                title={t('portfolio.noVideoCalls', 'No hay videollamadas registradas')}
                 description={
                   isUserAdmin
-                    ? 'Crea una sala de reunión instantánea para que los ingenieros y técnicos puedan coordinar avances en vivo.'
-                    : 'Aún no se han generado videollamadas para este proyecto.'
+                    ? t('portfolio.createRoomAdminDesc', 'Crea una sala de reunión instantánea para que los ingenieros y técnicos puedan coordinar avances en vivo.')
+                    : t('portfolio.noVideoCallsDesc', 'Aún no se han generado videollamadas para este proyecto.')
                 }
                 bordered
                 action={
@@ -322,7 +325,7 @@ export default function ProjectDetail({
                       className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-700 hover:bg-cyan-500/20 dark:text-cyan-300 midnight:text-cyan-300"
                     >
                       <Plus size={13} />
-                      <span>Iniciar primera videollamada</span>
+                      <span>{t('portfolio.startFirstVideoCall', 'Iniciar primera videollamada')}</span>
                     </button>
                   ) : null
                 }
@@ -348,14 +351,14 @@ export default function ProjectDetail({
                         <span className="flex items-center gap-1">
                           <Clock size={12} />
                           {meeting.created_at
-                            ? new Date(meeting.created_at).toLocaleString('es-PE', {
+                            ? new Date(meeting.created_at).toLocaleString(lang === 'en' ? 'en-US' : 'es-PE', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })
-                            : 'Reciente'}
+                            : t('portfolio.recent', 'Reciente')}
                         </span>
                         {meeting.created_by_name && (
                           <span className="flex items-center gap-1">
@@ -374,7 +377,7 @@ export default function ProjectDetail({
                         className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                       >
                         <Video className="w-4 h-4" />
-                        Entrar a Sala
+                        <span>{t('portfolio.enterRoom', 'Entrar a Sala')}</span>
                       </a>
                     </div>
                   </div>

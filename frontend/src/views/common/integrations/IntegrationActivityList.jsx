@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClearFiltersButton, EmptyState } from '../../../components/common';
 import { activityStyles, cardClass, iconMap, nestedClass } from './constants';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export default function IntegrationActivityList({
   activities = [],
@@ -8,6 +9,7 @@ export default function IntegrationActivityList({
   query = '',
   onClearQuery,
 }) {
+  const { t } = useLanguage();
   return (
     <section className={`overflow-hidden p-4 sm:p-5 ${cardClass}`} aria-labelledby="integration-activity-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -15,12 +17,12 @@ export default function IntegrationActivityList({
           id="integration-activity-title"
           className="text-base font-semibold text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50"
         >
-          Registro de Actividad de Integraciones
+          {t('integrations.activityListTitle', 'Registro de Actividad de Integraciones')}
         </h2>
         {query && onClearQuery && (
           <ClearFiltersButton
             onClick={onClearQuery}
-            label="Limpiar búsqueda"
+            label={t('integrations.clearFilter', 'Limpiar búsqueda')}
           />
         )}
       </div>
@@ -48,14 +50,14 @@ export default function IntegrationActivityList({
                 </p>
               </div>
               <span className={`shrink-0 rounded px-2 py-1 text-[9px] font-semibold ${status.className}`}>
-                {status.label}
+                {t(`integrations.activityStatus_${item.status}`, status.label)}
               </span>
             </article>
           );
         })}
 
         {!activities.length && (
-          <EmptyState description="No hay actividad que coincida con la búsqueda." />
+          <EmptyState description={t('integrations.noActivities', 'No hay actividad que coincida con la búsqueda.')} />
         )}
       </div>
     </section>

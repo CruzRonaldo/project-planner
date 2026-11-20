@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'core.security_middleware.SecurityHeadersMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'core.backup_middleware.BackupMaintenanceMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -261,3 +262,16 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 OPENROUTER_API_KEY = env('OPENROUTER_API_KEY', default=os.environ.get('OPENROUTER_API_KEY', '')).strip()
 GEMINI_API_KEY = env('GEMINI_API_KEY', default=os.environ.get('GEMINI_API_KEY', '')).strip()
 HUGGINGFACE_API_KEY = env('HUGGINGFACE_API_KEY', default=os.environ.get('HUGGINGFACE_API_KEY', '')).strip()
+
+# ==========================================================
+# SEGURIDAD DEFENSIVA Y CABECERAS HTTP (OWASP)
+# ==========================================================
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Proteccion de Cookies de Sesion y CSRF
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_HTTPONLY = True
+
