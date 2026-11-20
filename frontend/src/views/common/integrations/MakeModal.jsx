@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Lock,
@@ -19,6 +19,29 @@ import { useToast } from '../../../context/ToastContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { nestedClass } from './constants';
 import IntegrationStatus from './IntegrationStatus';
+
+const taskIconMap = {
+  two_factor: Lock,
+  notifications: Bell,
+  governance: ShieldAlert,
+};
+
+const resolveTaskIcon = (task) => {
+  if (task && (typeof task.icon === 'function' || typeof task.icon === 'object')) {
+    return task.icon;
+  }
+  return (task && taskIconMap[task.id]) || Workflow;
+};
+
+const normalizeTasksWithIcons = (rawTasks) => {
+  if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
+    return defaultTasks;
+  }
+  return rawTasks.map((t) => ({
+    ...t,
+    icon: resolveTaskIcon(t),
+  }));
+};
 
 const defaultTasks = [
   {
@@ -60,7 +83,7 @@ export default function MakeModal({
   const { showToast } = useToast();
   const [tasks, setTasks] = useState(() => {
     if (integration?.extraConfig?.tasks && Array.isArray(integration.extraConfig.tasks)) {
-      return integration.extraConfig.tasks;
+      return normalizeTasksWithIcons(integration.extraConfig.tasks);
     }
     if (integration?.endpoint && integration.endpoint.startsWith('http')) {
       return defaultTasks.map((tItem, idx) => (idx === 0 ? { ...tItem, endpoint: integration.endpoint } : tItem));
@@ -72,6 +95,16 @@ export default function MakeModal({
   const [status, setStatus] = useState(integration?.status || 'connected');
   const [testingTask, setTestingTask] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (integration?.extraConfig?.tasks && Array.isArray(integration.extraConfig.tasks)) {
+      setTasks(normalizeTasksWithIcons(integration.extraConfig.tasks));
+    } else if (integration?.endpoint && integration.endpoint.startsWith('http')) {
+      setTasks(defaultTasks.map((t, idx) => (idx === 0 ? { ...t, endpoint: integration.endpoint } : t)));
+    }
+    if (integration?.frequency) setFrequency(integration.frequency);
+    if (integration?.status) setStatus(integration.status);
+  }, [integration, isOpen]);
 
   if (!integration) return null;
 
@@ -119,22 +152,38 @@ export default function MakeModal({
     }
   };
 
-  const handleSaveAll = (event) => {
+  const handleSaveAll = async (event) => {
     if (event) event.preventDefault();
     setIsSaving(true);
 
+    const primaryUrl =
+      tasks.find((t) => t.enabled && t.endpoint?.trim())?.endpoint?.trim() ||
+      tasks.find((t) => t.endpoint?.trim())?.endpoint?.trim() ||
+      '';
+
     const activeEndpoints = tasks
-      .filter((taskItem) => taskItem.enabled && taskItem.endpoint)
-      .map((taskItem) => taskItem.name)
+      .filter((t) => t.enabled && t.endpoint?.trim())
+      .map((t) => t.name)
       .join(', ');
+
+    await runSafe(
+      () => makeApi.saveConfig({ webhook_url: primaryUrl, status, frequency, tasks }),
+      {
+        showToast,
+        successTitle: 'Escenarios Guardados',
+        successMessage: 'Configuración de Make persistida correctamente.',
+        fallbackError: 'Error al persistir en el servidor.',
+      }
+    );
 
     const draft = {
       status,
       frequency,
-      endpoint: activeEndpoints || tasks[0]?.endpoint || 'Escenarios / Operaciones',
+      endpoint: primaryUrl || activeEndpoints || 'Escenarios / Operaciones',
       errors: 0,
       extraConfig: {
         tasks,
+        primaryUrl,
       },
     };
 
@@ -216,7 +265,7 @@ export default function MakeModal({
           </h3>
 
           {tasks.map((task) => {
-            const TaskIcon = task.icon;
+            const TaskIcon = resolveTaskIcon(task);
             const isTestingThis = testingTask === task.id;
 
             return (

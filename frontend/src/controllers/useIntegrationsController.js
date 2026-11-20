@@ -8,6 +8,29 @@ import {
   testIntegration,
 } from '../utils/integrations';
 
+const INTEGRATIONS_STORAGE_KEY = 'project_planner_integrations';
+
+function getStoredIntegrations() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistIntegrations(data) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (data) {
+      window.localStorage.setItem(INTEGRATIONS_STORAGE_KEY, JSON.stringify(data));
+    }
+  } catch {
+    // ignorar posibles restricciones de cuota o modo privado
+  }
+}
+
 /**
  * Plantilla de integraciones para modo producción / sin datos simulados.
  */
@@ -167,13 +190,21 @@ export function useIntegrationsController({
   hideMocks = false,
   showToast,
 } = {}) {
-  const [integrationsData, setIntegrationsData] = useState(() =>
-    hideMocks ? createEmptyIntegrations() : createIntegrationsData()
-  );
+  const [integrationsData, setIntegrationsData] = useState(() => {
+    const stored = getStoredIntegrations();
+    if (stored && Array.isArray(stored.integrations) && stored.integrations.length > 0) {
+      return stored;
+    }
+    return hideMocks ? createEmptyIntegrations() : createIntegrationsData();
+  });
   const [integrationsQuery, setIntegrationsQuery] = useState('');
   const [feedback, setFeedback] = useState('');
   const [testingDrive, setTestingDrive] = useState(false);
   const [testingMake, setTestingMake] = useState(false);
+
+  useEffect(() => {
+    persistIntegrations(integrationsData);
+  }, [integrationsData]);
 
   // 1. Refrescar estado de Google Drive
   const refreshGoogleDrive = useCallback(async (withFeedback = false) => {
@@ -232,7 +263,43 @@ export function useIntegrationsController({
     return Boolean(response.data.connected);
   }, []);
 
-  // 3. Probar conexión con Make (Integromat)
+  // 3. Refrescar estado y configuración de Make (Integromat)
+  const refreshMakeStatus = useCallback(async () => {
+    const [response, error] = await runSafe(
+      () => makeApi.getStatus(),
+      { fallbackError: 'No se pudo consultar el estado de Make.' }
+    );
+    if (!error && response) {
+      const res = response;
+      if (res.is_configured || (res.tasks && res.tasks.length > 0) || res.webhook_url) {
+        setIntegrationsData((prev) => {
+          const integrations = (prev?.integrations || []).map((item) => {
+            if (item.id !== 'make') return item;
+            const endpoint =
+              res.webhook_url ||
+              item.endpoint ||
+              'Escenarios / Operaciones';
+            return {
+              ...item,
+              status: res.status || (res.is_configured ? 'connected' : item.status),
+              frequency: res.frequency || item.frequency,
+              endpoint: endpoint,
+              extraConfig: {
+                tasks: res.tasks || [],
+                primaryUrl: res.webhook_url || '',
+              },
+            };
+          });
+          return {
+            ...prev,
+            integrations,
+          };
+        });
+      }
+    }
+  }, []);
+
+  // 4. Probar conexión con Make (Integromat)
   const testMakeConnection = useCallback(async (customEndpoint) => {
     setTestingMake(true);
     const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
@@ -255,7 +322,7 @@ export function useIntegrationsController({
     return true;
   }, [showToast]);
 
-  // 4. Disparar un evento hacia Make (para notificaciones, asignaciones, 2FA, etc.)
+  // 5. Disparar un evento hacia Make (para notificaciones, asignaciones, 2FA, etc.)
   const triggerMakeEvent = useCallback(async (event, payload = {}, webhookUrl = '') => {
     const [response, error] = await runSafe(
       () => makeApi.triggerEvent(event, payload, webhookUrl),
@@ -266,7 +333,7 @@ export function useIntegrationsController({
     return [response, error];
   }, []);
 
-  // 5. Guardar configuración de una integración
+  // 6. Guardar configuración de una integración
   const saveIntegrationConfig = useCallback((integrationId, draft) => {
     setIntegrationsData((prev) => {
       const updated = updateIntegration(prev, integrationId, draft);
@@ -281,7 +348,7 @@ export function useIntegrationsController({
     });
   }, [showToast]);
 
-  // 6. Probar integración genérica (local / sesión)
+  // 7. Probar integración genérica (local / sesión)
   const testLocalIntegration = useCallback((integrationId) => {
     setIntegrationsData((prev) => testIntegration(prev, integrationId));
     if (showToast) {
@@ -293,7 +360,7 @@ export function useIntegrationsController({
     }
   }, [showToast]);
 
-  // 7. Enlace para iniciar OAuth de Google Drive
+  // 8. Enlace para iniciar OAuth de Google Drive
   const googleDriveConnectUrl = `${apiBaseUrl}/integrations/google-drive/connect/`;
   const connectGoogleDrive = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -312,7 +379,8 @@ export function useIntegrationsController({
   useEffect(() => {
     refreshGoogleDrive(false);
     refreshRevitStatus();
-  }, [refreshGoogleDrive, refreshRevitStatus]);
+    refreshMakeStatus();
+  }, [refreshGoogleDrive, refreshRevitStatus, refreshMakeStatus]);
 
   return {
     integrationsData,
@@ -325,6 +393,7 @@ export function useIntegrationsController({
     testingMake,
     refreshGoogleDrive,
     refreshRevitStatus,
+    refreshMakeStatus,
     testMakeConnection,
     triggerMakeEvent,
     saveIntegrationConfig,

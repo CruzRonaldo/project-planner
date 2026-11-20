@@ -51,6 +51,8 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     "https://project-planner-frontend.onrender.com",
 ])
 
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https:\/\/.*\.onrender\.com$",
 ]
@@ -212,6 +214,7 @@ GOOGLE_DRIVE_SCOPES = [
 # ==========================================================
 
 # URL del Webhook de Make. Configúrala en tu archivo .env local.
+MAKE_WEBHOOK_URL = env('MAKE_WEBHOOK_URL', default=os.environ.get('MAKE_WEBHOOK_URL', '')).strip()
 RECOVERY_WEBHOOK_URL = env('RECOVERY_WEBHOOK_URL', default='')
 
 # ==========================================================

@@ -13,6 +13,7 @@ import {
 import {
   normalizeTeamMemberRecords,
   readCachedTeamMembers,
+  removeCachedTeamMember,
   upsertCachedTeamMember,
   writeCachedTeamMembers,
 } from '../utils/teamMemberCache';
@@ -57,7 +58,8 @@ import { useCrossTabListener } from '../utils/useCrossTabListener';
  *   persistTechnicalMember: (memberId: string, draft: Object) => Promise<void>,
  *   persistHumanResourcesMember: (memberId: string, draft: Object) => Promise<void>,
  *   createPersonnelIncident: (draft: Object) => Promise<void>,
- *   transitionPersonnelIncident: (incidentId: number|string, action: string, comment?: string) => Promise<void>
+ *   transitionPersonnelIncident: (incidentId: number|string, action: string, comment?: string) => Promise<void>,
+ *   handleRemoveMember: (memberId: number|string, options?: { mode?: 'deactivate'|'hard_delete' }) => Promise<void>
  * }} Estados reactivos y operaciones de equipo y personal.
  */
 export function useTeamController({
@@ -396,6 +398,86 @@ export function useTeamController({
     }
   }, [refreshHumanResourcesRecords, refreshTeamMembers]);
 
+  // 13. Dar de baja lógica o eliminar completamente a un integrante
+  const handleRemoveMember = useCallback(async (memberId, { mode = 'deactivate' } = {}) => {
+    // 1. Resolver el ID real en backend a partir del integrante en memoria o del parámetro
+    const allMembers = [
+      ...(technicalTeamData.members ?? []),
+      ...(humanResourcesData.members ?? []),
+    ];
+    const targetMember = allMembers.find(
+      (m) => String(m.id) === String(memberId) || String(m.dbId) === String(memberId)
+    );
+
+    let backendId = targetMember?.dbId;
+    if (!backendId && typeof memberId === 'string' && memberId.includes('-db-')) {
+      const parsed = memberId.split('-db-')[1];
+      if (/^\d+$/.test(parsed)) {
+        backendId = Number(parsed);
+      }
+    } else if (!backendId && (typeof memberId === 'number' || /^\d+$/.test(String(memberId)))) {
+      backendId = Number(memberId);
+    }
+
+    // 2. Si el registro existe en base de datos, ejecutar operación en backend
+    if (backendId) {
+      await projectsApi.deleteTeamMember(backendId, { mode });
+    }
+
+    const matchesTarget = (m) =>
+      String(m.id) === String(memberId) ||
+      String(m.dbId) === String(memberId) ||
+      (backendId && String(m.dbId) === String(backendId));
+
+    if (mode === 'hard_delete') {
+      setTechnicalTeamData((prev) => ({
+        ...prev,
+        members: (prev.members ?? []).filter((m) => !matchesTarget(m)),
+      }));
+      setHumanResourcesData((prev) => ({
+        ...prev,
+        members: (prev.members ?? []).filter((m) => !matchesTarget(m)),
+      }));
+      if (backendId) {
+        removeCachedTeamMember(backendId);
+      }
+    } else {
+      // Inactivación (deactivate)
+      const updateMemberState = (m) => {
+        if (!matchesTarget(m)) return m;
+        return {
+          ...m,
+          is_active: false,
+          isActive: false,
+          availability: 0,
+          status: 'offline',
+          status_name: 'No disponible',
+          statusName: 'No disponible',
+          project: null,
+          project_name: null,
+          projectName: null,
+        };
+      };
+      setTechnicalTeamData((prev) => ({
+        ...prev,
+        members: (prev.members ?? []).map(updateMemberState),
+      }));
+      setHumanResourcesData((prev) => ({
+        ...prev,
+        members: (prev.members ?? []).map(updateMemberState),
+      }));
+      if (targetMember && backendId) {
+        upsertCachedTeamMember({
+          ...targetMember,
+          is_active: false,
+          availability: 0,
+          allocation_percentage: 0,
+          project: null,
+        });
+      }
+    }
+  }, [technicalTeamData.members, humanResourcesData.members]);
+
   return {
     users,
     setUsers,
@@ -424,5 +506,6 @@ export function useTeamController({
     persistHumanResourcesMember,
     createPersonnelIncident,
     transitionPersonnelIncident,
+    handleRemoveMember,
   };
 }

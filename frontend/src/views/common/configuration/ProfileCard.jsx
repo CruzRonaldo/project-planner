@@ -96,6 +96,16 @@ export default function ProfileCard({
             <span className="text-sm font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400 block">
               {currentUser?.roleLabel || t('configuration.technicalTeam', 'Equipo Técnico')}
             </span>
+            {userPhoto && (
+              <button
+                type="button"
+                onClick={onRemovePhoto}
+                className="mt-1 inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 midnight:text-rose-400 font-medium cursor-pointer transition-colors"
+              >
+                <Trash2 size={12} />
+                <span>{t('configuration.removePhoto', 'Eliminar foto')}</span>
+              </button>
+            )}
 
           </div>
         </div>

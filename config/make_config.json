@@ -1,0 +1,31 @@
+{
+  "webhook_url": "https://hook.us2.make.com/d7u7iyyxqiacm1uz99efyiiek753s4ze",
+  "status": "connected",
+  "frequency": "Cada 30 min",
+  "tasks": [
+    {
+      "id": "two_factor",
+      "name": "Autenticación de 2 Factores (2FA)",
+      "description": "Envío de códigos OTP por correo o SMS durante el inicio de sesión.",
+      "event": "auth.two_factor",
+      "endpoint": "",
+      "enabled": false
+    },
+    {
+      "id": "notifications",
+      "name": "Notificaciones y Asignaciones",
+      "description": "Alertas en tiempo real al asignar personal técnico o modificar hitos.",
+      "event": "project.assignment",
+      "endpoint": "https://hook.us2.make.com/d7u7iyyxqiacm1uz99efyiiek753s4ze",
+      "enabled": true
+    },
+    {
+      "id": "governance",
+      "name": "Gobernanza Presupuestaria ($100k)",
+      "description": "Avisos automáticos cuando un proyecto iguala o supera el umbral de $100k.",
+      "event": "governance.budget_alert",
+      "endpoint": "",
+      "enabled": false
+    }
+  ]
+}

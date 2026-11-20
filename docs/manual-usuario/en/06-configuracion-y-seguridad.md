@@ -17,7 +17,7 @@ The options displayed change depending on the role.
 4. Please check details.
 5. Press **“Save Changes”**.
 
-**Expected result:** The information is updated on the card and in the top bar.
+**Expected result:** The information is updated on the card and in the top bar. If the email address was modified, for security reasons the system automatically issues a new session token for the current device and immediately invalidates all other active sessions across other browsers or devices.
 
 **Common errors:** Email with invalid format, email already registered, name field empty, or image too large.
 
@@ -55,14 +55,14 @@ Frequent mistakes
 
 > Never show real passwords in screenshots in the manual.
 
-## 6.5 Check that other sessions are closed
+## 6.5 Check that other sessions are closed (Password and Email)
 
-After changing the password:
+Both when changing the password and when updating the primary email address:
 
-1. Keep the current session open.
-2. On another browser or device where the account was open, return to a screen or wait for validation.
-3. The previous session should return to the login screen.
-4. Log in again with the new password only if you want to continue on that device.
+1. Keep the current session open (the system automatically refreshes your active credentials seamlessly).
+2. On another browser, tab, or device where the account was previously open, perform an action or wait for the automatic validation heartbeat (15-second interval).
+3. The previous session will be immediately invalidated by the backend (HTTP 401) and the interface will automatically redirect to the login screen.
+4. Log in again with the updated credentials only on authorized devices.
 
 ## 6.6 Logging out manually
 
@@ -70,9 +70,9 @@ After changing the password:
 2. Tap **“Log Out”**.
 3. Check that the login screen appears.
 
-![Settings and Preferences Panel](../assets/manual/12-perfil-preferencias-configuracion.png)
+![Settings and Preferences Panel](../../assets/manual/12-perfil-preferencias-configuracion.png)
 *Figure 6.1: Settings panel with user profile information and visual theme selector (Light, Dark, Midnight).*
 
-![Password Change Modal](../assets/manual/13-cambiar-contrasena-modal.png)
+![Password Change Modal](../../assets/manual/13-cambiar-contrasena-modal.png)
 *Figure 6.2: Interactive dialog for secure password change with prior validation of the current password.*
 

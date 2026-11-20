@@ -50,6 +50,7 @@ from .models import (
     TwoFactorProfile,
 )
 
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from .authentication import PasswordBoundAuthentication, issue_session_token
 
@@ -70,6 +71,9 @@ from .serializers import (
     TeamStatusSerializer,
     TechnicalAreaSerializer,
     ProjectMeetingSerializer,
+    resolve_team_member,
+    resolve_project,
+    resolve_technical_area,
 )
 from .services.google_drive import (
     GoogleDriveConfigurationError,
@@ -569,6 +573,7 @@ def user_profile_view(request):
             user_update_fields.extend(['first_name', 'last_name'])
 
         # 4. Actualizar correo electrónico (Gmail, Outlook u otro dominio)
+        email_changed = False
         if 'email' in data and data.get('email'):
             new_email = data.get('email').strip().lower()
             old_email = (user.email or '').strip().lower()
@@ -626,12 +631,22 @@ def user_profile_view(request):
                 except Exception:
                     pass
 
+                email_changed = True
+
         if user_update_fields:
             user.save(update_fields=list(set(user_update_fields)))
 
-        return Response({
+        new_session_token = None
+        if email_changed:
+            new_session_token = issue_session_token(user)
+
+        response_payload = {
             'status': 'success',
-            'message': 'Perfil actualizado correctamente.',
+            'message': (
+                'Perfil actualizado correctamente. Las demás sesiones activas fueron cerradas.'
+                if email_changed else
+                'Perfil actualizado correctamente.'
+            ),
             'profile': {
                 'id': user.id,
                 'username': user.username,
@@ -641,7 +656,11 @@ def user_profile_view(request):
                 'avatar': profile.avatar,
                 'phone': profile.phone,
             }
-        }, status=status.HTTP_200_OK)
+        }
+        if new_session_token:
+            response_payload['session_token'] = new_session_token
+
+        return Response(response_payload, status=status.HTTP_200_OK)
 
     # GET
     return Response({
@@ -713,6 +732,7 @@ def notifications_view(request):
         user = request.user
         username = (user.username or '').strip().lower()
         email = (user.email or '').strip().lower()
+        target_ident = email or username
 
     is_admin = bool(
         (user and (user.is_superuser or user.is_staff)) or
@@ -902,6 +922,21 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def get_object(self):
+        """Tolera identificadores prefijados del cliente (ej. 'tech-db-1', 'hr-db-1') extrayendo el ID numérico real."""
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        raw_val = self.kwargs.get(lookup_url_kwarg)
+        if isinstance(raw_val, str) and '-db-' in raw_val:
+            cleaned = raw_val.split('-db-')[-1]
+            if cleaned.isdigit():
+                self.kwargs[lookup_url_kwarg] = cleaned
+        elif isinstance(raw_val, str) and not raw_val.isdigit():
+            import re
+            digits = re.findall(r'\d+', raw_val)
+            if digits:
+                self.kwargs[lookup_url_kwarg] = digits[-1]
+        return super().get_object()
+
     @transaction.atomic
     def update(self, request, *args, **kwargs):
         from .services.personnel_incidents import process_incident_lifecycle
@@ -939,6 +974,20 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
         )
 
         previous = capture_member_state(serializer.instance)
+
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if creator:
+            serializer.instance._assigned_by = creator
+            serializer.instance.created_by = creator
+        else:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                serializer.instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                serializer.instance._fallback_creator_email = fallback_email
+
         member = serializer.save()
         current = capture_member_state(member)
         if build_field_changes(previous, current):
@@ -957,20 +1006,49 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             )
 
     @transaction.atomic
-    def perform_destroy(self, instance):
-        from .services.personnel_incidents import capture_member_state, create_change_log
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        raw_mode = request.query_params.get('mode')
+        if not raw_mode and hasattr(request, 'data') and hasattr(request.data, 'get'):
+            raw_mode = request.data.get('mode')
+        mode = (raw_mode or 'deactivate').lower()
+        member_name = f"{instance.first_name} {instance.last_name}".strip()
+        member_email = instance.email
 
-        state = capture_member_state(instance)
-        create_change_log(
-            member=instance,
-            action='member_deleted',
-            source='manual',
-            previous=state,
-            current=state,
-            comment='Integrante eliminado del directorio técnico.',
-            actor=self.request.user,
-        )
-        instance.delete()
+        if mode == 'hard_delete':
+            # 1. Eliminar cuenta de usuario vinculada si existe
+            user_model = get_user_model()
+            if member_email:
+                user_model.objects.filter(Q(username__iexact=member_email) | Q(email__iexact=member_email)).delete()
+            # 2. Eliminar TeamMember (las tareas con assigned_to pasan a null por SET_NULL)
+            instance.delete()
+            return Response({
+                'status': 'success',
+                'action': 'hard_delete',
+                'message': f"El técnico '{member_name}' y su cuenta de acceso han sido eliminados completamente.",
+            }, status=status.HTTP_200_OK)
+        else:
+            # Baja lógica (deactivate)
+            offline_status = TeamStatus.objects.filter(Q(name__icontains='no disponible') | Q(name__icontains='offline')).first() or \
+                             TeamStatus.objects.filter(name__icontains='stand-by').first()
+            instance.is_active = False
+            instance.availability = 0
+            instance.allocation_percentage = 0
+            instance.project = None
+            if offline_status:
+                instance.status = offline_status
+            instance.save()
+
+            # Desactivar cuenta User
+            user_model = get_user_model()
+            if member_email:
+                user_model.objects.filter(Q(username__iexact=member_email) | Q(email__iexact=member_email)).update(is_active=False)
+
+            return Response({
+                'status': 'success',
+                'action': 'deactivate',
+                'message': f"El técnico '{member_name}' ha sido dado de baja. Su acceso fue revocado y su estado marcado como 'No disponible'.",
+            }, status=status.HTTP_200_OK)
 
 
 class PersonnelIncidentViewSet(viewsets.ModelViewSet):
@@ -1121,54 +1199,53 @@ class ProjectViewSet(viewsets.ModelViewSet):
     - Optimización de Cronograma: Expone la acción `/projects/{id}/optimize/` para el análisis
       heurístico de holguras y compresión de rutas críticas mediante `analyze_project_timeline`.
     """
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
     serializer_class = ProjectSerializer
 
     def create(self, request, *args, **kwargs):
+        # 1. Identificar líder técnico seleccionado en el formulario (soporta ID o nombre/alias)
+        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        selected_leader = resolve_team_member(leader_val) if leader_val else None
+
+        # 2. Identificar usuario creador autenticado (con fallback tolerante a request.data)
+        user = getattr(request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+
+        if not creator:
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.db.models import Q
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        project = serializer.save()
 
-        # Asignar líder técnico si fue seleccionado en el frontend
-        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
-        if leader_val:
-            try:
-                from .models import TeamMember
-                leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                if leader:
-                    leader.project = project
-                    leader.save(update_fields=['project'])
-            except (ValueError, TypeError):
-                pass
+        # 3. Guardar pasando creador y líder seleccionado en memoria para post_save
+        project = serializer.save(created_by=creator, selected_leader=selected_leader)
+        if not creator:
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                project._fallback_creator_name = fallback_name
+            if fallback_email:
+                project._fallback_creator_email = fallback_email
 
-        # Enviar notificación automática a Make (Integromat)
-        make_result = None
-        try:
-            from .services.make_service import send_make_webhook
-            assigned_leader = project.team_members.first()
-            project_data = {
-                'id': project.id,
-                'code': project.code,
-                'name': project.name,
-                'description': project.description or '',
-                'start_date': str(project.start_date),
-                'end_date': str(project.end_date),
-                'duration_months': project.duration_months,
-                'budget': float(project.budget),
-                'status': project.get_status_display(),
-                'status_code': project.status,
-                'leader_name': f"{assigned_leader.first_name} {assigned_leader.last_name}" if assigned_leader else 'Sin Asignar',
-                'leader_email': assigned_leader.email if assigned_leader else '',
-                'leader_role': assigned_leader.role.name if assigned_leader and assigned_leader.role else '',
-            }
-            make_result = send_make_webhook(event='project.created', data=project_data)
-            logger.info(f"[Make Integration] Notificación de creación de proyecto {project.code} enviada: {make_result}")
-        except Exception as exc:
-            logger.warning(f"[Make Integration] Error al despachar webhook de creación de proyecto: {exc}")
-            make_result = {'success': False, 'message': str(exc)}
+        # 4. Persistir relación del líder con el proyecto en base de datos (sin duplicar señal project.leader_assigned)
+        if selected_leader:
+            selected_leader._skip_leader_assigned_signal = True
+            selected_leader.project = project
+            selected_leader.save(update_fields=['project'])
 
         response_data = self.get_serializer(project).data
-        response_data['make_notification'] = make_result
         headers = self.get_success_headers(response_data)
         return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -1176,67 +1253,67 @@ class ProjectViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
 
-        # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
+        # Identificar creador / editor autenticado
         user = getattr(request, 'user', None)
-        is_admin_user = bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        is_admin_user = bool(
+            user and (
+                getattr(user, 'is_staff', False) or
+                getattr(user, 'is_superuser', False) or
+                'admin' in getattr(user, 'username', '').lower() or
+                'admin' in getattr(user, 'email', '').lower()
+            )
+        )
 
         request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        # Regla de Gobernanza: Si un usuario autenticado no es Administrador, no puede modificar el presupuesto
         if user and user.is_authenticated and not is_admin_user:
-            # Preservar presupuesto original
             if 'budget' in request_data:
                 request_data['budget'] = instance.budget
             if 'totalBudget' in request_data:
                 request_data['totalBudget'] = instance.budget
-            # Preservar líder original si ya tiene uno
-            first_m = instance.team_members.first()
-            if first_m:
-                request_data['leaderId'] = first_m.id
 
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
         project = serializer.save()
 
-        # Actualizar asignación del líder técnico solo si el usuario es administrador (o cliente no autenticado de prueba)
-        if is_admin_user or not (user and user.is_authenticated):
-            leader_val = request.data.get('leaderId') or request.data.get('leader_id')
-            if leader_val:
-                try:
-                    from .models import TeamMember
-                    leader = TeamMember.objects.filter(id=int(leader_val)).first()
-                    if leader:
-                        leader.project = project
-                        leader.save(update_fields=['project'])
-                except (ValueError, TypeError):
-                    pass
+        # Actualizar asignación del líder técnico si viene especificado en la petición
+        leader_val = request.data.get('leaderId') or request.data.get('leader_id')
+        if leader_val is not None and leader_val != '':
+            leader = resolve_team_member(leader_val)
+            if leader:
+                if creator:
+                    leader._assigned_by = creator
+                    leader.created_by = creator
+                else:
+                    fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+                    fallback_email = request.data.get('creator_email')
+                    if fallback_name:
+                        leader._fallback_creator_name = fallback_name
+                    if fallback_email:
+                        leader._fallback_creator_email = fallback_email
 
-        # Enviar notificación automática a Make (Integromat)
-        make_result = None
-        try:
-            from .services.make_service import send_make_webhook
-            assigned_leader = project.team_members.first()
-            project_data = {
-                'id': project.id,
-                'code': project.code,
-                'name': project.name,
-                'description': project.description or '',
-                'start_date': str(project.start_date),
-                'end_date': str(project.end_date),
-                'duration_months': project.duration_months,
-                'budget': float(project.budget),
-                'status': project.get_status_display(),
-                'status_code': project.status,
-                'leader_name': f"{assigned_leader.first_name} {assigned_leader.last_name}" if assigned_leader else 'Sin Asignar',
-                'leader_email': assigned_leader.email if assigned_leader else '',
-                'leader_role': assigned_leader.role.name if assigned_leader and assigned_leader.role else '',
-            }
-            make_result = send_make_webhook(event='project.updated', data=project_data)
-            logger.info(f"[Make Integration] Notificación de actualización de proyecto {project.code} enviada: {make_result}")
-        except Exception as exc:
-            logger.warning(f"[Make Integration] Error al despachar webhook de actualización de proyecto: {exc}")
-            make_result = {'success': False, 'message': str(exc)}
+                leader._is_leader_assignment = True
+                leader.project = project
+                leader.save()
 
         response_data = self.get_serializer(project).data
-        response_data['make_notification'] = make_result
         return Response(response_data)
 
     def destroy(self, request, *args, **kwargs):
@@ -1248,18 +1325,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         instance = self.get_object()
-        project_data = {
-            'id': instance.id,
-            'code': instance.code,
-            'name': instance.name,
-        }
         self.perform_destroy(instance)
-        try:
-            from .services.make_service import send_make_webhook
-            send_make_webhook(event='project.deleted', data=project_data)
-            logger.info(f"[Make Integration] Notificación de eliminación de proyecto {instance.code} enviada")
-        except Exception as exc:
-            logger.warning(f"[Make Integration] Error al despachar webhook de eliminación de proyecto: {exc}")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get', 'post'], url_path='optimize')
@@ -1308,6 +1374,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     - `?critical=true|false`: Filtra tareas según pertenezcan a la ruta crítica (`is_critical_path`).
     """
 
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Task.objects.select_related(
         "project",
         "category",
@@ -1333,6 +1400,58 @@ class TaskViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        serializer.save(
+            creator=creator,
+            priority=self.request.data.get('priority'),
+            due_date=self.request.data.get('due_date') or self.request.data.get('dueDate')
+        )
+
+    def perform_update(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        serializer.save(
+            creator=creator,
+            priority=self.request.data.get('priority'),
+            due_date=self.request.data.get('due_date') or self.request.data.get('dueDate')
+        )
 
 
 class PerformanceMetricViewSet(viewsets.ModelViewSet):

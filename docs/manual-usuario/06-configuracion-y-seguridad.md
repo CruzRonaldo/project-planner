@@ -17,7 +17,7 @@ Las opciones visibles cambian según el rol.
 4. Revise los datos.
 5. Presione **“Guardar Cambios”**.
 
-**Resultado esperado:** la información se actualiza en la tarjeta y en la barra superior.
+**Resultado esperado:** la información se actualiza en la tarjeta y en la barra superior. Si se modificó el correo electrónico, por seguridad el sistema genera automáticamente un nuevo token de sesión para el equipo actual y cierra inmediatamente todas las demás sesiones activas en otros navegadores o dispositivos.
 
 **Errores frecuentes:** correo con formato inválido, correo ya registrado, nombre vacío o imagen demasiado grande.
 
@@ -55,14 +55,14 @@ Si se equivoca en la contraseña actual, puede corregirla y volver a presionar *
 
 > Nunca muestre contraseñas reales en capturas del manual.
 
-## 6.5 Comprobar el cierre de otras sesiones
+## 6.5 Comprobar el cierre de otras sesiones (Contraseña y Correo Electrónico)
 
-Después de cambiar la contraseña:
+Tanto al cambiar la contraseña como al actualizar el correo electrónico principal:
 
-1. Mantenga abierta la sesión actual.
-2. En otro navegador o dispositivo donde la cuenta estuviera abierta, vuelva a una pantalla o espere la validación.
-3. La sesión anterior deberá regresar al inicio de sesión.
-4. Ingrese nuevamente con la nueva contraseña únicamente si desea continuar en ese dispositivo.
+1. Mantenga abierta la sesión actual (el sistema renovará su credencial activa de forma transparente).
+2. En otro navegador, pestaña o dispositivo donde la cuenta estuviera abierta previamente, realice una acción o espere el latido automático de validación (intervalo de 15 segundos).
+3. La sesión anterior será invalidada de inmediato por el backend (HTTP 401) y la interfaz regresará automáticamente a la pantalla de inicio de sesión.
+4. Ingrese nuevamente con las credenciales actualizadas únicamente en los dispositivos autorizados.
 
 ## 6.6 Cerrar sesión manualmente
 

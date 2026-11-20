@@ -3,7 +3,10 @@ import api from './api';
 function getActorHeaders() {
   try {
     const savedUser = JSON.parse(window.localStorage.getItem('project_planner_user'));
-    const sessionToken = savedUser?.session_token;
+    const sessionToken =
+      savedUser?.session_token ||
+      window.localStorage.getItem('project_planner_session_token') ||
+      window.localStorage.getItem('project_planner_token');
     return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
   } catch {
     return {};
@@ -19,7 +22,9 @@ export const projectsApi = {
    * Obtiene la lista completa de proyectos registrados en la base de datos.
    */
   getProjects: async () => {
-    const response = await api.get('/projects/');
+    const response = await api.get('/projects/', {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 
@@ -30,7 +35,9 @@ export const projectsApi = {
    * @returns {Promise<Object>} Proyecto creado y resultado de la notificación Make
    */
   createProject: async (projectData) => {
-    const response = await api.post('/projects/', projectData);
+    const response = await api.post('/projects/', projectData, {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 
@@ -48,7 +55,9 @@ export const projectsApi = {
    * @param {Object} projectData Campos actualizados
    */
   updateProject: async (id, projectData) => {
-    const response = await api.patch(`/projects/${id}/`, projectData);
+    const response = await api.patch(`/projects/${id}/`, projectData, {
+      headers: getActorHeaders(),
+    });
     return response.data;
   },
 
@@ -104,6 +113,29 @@ export const projectsApi = {
   },
 
   /**
+   * Registra una nueva tarea operativa en la Base de Datos.
+   * @param {Object} taskData
+   */
+  createTask: async (taskData) => {
+    const response = await api.post('/tasks/', taskData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /**
+   * Actualiza parcialmente una tarea operativa en la Base de Datos.
+   * @param {string|number} id
+   * @param {Object} taskData
+   */
+  updateTask: async (id, taskData) => {
+    const response = await api.patch(`/tasks/${id}/`, taskData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /**
    * Obtiene el historial de cambios y auditoria de proyectos (Portafolio).
    */
   getProjectChangeLogs: async (params = {}) => {
@@ -147,6 +179,25 @@ export const projectsApi = {
   /** Actualiza parcialmente una ficha TeamMember existente. */
   updateTeamMember: async (id, memberData) => {
     const response = await api.patch(`/team-members/${id}/`, memberData, {
+      headers: getActorHeaders(),
+    });
+    return response.data;
+  },
+
+  /**
+   * Da de baja lógica o elimina permanentemente un registro TeamMember.
+   * @param {string|number} id Identificador del integrante técnico
+   * @param {Object} [options]
+   * @param {'deactivate'|'hard_delete'} [options.mode='deactivate'] Modo de baja o eliminación
+   */
+  deleteTeamMember: async (id, { mode = 'deactivate' } = {}) => {
+    let resolvedId = id;
+    if (typeof id === 'string' && id.includes('-db-')) {
+      const parts = id.split('-db-');
+      resolvedId = parts[1] || id;
+    }
+    const response = await api.delete(`/team-members/${resolvedId}/`, {
+      params: { mode },
       headers: getActorHeaders(),
     });
     return response.data;

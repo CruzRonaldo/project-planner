@@ -13,10 +13,10 @@ Welcome to the official documentation center for **Project Planner**. Select you
 ## Idiomas Disponibles / Available Languages
 
 - 🇪🇸 **[Manual de Usuario en Español](./es/README.md)**  
-  Documentación canónica completa: acceso, autenticación de dos factores (TOTP), planificación estratégica Gantt, portafolio de proyectos, equipo técnico, integraciones (Revit APS, Google Drive, Make), configuración y administración.
+  Documentación canónica completa: acceso, autenticación de dos factores (TOTP), planificación estratégica Gantt, portafolio de proyectos, equipo técnico, integraciones (Revit APS, Google Drive, Make), configuración, automatizaciones y administración.
 
 - 🇬🇧 **[User Manual in English](./en/README.md)**  
-  Complete translated documentation: system access, two-factor authentication (TOTP), dynamic Gantt strategic planning, project portfolio, technical team, cloud integrations (Revit APS, Google Drive, Make), configuration, and administration.
+  Complete translated documentation: system access, two-factor authentication (TOTP), dynamic Gantt strategic planning, project portfolio, technical team, cloud integrations (Revit APS, Google Drive, Make), configuration, automations, and administration.
 
 ---
 

@@ -24,8 +24,9 @@ export default function FormattedAuditText({
   className = '',
   strongClassName = 'font-bold text-inherit transition-colors',
 }) {
+  const processedText = React.useMemo(() => (text ? normalizeQuotesToMarkdown(text) : ''), [text]);
+
   if (!text) return null;
-  const processedText = React.useMemo(() => normalizeQuotesToMarkdown(text), [text]);
 
   return (
     <div

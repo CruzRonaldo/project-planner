@@ -16,7 +16,7 @@
 
 Si el Dashboard aparece vacío, abra **Portafolio** y confirme que existan proyectos registrados. También puede deberse a que el backend todavía está cargando.
 
-![Panel de Control y Métricas](../assets/manual/02-dashboard-kpis-gantt.png)
+![Panel de Control y Métricas](../../assets/manual/02-dashboard-kpis-gantt.png)
 *Figura 2.1: Panel de Control (Dashboard) con tarjetas de KPIs ejecutivos y Mini-Gantt semestral.*
 
 ## 2.2 Consultar el Calendario Maestro
@@ -48,7 +48,7 @@ Si el Dashboard aparece vacío, abra **Portafolio** y confirme que existan proye
 
 **Si no funciona:** confirme que el proyecto exista en la base de datos, que la duración sea válida y que la cuenta tenga permisos de gestión.
 
-![Diálogo de Ajuste de Calendario](../assets/manual/03-ajustar-calendario-modal.png)
+![Diálogo de Ajuste de Calendario](../../assets/manual/03-ajustar-calendario-modal.png)
 *Figura 2.2: Modal de Ajuste de Calendario con selección de proyecto, duración y motivo de auditoría obligatorio.*
 
 ## 2.4 Motor de optimización y análisis de tiempos

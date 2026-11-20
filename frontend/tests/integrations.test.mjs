@@ -47,6 +47,47 @@ test('Guardar los mismos datos no crea actividad duplicada', () => {
   assert.equal(updateIntegration(data, integration.id, integration), data);
 });
 
+test('updateIntegration preserva extraConfig y detecta cambios en tareas personalizadas', () => {
+  const data = createIntegrationsData();
+  const draft = {
+    endpoint: 'https://hook.make.com/test',
+    frequency: 'Cada 30 min',
+    status: 'connected',
+    errors: 0,
+    extraConfig: {
+      tasks: [
+        { id: 'two_factor', name: '2FA', enabled: true, endpoint: 'https://hook.make.com/2fa' },
+        { id: 'notifications', name: 'Notif', enabled: false, endpoint: '' },
+      ],
+      primaryUrl: 'https://hook.make.com/2fa',
+    },
+  };
+  const updated = updateIntegration(data, 'make', draft);
+  const makeItem = updated.integrations.find((i) => i.id === 'make');
+  assert.equal(makeItem.extraConfig?.tasks?.length, 2);
+  assert.equal(makeItem.extraConfig.tasks[1].enabled, false);
+  assert.equal(makeItem.endpoint, 'https://hook.make.com/test');
+
+  // Guardar exactamente el mismo draft no crea actividad duplicada
+  assert.equal(updateIntegration(updated, 'make', draft), updated);
+
+  // Modificar el toggle de una tarea dispara actualización
+  const toggledDraft = {
+    ...draft,
+    extraConfig: {
+      ...draft.extraConfig,
+      tasks: [
+        { id: 'two_factor', name: '2FA', enabled: true, endpoint: 'https://hook.make.com/2fa' },
+        { id: 'notifications', name: 'Notif', enabled: true, endpoint: '' },
+      ],
+    },
+  };
+  const toggled = updateIntegration(updated, 'make', toggledDraft);
+  assert.notEqual(toggled, updated);
+  const toggledMake = toggled.integrations.find((i) => i.id === 'make');
+  assert.equal(toggledMake.extraConfig.tasks[1].enabled, true);
+});
+
 test('La configuración inválida se rechaza sin alterar el estado', () => {
   const data = createIntegrationsData();
   const valid = data.integrations[0];
@@ -178,3 +219,51 @@ test('GoogleDriveModal y MakeModal renderizan modales accesibles con soporte mul
     await server.close();
   }
 });
+
+test('Integrations restringe el acceso y visibilidad de Make únicamente a Administradores (RBAC)', async () => {
+  const { createServer } = await import('vite');
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: Integrations } = await server.ssrLoadModule('/src/views/common/Integrations.jsx');
+    const { ToastProvider } = await server.ssrLoadModule('/src/context/ToastContext.jsx');
+    const data = createIntegrationsData();
+    const props = { data, onChange: () => {}, onQueryChange: () => {} };
+
+    // 1. Usuario Técnico (sin rol administrador): Make debe estar oculto
+    const technicianHtml = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(Integrations, {
+          ...props,
+          isAdmin: false,
+          canManage: false,
+          currentUser: { role: 'user', accountType: 'user' },
+        })
+      )
+    );
+    assert.ok(technicianHtml.includes('Google Drive'), 'Google Drive debe ser visible para técnicos');
+    assert.ok(technicianHtml.includes('Revit / BIM Data'), 'Revit debe ser visible para técnicos');
+    assert.ok(!technicianHtml.includes('Make (Integromat)'), 'Make NO debe ser visible para técnicos');
+    assert.equal((technicianHtml.match(/aria-label="Configurar /g) ?? []).length, 2, 'Solo 2 tarjetas visibles para técnicos');
+
+    // 2. Administrador / PMO: Make debe ser visible y configurable
+    const adminHtml = renderToStaticMarkup(
+      React.createElement(
+        ToastProvider,
+        null,
+        React.createElement(Integrations, {
+          ...props,
+          isAdmin: true,
+          canManage: true,
+          currentUser: { role: 'admin', accountType: 'admin' },
+        })
+      )
+    );
+    assert.ok(adminHtml.includes('Make (Integromat)'), 'Make debe ser visible para administradores');
+    assert.equal((adminHtml.match(/aria-label="Configurar /g) ?? []).length, 3, 'Las 3 tarjetas visibles para administradores');
+  } finally {
+    await server.close();
+  }
+});
+

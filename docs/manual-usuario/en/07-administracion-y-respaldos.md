@@ -13,7 +13,7 @@
 
 The screen distinguishes between Administrator, Sub-Administrator and Technical Team. The Main Administrator should not be shown a switch that allows them to be downgraded from the interface.
 
-![Managing User Roles and Permissions](../assets/manual/11-gestion-roles-usuarios.png)
+![Managing User Roles and Permissions](../../assets/manual/11-gestion-roles-usuarios.png)
 *Figure 7.1: Roles and Permissions admin panel with list of users, active connection statuses, and Sub-admin assignment.*
 
 ## 7.2 Activate a Sub-administrator
@@ -72,6 +72,6 @@ The system attempts to generate a preventive backup before restoring.
 
 **Common errors:** Incorrect credentials, lack of HTTPS in production, PostgreSQL turned off, invalid file, different database name, or `pg_dump`/`pg_restore` tools not available.
 
-![Settings and Backups Panel](../assets/manual/10-respaldos-postgresql-sha256.png)
+![Settings and Backups Panel](../../assets/manual/10-respaldos-postgresql-sha256.png)
 *Figure 7.2: Settings and Backups Panel with History and SHA-256 Cryptographic Checksum Verification.*
 

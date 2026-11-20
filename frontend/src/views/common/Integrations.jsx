@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   filterIntegrations,
   summarizeIntegrations,
@@ -31,7 +31,15 @@ export { IntegrationEditor };
 
 const googleDriveConnectUrl = `${apiBaseUrl}/integrations/google-drive/connect/`;
 
-export default function Integrations({ data, onChange, query = '', onQueryChange }) {
+export default function Integrations({
+  data,
+  onChange,
+  query = '',
+  onQueryChange,
+  canManage,
+  isAdmin,
+  currentUser,
+}) {
   const { t } = useLanguage();
   const [selectedId, setSelectedId] = useState(null);
   const { showToast } = useToast();
@@ -39,9 +47,50 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
   const [testingDrive, setTestingDrive] = useState(false);
   const [isRevitModalOpen, setIsRevitModalOpen] = useState(false);
 
-  const summary = summarizeIntegrations(data);
-  const visible = filterIntegrations(data, query);
-  const selected = selectedId && data.integrations.find((integration) => integration.id === selectedId);
+  // Lógica RBAC: Únicamente los usuarios con nivel de Administrador (o PMO) pueden ver y configurar Make
+  const isAdministrator = useMemo(() => {
+    if (typeof isAdmin === 'boolean') return isAdmin;
+    if (typeof canManage === 'boolean') return canManage;
+    if (currentUser) {
+      return (
+        currentUser.role === 'admin' ||
+        currentUser.accountType === 'admin' ||
+        Boolean(currentUser.isAdmin) ||
+        Boolean(currentUser.is_superuser) ||
+        Boolean(currentUser.is_staff)
+      );
+    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem('project_planner_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return (
+            parsed?.role === 'admin' ||
+            parsed?.accountType === 'admin' ||
+            Boolean(parsed?.isAdmin) ||
+            Boolean(parsed?.is_superuser) ||
+            Boolean(parsed?.is_staff)
+          );
+        }
+      }
+    } catch {}
+    // Fallback permisivo cuando se renderiza sin contexto de usuario/sesión
+    return true;
+  }, [isAdmin, canManage, currentUser]);
+
+  const visibleData = useMemo(() => {
+    if (isAdministrator) return data;
+    return {
+      ...data,
+      integrations: (data?.integrations || []).filter((i) => i.id !== 'make'),
+      activities: (data?.activities || []).filter((a) => a.integrationId !== 'make'),
+    };
+  }, [data, isAdministrator]);
+
+  const summary = summarizeIntegrations(visibleData);
+  const visible = filterIntegrations(visibleData, query);
+  const selected = selectedId && visibleData.integrations.find((integration) => integration.id === selectedId);
 
   const refreshGoogleDrive = async (showToastFeedback = false) => {
     setTestingDrive(true);
@@ -185,7 +234,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
           />
         )}
 
-        {selected && selected.id === 'make' && (
+        {isAdministrator && selected && selected.id === 'make' && (
           <MakeModal
             isOpen={Boolean(selected)}
             onClose={() => setSelectedId(null)}
@@ -241,7 +290,7 @@ export default function Integrations({ data, onChange, query = '', onQueryChange
 
             <IntegrationActivityList
               activities={visible.activities}
-              integrations={data.integrations}
+              integrations={visibleData.integrations}
               query={query}
               onClearQuery={onQueryChange ? () => onQueryChange('') : undefined}
             />

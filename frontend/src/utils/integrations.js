@@ -36,7 +36,13 @@ function validateDraft(draft) {
   if (!draft.endpoint?.trim()) throw new Error('Indica una carpeta, espacio o endpoint.');
   const errors = Number(draft.errors);
   if (String(draft.errors).trim() === '' || !Number.isInteger(errors) || errors < 0 || errors > 999) throw new Error('Los errores deben ser un número entero entre 0 y 999.');
-  return { endpoint: draft.endpoint.trim(), frequency: draft.frequency, status: draft.status, errors };
+  return {
+    endpoint: draft.endpoint.trim(),
+    frequency: draft.frequency,
+    status: draft.status,
+    errors,
+    ...(draft.extraConfig ? { extraConfig: draft.extraConfig } : {}),
+  };
 }
 
 export function updateIntegration(data, integrationId, draft, date = new Date()) {
@@ -45,9 +51,17 @@ export function updateIntegration(data, integrationId, draft, date = new Date())
   const integration = integrations.find((item) => item.id === integrationId);
   if (!integration) throw new Error('No se encontró la integración.');
   const validated = validateDraft(draft);
-  if (validated.endpoint === integration.endpoint && validated.frequency === integration.frequency && validated.status === integration.status && validated.errors === integration.errors) return data;
+  if (
+    validated.endpoint === integration.endpoint &&
+    validated.frequency === integration.frequency &&
+    validated.status === integration.status &&
+    validated.errors === integration.errors &&
+    JSON.stringify(validated.extraConfig) === JSON.stringify(integration.extraConfig)
+  ) return data;
   const updatedIntegration = {
-    ...integration, ...validated, lastActivity: 'Ahora',
+    ...integration,
+    ...validated,
+    lastActivity: 'Ahora',
     metrics: (integration.metrics || []).map((metric) => metric.key === 'errors' ? { ...metric, value: validated.errors } : metric),
   };
   return {

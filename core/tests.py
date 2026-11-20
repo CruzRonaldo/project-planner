@@ -1,4 +1,5 @@
 from unittest.mock import patch, MagicMock
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
@@ -11,6 +12,7 @@ from core.models import (
     Milestone,
     PerformanceMetric,
     Project,
+    ProjectMeeting,
     Role,
     ScheduleAdjustment,
     TwoFactorProfile,
@@ -524,6 +526,713 @@ class MakeServiceUnitTests(TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["status_code"], 200)
 
+    def test_task_matches_event_supports_member_created(self):
+        from core.services.make_service import _task_matches_event
+        self.assertTrue(_task_matches_event({'event': 'project.assignment'}, 'member.created'))
+        self.assertTrue(_task_matches_event({'event': 'member.created'}, 'member.created'))
+        self.assertFalse(_task_matches_event({'event': 'other.event'}, 'member.created'))
+
+
+class MakeSignalsIntegrationTests(TestCase):
+    """Pruebas de integración de Django Signals para notificaciones hacia Make (Integromat)."""
+
+    def setUp(self):
+        from core.services.make_service import CONFIG_FILE_PATH
+        self._orig_webhook_url = getattr(settings, 'MAKE_WEBHOOK_URL', '')
+        self._orig_config_content = CONFIG_FILE_PATH.read_text(encoding='utf-8') if CONFIG_FILE_PATH.exists() else None
+        self.area = TechnicalArea.objects.create(name="Estructuras y BIM", description="Área técnica de prueba")
+        self.role_leader = Role.objects.create(
+            name="Líder de Proyecto",
+            technical_area=self.area,
+            can_manage_projects=True,
+        )
+        self.role_dev = Role.objects.create(
+            name="Desarrollador de Software",
+            technical_area=self.area,
+            can_manage_projects=False,
+        )
+        self.status_active = TeamStatus.objects.create(name="Active", color_code="#10B981")
+        self.project = Project.objects.create(
+            code="PRJ-TEST-001",
+            name="Proyecto Señales Make",
+            start_date="2026-03-01",
+            end_date="2026-09-01",
+            duration_months=6,
+            budget=200000.00,
+        )
+        self.member_leader = TeamMember(
+            first_name="Elena",
+            last_name="Rostova",
+            email="elena.rostova@polyline.com",
+            technical_area=self.area,
+            role=self.role_leader,
+            status=self.status_active,
+        )
+        self.member_leader._skip_member_created_signal = True
+        self.member_leader.save()
+
+        self.member_dev = TeamMember(
+            first_name="Lucas",
+            last_name="Vargas",
+            email="lucas.vargas@polyline.com",
+            technical_area=self.area,
+            role=self.role_dev,
+            status=self.status_active,
+        )
+        self.member_dev._skip_member_created_signal = True
+        self.member_dev.save()
+        self.user_dev = User.objects.create_user(
+            username="lucas_vargas",
+            email="lucas.vargas@polyline.com",
+            password="SecurePassword123!",
+        )
+        self.user_admin = User.objects.create_superuser(
+            username="admin_user",
+            email="admin@polyline.com",
+            password="SecurePassword123!",
+        )
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        project = Project(
+            code="PRJ-TEST-002",
+            name="Hospital Metropolitano",
+            start_date="2026-04-01",
+            end_date="2026-12-01",
+            duration_months=8,
+            budget=500000.00,
+        )
+        # Asignar creador dinámicamente
+        project.created_by = self.user_dev
+        project.save()
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.created")
+        self.assertEqual(kwargs.get("data", {}).get("code"), "PRJ-TEST-002")
+        self.assertEqual(kwargs.get("data", {}).get("name"), "Hospital Metropolitano")
+        self.assertEqual(kwargs.get("data", {}).get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(kwargs.get("data", {}).get("creator_name"), "lucas_vargas")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_without_creator_uses_empty_strings(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        Project.objects.create(
+            code="PRJ-TEST-003",
+            name="Parque Logístico Norte",
+            start_date="2026-05-01",
+            end_date="2026-11-01",
+            duration_months=6,
+            budget=350000.00,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("data", {}).get("creator_email"), "")
+        self.assertEqual(kwargs.get("data", {}).get("creator_name"), "")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_includes_both_creator_and_leader(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        api_client = APIClient()
+        api_client.force_authenticate(user=self.user_dev)
+
+        payload = {
+            "code": "PRJ-API-001",
+            "name": "Centro de Distribución Aeropuerto",
+            "description": "Nave industrial automatizada",
+            "start_date": "2026-06-01",
+            "end_date": "2026-12-01",
+            "duration_months": 6,
+            "budget": "750000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("code"), "PRJ-API-001")
+        # Validar datos del creador
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        # Validar datos del líder de obra
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_with_bearer_token_authenticates_creator_realistically(self, mock_send):
+        """Simula una llamada real desde React con el header Authorization: Bearer <session_token>."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "code": "PRJ-BEARER-001",
+            "name": "Complejo Residencial Las Palmas",
+            "description": "Edificio multifamiliar de 12 pisos",
+            "start_date": "2026-07-01",
+            "end_date": "2027-02-01",
+            "duration_months": 7,
+            "budget": "920000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("code"), "PRJ-BEARER-001")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_created_api_with_body_fallback_resolves_creator_when_anonymous(self, mock_send):
+        """Si la petición no incluye Authorization header, resuelve el creador desde los campos del formulario."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        api_client = APIClient()
+
+        payload = {
+            "code": "PRJ-FALLBACK-001",
+            "name": "Planta Solar Desierto",
+            "description": "Parque fotovoltaico 50MW",
+            "start_date": "2026-08-01",
+            "end_date": "2027-04-01",
+            "duration_months": 8,
+            "budget": "1500000.00",
+            "status": "PLANNING",
+            "leaderId": self.member_leader.id,
+            "createdBy": "lucas_vargas",
+            "creator_email": "lucas.vargas@polyline.com",
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        created_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.created":
+                created_call = call[1]
+                break
+
+        self.assertIsNotNone(created_call, "El evento project.created debió despacharse")
+        data = created_call.get("data", {})
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_leader_assigned_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        self.member_leader.project = self.project
+        self.member_leader.save()
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.leader_assigned")
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+        self.assertIn("creator_name", data)
+        self.assertIn("creator_email", data)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_leader_assigned_via_api_update_with_authenticated_user(self, mock_send):
+        """Al editar un proyecto y asignarle un nuevo líder de obra, despacha project.leader_assigned con datos de request.user."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/projects/{self.project.id}/",
+            {"leaderId": self.member_leader.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Buscar el despacho de project.leader_assigned
+        leader_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.leader_assigned":
+                leader_call = call[1]
+                break
+
+        self.assertIsNotNone(leader_call, "El evento project.leader_assigned debió despacharse")
+        data = leader_call.get("data", {})
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Líder de Proyecto")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_creation_does_not_duplicate_leader_assigned_event(self, mock_send):
+        """Al crear un nuevo proyecto con líder, solo se despacha project.created y no se duplica project.leader_assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "code": "PRJ-NO-DUP-001",
+            "name": "Edificio Singular",
+            "start_date": "2026-09-01",
+            "end_date": "2027-03-01",
+            "totalBudget": "450000.00",
+            "leaderId": self.member_leader.id,
+        }
+
+        response = api_client.post("/api/projects/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        events_dispatched = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertIn("project.created", events_dispatched)
+        self.assertNotIn("project.leader_assigned", events_dispatched, "No debe duplicar project.leader_assigned en creación")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        task = Task(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Diseño de Conexiones Metálicas",
+            description="Modelado y cálculo de nodos en Tekla",
+            start_date="2026-03-05",
+            end_date="2026-03-20",
+            duration_days=15,
+        )
+        task.created_by = self.user_dev
+        task.save()
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "task.assigned")
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("title"), "Diseño de Conexiones Metálicas")
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("priority"), "Media")
+        self.assertEqual(data.get("due_date"), "2026-03-20")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_via_api_post_with_authenticated_user(self, mock_send):
+        """Al crear una tarea con responsable vía TaskViewSet, despacha task.assigned con datos completos."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "project": self.project.id,
+            "category": self.area.id,
+            "assigned_to": self.member_dev.id,
+            "title": "Modelado de Zapatas Aisladas",
+            "description": "Detallado estructural de zapatas en Revit",
+            "start_date": "2026-04-01",
+            "end_date": "2026-04-15",
+            "priority": "Alta",
+        }
+
+        response = api_client.post("/api/tasks/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Modelado de Zapatas Aisladas")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-04-15")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_reassigned_via_api_patch_triggers_task_assigned(self, mock_send):
+        """Al reasignar una tarea existente a otro usuario vía TaskViewSet, despacha task.assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        task = Task.objects.create(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Revisión de Planos de Encofrados",
+            start_date="2026-04-01",
+            end_date="2026-04-10",
+        )
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"assigned_to": self.member_leader.id, "priority": "Alta"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse tras reasignación")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Revisión de Planos de Encofrados")
+        self.assertEqual(data.get("assignee_name"), "Elena Rostova")
+        self.assertEqual(data.get("assignee_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-04-10")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_updated_without_assignee_change_does_not_trigger_task_assigned(self, mock_send):
+        """Al editar solo el título de una tarea sin cambiar responsable, NO despacha task.assigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        task = Task.objects.create(
+            project=self.project,
+            category=self.area,
+            assigned_to=self.member_dev,
+            title="Tarea Inicial",
+            start_date="2026-04-01",
+            end_date="2026-04-10",
+        )
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"title": "Tarea con Nuevo Título"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        events = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertNotIn("task.assigned", events)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_task_assigned_with_react_frontend_exact_json_format(self, mock_send):
+        """
+        Prueba Rama 1: Simula la petición real POST /api/tasks/ enviada desde NewWorkOrderDialog.jsx / Operations.jsx.
+        Utiliza nombres de proyectos combinados con código, nombres textuales de responsables, áreas y prioridades 'high'.
+        """
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Payload idéntico al emitido por NewWorkOrderDialog y Operations.jsx
+        payload = {
+            "project": f"{self.project.name} ({self.project.code})",
+            "type": "Operación de campo",
+            "title": "Vaciado de losa Nivel 4 - Sector Norte",
+            "area": self.area.name,
+            "responsible": f"{self.member_dev.first_name} {self.member_dev.last_name}",
+            "startDate": "2026-05-01",
+            "endDate": "2026-05-08",
+            "priority": "high",
+            "critical": True,
+            "tolerance": 3,
+            "documentUrl": "https://drive.google.com/drive/folders/sample-losa",
+            "description": "Detalla verificaciones de enfierradura y protocolos de vaciado de concreto premezclado.",
+            "creator_email": "admin@polyline.com",
+            "creator_name": "admin_user",
+            "createdBy": "admin_user",
+        }
+
+        response = api_client.post("/api/tasks/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        task_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "task.assigned":
+                task_call = call[1]
+                break
+
+        self.assertIsNotNone(task_call, "El evento task.assigned debió despacharse para el payload real de React")
+        data = task_call.get("data", {})
+        self.assertEqual(data.get("title"), "Vaciado de losa Nivel 4 - Sector Norte")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("priority"), "Alta")
+        self.assertEqual(data.get("due_date"), "2026-05-08")
+        self.assertEqual(data.get("assignee_name"), "Lucas Vargas")
+        self.assertEqual(data.get("assignee_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_project_leader_assigned_with_react_frontend_exact_json_format(self, mock_send):
+        """
+        Prueba Rama 2: Simula la petición real PATCH /api/projects/:id/ enviada desde EditProjectDialog.jsx / Portfolio.jsx.
+        Prueba específicamente cuando el miembro asignado YA pertenecía al proyecto y su rol no tenía can_manage_projects.
+        """
+        mock_send.return_value = {"success": True, "status_code": 200}
+        # El colaborador ya pertenece al proyecto previamente y tiene rol de técnico/dev (can_manage_projects=False)
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Payload idéntico al enviado por EditProjectDialog.jsx
+        payload = {
+            "name": self.project.name,
+            "area": "Edificaciones Comerciales",
+            "startDate": "2026-03-01",
+            "endDate": "2026-09-01",
+            "totalBudget": 200000.0,
+            "status": "planning",
+            "leaderId": self.member_dev.id,
+            "driveFolder": "https://drive.google.com/drive/folders/test-project",
+            "description": "Edición y asignación de nuevo líder de obra",
+            "creator_email": "admin@polyline.com",
+            "creator_name": "admin_user",
+            "createdBy": "admin_user",
+        }
+
+        response = api_client.patch(f"/api/projects/{self.project.id}/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        # Confirmar que a Make le llegó el evento project.leader_assigned
+        leader_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "project.leader_assigned":
+                leader_call = call[1]
+                break
+
+        self.assertIsNotNone(leader_call, "El evento project.leader_assigned debió despacharse incluso si el miembro ya pertenecía al proyecto")
+        data = leader_call.get("data", {})
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("leader_name"), "Lucas Vargas")
+        self.assertEqual(data.get("leader_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("leader_role"), "Desarrollador de Software")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_meeting_created_signal_dispatches_webhook(self, mock_send):
+        mock_send.return_value = {"success": True, "status_code": 200}
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        self.member_leader.project = self.project
+        self.member_leader.save()
+
+        # Resetear mock tras las asignaciones previas de TeamMember
+        mock_send.reset_mock()
+
+        ProjectMeeting.objects.create(
+            project=self.project,
+            title="Reunión de Coordinación BIM",
+            scheduled_at=timezone.now(),
+            created_by=self.user_dev,
+        )
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "meeting.created")
+        self.assertEqual(kwargs.get("data", {}).get("title"), "Reunión de Coordinación BIM")
+        self.assertIn("meet.jit.si", kwargs.get("data", {}).get("meeting_url", ""))
+        self.assertEqual(kwargs.get("data", {}).get("created_by", {}).get("username"), "lucas_vargas")
+
+        # Verificar team_emails: incluye correos de miembros y organizador sin duplicados
+        team_emails = kwargs.get("data", {}).get("team_emails", [])
+        self.assertIn("elena.rostova@polyline.com", team_emails)
+        self.assertIn("lucas.vargas@polyline.com", team_emails)
+        self.assertEqual(len(team_emails), 2)  # lucas.vargas aparece una sola vez
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_member_created_signal_dispatches_webhook(self, mock_send):
+        """Al registrar un nuevo miembro técnico, despacha el webhook 'member.created' con sus detalles y correo."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        member = TeamMember.objects.create(
+            first_name="Mateo",
+            last_name="Silva",
+            email="mateo.silva@polyline.com",
+            technical_area=self.area,
+            role=self.role_dev,
+            status=self.status_active,
+            project=self.project,
+        )
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "member.created")
+        data = kwargs.get("data", {})
+        self.assertEqual(data.get("member_id"), member.id)
+        self.assertEqual(data.get("first_name"), "Mateo")
+        self.assertEqual(data.get("last_name"), "Silva")
+        self.assertEqual(data.get("name"), "Mateo Silva")
+        self.assertEqual(data.get("email"), "mateo.silva@polyline.com")
+        self.assertEqual(data.get("role"), "Desarrollador de Software")
+        self.assertEqual(data.get("technical_area"), "Estructuras y BIM")
+        self.assertEqual(data.get("project_name"), "Proyecto Señales Make")
+        self.assertEqual(data.get("project_code"), "PRJ-TEST-001")
+        self.assertEqual(data.get("status"), "Active")
+
+    def tearDown(self):
+        from core.services.make_service import CONFIG_FILE_PATH
+        if hasattr(self, '_orig_config_content') and self._orig_config_content is not None:
+            CONFIG_FILE_PATH.write_text(self._orig_config_content, encoding='utf-8')
+        elif CONFIG_FILE_PATH.exists():
+            try:
+                CONFIG_FILE_PATH.unlink()
+            except Exception:
+                pass
+        setattr(settings, 'MAKE_WEBHOOK_URL', getattr(self, '_orig_webhook_url', ''))
+
+    def test_make_config_persistence_and_status_api(self):
+        """Valida que la configuración de Make se guarde vía API y se refleje en status."""
+        api_client = APIClient()
+        config_payload = {
+            "webhook_url": "https://hook.eu2.make.com/main_endpoint",
+            "status": "connected",
+            "frequency": "Cada hora",
+            "tasks": [
+                {
+                    "id": "two_factor",
+                    "name": "Autenticación 2FA",
+                    "event": "auth.two_factor",
+                    "endpoint": "https://hook.eu2.make.com/2fa_endpoint",
+                    "enabled": True,
+                },
+                {
+                    "id": "notifications",
+                    "name": "Notificaciones",
+                    "event": "project.assignment",
+                    "endpoint": "",
+                    "enabled": False,
+                },
+            ],
+        }
+
+        response = api_client.post("/api/integrations/make/config/", config_payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("status"), "success")
+        saved_cfg = response.data.get("config", {})
+        self.assertEqual(saved_cfg.get("webhook_url"), "https://hook.eu2.make.com/main_endpoint")
+        self.assertEqual(saved_cfg.get("status"), "connected")
+        self.assertEqual(saved_cfg.get("frequency"), "Cada hora")
+        self.assertEqual(len(saved_cfg.get("tasks", [])), 2)
+
+        # Consultar status
+        status_resp = api_client.get("/api/integrations/make/status/")
+        self.assertEqual(status_resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(status_resp.data.get("is_configured"))
+        self.assertEqual(status_resp.data.get("webhook_url"), "https://hook.eu2.make.com/main_endpoint")
+        self.assertEqual(status_resp.data.get("status"), "connected")
+        self.assertEqual(status_resp.data.get("frequency"), "Cada hora")
+        self.assertEqual(len(status_resp.data.get("tasks", [])), 2)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_disabled_task_blocks_signal_dispatch(self, mock_send):
+        """Verifica que si una tarea está deshabilitada (enabled=False), el webhook no se despacha."""
+        from core.services.make_service import save_make_config
+        save_make_config({
+            "webhook_url": "https://hook.eu2.make.com/main",
+            "status": "connected",
+            "frequency": "Cada 30 min",
+            "tasks": [
+                {
+                    "id": "project_create",
+                    "name": "Creación de Proyecto",
+                    "event": "project.created",
+                    "endpoint": "https://hook.eu2.make.com/proj_create",
+                    "enabled": False,
+                }
+            ],
+        })
+
+        Project.objects.create(
+            code="PRJ-TEST-DISABLED",
+            name="Proyecto Deshabilitado",
+            start_date="2026-06-01",
+            end_date="2026-12-01",
+            duration_months=6,
+            budget=100000.00,
+        )
+
+        mock_send.assert_not_called()
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_specific_task_endpoint_used_in_dispatch(self, mock_send):
+        """Verifica que si una tarea define su propio endpoint, el webhook se despacha a dicha URL."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        from core.services.make_service import save_make_config
+        custom_endpoint = "https://hook.eu2.make.com/custom_task_endpoint"
+        save_make_config({
+            "webhook_url": "https://hook.eu2.make.com/main",
+            "status": "connected",
+            "frequency": "Cada 30 min",
+            "tasks": [
+                {
+                    "id": "project_create",
+                    "name": "Creación de Proyecto",
+                    "event": "project.created",
+                    "endpoint": custom_endpoint,
+                    "enabled": True,
+                }
+            ],
+        })
+
+        Project.objects.create(
+            code="PRJ-TEST-CUSTOM-URL",
+            name="Proyecto con Endpoint Dedicado",
+            start_date="2026-06-01",
+            end_date="2026-12-01",
+            duration_months=6,
+            budget=100000.00,
+        )
+
+        mock_send.assert_called_once()
+        kwargs = mock_send.call_args[1]
+        self.assertEqual(kwargs.get("event"), "project.created")
+        self.assertEqual(kwargs.get("webhook_url"), custom_endpoint)
+
 
 class MilestoneStrategicPlanningTests(TestCase):
     """Pruebas del Módulo de Planificación Estratégica e Hitos Globales (/api/milestones/)."""
@@ -923,6 +1632,42 @@ class UserProfileAPITests(TestCase):
         audit_resp = self.client.get("/api/auth/audit-logs/")
         self.assertEqual(audit_resp.status_code, status.HTTP_200_OK)
         self.assertTrue(any(log["newValue"] == new_email for log in audit_resp.data["logs"]))
+
+    def test_update_email_invalidates_previous_sessions(self):
+        # 1. Sesión inicial del usuario
+        initial_token = issue_session_token(self.user)
+        session_client = APIClient()
+        session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {initial_token}")
+
+        # Comprobar que la sesión inicial es válida
+        validate_initial = session_client.get("/api/auth/session/validate/")
+        self.assertEqual(validate_initial.status_code, status.HTTP_200_OK)
+
+        # 2. Actualizar correo electrónico
+        new_email = "sesion.renovada@gmail.com"
+        payload = {
+            "identifier": self.email,
+            "email": new_email,
+        }
+        response = session_client.patch(self.profile_url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("session_token", response.data)
+        new_token = response.data["session_token"]
+        self.assertNotEqual(initial_token, new_token)
+
+        # 3. Comprobar que la sesión previa (initial_token) ahora está INVALIDADA (HTTP 401)
+        old_session_client = APIClient()
+        old_session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {initial_token}")
+        old_validate = old_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(old_validate.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("cerrada", old_validate.data["detail"])
+
+        # 4. Comprobar que el nuevo token es válido (HTTP 200)
+        new_session_client = APIClient()
+        new_session_client.credentials(HTTP_AUTHORIZATION=f"Bearer {new_token}")
+        new_validate = new_session_client.get("/api/auth/session/validate/")
+        self.assertEqual(new_validate.status_code, status.HTTP_200_OK)
+        self.assertTrue(new_validate.data["valid"])
 
     def test_update_email_rejects_invalid_format(self):
         payload = {

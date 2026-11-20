@@ -591,6 +591,7 @@ export default function Portfolio({
       {dialogOpen && canManage && (
         <NewProjectDialog
           data={data}
+          currentUser={currentUser}
           currentUserName={currentUserName}
           onSubmit={createProject}
           onClose={() => setDialogOpen(false)}
@@ -604,6 +605,8 @@ export default function Portfolio({
           onClose={() => setEditingProject(null)}
           teamMembers={teamMembers}
           isAdmin={isAdmin}
+          currentUser={currentUser}
+          currentUserName={currentUserName}
         />
       )}
       {deletingProject && isAdmin && (

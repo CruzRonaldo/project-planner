@@ -6,7 +6,10 @@ import {
   FolderOpen,
   Mail,
   MoreVertical,
+  Trash2,
+  UserMinus,
   UserPlus,
+  UserX,
 } from 'lucide-react';
 import {
   technicalAreas,
@@ -33,6 +36,7 @@ import {
 } from '../../constants/themeClasses';
 import AddTechnicalMemberDialog from './components/AddTechnicalMemberDialog';
 import ReassignProjectDialog from './components/ReassignProjectDialog';
+import DeleteTechnicalMemberDialog from './components/DeleteTechnicalMemberDialog';
 import MemberAvatar from './components/MemberAvatar';
 import SortDropdown from '../../components/common/SortDropdown';
 import Pagination from '../../components/common/Pagination';
@@ -123,6 +127,7 @@ export default function TechnicalTeam({
   onMemberCreated,
   onRefreshMembers,
   onPersistMember,
+  onRemoveMember,
   query = '',
   onQueryChange,
   canManage = false,
@@ -188,6 +193,7 @@ export default function TechnicalTeam({
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reassignMemberId, setReassignMemberId] = useState(null);
+  const [memberActionModal, setMemberActionModal] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showAllAssignments, setShowAllAssignments] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -268,6 +274,64 @@ export default function TechnicalTeam({
       onChange(previousData);
       throw error;
     }
+  };
+
+  const handleRemoveTechnicalMember = async (memberId, { mode = 'deactivate' } = {}) => {
+    if (onRemoveMember) {
+      await onRemoveMember(memberId, { mode });
+    } else {
+      const target = membersList.find(
+        (m) => String(m.id) === String(memberId) || String(m.dbId) === String(memberId)
+      );
+      let backendId = target?.dbId;
+      if (!backendId && typeof memberId === 'string' && memberId.includes('-db-')) {
+        const parsed = memberId.split('-db-')[1];
+        if (/^\d+$/.test(parsed)) backendId = Number(parsed);
+      } else if (!backendId && (typeof memberId === 'number' || /^\d+$/.test(String(memberId)))) {
+        backendId = Number(memberId);
+      }
+      if (backendId) {
+        await projectsApi.deleteTeamMember(backendId, { mode });
+      }
+      if (mode === 'hard_delete') {
+        onChange({
+          ...data,
+          members: (data.members ?? []).filter(
+            (m) => String(m.id) !== String(memberId) && String(m.dbId) !== String(memberId)
+          ),
+        });
+      } else {
+        onChange({
+          ...data,
+          members: (data.members ?? []).map((m) => {
+            if (String(m.id) !== String(memberId) && String(m.dbId) !== String(memberId)) return m;
+            return {
+              ...m,
+              is_active: false,
+              isActive: false,
+              availability: 0,
+              status: 'offline',
+              project: null,
+            };
+          }),
+        });
+      }
+    }
+    const targetMember = membersList.find(
+      (m) => String(m.id) === String(memberId) || String(m.dbId) === String(memberId)
+    );
+    const memberName = targetMember ? getMemberFullName(targetMember) : t('technicalTeam.defaultMemberName', 'Integrante');
+    const msg =
+      mode === 'hard_delete'
+        ? t('technicalTeam.deleteSuccessToast', `${memberName} y su cuenta de acceso han sido eliminados completamente.`, { name: memberName })
+        : t('technicalTeam.deactivateSuccessToast', `${memberName} ha sido dado de baja y su estado marcado como 'No disponible'.`, { name: memberName });
+    setFeedback(msg);
+    showToast({
+      title: mode === 'hard_delete' ? t('toasts.Técnico Eliminado', 'Técnico Eliminado') : t('toasts.Baja Registrada', 'Baja Registrada'),
+      message: msg,
+      type: 'success',
+    });
+    setMemberActionModal(null);
   };
   const openReassignment = (memberId) => {
     setReassignMemberId(memberId);
@@ -383,7 +447,48 @@ export default function TechnicalTeam({
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {visibleMembers.map((member) => <article key={member.id} className={`${cardClass} relative flex min-h-[286px] min-w-0 flex-col p-4 transition-transform hover:-translate-y-0.5 hover:border-cyan-400/40 dark:hover:border-blue-400/25 midnight:hover:border-cyan-500/50`}>
                 <header className="flex min-w-0 items-start gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><MemberAvatar member={member} sizeClass="h-11 w-11" /><div className="min-w-0 flex-1"><h3 className={`line-clamp-2 text-sm font-semibold leading-tight ${headingClass}`}>{member.area === 'architecture' ? t('technicalTeam.prefixArch', 'Arq.') : t('technicalTeam.prefixEng', 'Ing.')} {getMemberFullName(member)}</h3><p className={`mt-1 truncate text-[10px] ${mutedClass}`} title={member.specialty}>{member.specialty}</p></div><button type="button" onClick={() => setOpenMenuId((current) => current === member.id ? null : member.id)} aria-label={t('technicalTeam.openActions', `Abrir acciones de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} className={closeBtnClass}><MoreVertical size={15} /></button></header>
-                {openMenuId === member.id && <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">{canManage && <button type="button" onClick={() => openReassignment(member.id)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><ArrowLeftRight size={13} /> {t('technicalTeam.reassignProject', 'Reasignar proyecto')}</button>}<a href={`mailto:${member.email}`} onClick={() => setOpenMenuId(null)} className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"><Mail size={13} /> {t('technicalTeam.sendEmail', 'Enviar correo')}</a></div>}
+                {openMenuId === member.id && (
+                  <div className="absolute right-3 top-12 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-2xl transition-colors duration-300 dark:border-[#30363d] dark:bg-[#0d1117] midnight:border-cyan-900/30 midnight:bg-[#050B14]">
+                    {canManage && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openReassignment(member.id)}
+                          className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
+                        >
+                          <ArrowLeftRight size={13} /> {t('technicalTeam.reassignProject', 'Reasignar proyecto')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setMemberActionModal({ member, mode: 'deactivate' });
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
+                        >
+                          <UserX size={13} /> {t('technicalTeam.deactivateAction', 'Dar de baja')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setMemberActionModal({ member, mode: 'hard_delete' });
+                          }}
+                          className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-[11px] text-red-600 transition-colors duration-300 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10 midnight:text-red-300 midnight:hover:bg-red-950/30"
+                        >
+                          <Trash2 size={13} /> {t('technicalTeam.deleteAction', 'Eliminar técnico')}
+                        </button>
+                      </>
+                    )}
+                    <a
+                      href={`mailto:${member.email}`}
+                      onClick={() => setOpenMenuId(null)}
+                      className="flex items-center gap-2 rounded px-2.5 py-2 text-[11px] text-slate-600 transition-colors duration-300 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50"
+                    >
+                      <Mail size={13} /> {t('technicalTeam.sendEmail', 'Enviar correo')}
+                    </a>
+                  </div>
+                )}
                 <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>{t('technicalTeam.assignedProject', 'Proyecto asignado')}</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
                 <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>{t('technicalTeam.taskProgress', 'Progreso de tarea')}</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={t('technicalTeam.progressOf', `Progreso de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
                 <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>{t('technicalTeam.workLinks', 'Enlaces de trabajo')}</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={t('technicalTeam.viewProjectOf', `Ver proyecto de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.viewAssignedProject', 'Ver proyecto asignado')} className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={t('technicalTeam.reassignTo', `Reasignar a ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.reassignProject', 'Reasignar proyecto')} className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
@@ -408,6 +513,14 @@ export default function TechnicalTeam({
       </div>
       {dialogOpen && canManage && <AddTechnicalMemberDialog existingData={data} projectOptions={availableProjects} onSubmit={addMember} onClose={() => setDialogOpen(false)} />}
       {reassignMember && canManage && <ReassignProjectDialog member={reassignMember} projectOptions={availableProjects} onSubmit={reassignMemberToProject} onClose={() => setReassignMemberId(null)} />}
+      {memberActionModal && canManage && (
+        <DeleteTechnicalMemberDialog
+          member={memberActionModal.member}
+          mode={memberActionModal.mode}
+          onConfirm={handleRemoveTechnicalMember}
+          onClose={() => setMemberActionModal(null)}
+        />
+      )}
     </main>
   );
 }

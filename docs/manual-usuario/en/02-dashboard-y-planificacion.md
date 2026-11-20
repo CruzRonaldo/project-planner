@@ -16,7 +16,7 @@
 
 If the Dashboard appears empty, open **Portfolio** and confirm that there are registered projects. It may also be because the backend is still loading.
 
-![Dashboard and Metrics](../assets/manual/02-dashboard-kpis-gantt.png)
+![Dashboard and Metrics](../../assets/manual/02-dashboard-kpis-gantt.png)
 *Figure 2.1: Dashboard with executive KPI cards and semi-annual Mini-Gantt.*
 
 ## 2.2 Check the Master Calendar
@@ -48,7 +48,7 @@ If the Dashboard appears empty, open **Portfolio** and confirm that there are re
 
 **If it doesn't work:** Confirm that the project exists in the database, that the duration is valid, and that the account has management permissions.
 
-![Schedule Adjustment Dialog](../assets/manual/03-ajustar-calendario-modal.png)
+![Schedule Adjustment Dialog](../../assets/manual/03-ajustar-calendario-modal.png)
 *Figure 2.2: Schedule Adjustment Modal with selection of project, duration, and reason for mandatory audit.*
 
 ## 2.4 Optimization engine and time analysis

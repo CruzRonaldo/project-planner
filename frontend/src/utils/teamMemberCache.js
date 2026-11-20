@@ -59,3 +59,19 @@ export function upsertCachedTeamMember(member, storage) {
   writeCachedTeamMembers(next, storage);
   return next;
 }
+
+export function removeCachedTeamMember(memberId, storage) {
+  if (memberId === null || memberId === undefined) return readCachedTeamMembers(storage);
+  const current = readCachedTeamMembers(storage);
+  const targetIdStr = String(memberId);
+  const rawIdFromPrefix = targetIdStr.includes('-db-') ? targetIdStr.split('-db-')[1] : null;
+
+  const next = current.filter((item) => {
+    const idMatches = item?.id !== undefined && item?.id !== null && String(item.id) === targetIdStr;
+    const dbIdMatches = item?.dbId !== undefined && item?.dbId !== null && String(item.dbId) === targetIdStr;
+    const prefixMatches = rawIdFromPrefix !== null && item?.dbId !== undefined && item?.dbId !== null && String(item.dbId) === rawIdFromPrefix;
+    return !idMatches && !dbIdMatches && !prefixMatches;
+  });
+  writeCachedTeamMembers(next, storage);
+  return next;
+}

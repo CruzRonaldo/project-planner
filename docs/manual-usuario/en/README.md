@@ -34,7 +34,9 @@ It does not contain passwords, real emails, or integration secrets. Any screensh
 6. [Settings and personal security](./06-configuracion-y-seguridad.md)
 7. [Administration, roles, and backups](./07-administracion-y-respaldos.md)
 8. [Troubleshooting](./08-solucion-de-problemas.md)
-9. [WCAG 2.2 AA Accessibility Audit](../general/05-analisis-accesibilidad-wcag.md)
+9. [Automations and Webhooks with Make](./09-configuracion-make.md)
+10. [Notification Control & Alerts Center](./10-control-de-notificaciones.md)
+11. [WCAG 2.2 AA Accessibility Audit](../general/05-analisis-accesibilidad-wcag.md)
 
 ## 4. Reading conventions
 

@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   HelpCircle,
   BookOpen,
+  Webhook,
+  Bell,
 } from 'lucide-react';
 
 // Carga en caliente/compilación de todos los archivos .md canónicos del manual
@@ -125,7 +127,7 @@ const BASE_SECTIONS = [
     roleRequired: 'all',
     targetModule: 'configuracion',
     moduleShortcut: 'Shift + 9',
-    summary: 'Personalización de temas (Claro/Oscuro/Medianoche), escala de fuente y cambio seguro de contraseña.',
+    summary: 'Personalización de temas (Claro/Oscuro/Medianoche), escala de fuente, edición de perfil y revocación segura de sesiones por cambio de clave o correo.',
   },
   {
     id: '07-administracion',
@@ -152,6 +154,32 @@ const BASE_SECTIONS = [
     targetModule: null,
     moduleShortcut: null,
     summary: 'Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas de seguridad.',
+  },
+  {
+    id: '09-make-webhooks',
+    number: '9',
+    title: 'Automatizaciones y Webhooks con Make',
+    shortTitle: 'Make & Webhooks',
+    filename: '09-configuracion-make.md',
+    icon: Webhook,
+    category: 'integraciones',
+    roleRequired: 'admin',
+    targetModule: 'integrations',
+    moduleShortcut: null,
+    summary: 'Arquitectura de Django Signals, despacho asíncrono con transaction.on_commit y configuración de escenarios en Make.',
+  },
+  {
+    id: '10-notificaciones',
+    number: '10',
+    title: 'Control y Centro de Notificaciones',
+    shortTitle: 'Notificaciones',
+    filename: '10-control-de-notificaciones.md',
+    icon: Bell,
+    category: 'sistema',
+    roleRequired: 'all',
+    targetModule: null,
+    moduleShortcut: null,
+    summary: 'Arquitectura multicanal de alertas (Toasts instantáneos, centro in-app en barra superior y Webhooks), gestión de lecturas y visibilidad por roles.',
   },
 ];
 

@@ -290,8 +290,9 @@ export default function Configuration({
       const activeId = activeUser.db_id || activeUser.id;
       const activeIdentifier = activeUser.email || activeUser.username;
 
+      let updateResult = null;
       if (projectsApi.updateProfile) {
-        await projectsApi.updateProfile({
+        updateResult = await projectsApi.updateProfile({
           userId: activeId,
           identifier: activeIdentifier,
           name: trimmedName,
@@ -299,20 +300,32 @@ export default function Configuration({
           phone: updatedPhone,
           photo: userPhoto,
         });
+
+        if (updateResult?.session_token && onSessionTokenChange) {
+          onSessionTokenChange(updateResult.session_token);
+        }
       }
 
       setUserName(trimmedName);
       setUserPhone(updatedPhone);
       setUserEmail(trimmedEmail);
 
+      const userUpdates = { name: trimmedName, phone: updatedPhone, email: trimmedEmail };
+      if (updateResult?.session_token) {
+        userUpdates.session_token = updateResult.session_token;
+      }
+
       if (onUpdateCurrentUser) {
-        onUpdateCurrentUser({ name: trimmedName, phone: updatedPhone, email: trimmedEmail });
+        onUpdateCurrentUser(userUpdates);
       } else {
         try {
           const stored = JSON.parse(localStorage.getItem('project_planner_user') || '{}');
           stored.name = trimmedName;
           stored.phone = updatedPhone;
           stored.email = trimmedEmail;
+          if (updateResult?.session_token) {
+            stored.session_token = updateResult.session_token;
+          }
           localStorage.setItem('project_planner_user', JSON.stringify(stored));
         } catch {}
       }

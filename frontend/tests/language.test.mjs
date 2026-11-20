@@ -2030,14 +2030,14 @@ test('manualSections: getManualSections y getMarkdownContent resuelven metadatos
 
     const tEn = createTranslate('en');
     const sectionsEn = getManualSections('en', tEn);
-    assert.equal(sectionsEn.length, 9);
+    assert.equal(sectionsEn.length, 10);
     assert.equal(sectionsEn[0].title, 'Index and General Structure');
     assert.equal(sectionsEn[1].shortTitle, 'Access & 2FA');
     assert.ok(sectionsEn[0].content.length > 50, 'Debe cargar contenido en inglés de README.md');
 
     const tEs = createTranslate('es');
     const sectionsEs = getManualSections('es', tEs);
-    assert.equal(sectionsEs.length, 9);
+    assert.equal(sectionsEs.length, 10);
     assert.equal(sectionsEs[0].title, 'Índice y Estructura General');
     assert.equal(sectionsEs[1].shortTitle, 'Acceso y 2FA');
     assert.ok(sectionsEs[0].content.length > 50, 'Debe cargar contenido en español de README.md');

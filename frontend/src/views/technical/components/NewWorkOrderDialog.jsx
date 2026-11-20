@@ -47,6 +47,7 @@ export default function NewWorkOrderDialog({
     description: '',
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const duration = getWorkOrderDuration(draft.startDate, draft.endDate);
 
   const changeField = (field) => (event) => {
@@ -54,11 +55,15 @@ export default function NewWorkOrderDialog({
     setError('');
   };
 
-  const submitDraft = () => {
+  const submitDraft = async () => {
+    setError('');
+    setIsSubmitting(true);
     try {
-      onSubmit(draft);
+      await onSubmit(draft);
     } catch (submitError) {
-      setError(submitError.message);
+      setError(submitError.message || 'Error al emitir la orden de trabajo.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -77,6 +82,7 @@ export default function NewWorkOrderDialog({
       submitLabel={t('operations.issueWorkOrder', 'Emitir Orden de Trabajo')}
       submitIcon={<Download size={15} />}
       cancelLabel={t('common.cancel', 'Cancelar')}
+      isSubmitting={isSubmitting}
       submitButtonClass="bg-blue-600 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
       footnote={footnote}
       maxWidth="max-w-3xl"
