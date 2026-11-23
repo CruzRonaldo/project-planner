@@ -3,7 +3,7 @@ from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from pgvector.django import CosineDistance
 
 from .authentication import PasswordBoundAuthentication
@@ -21,7 +21,7 @@ def _extract_user_role(request):
     if user and user.is_authenticated:
         is_admin = bool(getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
         return "Admin" if is_admin else "Técnico"
-    return request.data.get('user_role') or request.data.get('role') or "Técnico"
+    return "Técnico"
 
 
 class RAGChatbotView(APIView):
@@ -35,7 +35,7 @@ class RAGChatbotView(APIView):
     5. Devuelve la respuesta en formato JSON o streaming según `stream=true/false`.
     """
     authentication_classes = [SimpleUserAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         message = (
@@ -82,6 +82,7 @@ class RAGChatbotView(APIView):
                     context_chunks=top_chunks,
                     user_role=user_role,
                     stream=True,
+                    user_id=str(request.user.pk),
                 )
                 response = StreamingHttpResponse(
                     stream_generator,
@@ -96,6 +97,7 @@ class RAGChatbotView(APIView):
                 context_chunks=top_chunks,
                 user_role=user_role,
                 stream=False,
+                user_id=str(request.user.pk),
             )
 
             context_data = [
@@ -137,7 +139,7 @@ class ChatbotView(APIView):
     Aplica búsqueda semántica con pgvector e inyección de contexto de forma transparente.
     """
     authentication_classes = [SimpleUserAuthentication]
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         message = (request.data.get('message') or request.data.get('prompt') or '').strip()
@@ -173,6 +175,7 @@ class ChatbotView(APIView):
                 context_chunks=top_chunks,
                 user_role=user_role,
                 stream=True,
+                user_id=str(request.user.pk),
             )
             response = StreamingHttpResponse(
                 stream_generator,
