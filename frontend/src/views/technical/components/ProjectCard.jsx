@@ -24,11 +24,20 @@ export default function ProjectCard({
   onOpenMeetings,
   canManage = false,
   isProjectLeader = false,
+  isHighlighted = false,
 }) {
   const { t } = useLanguage();
   const status = statusDetails(project.status);
   return (
-    <article className={`${cardClass} p-5`}>
+    <article
+      id={`project-card-${project.id || project.code}`}
+      data-project-code={project.code}
+      className={`${cardClass} p-5 relative transition-[box-shadow,border-color] duration-500 ${
+        isHighlighted
+          ? 'animate-project-glow ring-2 ring-cyan-400 dark:ring-cyan-300 midnight:ring-cyan-400 z-20'
+          : ''
+      }`}
+    >
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-2">

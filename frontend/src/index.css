@@ -132,6 +132,26 @@ html, body, #root {
   animation: loadingTrack 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
 }
 
+/* ==========================================================
+   ANIMACIÓN DE RESALTADO LUMINOSO (Project Highlight Glow)
+   Sincronizado a 2 pulsos completos exactos en 2.0 segundos
+   ========================================================== */
+@keyframes projectCardGlow {
+  0%, 100% {
+    box-shadow: 0 0 0px rgba(6, 182, 212, 0);
+    border-color: rgba(6, 182, 212, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(6, 182, 212, 0.95), 0 0 65px rgba(6, 182, 212, 0.55), inset 0 0 15px rgba(6, 182, 212, 0.2);
+    border-color: rgba(6, 182, 212, 1);
+  }
+}
+
+.animate-project-glow {
+  animation: projectCardGlow 1.0s ease-in-out 2;
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+
 
 
 /* ==========================================================

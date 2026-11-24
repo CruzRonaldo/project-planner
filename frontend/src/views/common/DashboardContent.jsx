@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Folder,
   CheckSquare,
@@ -6,8 +6,10 @@ import {
   TrendingUp,
   Calendar,
   Plus,
+  ArrowRight,
 } from 'lucide-react';
 import KpiCard from '../../components/common/KpiCard';
+import Pagination from '../../components/common/Pagination';
 import { cardClass } from '../../constants/themeClasses';
 import { formatMoney } from '../../utils/format';
 import { getBarGeometry, getRollingWindow, legacyMonthRangeToDates } from '../../utils/gantt';
@@ -47,6 +49,79 @@ export default function DashboardContent({
   const alerts = projects.filter(
     (p) => p.status === 'risk' || p.status === 'paused'
   );
+
+  // Distribución reactiva de Salud del Portafolio
+  const healthStats = useMemo(() => {
+    let healthy = 0;
+    let warning = 0;
+    let critical = 0;
+    let stale = 0;
+
+    const today = new Date();
+
+    projects.forEach((p) => {
+      if (p.health) {
+        const h = String(p.health).toUpperCase();
+        if (h === 'HEALTHY') healthy++;
+        else if (h === 'WARNING') warning++;
+        else if (h === 'CRITICAL') critical++;
+        else if (h === 'STALE') stale++;
+        else healthy++;
+        return;
+      }
+
+      const status = (p.status || '').toLowerCase();
+      const progress = Number(p.progress) || 0;
+
+      let expected = 0;
+      if (p.startDate && p.endDate) {
+        const s = new Date(p.startDate);
+        const e = new Date(p.endDate);
+        if (e > s) {
+          const totalDays = Math.max(1, (e - s) / (1000 * 60 * 60 * 24));
+          const elapsed = Math.max(0, Math.min(totalDays, (today - s) / (1000 * 60 * 60 * 24)));
+          expected = Math.round((elapsed / totalDays) * 100);
+        }
+      }
+      const gap = expected - progress;
+
+      if (status === 'stale' || status === 'on_hold') {
+        stale++;
+      } else if (status === 'risk' || gap > 25) {
+        critical++;
+      } else if (status === 'paused' || gap > 10) {
+        warning++;
+      } else {
+        healthy++;
+      }
+    });
+
+    const total = projects.length || 0;
+    const criticalStale = critical + stale;
+    const healthyPct = total > 0 ? Math.round((healthy / total) * 100) : 0;
+    const warningPct = total > 0 ? Math.round((warning / total) * 100) : 0;
+    const criticalPct = total > 0 ? Math.max(0, 100 - healthyPct - warningPct) : 0;
+
+    return {
+      total,
+      healthy,
+      warning,
+      critical,
+      stale,
+      criticalStale,
+      healthyPct,
+      warningPct,
+      criticalPct,
+    };
+  }, [projects]);
+
+  const [alertPage, setAlertPage] = useState(1);
+  const ALERTS_PER_PAGE = 5;
+  const totalAlertPages = Math.max(1, Math.ceil(alerts.length / ALERTS_PER_PAGE));
+  const currentAlertPage = Math.min(alertPage, totalAlertPages);
+  const paginatedAlerts = useMemo(() => {
+    return alerts.slice((currentAlertPage - 1) * ALERTS_PER_PAGE, currentAlertPage * ALERTS_PER_PAGE);
+  }, [alerts, currentAlertPage]);
 
   // Ventana móvil semestral (6 meses desde el mes actual o de referencia)
   const rolling = useMemo(
@@ -157,7 +232,7 @@ export default function DashboardContent({
   );
 
   return (
-    <main className="flex-1 overflow-y-auto p-4 md:p-6 transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
+    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 transition-colors duration-300 bg-slate-50 dark:bg-[#0d1117] midnight:bg-[#050B14]">
       <div className="flex flex-col gap-6 pb-8">
         {/* 1. Tarjetas Superiores */}
         <section aria-label={t('dashboard.executiveSummaryAria', 'Resumen ejecutivo de proyectos')} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -251,7 +326,7 @@ export default function DashboardContent({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {visibleProjects.slice(0, 5).map((project, i) => {
+                    {visibleProjects.slice(0, 6).map((project, i) => {
                       const { geom, barColor } = project;
                       const isClippedLeft = Boolean(geom.clippedLeft);
                       const isClippedRight = Boolean(geom.clippedRight);
@@ -335,50 +410,99 @@ export default function DashboardContent({
                     })}
                   </div>
                 )}
+                {visibleProjects.length > 6 && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 midnight:border-cyan-900/30 flex items-center justify-between text-xs text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
+                    <span>
+                      {t('dashboard.showingOf', 'Mostrando {shown} de {total} proyectos', {
+                        shown: Math.min(6, visibleProjects.length),
+                        total: visibleProjects.length,
+                      })}
+                    </span>
+                    {onNavigate && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('planning')}
+                        className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300 font-semibold hover:underline"
+                      >
+                        {t('dashboard.viewAllInPlanning', 'Ver todos en Planificación')} →
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Alertas Ruta Crítica */}
-          <div className={`${cardClass} p-5 md:p-6`}>
-            <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              {t('dashboard.criticalAlertsTitle', 'Alertas Ruta Crítica')}
-            </h3>
-            {alerts.length === 0 ? (
-              <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                <p className="font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
-                  {t('dashboard.noCriticalAlerts', '✓ Sin alertas críticas')}
-                </p>
-                <p className="mt-1">
-                  {projects.length === 0
-                    ? t('dashboard.noProjectsRiskSupervision', 'No hay proyectos en curso que requieran supervisión de riesgo.')
-                    : t('dashboard.allActiveProjectsNormal', 'Todos los proyectos activos operan con normalidad.')}
-                </p>
+          <div className={`${cardClass} flex flex-col justify-between p-5 md:p-6`}>
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-100">
+                    {t('dashboard.criticalAlertsTitle', 'Alertas Ruta Crítica')}
+                  </h3>
+                  <p className="text-xs mt-0.5 text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
+                    {t('dashboard.criticalAlertsSubtitle', 'Proyectos desviados que requieren supervisión')}
+                  </p>
+                </div>
+                {alerts.length > 0 && (
+                  <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-600 dark:text-red-400 border border-red-500/20">
+                    {alerts.length}
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {alerts.map((project, i) => (
-                  <div
-                    key={project.id || i}
-                    className="flex justify-between items-center p-3.5 rounded-lg border transition-colors bg-slate-50 border-slate-200 dark:bg-[#0d1117] dark:border-[#30363d]/50 midnight:bg-cyan-950/30 midnight:border-cyan-800/20"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-white midnight:text-cyan-50">
-                        {project.name}
-                      </p>
-                      <p className="truncate text-xs text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                        {project.area || t('dashboard.operativeArea', 'Operativo')}
-                      </p>
+
+              {alerts.length === 0 ? (
+                <div className="py-10 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
+                    {t('dashboard.noCriticalAlerts', '✓ Sin alertas críticas')}
+                  </p>
+                  <p className="mt-1">
+                    {projects.length === 0
+                      ? t('dashboard.noProjectsRiskSupervision', 'No hay proyectos en curso que requieran supervisión de riesgo.')
+                      : t('dashboard.allActiveProjectsNormal', 'Todos los proyectos activos operan con normalidad.')}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {paginatedAlerts.map((project, i) => (
+                    <div
+                      key={project.id || project.code || i}
+                      className="flex justify-between items-center p-3.5 rounded-lg border transition-colors bg-slate-50 border-slate-200 dark:bg-[#0d1117] dark:border-[#30363d]/50 midnight:bg-cyan-950/30 midnight:border-cyan-800/20"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="truncate text-sm font-medium text-slate-900 dark:text-white midnight:text-cyan-50">
+                          {project.name}
+                        </p>
+                        <p className="truncate text-xs text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
+                          {project.area || t('dashboard.operativeArea', 'Operativo')}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="text-[11px] px-2 py-1 rounded font-medium bg-red-500/10 text-red-600 dark:text-red-400">
+                          {project.status === 'risk'
+                            ? t('dashboard.statusRisk', 'En riesgo')
+                            : t('dashboard.statusPaused', 'En pausa')}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-[11px] px-2 py-1 rounded font-medium bg-red-500/10 text-red-600 dark:text-red-400">
-                        {project.status === 'risk'
-                          ? t('dashboard.statusRisk', 'En riesgo')
-                          : t('dashboard.statusPaused', 'En pausa')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {alerts.length > ALERTS_PER_PAGE && (
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#30363d]/40 midnight:border-cyan-900/30">
+                <Pagination
+                  currentPage={currentAlertPage}
+                  totalPages={totalAlertPages}
+                  totalItems={alerts.length}
+                  pageSize={ALERTS_PER_PAGE}
+                  itemLabel={t('dashboard.alertsCountLabel', 'alertas')}
+                  onPageChange={setAlertPage}
+                  hideOnSinglePage={true}
+                  className="w-full justify-between"
+                />
               </div>
             )}
           </div>
@@ -387,85 +511,154 @@ export default function DashboardContent({
         {/* 3. Sección Inferior (Rendimiento y Presupuesto) */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Rendimiento por Equipo / Proyectos */}
-          <div className={`xl:col-span-2 ${cardClass} p-5 md:p-6`}>
-            <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              {t('dashboard.progressByProjectTitle', 'Avance por Proyecto')}
-            </h3>
-            {projects.length === 0 ? (
-              <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
-                {t('dashboard.noProjectsForProgress', 'Sin proyectos registrados para calcular métricas de avance.')}
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {projects.slice(0, 4).map((project, i) => {
-                  const colors = [
-                    'bg-cyan-400',
-                    'bg-green-500',
-                    'bg-orange-500',
-                    'bg-purple-500',
-                  ];
-                  const color = colors[i % colors.length];
-                  return (
-                    <div
-                      key={project.id || i}
-                      className="flex items-center gap-4"
-                    >
-                      <span className="w-36 truncate text-sm text-slate-600 dark:text-gray-300 midnight:text-cyan-200">
-                        {project.name}
-                      </span>
-                      <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-200 dark:bg-[#0d1117] midnight:bg-cyan-950">
-                        <div
-                          className={`h-full ${color} rounded-full transition-all duration-500`}
-                          style={{ width: `${project.progress || 0}%` }}
-                        />
+          <div className={`xl:col-span-2 ${cardClass} p-5 md:p-6 flex flex-col justify-between`}>
+            <div>
+              <h3 className="font-semibold text-lg mb-4 text-slate-900 dark:text-white midnight:text-cyan-100">
+                {t('dashboard.progressByProjectTitle', 'Avance por Proyecto')}
+              </h3>
+              {projects.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70">
+                  {t('dashboard.noProjectsForProgress', 'Sin proyectos registrados para calcular métricas de avance.')}
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {projects.slice(0, 6).map((project, i) => {
+                    const colors = [
+                      'bg-cyan-400',
+                      'bg-green-500',
+                      'bg-orange-500',
+                      'bg-purple-500',
+                      'bg-blue-500',
+                      'bg-emerald-400',
+                    ];
+                    const color = colors[i % colors.length];
+                    return (
+                      <div
+                        key={project.id || i}
+                        className="flex items-center gap-4"
+                      >
+                        <div className="w-[160px] shrink-0 pr-3">
+                          <p className="truncate text-sm font-medium text-slate-900 dark:text-white midnight:text-cyan-50">
+                            {project.name}
+                          </p>
+                          <p className="truncate text-[11px] text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
+                            {project.area || t('dashboard.generalArea', 'General')}
+                          </p>
+                        </div>
+                        <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-200 dark:bg-[#0d1117] midnight:bg-cyan-950">
+                          <div
+                            className={`h-full ${color} rounded-full transition-all duration-500`}
+                            style={{ width: `${project.progress || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-12 text-right text-slate-900 dark:text-white midnight:text-cyan-50">
+                          {project.progress || 0}%
+                        </span>
                       </div>
-                      <span className="text-sm font-medium w-12 text-right text-slate-900 dark:text-white midnight:text-cyan-50">
-                        {project.progress || 0}%
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {projects.length > 6 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 midnight:border-cyan-900/30 flex items-center justify-between text-xs text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
+                <span>
+                  {t('dashboard.showingOf', 'Mostrando {shown} de {total} proyectos', {
+                    shown: Math.min(6, projects.length),
+                    total: projects.length,
+                  })}
+                </span>
+                {onNavigate && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('portfolio')}
+                    className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-300 font-semibold hover:underline"
+                  >
+                    {t('dashboard.viewAllInPortfolio', 'Ver todos en Portafolio')} →
+                  </button>
+                )}
               </div>
             )}
           </div>
 
-          {/* Control Presupuestario */}
-          <div className={`${cardClass} p-5 md:p-6`}>
-            <h3 className="font-semibold text-lg mb-6 text-slate-900 dark:text-white midnight:text-cyan-100">
-              {t('dashboard.budgetControlTitle', 'Control Presupuestario')}
-            </h3>
-            <div className="flex justify-center items-center py-2">
-              <div
-                className="relative w-40 h-40 rounded-full flex items-center justify-center shadow-lg"
-                style={{
-                  background:
-                    totalBudget > 0
-                      ? 'conic-gradient(#22d3ee 0% 55%, #22c55e 55% 85%, #f97316 85% 100%)'
-                      : 'conic-gradient(#64748b 0% 100%, #64748b 100% 100%)',
-                }}
-              >
-                <div className="w-[120px] h-[120px] rounded-full flex flex-col items-center justify-center text-center transition-colors bg-white dark:bg-[#161b22] midnight:bg-[#0a1120]">
-                  <span className="text-2xl font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
-                    {formatMoney(totalBudget)}
+          {/* Salud del Portafolio */}
+          <div className={`${cardClass} p-5 md:p-6 flex flex-col justify-between`}>
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg text-slate-900 dark:text-white midnight:text-cyan-100">
+                  {t('dashboard.portfolioHealthTitle', 'Salud del Portafolio')}
+                </h3>
+                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 midnight:text-cyan-500/80">
+                  {t('dashboard.auditedProjectsCount', '{count} proyectos', { count: healthStats.total })}
+                </span>
+              </div>
+
+              {/* Anillo de Distribución de Salud */}
+              <div className="flex justify-center items-center py-2">
+                <div
+                  className="relative w-44 h-44 rounded-full flex items-center justify-center shadow-lg transition-all duration-300"
+                  style={{
+                    background:
+                      healthStats.total > 0
+                        ? `conic-gradient(#10b981 0% ${healthStats.healthyPct}%, #f59e0b ${healthStats.healthyPct}% ${healthStats.healthyPct + healthStats.warningPct}%, #f43f5e ${healthStats.healthyPct + healthStats.warningPct}% 100%)`
+                        : 'conic-gradient(#64748b 0% 100%, #64748b 100% 100%)',
+                  }}
+                >
+                  <div className="w-[116px] h-[116px] rounded-full flex flex-col items-center justify-center text-center transition-colors bg-white dark:bg-[#161b22] midnight:bg-[#0a1120]">
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white midnight:text-cyan-50">
+                      {healthStats.healthyPct}%
+                    </span>
+                    <span className="text-xs mt-0.5 text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300 font-medium">
+                      {t('dashboard.portfolioHealthyRate', 'En Plazo')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desglose de Estado de Salud */}
+              <div className="flex flex-col gap-2 mt-4 text-xs">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                    {t('dashboard.healthHealthy', 'En Cronograma')}
                   </span>
-                  <span className="text-xs mt-1 text-slate-500 dark:text-gray-400 midnight:text-cyan-600">
-                    {totalBudget > 0
-                      ? t('dashboard.budgetAssigned', 'Asignado')
-                      : t('dashboard.budgetUnassigned', 'Sin asignar')}
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300">
+                    {healthStats.healthy} <span className="text-[10px] text-slate-400 font-normal">({healthStats.healthyPct}%)</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                    {t('dashboard.healthWarning', 'En Advertencia')}
+                  </span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400 midnight:text-amber-300">
+                    {healthStats.warning} <span className="text-[10px] text-slate-400 font-normal">({healthStats.warningPct}%)</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 midnight:text-cyan-100">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+                    {t('dashboard.healthCritical', 'Críticos / Desviados')}
+                  </span>
+                  <span className="font-semibold text-rose-600 dark:text-rose-400 midnight:text-rose-300">
+                    {healthStats.criticalStale} <span className="text-[10px] text-slate-400 font-normal">({healthStats.criticalPct}%)</span>
                   </span>
                 </div>
               </div>
             </div>
-            <div className="flex justify-center flex-wrap gap-4 mt-8 text-[11px] text-slate-500 dark:text-gray-400 midnight:text-cyan-400/80">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>{' '}
-                {t('dashboard.budgetLegendTotal', 'Total: {amount}', { amount: formatMoney(totalBudget) })}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>{' '}
-                {t('dashboard.budgetLegendUsed', 'Usado: {amount}', { amount: formatMoney(usedBudget) })}
-              </div>
-            </div>
+
+            {/* Acción Ejecutiva: Ir a Auditoría */}
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate('project-audit')}
+              className="mt-5 flex items-center justify-center gap-1.5 w-full py-2.5 px-3 rounded-lg border border-slate-200 dark:border-[#30363d] midnight:border-cyan-900/40 bg-slate-50 dark:bg-white/5 midnight:bg-cyan-950/30 text-xs font-semibold text-slate-700 dark:text-slate-200 midnight:text-cyan-100 hover:bg-slate-100 dark:hover:bg-white/10 midnight:hover:bg-cyan-900/40 transition-colors duration-200"
+            >
+              <span>{t('dashboard.goToAudit', 'Ver Auditoría Completa')}</span>
+              <ArrowRight size={14} className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" />
+            </button>
           </div>
         </div>
       </div>

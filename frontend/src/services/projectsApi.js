@@ -437,6 +437,17 @@ export const projectsApi = {
     });
     return response.data;
   },
+
+  /**
+   * Obtiene la auditoría periódica de proyectos y el análisis de salud.
+   * @param {'monthly'|'quarterly'|'semiannual'} period
+   */
+  async getPeriodicAudit(period = 'monthly') {
+    const res = await api.get('/projects/periodic-audit/', {
+      params: { period },
+    });
+    return res.data;
+  },
 };
 
 export default projectsApi;

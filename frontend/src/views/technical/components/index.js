@@ -7,6 +7,7 @@ export { default as MemberAvatar } from './MemberAvatar';
 export { default as NewProjectDialog } from './NewProjectDialog';
 export { default as NewWorkOrderDialog } from './NewWorkOrderDialog';
 export { default as OperationsSidebar } from './OperationsSidebar';
+export { default as PeriodicProjectAuditModal } from './PeriodicProjectAuditModal';
 export { default as ProjectCard } from './ProjectCard';
 export { default as ReassignProjectDialog } from './ReassignProjectDialog';
 export { default as WorkOrdersSection } from './WorkOrdersSection';

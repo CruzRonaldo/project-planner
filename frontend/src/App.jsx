@@ -5,7 +5,6 @@ import { LoadingScreen, LoginScreen } from './views';
 import { useAppController } from './controllers';
 import ChatWidget from './components/common/ChatWidget';
 
-
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = React.useState(() => {
@@ -33,6 +32,8 @@ export default function App() {
     displayedCurrentUser,
     activeView,
     setActiveView,
+    theme,
+    toggleTheme,
     users,
     handleLogin,
     handleLogout,
@@ -97,8 +98,9 @@ export default function App() {
           Numpad7: 'integrations',
           Digit8: 'manual',
           Numpad8: 'manual',
-          Digit9: 'configuracion',
-          Numpad9: 'configuracion',
+          // Shift + 9 asignado a Auditoría de Proyectos
+          Digit9: 'project-audit',
+          Numpad9: 'project-audit',
         };
 
         const keyFallbackMap = {
@@ -123,9 +125,9 @@ export default function App() {
           '(': 'manual',
           '*': 'manual',
           '8': 'manual',
-          // Shift + 9 para Configuración (en teclado ES genera ')', en US genera '(')
-          ')': 'configuracion',
-          '9': 'configuracion',
+          // Shift + 9 para Auditoría de Proyectos (en teclado ES genera ')', en US genera '(')
+          ')': 'project-audit',
+          '9': 'project-audit',
         };
 
         const targetView = shortcutToView[code] || keyFallbackMap[key];
@@ -185,6 +187,8 @@ export default function App() {
             onLogout={handleLogout}
             onNavigate={setActiveView}
             onOpenMobileMenu={() => setMobileMenuOpen(true)}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
           {renderActiveView()}
         </div>

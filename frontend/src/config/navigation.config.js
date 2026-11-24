@@ -8,10 +8,13 @@ import {
   Code,
   Settings,
   BookOpen,
+  ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 
 export const USER_ROLES = {
   ADMIN: 'admin',
+  SUBADMIN: 'subadmin',
   USER: 'user',
 };
 
@@ -121,12 +124,27 @@ export const NAVIGATION_ITEMS = [
     showInMobile: true,
   },
   {
+    id: 'project-audit',
+    path: '/project-audit',
+    aliases: ['/auditoria', '/audit', 'auditoria', 'audit'],
+    label: 'Auditoría de Proyectos',
+    mobileLabel: 'Auditoría',
+    icon: ClipboardCheck,
+    roles: [USER_ROLES.ADMIN, USER_ROLES.USER],
+    category: 'technical',
+    searchPlaceholder: 'Buscar en auditoría de proyectos...',
+    enabled: true,
+    showInSidebar: true,
+    showInMobile: true,
+  },
+  {
     id: 'roles',
-    path: '/roles',
+    path: '/role-management',
+    aliases: ['/roles', '/roles-management', 'role-management', 'roles-management'],
     label: 'Gestión de Roles',
     mobileLabel: 'Roles',
-    icon: UserCog,
-    roles: [USER_ROLES.ADMIN],
+    icon: ShieldCheck,
+    roles: [USER_ROLES.ADMIN, USER_ROLES.SUBADMIN],
     category: 'admin',
     searchPlaceholder: 'Buscar usuarios, correos o roles...',
     enabled: true,
@@ -149,7 +167,9 @@ export const NAVIGATION_ITEMS = [
 ];
 
 export function hasViewAccess(viewId, user) {
-  const item = NAVIGATION_ITEMS.find((nav) => nav.id === viewId);
+  const item = NAVIGATION_ITEMS.find(
+    (nav) => nav.id === viewId || (nav.aliases && (nav.aliases.includes(viewId) || nav.aliases.includes(`/${viewId}`)))
+  );
   if (!item) return false;
 
   const isAdmin =
@@ -157,15 +177,32 @@ export function hasViewAccess(viewId, user) {
     user?.role === USER_ROLES.ADMIN ||
     Boolean(user?.is_superuser);
 
-  if (item.roles.includes(USER_ROLES.ADMIN) && !item.roles.includes(USER_ROLES.USER)) {
-    return isAdmin;
+  const isSubAdmin =
+    user?.roleLabel === 'SubAdministrador' ||
+    user?.role === USER_ROLES.SUBADMIN ||
+    user?.role === 'subadmin' ||
+    Boolean(user?.isSubAdmin);
+
+  if (item.roles && !item.roles.includes(USER_ROLES.USER)) {
+    if (item.roles.includes(USER_ROLES.ADMIN) && item.roles.includes(USER_ROLES.SUBADMIN)) {
+      return isAdmin || isSubAdmin;
+    }
+    if (item.roles.includes(USER_ROLES.ADMIN)) {
+      return isAdmin;
+    }
+    if (item.roles.includes(USER_ROLES.SUBADMIN)) {
+      return isSubAdmin;
+    }
+    return false;
   }
 
   return true;
 }
 
 export function getSearchPlaceholder(viewId) {
-  const item = NAVIGATION_ITEMS.find((nav) => nav.id === viewId);
+  const item = NAVIGATION_ITEMS.find(
+    (nav) => nav.id === viewId || (nav.aliases && (nav.aliases.includes(viewId) || nav.aliases.includes(`/${viewId}`)))
+  );
   return item?.searchPlaceholder || 'Buscar proyectos, hitos o equipos...';
 }
 
@@ -184,11 +221,15 @@ export function getAllowedMobileItems(user) {
 export function getViewIdFromPath(pathname) {
   const normalized = pathname.replace(/\/$/, '') || '/';
   if (normalized === '/' || normalized === '/dashboard') return 'dashboard';
-  const matched = NAVIGATION_ITEMS.find((item) => item.path === normalized);
+  const matched = NAVIGATION_ITEMS.find(
+    (item) => item.path === normalized || (item.aliases && item.aliases.includes(normalized))
+  );
   return matched ? matched.id : 'dashboard';
 }
 
 export function getPathFromViewId(viewId) {
-  const item = NAVIGATION_ITEMS.find((n) => n.id === viewId);
+  const item = NAVIGATION_ITEMS.find(
+    (n) => n.id === viewId || (n.aliases && (n.aliases.includes(viewId) || n.aliases.includes(`/${viewId}`)))
+  );
   return item ? item.path : '/dashboard';
 }

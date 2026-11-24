@@ -140,3 +140,78 @@ test('Portafolio integra runSafe para el manejo seguro de operaciones asíncrona
     await server.close();
   }
 });
+
+test('isUserProject identifica correctamente si un proyecto pertenece al usuario por email, id, nombre o integrantes', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { isUserProject } = await server.ssrLoadModule('/src/utils/portfolio.js');
+
+    const user = {
+      id: 42,
+      name: 'Ronaldo Cruz Alvarez',
+      email: 'ronaldo@projectplanner.com',
+    };
+
+    // 1. Coincidencia por correo líder
+    assert.equal(isUserProject({ leaderEmail: 'ronaldo@projectplanner.com' }, user), true);
+    assert.equal(isUserProject({ leader_email: 'RONALDO@projectplanner.com' }, user), true);
+
+    // 2. Coincidencia por ID líder
+    assert.equal(isUserProject({ leaderId: 42 }, user), true);
+    assert.equal(isUserProject({ leader_id: '42' }, user), true);
+
+    // 3. Coincidencia por nombre líder
+    assert.equal(isUserProject({ leaderName: 'Ronaldo Cruz Alvarez' }, user), true);
+    assert.equal(isUserProject({ leader_name: 'ronaldo cruz alvarez' }, user), true);
+
+    // 4. Coincidencia por integrantes
+    assert.equal(isUserProject({ team_members: [{ email: 'ronaldo@projectplanner.com' }] }, user), true);
+    assert.equal(isUserProject({ team_members: [{ id: 42 }] }, user), true);
+
+    // 5. Casos negativos y nulos
+    assert.equal(isUserProject({ leaderEmail: 'otro@projectplanner.com', leaderId: 99 }, user), false);
+    assert.equal(isUserProject(null, user), false);
+    assert.equal(isUserProject({ leaderEmail: 'ronaldo@projectplanner.com' }, null), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test('ProjectCard renderiza efecto de resplandor luminoso animate-project-glow cuando isHighlighted es true', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: ProjectCard } = await server.ssrLoadModule('/src/views/technical/components/ProjectCard.jsx');
+
+    const project = {
+      id: 11,
+      code: 'PRJ-2026-011',
+      name: 'Túnel Interurbano Km 45',
+      area: 'Civil',
+      status: 'active',
+      progress: 65,
+      usedBudget: 500000,
+      totalBudget: 1000000,
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+    };
+
+    // Caso 1: Tarjeta resaltada con resplandor luminoso
+    const htmlHighlighted = renderToStaticMarkup(
+      React.createElement(ProjectCard, { project, isHighlighted: true })
+    );
+
+    assert.ok(htmlHighlighted.includes('animate-project-glow'), 'Debe incluir clase de animación luminosa');
+    assert.ok(htmlHighlighted.includes('ring-2 ring-cyan-400'), 'Debe incluir halo con ring-cyan');
+    assert.ok(htmlHighlighted.includes('id="project-card-11"'), 'Debe tener identificador único para scroll');
+    assert.ok(htmlHighlighted.includes('data-project-code="PRJ-2026-011"'), 'Debe tener atributo de código');
+
+    // Caso 2: Tarjeta normal sin resaltar
+    const htmlNormal = renderToStaticMarkup(
+      React.createElement(ProjectCard, { project, isHighlighted: false })
+    );
+    assert.ok(!htmlNormal.includes('animate-project-glow'), 'Tarjeta normal no debe tener resplandor');
+    assert.ok(!htmlNormal.includes('ring-2 ring-cyan-400'), 'Tarjeta normal no debe tener halo');
+  } finally {
+    await server.close();
+  }
+});
