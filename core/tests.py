@@ -501,6 +501,59 @@ class DatabaseAndAuthEndpointsTests(TestCase):
         self.assertGreaterEqual(len(data), 1)
         self.assertEqual(data[0]["username"], self.username)
 
+    def test_subadmin_cannot_toggle_user_roles(self):
+        subadmin = User.objects.create_user(
+            username='subadmin_guard_test',
+            email='subadmin_guard@test.com',
+            password='TestPassword123!',
+            is_staff=True,
+        )
+        tech_user = User.objects.create_user(
+            username='tech_user_guard_test',
+            email='tech_guard@test.com',
+            password='TestPassword123!',
+        )
+        token = issue_session_token(subadmin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        response = self.client.patch(
+            '/api/auth/users-status/',
+            {'id': tech_user.username, 'isSubAdmin': True},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        tech_user.refresh_from_db()
+        self.assertFalse(tech_user.is_staff)
+
+    def test_admin_can_toggle_user_roles(self):
+        admin = User.objects.create_superuser(
+            username='admin_guard_test',
+            email='admin_guard@test.com',
+            password='TestPassword123!',
+        )
+        tech_user = User.objects.create_user(
+            username='tech_user_guard_test2',
+            email='tech_guard2@test.com',
+            password='TestPassword123!',
+        )
+        token = issue_session_token(admin)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        response = self.client.patch(
+            '/api/auth/users-status/',
+            {'id': tech_user.username, 'isSubAdmin': True},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tech_user.refresh_from_db()
+        self.assertTrue(tech_user.is_staff)
+
+    def test_unauthenticated_cannot_toggle_user_roles(self):
+        response = self.client.patch(
+            '/api/auth/users-status/',
+            {'id': 'any_user', 'isSubAdmin': True},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class MakeServiceUnitTests(TestCase):
     """Pruebas de la capa de servicio de webhooks hacia Make (Integromat)."""
@@ -1879,7 +1932,7 @@ class ScheduleAdjustmentApiTests(APITestCase):
         )
 
     def test_create_and_list_schedule_adjustments(self):
-        # 1. Crear registro de reajuste vía POST
+        # 1. Verificar que POST directo está restringido (405 Method Not Allowed - ReadOnly)
         payload = {
             "project": self.project.id,
             "previousPeriod": "Feb - Ago (7 Meses)",
@@ -1887,15 +1940,22 @@ class ScheduleAdjustmentApiTests(APITestCase):
             "reason": "Retraso en permisos municipales",
         }
         create_response = self.client.post("/api/schedule-adjustments/", payload, format="json")
-        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(create_response.data["projectName"], "Proyecto Reajuste Test")
-        self.assertEqual(create_response.data["previousPeriod"], "Feb - Ago (7 Meses)")
-        self.assertEqual(create_response.data["nextPeriod"], "Mar - Sep (7 Meses)")
+        self.assertEqual(create_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        # 2. Listar registros y filtrar por proyecto
+        # 2. Crear registro de reajuste vía modelo (inmutable)
+        from core.models import ScheduleAdjustment
+        ScheduleAdjustment.objects.create(
+            project=self.project,
+            previous_period="Feb - Ago (7 Meses)",
+            next_period="Mar - Sep (7 Meses)",
+            reason="Retraso en permisos municipales",
+        )
+
+        # 3. Listar registros y filtrar por proyecto
         list_response = self.client.get(f"/api/schedule-adjustments/?project={self.project.id}")
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         results = list_response.data if isinstance(list_response.data, list) else list_response.data.get("results", [])
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["reason"], "Retraso en permisos municipales")
+        self.assertEqual(results[0]["projectName"], "Proyecto Reajuste Test")
 

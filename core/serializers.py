@@ -1032,8 +1032,13 @@ class ProjectSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         created_by = validated_data.pop('created_by', None)
         selected_leader = validated_data.pop('selected_leader', None)
+        actor_name = validated_data.pop('_actor_name', getattr(self, '_actor_name', None))
 
         request = self.context.get('request')
+        if not actor_name and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+            actor_name = full_name or request.user.username
+
         if not created_by and request and getattr(request, 'user', None) and request.user.is_authenticated:
             created_by = request.user
 
@@ -1071,9 +1076,21 @@ class ProjectSerializer(serializers.ModelSerializer):
 
         if selected_leader:
             instance._selected_leader = selected_leader
+        if actor_name:
+            instance._actor_name = actor_name
 
         instance.save()
         return instance
+
+    def update(self, instance, validated_data):
+        actor_name = validated_data.pop('_actor_name', getattr(self, '_actor_name', None))
+        request = self.context.get('request')
+        if not actor_name and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+            actor_name = full_name or request.user.username
+        if actor_name:
+            instance._actor_name = actor_name
+        return super().update(instance, validated_data)
 
     def to_representation(self, obj):
         rep = super().to_representation(obj)
@@ -1107,12 +1124,18 @@ class ProjectSerializer(serializers.ModelSerializer):
             rep['leaderId'] = first_member.id
             rep['leaderName'] = f"{first_member.first_name} {first_member.last_name}"
             rep['leaderEmail'] = first_member.email
-            rep['area'] = first_member.technical_area.name if first_member.technical_area else 'Edificaciones Comerciales'
+            area_name = first_member.technical_area.name if first_member.technical_area else None
         else:
             rep['leaderId'] = None
             rep['leaderName'] = None
             rep['leaderEmail'] = None
-            rep['area'] = 'Edificaciones Comerciales'
+            area_name = None
+
+        if not area_name:
+            first_task = obj.tasks.select_related('category').first()
+            area_name = first_task.category.name if (first_task and first_task.category) else 'Civil'
+
+        rep['area'] = area_name
 
         # Formato de status para Portfolio frontend
         rep['status_backend'] = obj.status
@@ -1281,14 +1304,73 @@ class ProjectMeetingSerializer(serializers.ModelSerializer):
 
 class ProjectChangeLogSerializer(serializers.ModelSerializer):
     """Serializador para el historial de cambios en proyectos (Portafolio)."""
-    project_name = serializers.ReadOnlyField(source='project.name')
-    project_code = serializers.ReadOnlyField(source='project.code')
-    change = serializers.CharField(source='description')
+    project_name = serializers.SerializerMethodField()
+    project_code = serializers.SerializerMethodField()
+    change = serializers.SerializerMethodField()
     user = serializers.CharField(source='user_name')
 
     class Meta:
         model = ProjectChangeLog
-        fields = ['id', 'project', 'project_name', 'project_code', 'change', 'user', 'date', 'created_at']
+        fields = [
+            'id',
+            'project',
+            'project_name',
+            'project_code',
+            'action_type',
+            'field_changes',
+            'change',
+            'user',
+            'date',
+            'created_at',
+        ]
+
+    def get_project_name(self, obj):
+        if obj.project:
+            return obj.project.name
+        return obj.project_name or "Proyecto Eliminado"
+
+    def get_project_code(self, obj):
+        if obj.project:
+            return obj.project.code
+        return obj.project_code or "S/C"
+
+    def get_change(self, obj):
+        # 1. Compatibilidad hacia atrás: si tiene descripción estática previa
+        if obj.description:
+            return obj.description
+
+        # 2. Generación dinámica de la descripción legible a partir de field_changes compactos
+        deltas = obj.field_changes or {}
+        if not deltas:
+            return "Actualización de proyecto"
+
+        parts = []
+        if 'budget' in deltas:
+            b_old = deltas['budget'].get('old')
+            b_new = deltas['budget'].get('new')
+            old_str = f"${b_old:,.2f}" if b_old is not None else "$0.00"
+            new_str = f"${b_new:,.2f}" if b_new is not None else "$0.00"
+            parts.append(f"Presupuesto ajustado de {old_str} a {new_str}")
+
+        if 'status' in deltas:
+            s_old = deltas['status'].get('old', '')
+            s_new = deltas['status'].get('new', '')
+            parts.append(f"Estado cambiado de '{s_old}' a '{s_new}'")
+
+        if 'start_date' in deltas or 'end_date' in deltas:
+            s_old = deltas.get('start_date', {}).get('old', '-')
+            s_new = deltas.get('start_date', {}).get('new', '-')
+            e_old = deltas.get('end_date', {}).get('old', '-')
+            e_new = deltas.get('end_date', {}).get('new', '-')
+            parts.append(f"Cronograma reprogramado ({s_old}..{e_old} ➔ {s_new}..{e_new})")
+
+        if 'name' in deltas:
+            parts.append(f"Nombre actualizado de '{deltas['name'].get('old')}' a '{deltas['name'].get('new')}'")
+
+        if 'description' in deltas:
+            parts.append("Descripción actualizada")
+
+        return " · ".join(parts) or "Actualización de metadatos"
 
 
 class ScheduleAdjustmentSerializer(serializers.ModelSerializer):

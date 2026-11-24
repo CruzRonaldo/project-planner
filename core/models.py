@@ -333,6 +333,7 @@ class TeamMemberChangeLog(models.Model):
         verbose_name_plural = 'Historial de Cambios del Personal'
         ordering = ['-created_at', '-id']
         indexes = [
+            models.Index(fields=['created_at'], name='team_changelog_created_idx'),
             models.Index(fields=['member', 'created_at']),
             models.Index(fields=['source', 'created_at']),
         ]
@@ -552,15 +553,45 @@ class SecurityAuditLog(models.Model):
     old_value = models.CharField(max_length=255, blank=True, null=True, verbose_name="Valor anterior")
     new_value = models.CharField(max_length=255, blank=True, null=True, verbose_name="Valor nuevo")
     ip_address = models.GenericIPAddressField(blank=True, null=True, verbose_name="Dirección IP")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y Hora")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Fecha y Hora")
 
     class Meta:
         verbose_name = "Registro de Auditoría"
         verbose_name_plural = "Bitácora de Auditoría"
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_at'], name='sec_audit_created_idx'),
+            models.Index(fields=['user', 'created_at'], name='sec_audit_user_created_idx'),
+        ]
 
     def __str__(self):
         return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {self.user.username}: {self.get_action_display()}"
+
+
+class AuditPurgeLog(models.Model):
+    """
+    Registro histórico de cada corrida de purga de bitácoras de auditoría.
+    Permite auditar la retención de datos y el cumplimiento de políticas de almacenamiento.
+    """
+    executed_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha y Hora de Ejecución")
+    triggered_by = models.CharField(max_length=100, default='CRON_JOB', verbose_name="Disparado por")
+    project_logs_purged = models.PositiveIntegerField(default=0, verbose_name="Logs de Proyectos Purgados")
+    team_logs_purged = models.PositiveIntegerField(default=0, verbose_name="Logs de Equipo Purgados")
+    security_logs_purged = models.PositiveIntegerField(default=0, verbose_name="Logs de Seguridad Purgados")
+    total_purged = models.PositiveIntegerField(default=0, verbose_name="Total Purgados")
+    execution_time_seconds = models.FloatField(default=0.0, verbose_name="Tiempo de Ejecución (s)")
+    was_dry_run = models.BooleanField(default=False, verbose_name="Modo Simulación (Dry-Run)")
+    status = models.CharField(max_length=20, default='SUCCESS', verbose_name="Estado")
+    notes = models.TextField(blank=True, default='', verbose_name="Notas de Ejecución")
+
+    class Meta:
+        verbose_name = "Registro de Purga de Auditoría"
+        verbose_name_plural = "Historial de Purgas de Auditoría"
+        ordering = ['-executed_at']
+
+    def __str__(self):
+        mode = " [DRY-RUN]" if self.was_dry_run else ""
+        return f"[{self.executed_at:%Y-%m-%d %H:%M}] Purga ({self.total_purged} eliminados){mode}"
 
 
 class PasswordResetCode(models.Model):
@@ -675,22 +706,34 @@ class ProjectChangeLog(models.Model):
 
     project = models.ForeignKey(
         Project,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='project_change_logs',
         verbose_name="Proyecto"
     )
-    description = models.CharField(max_length=255, verbose_name="Descripcion del Cambio")
-    user_name = models.CharField(max_length=150, default="Administrador", verbose_name="Usuario")
+    project_code = models.CharField(max_length=50, blank=True, default="", verbose_name="Código Histórico")
+    project_name = models.CharField(max_length=200, blank=True, default="", verbose_name="Nombre Histórico")
+    action_type = models.CharField(max_length=40, blank=True, default='UPDATE', verbose_name="Tipo de Acción")
+    field_changes = models.JSONField(default=dict, blank=True, verbose_name="Deltas de Campos")
+    description = models.CharField(max_length=255, blank=True, default='', verbose_name="Descripcion del Cambio")
+    user_name = models.CharField(max_length=150, default="system", verbose_name="Usuario")
     date = models.DateField(default=datetime.date.today, verbose_name="Fecha")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Fecha de Creacion")
 
     class Meta:
         verbose_name = "Historial de Proyecto"
         verbose_name_plural = "Historial de Proyectos"
-        ordering = ['-date', '-created_at']
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['project', 'created_at'], name='proj_changelog_proj_created'),
+            models.Index(fields=['created_at'], name='proj_changelog_created'),
+        ]
 
     def __str__(self):
-        return f"[{self.project.code}] {self.description[:40]}"
+        code = (self.project.code if self.project else None) or self.project_code or "S/C"
+        desc = self.description or self.action_type
+        return f"[{code}] {desc[:40]}"
 
 
 class ScheduleAdjustment(models.Model):
@@ -706,12 +749,16 @@ class ScheduleAdjustment(models.Model):
     next_period = models.CharField(max_length=100, verbose_name="Nuevo Periodo")
     reason = models.CharField(max_length=255, verbose_name="Motivo del Reajuste")
     date = models.DateField(default=datetime.date.today, verbose_name="Fecha")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creacion")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Fecha de Creacion")
 
     class Meta:
         verbose_name = "Reajuste de Cronograma"
         verbose_name_plural = "Reajustes de Cronograma"
         ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['project', 'created_at'], name='sched_adj_proj_created_idx'),
+            models.Index(fields=['created_at'], name='sched_adj_created_idx'),
+        ]
 
     def __str__(self):
         return f"{self.project.code}: {self.previous_period} -> {self.next_period}"

@@ -1,0 +1,39 @@
+name: Purga Diaria de Auditoria y Alerta de Almacenamiento
+
+on:
+  schedule:
+    # Ejecución automática diaria a las 03:00 UTC (22:00 UTC-5 hora Lima)
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Permite disparar la purga y chequeo de almacenamiento manualmente desde GitHub
+
+jobs:
+  purge_and_check_storage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar entorno Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ejecutar purga de logs antiguos (retención diferenciada 195d/365d)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python manage.py purge_old_logs --triggered-by GITHUB_ACTION
+
+      - name: Verificar consumo de almacenamiento en Supabase (alertas 70% / 80%)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MAKE_STORAGE_ALERT_WEBHOOK_URL: ${{ secrets.MAKE_STORAGE_ALERT_WEBHOOK_URL }}
+        run: |
+          python manage.py check_db_size

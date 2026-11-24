@@ -50,7 +50,7 @@ from .models import (
     TwoFactorProfile,
 )
 
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from .authentication import PasswordBoundAuthentication, issue_session_token
 
@@ -97,6 +97,24 @@ from core.services.aps_service import APSService
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def get_client_ip(request):
+    """
+    Obtiene la dirección IP real del cliente considerando proxies inversos.
+    Lee el primer valor de HTTP_X_FORWARDED_FOR con fallback a REMOTE_ADDR.
+    """
+    if not request:
+        return None
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+        if ip:
+            return ip[:45]
+    remote_addr = request.META.get('REMOTE_ADDR')
+    if remote_addr:
+        return remote_addr.strip()[:45]
+    return None
 
 
 def test_db_connection(request):
@@ -254,6 +272,7 @@ def login_view(request):
 
 
 @api_view(['GET', 'PATCH'])
+@authentication_classes([SimpleUserAuthentication, SessionAuthentication])
 @permission_classes([AllowAny])
 def users_status_view(request):
     """
@@ -301,6 +320,24 @@ def users_status_view(request):
         return Response(users_list, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
+        actor = getattr(request, 'user', None)
+        if not actor or not actor.is_authenticated:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Autenticación requerida para modificar roles de usuario.'
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        if not actor.is_superuser:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Solo el Administrador Principal puede otorgar, revocar o modificar roles de usuario.'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         user_id = request.data.get('id', '')
         is_sub_admin = request.data.get('isSubAdmin')
         clean_username = str(user_id).replace('usr-', '').strip()
@@ -309,6 +346,11 @@ def users_status_view(request):
             u = User.objects.filter(id=request.data.get('db_id')).first()
 
         if u and is_sub_admin is not None:
+            if u.is_superuser:
+                return Response(
+                    {'status': 'error', 'message': 'No es posible modificar el rol del Administrador Principal.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             u.is_staff = bool(is_sub_admin)
             u.save(update_fields=['is_staff'])
             return Response({'status': 'success', 'isSubAdmin': u.is_staff}, status=status.HTTP_200_OK)
@@ -504,7 +546,51 @@ def user_profile_view(request):
         # 1. Actualizar foto / avatar
         if 'photo' in data or 'avatar' in data:
             photo_val = data.get('photo') if 'photo' in data else data.get('avatar')
-            profile.avatar = photo_val or None
+            if photo_val:
+                # Validar tamaño máximo de string (~80 KB = 81,920 caracteres)
+                if len(photo_val) > 80 * 1024:
+                    return Response({
+                        'status': 'error',
+                        'message': 'La imagen de avatar excede el tamaño máximo permitido de 80 KB.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar formato Data URI estricto (image/jpeg, image/png, image/webp)
+                match = re.match(r'^data:(image/(?:jpeg|png|webp));base64,(.+)$', photo_val)
+                if not match:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Formato de imagen no permitido. Solo se aceptan data URIs en formato image/jpeg, image/png o image/webp.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                mime_type = match.group(1)
+                b64_content = match.group(2)
+
+                try:
+                    raw_bytes = base64.b64decode(b64_content, validate=True)
+                except Exception:
+                    return Response({
+                        'status': 'error',
+                        'message': 'El contenido del avatar no es una codificación Base64 válida.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Comprobar magic bytes correspondientes
+                is_valid = False
+                if mime_type == 'image/jpeg':
+                    is_valid = raw_bytes.startswith(b'\xff\xd8\xff')
+                elif mime_type == 'image/png':
+                    is_valid = raw_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+                elif mime_type == 'image/webp':
+                    is_valid = len(raw_bytes) >= 12 and raw_bytes[:4] == b'RIFF' and raw_bytes[8:12] == b'WEBP'
+
+                if not is_valid:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Los bytes de la imagen no coinciden con la cabecera MIME declarada (archivo corrupto o tipo inválido).'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                profile.avatar = photo_val
+            else:
+                profile.avatar = None
 
         # 2. Actualizar teléfono
         if 'phone' in data:
@@ -1198,6 +1284,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
       ante los eventos 'project.created', 'project.updated' y 'project.deleted'.
     - Optimización de Cronograma: Expone la acción `/projects/{id}/optimize/` para el análisis
       heurístico de holguras y compresión de rutas críticas mediante `analyze_project_timeline`.
+    - Auditoría Periódica de Portafolio: Expone `/projects/periodic-audit/` para el análisis
+      multivariable de salud, ruta crítica (CPM) e inactividad (STALE) por ventanas periódicas.
     """
     authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
@@ -1226,11 +1314,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     Q(username__iexact=creator_identifier.strip())
                 ).first()
 
+        user = getattr(request, 'user', None)
+        actor_name = "system"
+        if user and user.is_authenticated:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            actor_name = full_name or user.username
+
         serializer = self.get_serializer(data=request.data)
+        serializer._actor_name = actor_name
         serializer.is_valid(raise_exception=True)
 
         # 3. Guardar pasando creador y líder seleccionado en memoria para post_save
-        project = serializer.save(created_by=creator, selected_leader=selected_leader)
+        project = serializer.save(_actor_name=actor_name, created_by=creator, selected_leader=selected_leader)
+        project._actor_name = actor_name
+        ProjectChangeLog.objects.filter(project=project, action_type='PROJECT_CREATED').update(user_name=actor_name)
         if not creator:
             fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
             fallback_email = request.data.get('creator_email')
@@ -1252,6 +1349,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        old_status = instance.status
 
         # Identificar creador / editor autenticado
         user = getattr(request, 'user', None)
@@ -1291,6 +1389,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        # Auditoría de cambio de estado: propagar motivo en memoria al modelo para el signal
+        status_reason = (
+            request.data.get('status_change_reason')
+            or request.data.get('statusReason')
+            or ''
+        )
+        if status_reason:
+            instance._status_change_reason = status_reason
+
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            instance._actor_name = full_name or user.username
+        else:
+            fallback_user = request.data.get('userName') or request.data.get('user_name')
+            if fallback_user:
+                instance._actor_name = str(fallback_user)[:150]
+
         project = serializer.save()
 
         # Actualizar asignación del líder técnico si viene especificado en la petición
@@ -1340,6 +1456,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {'detail': str(error)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    @action(detail=False, methods=['get'], url_path='periodic-audit')
+    def periodic_audit(self, request):
+        from .services.project_audit_service import analyze_periodic_project_audit
+
+        period = request.query_params.get('period', 'monthly')
+        reference_date = request.query_params.get('reference_date') or request.query_params.get('date')
+        report = analyze_periodic_project_audit(period=period, reference_date=reference_date)
+        return Response(report, status=status.HTTP_200_OK)
 
 
 class MilestoneViewSet(viewsets.ModelViewSet):
@@ -2373,8 +2498,8 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
-class ProjectChangeLogViewSet(viewsets.ModelViewSet):
-    """CRUD para historial de cambios en proyectos (Portafolio)."""
+class ProjectChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consulta de solo lectura para historial de cambios en proyectos (Portafolio). Inmutable vía API."""
     queryset = ProjectChangeLog.objects.select_related('project').all()
     serializer_class = ProjectChangeLogSerializer
 
@@ -2386,8 +2511,8 @@ class ProjectChangeLogViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
-    """CRUD para historial de reajustes de cronograma (Planificacion Estrategica)."""
+class ScheduleAdjustmentViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consulta de solo lectura para historial de reajustes de cronograma. Inmutable vía API."""
     queryset = ScheduleAdjustment.objects.select_related('project').all()
     serializer_class = ScheduleAdjustmentSerializer
 
