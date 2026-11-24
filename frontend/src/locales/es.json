@@ -22,7 +22,8 @@
     "year": "Año",
     "day": "día",
     "days": "días",
-    "sort": "Ordenar:"
+    "sort": "Ordenar:",
+    "refresh": "Actualizar"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -33,7 +34,9 @@
     "humanResources": "Recursos Humanos",
     "integrations": "Integraciones",
     "manual": "Manual de Usuario",
-    "settings": "Configuración"
+    "settings": "Configuración",
+    "auditoria": "Auditoría de Proyectos",
+    "roles": "Gestión de Roles"
   },
   "topbar": {
     "searchDefault": "Buscar proyectos, hitos o equipos...",
@@ -50,14 +53,18 @@
     "searchTechnicalTeam": "Buscar técnico, área, especialidad o proyecto...",
     "searchConfiguration": "Buscar en configuración...",
     "searchManualPlaceholder": "Buscar en el manual de usuario o atajos...",
+    "searchAuditoria": "Buscar en auditoría de proyectos...",
     "searchShortcutTooltip": "Atajo de búsqueda: {shortcut}",
-    "manualShortcutTooltip": "{title} ({shortcut})"
+    "manualShortcutTooltip": "{title} ({shortcut})",
+    "themeToggle": "Cambiar tema de la interfaz",
+    "themeToggleTooltip": "Cambiar tema (Claro / Oscuro / Midnight)"
   },
   "profile": {
     "profileSettings": "Configuración de perfil",
     "manual": "Manual de Usuario",
+    "projectAudit": "Auditoría de Proyectos",
     "notifications": "Notificaciones",
-    "roles": "Roles y permisos",
+    "roles": "Gestión de Roles",
     "logout": "Cerrar sesión",
     "newNotificationSingular": "nueva",
     "newNotificationPlural": "nuevas",
@@ -313,6 +320,14 @@
     "sortLabel": "Ordenar proyectos del portafolio",
     "recentChanges": "Historial de Cambios Reciente",
     "yourLeadership": "Tu Liderazgo",
+    "allProjectsScope": "Todos los proyectos",
+    "myProjectsScope": "Mis proyectos",
+    "noMyProjectsTitle": "Sin proyectos asignados",
+    "noMyProjectsMsg": "No tienes proyectos bajo tu liderazgo que coincidan con los filtros seleccionados.",
+    "viewAllProjects": "Ver todos los proyectos",
+    "goToPortfolioToCreate": "Ir al Portafolio para crear proyecto",
+    "filterMyProjectsAria": "Filtrar por mis proyectos asignados",
+    "myProjectsAuditScope": "Mis proyectos auditados",
     "usedBudget": "Presupuesto utilizado",
     "totalBudget": "Presupuesto total",
     "progress": "Avance",
@@ -393,7 +408,87 @@
     "descriptionPlaceholder": "Describe brevemente el alcance del proyecto...",
     "budgetProtectedTooltip": "Presupuesto protegido: Para modificar el monto establecido, debes solicitar autorización al Administrador.",
     "roomNamePlaceholder": "Ej. Coordinación Estructural - {code}",
-    "generating": "Generando..."
+    "generating": "Generando...",
+    "periodicAuditBtn": "Auditoría Periódica",
+    "auditModalTitle": "Auditoría Periódica de Proyectos",
+    "auditModalSubtitle": "Análisis de salud de cronogramas, ruta crítica (CPM) y justificación de desvíos",
+    "periodMonthly": "Mensual (30 días)",
+    "periodQuarterly": "Trimestral (90 días)",
+    "periodSemiannual": "Semestral (180 días)",
+    "healthHealthy": "En Cronograma",
+    "healthWarning": "En Advertencia",
+    "healthCritical": "Crítico / Desviado",
+    "healthStale": "Inactivo / Estancado",
+    "statusReasonLabel": "Motivo del cambio de estado / justificación para auditoría",
+    "statusReasonPlaceholder": "Indica el motivo técnico, operativo o financiero por el que se detiene o cancela el proyecto...",
+    "statusReasonRequired": "Debes ingresar el motivo de la decisión para la bitácora de auditoría.",
+    "exportAuditCsv": "Exportar a CSV",
+    "exportAuditCsvTooltip": "Exportar bitácora a formato CSV",
+    "refreshAudit": "Actualizar auditoría",
+    "actualVsExpected": "Avance Real vs Esperado",
+    "findingsTitle": "Hallazgos de auditoría",
+    "kpiHealthy": "En Cronograma",
+    "kpiWarning": "En Advertencia",
+    "kpiCritical": "Crítico / Desviado",
+    "kpiStale": "Inactivo / Estancado",
+    "evaluatingAudit": "Evaluando salud de cronogramas y ruta crítica...",
+    "noAuditProjectsTitle": "Sin proyectos en este segmento",
+    "noAuditProjectsDesc": "No hay registros que coincidan con el filtro de salud seleccionado.",
+    "colHealth": "Salud Operativa",
+    "colProgress": "Avance Real vs Esperado",
+    "colCPM": "CPM Vencidas",
+    "colFindings": "Hallazgos & Bitácora",
+    "actual": "Real",
+    "expected": "Esperado",
+    "expectedProgressTitle": "Avance esperado",
+    "overdueSingular": "crítica",
+    "overduePlural": "críticas",
+    "cpmOk": "Al día (0)",
+    "noFindings": "Sin anomalías de cronograma",
+    "statusReasonHeading": "Justificación registrada",
+    "auditSummaryCount": "Mostrando {count} de {total} proyectos evaluados.",
+    "goToPortfolio": "Ir al Portafolio",
+    "filterHealthyAria": "Filtrar proyectos en cronograma",
+    "filterWarningAria": "Filtrar proyectos en advertencia",
+    "filterCriticalAria": "Filtrar proyectos críticos",
+    "filterStaleAria": "Filtrar proyectos inactivos o estancados",
+    "csvCode": "Código",
+    "csvProject": "Nombre del Proyecto",
+    "csvStatus": "Estado",
+    "csvHealth": "Nivel de Salud",
+    "csvActualProgress": "Avance Real (%)",
+    "csvExpectedProgress": "Avance Esperado (%)",
+    "csvOverdueTasks": "Tareas Críticas Vencidas (CPM)",
+    "csvFindings": "Hallazgos de Auditoría",
+    "csvStatusReasons": "Motivos de Cambio de Estado",
+    "auditFetchError": "No se pudo cargar la auditoría periódica de proyectos."
+  },
+  "audit": {
+    "title": "Auditoría Periódica de Proyectos",
+    "subtitle": "Análisis de salud de cronogramas, ruta crítica (CPM) y justificación de desvíos",
+    "kpiTotal": "Total Auditados",
+    "kpiHealthy": "En Cronograma",
+    "kpiWarning": "En Advertencia",
+    "kpiCritical": "Crítico / Desviado",
+    "kpiStale": "Inactivo / Estancado",
+    "kpiCriticalStale": "Críticos / Estancados",
+    "filterAllAria": "Ver todos los proyectos auditados",
+    "filterHealthyAria": "Filtrar proyectos en cronograma",
+    "filterWarningAria": "Filtrar proyectos en advertencia",
+    "filterCriticalAria": "Filtrar proyectos críticos",
+    "filterStaleAria": "Filtrar proyectos inactivos o estancados",
+    "filterCriticalStaleAria": "Filtrar proyectos críticos o estancados",
+    "alertCriticalTitle": "Atención requerida en proyectos desviados",
+    "alertCriticalDesc": "Se detectaron {critical} proyectos en estado crítico y {stale} proyectos inactivos o estancados en el período {period}. Se recomienda auditar la ruta crítica (CPM) y registrar las justificaciones correspondientes.",
+    "periodSelectorAria": "Selector de ciclo de auditoría",
+    "searchPlaceholder": "Buscar por código, nombre, área o hallazgo...",
+    "clearFilters": "Restablecer filtros",
+    "healthStatus": "Nivel de Salud",
+    "evaluating": "Evaluando salud de cronogramas y ruta crítica...",
+    "noProjectsTitle": "Sin proyectos en este segmento",
+    "noProjectsDesc": "No hay registros que coincidan con los filtros de salud o búsqueda aplicados.",
+    "sortLabel": "Ordenar proyectos auditados",
+    "expectedProgressTitle": "Avance esperado: {percent}%"
   },
   "operations": {
     "title": "Gestión Operativa de Campo",
@@ -526,6 +621,11 @@
     "continuesAfterWindow": "Continúa después de esta ventana",
     "inProgress": "En curso",
     "criticalAlertsTitle": "Alertas Ruta Crítica",
+    "criticalAlertsSubtitle": "Proyectos desviados que requieren supervisión",
+    "alertsCountLabel": "alertas",
+    "showingOf": "Mostrando {shown} de {total} proyectos",
+    "viewAllInPlanning": "Ver todos en Planificación",
+    "viewAllInPortfolio": "Ver todos en Portafolio",
     "noCriticalAlerts": "✓ Sin alertas críticas",
     "noProjectsRiskSupervision": "No hay proyectos en curso que requieran supervisión de riesgo.",
     "allActiveProjectsNormal": "Todos los proyectos activos operan con normalidad.",
@@ -540,9 +640,17 @@
     "budgetAssigned": "Asignado",
     "budgetUnassigned": "Sin asignar",
     "budgetLegendTotal": "Total: {amount}",
-    "budgetLegendUsed": "Usado: {amount}"
+    "budgetLegendUsed": "Usado: {amount}",
+    "portfolioHealthTitle": "Salud del Portafolio",
+    "portfolioHealthyRate": "En Plazo",
+    "healthHealthy": "En Cronograma",
+    "healthWarning": "En Advertencia",
+    "healthCritical": "Críticos / Desviados",
+    "goToAudit": "Ver Auditoría Completa",
+    "auditedProjectsCount": "{count} proyectos"
   },
   "strategicPlanning": {
+    "ganttPaginationSummary": "Mostrando {from}-{to} de {total} proyectos en el cronograma",
     "allProjects": "Todos los proyectos",
     "showingAllProjects": "Mostrando todos los proyectos",
     "noMilestones": "No hay hitos globales registrados.",
@@ -574,6 +682,14 @@
     "available": "Disponible",
     "executed": "Ejecutado",
     "total": "Total",
+    "technicalAreaDistribution": "Distribución por Área Técnica",
+    "areaDistributionSubtitle": "Supervisión de capital por especialidad técnica",
+    "avgBudgetPerProject": "Presupuesto Promedio",
+    "activePortfolioCount": "Iniciativas en Cartera",
+    "projectsCountLabel": "prjs",
+    "projectScopeDetails": "Detalles del Proyecto",
+    "executionRate": "Tasa de Ejecución",
+    "discipline": "Especialidad",
     "noChangesToSave": "No había cambios que guardar.",
     "scheduleUpdatedAudit": "Calendario actualizado y registrado en el historial de auditoría.",
     "scheduleSavedAuditFailed": "Cronograma guardado en el servidor, pero no se pudo registrar el reajuste en el historial.",
@@ -599,7 +715,7 @@
     "reduceDuration": "Reducir duración",
     "increaseDuration": "Aumentar duración",
     "month": "Mes",
-    "months": "Meses",
+    "months": "meses",
     "schedulePreviewTitle": "Vista previa del cronograma resultante:",
     "activeCriticalPath": "Ruta Crítica Activa",
     "adjustmentReasonLabel": "Motivo del reajuste / historial de auditoría",
@@ -999,7 +1115,11 @@
     "availability-desc": "Mayor disponibilidad",
     "availability-asc": "Menor disponibilidad",
     "avail_desc": "Mayor disponibilidad",
-    "avail_asc": "Menor disponibilidad"
+    "avail_asc": "Menor disponibilidad",
+    "gap_desc": "Mayor desfase",
+    "gap_asc": "Menor desfase",
+    "cpm_desc": "Más tareas CPM vencidas",
+    "cpm_asc": "Menos tareas CPM vencidas"
   },
   "toasts": {
     "Orden Emitida": "Orden Emitida",
@@ -1078,6 +1198,14 @@
     "Cambio guardado correctamente en el sistema.": "Cambio guardado correctamente en el sistema.",
     "Ocurrió un error inesperado.": "Ocurrió un error inesperado.",
     "No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible.": "No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible.",
+    "No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible. Se mantiene la última copia disponible.": "No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible. Se mantiene la última copia disponible.",
+    "No se pudo cargar el personal desde el servidor. Se mantiene la última copia disponible.": "No se pudo cargar el personal desde el servidor. Se mantiene la última copia disponible.",
+    "No se pudo cargar el personal desde el servidor.": "No se pudo cargar el personal desde el servidor.",
+    "Se mantiene la última copia disponible.": "Se mantiene la última copia disponible.",
+    "El personal se cargó correctamente, pero no se pudo actualizar el catálogo de estados.": "El personal se cargó correctamente, pero no se pudo actualizar el catálogo de estados.",
+    "No se pudieron actualizar las incidencias; se mantiene la última información disponible.": "No se pudieron actualizar las incidencias; se mantiene la última información disponible.",
+    "No se pudo actualizar el historial; se mantiene la última información disponible.": "No se pudo actualizar el historial; se mantiene la última información disponible.",
+    "No se pudo cargar el historial de Recursos Humanos desde el servidor.": "No se pudo cargar el historial de Recursos Humanos desde el servidor.",
     "No se pudo completar la operación. Intente nuevamente.": "No se pudo completar la operación. Intente nuevamente.",
     "Estado de Google Drive": "Estado de Google Drive",
     "driveStatusTitle": "Estado de Google Drive",
@@ -1132,6 +1260,8 @@
   },
   "rolesManagement": {
     "title": "Administración de roles",
+    "rolesManagement": "Gestión de Roles",
+    "navLabel": "Gestión de Roles",
     "subtitle": "Gestiona el permiso de SubAdministrador y revisa el estado de cada usuario.",
     "adminExclusiveAccess": "Acceso exclusivo del Administrador",
     "summaryAriaLabel": "Resumen de usuarios y roles",
@@ -1148,7 +1278,31 @@
     "mainAdmin": "Admin Principal",
     "subAdminToggleAriaLabel": "Rol de SubAdministrador para {name}",
     "enabled": "Activado",
-    "disabled": "Desactivado"
+    "disabled": "Desactivado",
+    "supervisionBadge": "Modo Supervisión (SubAdministrador)",
+    "supervisionNoticeTitle": "Modo de Auditoría y Consulta de Roles",
+    "supervisionNoticeDesc": "Como SubAdministrador tienes acceso de lectura y supervisión a este directorio. Por políticas de seguridad, solo el Administrador Principal puede ascender miembros técnicos a Subadministrador o modificar roles de administración.",
+    "activeAdmins": "Administradores",
+    "totalRegisteredAccounts": "Cuentas en el sistema",
+    "mainAdminDesc": "Control total del sistema",
+    "subAdminDesc": "Supervisión delegada",
+    "onlineSessionsDesc": "Sesiones activas recientes",
+    "searchPlaceholder": "Buscar por nombre, correo, usuario o rol...",
+    "filterAll": "Todos",
+    "filterAdmins": "Administradores",
+    "filterSubAdmins": "SubAdministradores",
+    "filterTechnical": "Equipo Técnico",
+    "filterOnline": "En línea",
+    "showingCount": "Mostrando {count} de {total} usuarios",
+    "subAdminRestrictedSelf": "No puedes modificar tu propio estado ni rol",
+    "subAdminRestrictedAdmin": "Solo el Administrador Principal puede gestionar administradores o subadministradores",
+    "subAdminRestrictedPromote": "Solo el Administrador Principal puede ascender miembros técnicos a Subadministrador",
+    "noResults": "No se encontraron usuarios coincidentes",
+    "noResultsDesc": "Prueba ajustando los términos de búsqueda o los filtros seleccionados.",
+    "clearFilters": "Restablecer filtros",
+    "unauthorizedTitle": "Acceso Restringido",
+    "unauthorizedDesc": "Esta sección es exclusiva para Administradores y Subadministradores del sistema.",
+    "backToDashboard": "Volver al Inicio"
   },
   "pagination": {
     "ariaLabel": "Navegación de páginas",
@@ -1357,44 +1511,69 @@
         "summary": "Inicio de sesión, selección de roles, autenticación de dos factores (TOTP) y atajos de teclado."
       },
       "02-dashboard": {
-        "title": "Dashboard y Planificación Estratégica",
-        "shortTitle": "Dashboard & Gantt",
-        "summary": "Supervisión de KPIs, cronograma Gantt dinámico, reprogramación y regla de gobernanza >$100k."
+        "title": "Panel de Control (Dashboard)",
+        "shortTitle": "Dashboard",
+        "summary": "Supervisión de KPIs ejecutivos, calendario resumido de 6 meses, alertas críticas y salud de portafolio."
       },
-      "03-portafolio": {
-        "title": "Portafolio de Proyectos y Ficha Técnica",
-        "shortTitle": "Portafolio & Obra",
-        "summary": "Creación y filtro de proyectos, asignación de líderes técnicos y control de órdenes operativas."
+      "03-planificacion": {
+        "title": "Planificación Estratégica y Cronograma Gantt",
+        "shortTitle": "Gantt & Hitos",
+        "summary": "Cronograma Gantt interactivo, reprogramación de calendario, hitos globales y regla de gobernanza >$100k."
       },
-      "04-personal": {
-        "title": "Equipo Técnico y Recursos Humanos",
-        "shortTitle": "Personal & Nómina",
-        "summary": "Directorio de ingenieros, matriz de disponibilidad, carga laboral e historial de incidencias."
+      "04-portafolio": {
+        "title": "Portafolio y Repositorio de Proyectos",
+        "shortTitle": "Portafolio",
+        "summary": "Creación de proyectos, tarjetas de estado, distintivo \"Tu Liderazgo\", Google Drive y salas Jitsi Meet."
       },
-      "05-integraciones": {
+      "05-operaciones": {
+        "title": "Gestión Operativa y Órdenes de Trabajo",
+        "shortTitle": "Operaciones & CPM",
+        "summary": "Ficha técnica de obra, emisión de órdenes de trabajo, control de horas y cálculo de Ruta Crítica (CPM)."
+      },
+      "06-equipo-tecnico": {
+        "title": "Directorio de Equipo Técnico",
+        "shortTitle": "Equipo Técnico",
+        "summary": "Directorio de ingenieros y especialistas, disponibilidad, reasignación departamental y baja auditada."
+      },
+      "07-recursos-humanos": {
+        "title": "Recursos Humanos, Carga Laboral e Incidencias",
+        "shortTitle": "Recursos Humanos",
+        "summary": "Matriz de asignación de carga laboral, registro y resolución de incidencias y exportación a Excel."
+      },
+      "08-integraciones": {
         "title": "Integraciones Externas y Servicios",
-        "shortTitle": "Conectores Cloud",
-        "summary": "Conexión con Autodesk Revit/APS, sincronización con Google Drive y automatizaciones Make."
+        "shortTitle": "Integraciones",
+        "summary": "Conexión con Make (Integromat), repositorio documental en Google Drive y visor 3D Autodesk BIM/APS."
       },
-      "06-configuracion": {
-        "title": "Configuración y Seguridad Personal",
-        "shortTitle": "Perfil y Claves",
-        "summary": "Personalización de temas (Claro/Oscuro/Medianoche), escala de fuente y cambio seguro de contraseña."
+      "09-auditoria-periodica": {
+        "title": "Auditoría Periódica de Proyectos",
+        "shortTitle": "Auditoría CPM",
+        "summary": "Inspección de desviaciones, ciclos 30/90/180 días, ordenación por más CPM vencidas, CSV y acceso directo."
       },
-      "07-administracion": {
-        "title": "Administración, Roles y Respaldos",
-        "shortTitle": "Roles & PostgreSQL",
-        "summary": "Promoción de Subadministradores, auditoría de eventos y respaldos PostgreSQL con sumas SHA-256."
+      "10-roles": {
+        "title": "Gestión de Roles y Permisos (RBAC)",
+        "shortTitle": "Roles de Usuario",
+        "summary": "Administración de cuentas de usuario, asignación de perfiles (Admin, Subadmin, User) y bitácora RBAC."
       },
-      "08-soporte": {
-        "title": "Resolución de Problemas y Soporte",
-        "shortTitle": "Soporte y FAQs",
-        "summary": "Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas de seguridad."
+      "11-configuracion": {
+        "title": "Configuración, Perfil y Seguridad Personal",
+        "shortTitle": "Configuración",
+        "summary": "Preferencias visuales, temas (Claro/Oscuro/Medianoche), escala de fuente, 2FA y respaldos PostgreSQL SHA-256."
       },
-      "09-make-webhooks": {
+      "12-notificaciones": {
+        "title": "Control y Centro de Notificaciones",
+        "shortTitle": "Notificaciones",
+        "summary": "Arquitectura multicanal de alertas (Toasts instantáneos, centro in-app en barra superior y Webhooks)."
+      },
+      "13-make-webhooks": {
         "title": "Automatizaciones y Webhooks con Make",
         "shortTitle": "Make & Webhooks",
-        "summary": "Arquitectura de Django Signals, despacho asíncrono con transaction.on_commit y configuración de escenarios en Make."
+        "summary": "Arquitectura de Django Signals, despacho asíncrono con transaction.on_commit y escenarios en Make."
+      },
+      "14-soporte": {
+        "title": "Resolución de Problemas y Soporte",
+        "shortTitle": "Soporte y FAQs",
+        "summary": "Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas operativas."
       }
     }
   },

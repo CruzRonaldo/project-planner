@@ -83,14 +83,14 @@ test('es.json y en.json tienen una estructura de claves simétrica y completa', 
   assert.equal(en.months['1'], 'Jan');
 
   // Validar claves específicas de common
-  const commonKeys = ['save', 'cancel', 'edit', 'delete', 'search', 'loading', 'close', 'back', 'actions', 'confirm'];
+  const commonKeys = ['save', 'cancel', 'edit', 'delete', 'search', 'loading', 'close', 'back', 'actions', 'confirm', 'refresh'];
   for (const k of commonKeys) {
     assert.ok(es.common[k], `common.${k} debe estar definido en es.json`);
     assert.ok(en.common[k], `common.${k} debe estar definido en en.json`);
   }
 
   // Validar claves de nav
-  const navKeys = ['dashboard', 'planning', 'portfolio', 'operations', 'technicalTeam', 'humanResources', 'integrations', 'manual', 'settings'];
+  const navKeys = ['dashboard', 'planning', 'portfolio', 'operations', 'technicalTeam', 'humanResources', 'integrations', 'manual', 'settings', 'roles'];
   for (const k of navKeys) {
     assert.ok(es.nav[k], `nav.${k} debe estar definido en es.json`);
     assert.ok(en.nav[k], `nav.${k} debe estar definido en en.json`);
@@ -806,7 +806,7 @@ test('Topbar traduce elementos accesibles y ya no incluye selector de idioma en 
       )
     );
     assert.ok(htmlEs.includes('Buscar proyectos, hitos o equipos...'));
-    assert.ok(htmlEs.includes('Manual de Usuario'));
+    assert.ok(htmlEs.includes('Cambiar tema de la interfaz'));
     assert.ok(htmlEs.includes('Atajo de búsqueda:'));
     assert.ok(!htmlEs.includes('aria-label="Seleccionar idioma / Select language"'), 'Ya no debe contener el selector de idioma en la barra superior');
 
@@ -821,7 +821,7 @@ test('Topbar traduce elementos accesibles y ya no incluye selector de idioma en 
       )
     );
     assert.ok(htmlEn.includes('Search projects, milestones or teams...'));
-    assert.ok(htmlEn.includes('User Manual'));
+    assert.ok(htmlEn.includes('Toggle interface theme'));
     assert.ok(htmlEn.includes('Search shortcut:'));
     assert.ok(!htmlEn.includes('aria-label="Seleccionar idioma / Select language"'), 'Ya no debe contener el selector de idioma en la barra superior');
 
@@ -868,7 +868,7 @@ test('PreferencesCard renderiza selector limpio de Idioma junto a Zona Horaria y
     assert.ok(htmlEs.includes('English (EN)'));
     assert.ok(htmlEs.includes('Zona Horaria'), 'Debe conservar el campo adyacente de Zona Horaria');
     assert.ok(htmlEs.includes('Tamaño de letra'), 'Debe conservar el control de escala de letra');
-    assert.ok(htmlEs.includes('Tema de Interfaz'), 'Debe conservar el selector de tema');
+    assert.ok(!htmlEs.includes('Tema de Interfaz'), 'El selector de tema se trasladó al Topbar para evitar redundancia');
 
     // Render en inglés tras conmutación
     const htmlEn = renderToStaticMarkup(
@@ -890,7 +890,7 @@ test('PreferencesCard renderiza selector limpio de Idioma junto a Zona Horaria y
     assert.ok(htmlEn.includes('System Preferences'), 'Debe reflejar System Preferences en inglés');
     assert.ok(htmlEn.includes('Time Zone'), 'Debe reflejar Time Zone en inglés');
     assert.ok(htmlEn.includes('Font Size'), 'Debe reflejar Font Size en inglés');
-    assert.ok(htmlEn.includes('Interface Theme'), 'Debe reflejar Interface Theme en inglés');
+    assert.ok(!htmlEn.includes('Interface Theme'), 'Interface Theme se trasladó al Topbar para evitar redundancia');
   } finally {
     await server.close();
   }
@@ -1417,7 +1417,7 @@ test('RolesManagement traduce título, subtítulo, tarjetas de resumen, roles y 
     const { LanguageProvider } = await server.ssrLoadModule('/src/context/LanguageContext.jsx');
 
     const sampleUsers = [
-      { id: 1, name: 'Admin Boss', email: 'admin@corp.com', isOnline: true, isAdmin: true, isSubAdmin: false },
+      { id: 1, name: 'Admin Boss', email: 'admin@corp.com', isOnline: true, isAdmin: true, isSubAdmin: false, avatar: 'https://example.com/avatar1.jpg' },
       { id: 2, name: 'Carlos Tech', email: 'carlos@corp.com', isOnline: false, isAdmin: false, isSubAdmin: true },
       { id: 3, name: 'Ana Member', email: 'ana@corp.com', isOnline: true, isAdmin: false, isSubAdmin: false },
     ];
@@ -1434,6 +1434,7 @@ test('RolesManagement traduce título, subtítulo, tarjetas de resumen, roles y 
 
     assert.ok(htmlEn.includes('Roles Management'), 'Debe traducir título a Roles Management');
     assert.ok(htmlEn.includes('Exclusive Administrator access'), 'Debe traducir acceso exclusivo');
+    assert.ok(htmlEn.includes('https://example.com/avatar1.jpg'), 'Debe renderizar la imagen de avatar si el usuario la tiene');
     assert.ok(htmlEn.includes('Users'), 'Debe traducir métrica Users');
     assert.ok(htmlEn.includes('SubAdministrators'), 'Debe traducir métrica SubAdministrators');
     assert.ok(htmlEn.includes('Online'), 'Debe traducir estado Online');
@@ -1704,10 +1705,10 @@ test('DashboardContent se traduce adecuadamente al renderizarse con LanguageProv
     assert.ok(htmlEn.includes('Critical Path Alerts'), 'Debe traducir Critical Path Alerts');
     assert.ok(htmlEn.includes('At risk'), 'Debe traducir estado At risk');
     assert.ok(htmlEn.includes('Progress by Project'), 'Debe traducir Progress by Project');
-    assert.ok(htmlEn.includes('Budget Control'), 'Debe traducir Budget Control');
-    assert.ok(htmlEn.includes('Assigned'), 'Debe traducir Assigned en el gráfico de presupuesto');
-    assert.ok(htmlEn.includes('Total: $500K'), 'Debe mostrar leyenda Total en gráfico');
-    assert.ok(htmlEn.includes('Used: $250K'), 'Debe mostrar leyenda Used en gráfico');
+    assert.ok(htmlEn.includes('Portfolio Health'), 'Debe traducir Portfolio Health');
+    assert.ok(htmlEn.includes('On Track'), 'Debe traducir On Track en el anillo de salud');
+    assert.ok(htmlEn.includes('On Schedule'), 'Debe traducir On Schedule en el desglose de salud');
+    assert.ok(htmlEn.includes('View Complete Audit'), 'Debe traducir botón View Complete Audit');
 
     // Probar estados vacíos en inglés
     const emptyHtmlEn = renderToStaticMarkup(
@@ -2030,14 +2031,14 @@ test('manualSections: getManualSections y getMarkdownContent resuelven metadatos
 
     const tEn = createTranslate('en');
     const sectionsEn = getManualSections('en', tEn);
-    assert.equal(sectionsEn.length, 10);
+    assert.equal(sectionsEn.length, 15);
     assert.equal(sectionsEn[0].title, 'Index and General Structure');
     assert.equal(sectionsEn[1].shortTitle, 'Access & 2FA');
     assert.ok(sectionsEn[0].content.length > 50, 'Debe cargar contenido en inglés de README.md');
 
     const tEs = createTranslate('es');
     const sectionsEs = getManualSections('es', tEs);
-    assert.equal(sectionsEs.length, 10);
+    assert.equal(sectionsEs.length, 15);
     assert.equal(sectionsEs[0].title, 'Índice y Estructura General');
     assert.equal(sectionsEs[1].shortTitle, 'Acceso y 2FA');
     assert.ok(sectionsEs[0].content.length > 50, 'Debe cargar contenido en español de README.md');

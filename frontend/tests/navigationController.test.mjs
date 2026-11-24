@@ -18,14 +18,18 @@ test('useNavigationController calcula items permitidos y placeholders según rol
     const { hasViewAccess, getSearchPlaceholder } = await server.ssrLoadModule('/src/config/navigation.config.js');
 
     const adminUser = { role: 'admin', accountType: 'admin', is_superuser: true };
+    const subAdminUser = { role: 'subadmin', accountType: 'user', isSubAdmin: true, roleLabel: 'SubAdministrador' };
     const techUser = { role: 'user', accountType: 'user' };
 
     // Validar acceso RBAC
     assert.equal(hasViewAccess('dashboard', adminUser), true);
+    assert.equal(hasViewAccess('dashboard', subAdminUser), true);
     assert.equal(hasViewAccess('dashboard', techUser), true);
     assert.equal(hasViewAccess('manual', adminUser), true);
+    assert.equal(hasViewAccess('manual', subAdminUser), true);
     assert.equal(hasViewAccess('manual', techUser), true);
     assert.equal(hasViewAccess('roles', adminUser), true);
+    assert.equal(hasViewAccess('roles', subAdminUser), true);
     assert.equal(hasViewAccess('roles', techUser), false);
 
     // Placeholders contextuales
@@ -48,19 +52,19 @@ test('useAppController integra useNavigationController y exporta contrato públi
   }
 });
 
-test('MANUAL_SECTIONS aplica RBAC: el capítulo 7 es exclusivo de admin y filtrable para no-admin', async () => {
+test('MANUAL_SECTIONS aplica RBAC: el capítulo de roles es exclusivo de admin y filtrable para no-admin', async () => {
   const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const { MANUAL_SECTIONS } = await server.ssrLoadModule('/src/views/manual/manualSections.js');
     
-    const adminChapter = MANUAL_SECTIONS.find((s) => s.id === '07-administracion');
-    assert.ok(adminChapter, 'Debe existir el capítulo 7');
+    const adminChapter = MANUAL_SECTIONS.find((s) => s.id === '10-roles');
+    assert.ok(adminChapter, 'Debe existir el capítulo 10 de roles');
     assert.equal(adminChapter.roleRequired, 'admin');
 
     // Simular el filtro de un usuario sin privilegios de admin (isAdmin = false)
     const userVisibleChapters = MANUAL_SECTIONS.filter((s) => s.roleRequired !== 'admin');
-    assert.equal(userVisibleChapters.some((s) => s.id === '07-administracion'), false);
-    assert.equal(userVisibleChapters.length, 8); // Solo los 8 capítulos no administrativos
+    assert.equal(userVisibleChapters.some((s) => s.id === '10-roles'), false);
+    assert.equal(userVisibleChapters.length, 13); // 13 no administrativos (15 en total - 2 de admin: roles y make)
   } finally {
     await server.close();
   }

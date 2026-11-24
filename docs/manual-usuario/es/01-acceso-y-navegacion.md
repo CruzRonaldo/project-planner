@@ -1,123 +1,126 @@
-# 1. Acceso y navegación
+# 1. Acceso, Autenticación y Navegación Global
 
 [← Volver al índice](./README.md)
+
+---
+
+## Espacios de la Pantalla de Acceso
+
+La pantalla inicial centraliza el ingreso seguro a Project Planner y cuenta con los siguientes componentes:
+- **Selector Rápido de Roles:** Tarjetas interactivas **[USUARIO — Equipo Técnico]** y **[ADMIN — Project Manager]** para alternar perfiles con un solo clic.
+- **Formulario de Credenciales:** Campos de correo institucional y contraseña con botón de visibilidad (icono de ojo) y casilla opcional *“Recordarme”*.
+- **Ventana de Verificación 2FA:** Pantalla de seguridad para cuentas administrativas que solicita el código temporal de 6 dígitos.
+- **Asistente de Vinculación Inicial (QR):** Modal para nuevos administradores que exhibe el código QR para configurar la app autenticadora.
+
+---
 
 ## 1.1 Iniciar sesión como Equipo Técnico
 
 **Disponible para:** cuentas técnicas activas.
 
-1. Abra Project Planner.
-2. En **“Seleccione su rol”**, presione la tarjeta **“USUARIO — Equipo Técnico”**.
-3. Escriba el correo electrónico asignado.
-4. Escriba la contraseña.
-5. Active **“Recordarme”** únicamente en un equipo personal.
+1. Abra Project Planner en su navegador web.
+2. En la pantalla inicial, presione la tarjeta **“USUARIO — Equipo Técnico”**.
+3. Escriba su correo institucional asignado.
+4. Escriba su contraseña de acceso.
+5. Active **“Recordarme”** únicamente si se encuentra en un equipo de uso personal.
 6. Presione **“Iniciar Sesión”**.
 
-**Resultado esperado:** el sistema abre el Dashboard y muestra el nombre del usuario en la esquina superior derecha.
+**Resultado esperado:** el sistema abre el Panel de Control (Dashboard) y muestra su nombre en la esquina superior derecha.
 
 **Si no funciona:**
-
-- Compruebe que eligió **USUARIO**, no **ADMIN**.
-- Revise mayúsculas y minúsculas de la contraseña.
-- Si aparece un aviso de conexión con Django, confirme que el backend esté disponible.
-- Si la cuenta está desactivada, contacte al administrador.
+- Compruebe que seleccionó la tarjeta **USUARIO** y no **ADMIN**.
+- Presione el icono de ojo para verificar que no haya errores de mayúsculas en la contraseña.
+- Si aparece un mensaje de servicio no disponible, compruebe su conexión a la red o espere unos instantes.
+- Si la cuenta está desactivada, contacte a la coordinación para su rehabilitación.
 
 ![Pantalla de inicio de sesión](../../assets/manual/01-login-seleccion-roles.png)
-*Figura 1.1: Pantalla de inicio de sesión con selector de roles (Usuario / Administrador) y formulario de credenciales.*
+*Figura 1.1: Pantalla de inicio de sesión con selector rápido de roles y formulario de credenciales.*
 
-## 1.2 Iniciar sesión como Administrador
+---
 
-**Disponible para:** Administrador, Subadministrador y Superadministrador.
+## 1.2 Iniciar sesión como Administrador (con 2FA)
+
+**Disponible para:** Administradores y Subadministradores.
 
 1. Presione la tarjeta **“ADMIN — Project Manager”**.
-2. Ingrese correo y contraseña.
+2. Escriba su correo institucional y contraseña.
 3. Presione **“Iniciar Sesión”**.
-4. Cuando aparezca la verificación de dos factores, escriba el código de seis dígitos de la aplicación autenticadora.
-5. Presione **“Verificar Código”**.
+4. En la pantalla de verificación 2FA, abra su aplicación autenticadora en el teléfono móvil (Google Authenticator o Microsoft Authenticator).
+5. Introduzca el código temporal de 6 dígitos y presione **“Verificar Código”**.
 
-Si es el primer acceso administrativo:
+**Si es su primer acceso administrativo:**
+1. En la pantalla 2FA, presione **“¿Primera vez? Configurar Autenticador”**.
+2. Abra la app autenticadora en su teléfono y escanee el código QR que aparece en pantalla.
+3. Introduzca el código de 6 dígitos generado por la app y presione **“Verificar Código”**.
 
-1. Presione **“¿Primera vez? Configurar Autenticador”**.
-2. Escanee el código QR con Google Authenticator o Microsoft Authenticator.
-3. Introduzca el código temporal generado por la aplicación.
-4. Presione **“Verificar Código”**.
+**Resultado esperado:** se abre el sistema con todas las funciones de gestión, edición y reportes habilitadas.
 
-**Resultado esperado:** se abre el Dashboard con las acciones administrativas habilitadas.
+**Si no funciona:**
+- Si el código es rechazado, espere unos segundos a que la aplicación móvil genere un código nuevo antes de ingresarlo.
+- Asegúrese de que la hora de su teléfono móvil esté configurada en modo automático de red.
 
-![Pantalla de Verificación 2FA TOTP](../../assets/manual/14-verificacion-2fa-totp.png)
-*Figura 1.2: Pantalla de Verificación de Dos Factores (2FA/TOTP) para cuentas administrativas con código temporal de seis dígitos.*
+---
 
-## 1.3 Recuperar una contraseña
+## 1.3 ¿Qué hacer si olvida su contraseña? (Recuperación de Credenciales)
 
-1. En la pantalla de acceso, presione **“¿Olvidaste tu contraseña?”**.
-2. Escriba el correo corporativo.
-3. Presione **“Enviar código”**.
-4. Ingrese el código de seis dígitos recibido.
-5. Presione **“Verificar código”**.
-6. Escriba la nueva contraseña y repítala.
-7. Presione **“Restablecer Contraseña”**.
-8. Regrese al inicio e ingrese con la nueva contraseña.
+**Disponible para:** todos los usuarios registrados.
 
-**Resultado esperado:** aparece la confirmación de que la contraseña fue actualizada.
+1. En la pantalla de inicio de sesión, presione el enlace **“¿Olvidaste tu contraseña?”**.
+2. Escriba su correo institucional registrado y presione **“Enviar código”**.
+3. Revise su bandeja de entrada (y la carpeta de correo no deseado) para copiar el código de verificación de 6 dígitos recibido.
+4. Ingrese el código en pantalla y presione **“Verificar código”**.
+5. Escriba su nueva contraseña (mínimo 6 caracteres) y confírmela en el segundo campo.
+6. Presione **“Restablecer Contraseña”**.
+7. Regrese a la pantalla principal e ingrese con sus nuevas credenciales.
 
-**Errores frecuentes:** código expirado, código incorrecto, contraseñas diferentes o nueva contraseña menor de ocho caracteres.
+**Resultado esperado:** el sistema confirma la actualización y le permite iniciar sesión inmediatamente.
 
-## 1.4 Recuperar el segundo factor administrativo
+**Si no funciona:**
+- Verifique que el correo ingresado no contenga espacios accidentales al inicio o al final.
+- Si el código caducó, solicite un nuevo envío presionando reenviar código.
+- Si su cuenta figura como suspendida o bloqueada, solicite al Administrador su reactivación desde la gestión de roles.
 
-1. En la pantalla de verificación 2FA, solicite el restablecimiento.
-2. Espere el código enviado al correo configurado.
-3. Escríbalo y presione **“Verificar Código de Recuperación”**.
-4. Configure nuevamente la aplicación autenticadora.
+---
 
-Si el correo no llega, no repita solicitudes de manera continua: confirme primero la configuración del correo o del webhook con el responsable técnico.
+## 1.4 ¿Qué hacer si pierde su teléfono o acceso a la app 2FA?
 
-## 1.5 Usar el menú principal
+**Disponible para:** cuentas con doble factor habilitado.
 
-La barra lateral contiene:
+1. En la pantalla de verificación 2FA, presione **“Usar código de recuperación de emergencia”**.
+2. Ingrese uno de los códigos de respaldo de un solo uso que descargó al momento de configurar su seguridad.
+3. El sistema le concederá acceso inmediato.
+4. Una vez dentro, diríjase a **Configuración** (`Shift + 9`) para vincular su nuevo teléfono móvil.
 
-- **Inicio**
-- **Planificación Estratégica**
-- **Portafolio**
-- **Gestión Operativa**
-- **Equipo Técnico**
-- **Recursos Humanos**
-- **Integraciones**
-- **Manual de Usuario**
-- **Configuración**, en la parte inferior
+**Si no cuenta con códigos de respaldo:**
+- Solicite al Administrador principal del sistema que restablezca la vinculación de su autenticador.
 
-Presione una opción para abrirla. El elemento activo queda resaltado.
+---
 
-Atajos disponibles:
+## 1.5 Menú Principal y Atajos de Teclado
+
+La barra lateral izquierda permite desplazarse rápidamente entre los módulos de la plataforma:
 
 | Atajo | Acción |
-|---|---|
-| `Shift + 0` | Expandir o contraer la barra lateral. |
-| `Shift + 1` a `Shift + 7` | Abrir los módulos principales (Inicio a Integraciones). |
-| `Shift + 8` | Abrir el Manual de Usuario interactivo y documentación. |
+| :--- | :--- |
+| `Shift + 0` | Contraer o expandir la barra lateral. |
+| `Shift + 1` | Abrir el Panel de Control (Dashboard). |
+| `Shift + 2` | Abrir Planificación Estratégica. |
+| `Shift + 3` | Abrir Portafolio de Proyectos. |
+| `Shift + 4` | Abrir Gestión Operativa. |
+| `Shift + 5` | Abrir Directorio de Equipo Técnico. |
+| `Shift + 6` | Abrir Recursos Humanos. |
+| `Shift + 7` | Abrir Integraciones. |
+| `Shift + 8` | Abrir el Manual de Usuario. |
 | `Shift + 9` | Abrir Configuración. |
-| `Ctrl + K` | Enfocar el buscador superior. |
+| `Ctrl + K` | Activar el buscador global en cualquier momento. |
 
-## 1.6 Buscar dentro de un módulo
+---
 
-1. Abra el módulo deseado.
-2. Presione el buscador de la barra superior o use `Ctrl + K`.
-3. Escriba el nombre del proyecto, técnico, hito u orden.
-4. Revise los resultados filtrados.
-5. Borre el texto para volver a mostrar todos los registros.
+## 1.6 Cerrar Sesión Segura
 
-## 1.7 Revisar notificaciones
+1. En la esquina superior derecha, presione su nombre o fotografía de perfil.
+2. En el menú desplegable, seleccione **“Cerrar Sesión”**.
+3. Confirme que la pantalla regrese al formulario inicial de acceso.
 
-1. Presione el icono de campana.
-2. Seleccione una notificación para revisar el detalle.
-3. Use **“Marcar todas como leídas”** si corresponde.
-
-El indicador rojo muestra que existen notificaciones pendientes.
-
-## 1.8 Cerrar sesión
-
-1. Presione el nombre o la fotografía del usuario.
-2. En el menú desplegable, presione **“Cerrar Sesión”**.
-3. Confirme que vuelva a mostrarse la pantalla de acceso.
-
-En un equipo compartido, cierre siempre la sesión y no active **Recordarme**.
-
+> [!NOTE]
+> En computadoras compartidas, cierre siempre su sesión al terminar y evite activar la casilla *Recordarme*.

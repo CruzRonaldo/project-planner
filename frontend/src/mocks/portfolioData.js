@@ -9,6 +9,7 @@ export {
   formatProjectTerm,
   portfolioSortCategories,
   sortPortfolioProjects,
+  isUserProject,
 } from '../utils/portfolio.js';
 
 const initialProjects = [
