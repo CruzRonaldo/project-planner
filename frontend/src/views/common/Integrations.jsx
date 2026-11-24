@@ -205,7 +205,7 @@ export default function Integrations({
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
+      <div className="flex w-full flex-col gap-5 pb-8">
         <PageHeader
           title={t('integrations.pageTitle', 'Integraciones')}
           subtitle={t('integrations.pageSubtitle', 'Conectividad con servicios externos y automatización')}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getApiErrorMessage, runSafe } from '../src/utils/asyncHandler.js';
+import { getApiErrorMessage, runSafe, localizeApiErrorMessage } from '../src/utils/asyncHandler.js';
 
 test('getApiErrorMessage extrae string directo o usa fallback si el error es nulo', () => {
   assert.equal(getApiErrorMessage(null, 'Fallback base'), 'Fallback base');
@@ -101,4 +101,42 @@ test('runSafe funciona de forma limpia en modo minimalista sin opciones', async 
   });
   assert.equal(failedData, null);
   assert.equal(failedErr.message, 'Boom');
+});
+
+test('localizeApiErrorMessage traduce mensajes directos y compuestos usando función t', () => {
+  const dictionary = {
+    'toasts.No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible. Se mantiene la última copia disponible.':
+      'Could not connect to the server. Check your network connection or if the service is available. The last available copy is retained.',
+    'toasts.No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible.':
+      'Could not connect to the server. Check your network connection or if the service is available.',
+    'toasts.Se mantiene la última copia disponible.':
+      'The last available copy is retained.',
+  };
+
+  const mockT = (key, fallback) => dictionary[key] || fallback;
+
+  // 1. Mensaje compuesto con coincidencia directa completa
+  const fullMsg = 'No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible. Se mantiene la última copia disponible.';
+  assert.equal(
+    localizeApiErrorMessage(fullMsg, mockT),
+    'Could not connect to the server. Check your network connection or if the service is available. The last available copy is retained.'
+  );
+
+  // 2. Mensaje compuesto donde solo coinciden oraciones individuales
+  const customDictionary = {
+    'toasts.No se pudo conectar con el servidor. Verifica tu conexión de red o si el servicio está disponible.':
+      'Could not connect to the server.',
+    'toasts.Se mantiene la última copia disponible.':
+      'Cached copy retained.',
+  };
+  const mockTCustom = (key, fallback) => customDictionary[key] || fallback;
+  assert.equal(
+    localizeApiErrorMessage(fullMsg, mockTCustom),
+    'Could not connect to the server. Cached copy retained.'
+  );
+
+  // 3. Fallback seguro ante null o tipos no válidos
+  assert.equal(localizeApiErrorMessage('', mockT), '');
+  assert.equal(localizeApiErrorMessage(null, mockT), '');
+  assert.equal(localizeApiErrorMessage('Mensaje sin traducción', mockT), 'Mensaje sin traducción');
 });

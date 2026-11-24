@@ -32,8 +32,8 @@ export default function FilterTabBar({
         const isActive = activeTab === tab.id;
 
         const buttonClasses = isActive
-          ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400/50 dark:bg-cyan-500/10 dark:text-cyan-300 midnight:border-cyan-500/50 midnight:bg-cyan-900/20 midnight:text-cyan-200 font-semibold'
-          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-[#30363d] dark:bg-transparent dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200 midnight:border-cyan-900/30 midnight:text-cyan-600 midnight:hover:border-cyan-700/40 midnight:hover:text-cyan-400';
+          ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-400 dark:bg-cyan-500/15 dark:text-cyan-300 midnight:border-cyan-500 midnight:bg-cyan-500/20 midnight:text-cyan-200 font-semibold shadow-sm'
+          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-white midnight:border-cyan-900/40 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:border-cyan-700/50 midnight:hover:text-cyan-200';
 
         return (
           <button

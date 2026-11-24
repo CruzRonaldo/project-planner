@@ -11,7 +11,7 @@ import React from 'react';
 export function TableHead({ columns, className = '', children }) {
   return (
     <thead className={className}>
-      <tr className="border-b border-slate-200 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 midnight:text-cyan-600">
+      <tr className="border-b border-slate-200 text-xs font-semibold text-slate-700 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-200 midnight:border-cyan-900/30 midnight:text-cyan-200">
         {columns
           ? columns.map((col, index) => {
               const label = typeof col === 'string' ? col : col.label;
@@ -24,7 +24,7 @@ export function TableHead({ columns, className = '', children }) {
                 <th
                   key={index}
                   scope="col"
-                  className={`pb-2.5 font-semibold uppercase tracking-wide ${alignClass} ${customClass}`}
+                  className={`px-3 py-3 font-semibold uppercase tracking-wider text-[11px] sm:text-xs ${alignClass} ${customClass}`}
                 >
                   {label}
                 </th>

@@ -23,7 +23,7 @@ import { downloadPersonnelWorkbook } from '../../utils/personnelWorkbook';
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { runSafe } from '../../utils/asyncHandler';
+import { runSafe, localizeApiErrorMessage } from '../../utils/asyncHandler';
 import { PersonnelIncidentDialog } from './components/PersonnelIncidentDialog';
 import { PersonnelEditorModal } from './components/PersonnelEditorModal';
 import { IncidentActionDialog } from './components/IncidentActionDialog';
@@ -420,7 +420,7 @@ export default function HumanResources({
     );
   };
 
-  const localizedSyncError = syncError ? t(`toasts.${syncError}`, t(syncError, syncError)) : '';
+  const localizedSyncError = syncError ? localizeApiErrorMessage(syncError, t) : '';
   const isFailed = refreshState === 'error' || (Boolean(syncError) && refreshState !== 'loading' && refreshState !== 'success');
   const isLoading = refreshState === 'loading' || (syncLoading && refreshState !== 'error');
   const isSuccess = refreshState === 'success';
@@ -453,7 +453,7 @@ export default function HumanResources({
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
+      <div className="flex w-full flex-col gap-5 pb-8">
         <PageHeader
           title={t('humanResources.pageTitle', 'Recursos Humanos y Estados')}
           subtitle={t('humanResources.pageSubtitle', 'Administración de disponibilidad y asignación del personal')}

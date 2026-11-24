@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search, BookOpen } from 'lucide-react';
+import { Menu, Search, Sun, Moon, MoonStar } from 'lucide-react';
 import ProfileControls from './ProfileControls';
 import { usePlatform } from '../../hooks/usePlatform';
 import { useLanguage } from '../../context/LanguageContext';
@@ -15,6 +15,9 @@ export default function Topbar({
   onSearchChange,
   searchPlaceholder,
   onOpenMobileMenu,
+  theme,
+  toggleTheme,
+  onOpenProjectAudit,
 }) {
   const searchInputRef = React.useRef(null);
   const { isMac, isMobile, formatShortcut } = usePlatform();
@@ -47,6 +50,7 @@ export default function Topbar({
     'technical-team': t('topbar.searchTechnicalTeam', 'Buscar técnico, área, especialidad o proyecto...'),
     configuracion: t('topbar.searchConfiguration', 'Buscar en configuración...'),
     manual: t('topbar.searchManualPlaceholder', 'Buscar en el manual de usuario o atajos...'),
+    auditoria: t('topbar.searchAuditoria', 'Buscar en auditoría de proyectos...'),
   };
   const defaultSearchPlaceholder = t('topbar.searchDefault', 'Buscar proyectos, hitos o equipos...');
   const placeholder = placeholders[activeView] || defaultSearchPlaceholder;
@@ -98,12 +102,15 @@ export default function Topbar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => onNavigate && onNavigate('manual')}
-          title={t('topbar.manualShortcutTooltip', '{title} ({shortcut})', { title: t('topbar.searchManual', 'Manual de Usuario'), shortcut: formatShortcut('Shift + 8') })}
-          aria-label={t('topbar.searchManual', 'Manual de Usuario')}
+          onClick={toggleTheme}
+          title={t('topbar.themeToggleTooltip', 'Cambiar tema (Claro / Oscuro / Midnight)')}
+          aria-label={t('topbar.themeToggle', 'Cambiar tema de la interfaz')}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/40 midnight:hover:text-cyan-50 transition-colors cursor-pointer"
         >
-          <BookOpen size={17} />
+          {theme === 'light' && <Sun size={17} className="text-amber-500" />}
+          {theme === 'dark' && <Moon size={17} className="text-blue-400" />}
+          {theme === 'midnight' && <MoonStar size={17} className="text-cyan-400" />}
+          {!['light', 'dark', 'midnight'].includes(theme) && <Sun size={17} className="text-slate-500" />}
         </button>
         <ProfileControls
           currentUser={currentUser}
@@ -111,6 +118,7 @@ export default function Topbar({
           onToggleSubAdmin={onToggleSubAdmin}
           onLogout={onLogout}
           onNavigate={onNavigate}
+          onOpenProjectAudit={onOpenProjectAudit}
         />
       </div>
     </header>

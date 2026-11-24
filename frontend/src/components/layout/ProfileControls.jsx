@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, ChevronDown, LogOut, ShieldCheck, Settings, BookOpen } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Settings, BookOpen, ShieldCheck } from 'lucide-react';
 import projectsApi from '../../services/projectsApi';
 import FormattedAuditText from '../common/FormattedAuditText';
 import { useLanguage } from '../../context/LanguageContext';
+import { hasViewAccess } from '../../config/navigation.config';
 import {
   formatNotificationTitle,
   formatNotificationDetail,
@@ -19,7 +20,7 @@ function getInitials(name = '') {
     .toUpperCase();
 }
 
-export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
+export default function ProfileControls({ currentUser, onLogout, onNavigate, onOpenProjectAudit }) {
   const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -34,7 +35,6 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
   });
 
   const controlsRef = useRef(null);
-  const isAdmin = currentUser?.accountType === 'admin';
 
   // Sincronizar notificaciones reales del usuario desde el backend
   useEffect(() => {
@@ -231,25 +231,27 @@ export default function ProfileControls({ currentUser, onLogout, onNavigate }) {
               <BookOpen size={17} /> {t('profile.manual', 'Manual de Usuario')}
             </button>
 
+            {hasViewAccess('roles', currentUser) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  if (onNavigate) {
+                    onNavigate('roles');
+                  }
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+              >
+                <ShieldCheck size={17} /> {t('profile.roles', 'Gestión de Roles')}
+              </button>
+            )}
+
             <button type="button" onClick={openNotifications} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50">
               <span className="flex items-center gap-3"><Bell size={17} /> {t('profile.notifications', 'Notificaciones')}</span>
               {unreadCount > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">{unreadCount}</span>
               )}
             </button>
-
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onNavigate('roles');
-                }}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-100/70 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
-              >
-                <ShieldCheck size={17} /> {t('profile.roles', 'Roles y permisos')}
-              </button>
-            )}
 
             <div className="my-2 border-t border-slate-100 dark:border-slate-800 midnight:border-cyan-900/30" />
             

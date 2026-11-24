@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { FileDown, MoreVertical, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 import {
   GanttScheduleSection,
@@ -42,6 +42,34 @@ export { AdjustScheduleDialog, NewGlobalMilestoneDialog };
 
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
+
+const getAreaBarColorClass = (areaName = '') => {
+  const normalized = areaName.toLowerCase();
+  if (normalized.includes('estruct') || normalized.includes('civil')) {
+    return 'bg-sky-500 dark:bg-sky-400';
+  }
+  if (normalized.includes('arqui')) {
+    return 'bg-emerald-500 dark:bg-emerald-400';
+  }
+  if (normalized.includes('sistem')) {
+    return 'bg-indigo-500 dark:bg-indigo-400';
+  }
+  return 'bg-cyan-500 dark:bg-cyan-400';
+};
+
+const getAreaBadgeColorClass = (areaName = '') => {
+  const normalized = areaName.toLowerCase();
+  if (normalized.includes('estruct') || normalized.includes('civil')) {
+    return 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300 midnight:bg-cyan-950 midnight:text-cyan-400';
+  }
+  if (normalized.includes('arqui')) {
+    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 midnight:bg-emerald-950 midnight:text-emerald-400';
+  }
+  if (normalized.includes('sistem')) {
+    return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 midnight:bg-indigo-950 midnight:text-indigo-400';
+  }
+  return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 midnight:bg-cyan-950 midnight:text-cyan-400';
+};
 
 export default function StrategicPlanning({ data = createStrategicPlanningData(), onChange = () => {}, canManage = false, initialYear = null }) {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,6 +121,22 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     });
   }, [projects, activeProject, selectedYear]);
 
+  const [ganttPage, setGanttPage] = useState(1);
+  const GANTT_PAGE_SIZE = 8;
+  const totalGanttPages = Math.max(1, Math.ceil(displayedProjects.length / GANTT_PAGE_SIZE));
+  const currentGanttPage = Math.min(ganttPage, totalGanttPages);
+  const paginatedGanttProjects = useMemo(() => {
+    return displayedProjects.slice(
+      (currentGanttPage - 1) * GANTT_PAGE_SIZE,
+      currentGanttPage * GANTT_PAGE_SIZE
+    );
+  }, [displayedProjects, currentGanttPage]);
+
+  // Al cambiar filtros o año, reiniciar la página del Gantt
+  useEffect(() => {
+    setGanttPage(1);
+  }, [selectedYear, selectedProjectFilter]);
+
   const filteredMilestones = useMemo(() => {
     if (!activeProject) return milestones;
     return milestones.filter(
@@ -108,7 +152,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
     return sortMilestones(filteredMilestones, milestoneSortOrder);
   }, [filteredMilestones, milestoneSortOrder]);
 
-  const milestonePageSize = 5;
+  const milestonePageSize = 7;
   const totalMilestonePages = Math.max(1, Math.ceil(sortedMilestones.length / milestonePageSize));
   const currentMilestonePage = Math.min(milestonePage, totalMilestonePages);
   const visibleMilestones = useMemo(() => {
@@ -140,17 +184,62 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
   const targetProjectsForBudget = activeProject ? [activeProject] : displayedProjects;
 
-  const totalBudget = targetProjectsForBudget.reduce(
-    (acc, p) => acc + (Number(p.totalBudget) || Number(p.budget) || 0),
-    0
-  );
-  const executedBudget = targetProjectsForBudget.reduce(
-    (acc, p) => acc + (Number(p.usedBudget) || 0),
-    0
-  );
-  const availableBudget = Math.max(0, totalBudget - executedBudget);
-  const executedPct = totalBudget > 0 ? Math.min(100, Math.round((executedBudget / totalBudget) * 100)) : 0;
-  const availablePct = totalBudget > 0 ? Math.max(0, 100 - executedPct) : 0;
+  const { totalBudget, executedBudget, availableBudget, executedPct, availablePct } = useMemo(() => {
+    const total = targetProjectsForBudget.reduce(
+      (acc, p) => acc + (Number(p.totalBudget) || Number(p.budget) || 0),
+      0
+    );
+    const executed = targetProjectsForBudget.reduce(
+      (acc, p) => acc + (Number(p.usedBudget) || 0),
+      0
+    );
+    const available = Math.max(0, total - executed);
+    const execPct = total > 0 ? Math.min(100, Math.round((executed / total) * 100)) : 0;
+    const availPct = total > 0 ? Math.max(0, 100 - execPct) : 0;
+    return {
+      totalBudget: total,
+      executedBudget: executed,
+      availableBudget: available,
+      executedPct: execPct,
+      availablePct: availPct,
+    };
+  }, [targetProjectsForBudget]);
+
+  const areaDistribution = useMemo(() => {
+    const map = {};
+    targetProjectsForBudget.forEach((p) => {
+      let rawArea = p.area || 'Civil';
+      if (rawArea === 'Edificaciones Comerciales') {
+        rawArea = 'Civil';
+      }
+      if (!map[rawArea]) {
+        map[rawArea] = { name: rawArea, budget: 0, count: 0 };
+      }
+      map[rawArea].budget += Number(p.totalBudget) || Number(p.budget) || 0;
+      map[rawArea].count += 1;
+    });
+
+    return Object.values(map)
+      .map((item) => ({
+        ...item,
+        percentage: totalBudget > 0 ? Math.round((item.budget / totalBudget) * 100) : 0,
+      }))
+      .sort((a, b) => b.budget - a.budget);
+  }, [targetProjectsForBudget, totalBudget]);
+
+  const portfolioSummary = useMemo(() => {
+    const count = targetProjectsForBudget.length;
+    const avgBudget = count > 0 ? totalBudget / count : 0;
+    return { count, avgBudget };
+  }, [targetProjectsForBudget, totalBudget]);
+
+  const projectSelectOptions = useMemo(() => [
+    { value: 'ALL', label: `${t('strategicPlanning.allProjects', 'Todos los proyectos')} (${projects.length})` },
+    ...projects.map((p) => ({
+      value: p.id,
+      label: `${p.code ? `${p.code} · ` : ''}${p.name}`,
+    })),
+  ], [projects, t]);
 
   const formatBudget = (amount) => {
     if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
@@ -346,7 +435,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8 print:bg-white print:p-0 print:overflow-visible">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-8 print:max-w-none print:gap-4 print:pb-0">
+      <div className="flex w-full flex-col gap-6 pb-8 print:max-w-none print:gap-4 print:pb-0">
         
         {/* ENCABEZADO FORMAL PARA EXPORTACIÓN A PDF */}
         <header className="print-header hidden print:block mb-4 border-b-2 border-slate-800 pb-3">
@@ -415,22 +504,24 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
               {/* SELECTOR DE PROYECTO */}
               <Select
                 value={selectedProjectFilter}
-                onChange={(e) => { setSelectedProjectFilter(e.target.value); setMilestonePage(1); setAdjustmentPage(1); }}
+                onChange={(e) => {
+                  setSelectedProjectFilter(e.target.value);
+                  setMilestonePage(1);
+                  setAdjustmentPage(1);
+                  setGanttPage(1);
+                }}
                 aria-label={t('strategicPlanning.filterByProject', 'Filtrar por proyecto')}
                 className="max-w-[220px] truncate"
-                options={[
-                  { value: 'ALL', label: `${t('strategicPlanning.allProjects', 'Todos los proyectos')} (${projects.length})` },
-                  ...projects.map((p) => ({
-                    value: p.id,
-                    label: `${p.code ? `${p.code} · ` : ''}${p.name}`,
-                  })),
-                ]}
+                options={projectSelectOptions}
               />
 
               {/* SELECTOR DE AÑO */}
               <Select
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
+                onChange={(e) => {
+                  setSelectedYear(e.target.value);
+                  setGanttPage(1);
+                }}
                 aria-label={t('strategicPlanning.selectYear', 'Seleccionar año')}
                 options={getYearOptions(
                   1,
@@ -449,7 +540,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
         {/* CONTENEDOR DEL GANTT */}
         <GanttScheduleSection
-          displayedProjects={displayedProjects}
+          displayedProjects={paginatedGanttProjects}
           selectedYear={selectedYear}
           months={localizedMonths}
           milestones={milestones}
@@ -471,64 +562,87 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           formatMilestoneDate={formatMilestoneDate}
         />
 
+        {/* PAGINACIÓN DEL CRONOGRAMA MAESTRO (GANTT) */}
+        {displayedProjects.length > GANTT_PAGE_SIZE && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#161b22] midnight:bg-[#0a1120] border border-slate-200 dark:border-white/10 midnight:border-cyan-900/30 rounded-xl px-4 py-3 shadow-xs">
+            <span className="text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-600 font-medium">
+              {t('strategicPlanning.ganttPaginationSummary', 'Mostrando {from}-{to} de {total} proyectos en el cronograma', {
+                from: (currentGanttPage - 1) * GANTT_PAGE_SIZE + 1,
+                to: Math.min(currentGanttPage * GANTT_PAGE_SIZE, displayedProjects.length),
+                total: displayedProjects.length,
+              })}
+            </span>
+            <Pagination
+              currentPage={currentGanttPage}
+              totalPages={totalGanttPages}
+              totalItems={displayedProjects.length}
+              pageSize={GANTT_PAGE_SIZE}
+              itemLabel={t('portfolio.projectsCountLabel', 'proyectos')}
+              onPageChange={setGanttPage}
+              hideOnSinglePage={true}
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
           
           {/* HITOS GLOBALES: Aquí devolvemos el padding de p-5 md:p-6 */}
-          <section className={`${cardClass} p-5 md:p-6 xl:col-span-3 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.globalMilestones', 'Hitos Globales')}</h2>
-                <p className={`text-xs ${mutedClass} hidden print:block`}>
-                  {selectedProjectFilter === 'ALL'
-                    ? t('strategicPlanning.showingAllProjects', 'Mostrando todos los proyectos')
-                    : t('strategicPlanning.filteredBy', `Filtrado por: ${projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter}`, { project: projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter })}
-                </p>
-              </div>
-
-              {/* CONTROLES DE ORDENAMIENTO E INDICADOR DE PROYECTO ACTIVO */}
-              <div className="flex flex-wrap items-center gap-2.5 no-print print:hidden">
-                <SortDropdown
-                  value={milestoneSortOrder}
-                  onChange={(nextSort) => {
-                    setMilestoneSortOrder(nextSort);
-                    setMilestonePage(1);
-                  }}
-                  categories={milestoneSortCategories}
-                  optionsMap={milestoneSortOptionsMap}
-                  label={t('strategicPlanning.sort', 'Ordenar:')}
-                  buttonClassName="w-[225px]"
-                  ariaLabel={t('strategicPlanning.sortGlobalMilestones', 'Ordenar hitos globales')}
-                />
-
-                {activeProject ? (
-                  <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
-                    {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
-                  </span>
-                ) : (
-                  <span className={`text-xs ${mutedClass}`}>
-                    {filteredMilestones.length} {filteredMilestones.length === 1 ? t('strategicPlanning.milestoneRegistered', 'hito registrado') : t('strategicPlanning.milestonesRegistered', 'hitos registrados')}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2.5">
-              {filteredMilestones.length === 0 ? (
-                <div className={`p-6 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 ${nestedClass}`}>
-                  {selectedProjectFilter === 'ALL'
-                    ? t('strategicPlanning.noMilestones', 'No hay hitos globales registrados.')
-                    : t('strategicPlanning.noMilestonesForProject', 'No hay hitos registrados para el proyecto seleccionado.')}
+          <section className={`${cardClass} p-5 md:p-6 xl:col-span-3 flex flex-col justify-between print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
+            <div className="flex-1 flex flex-col">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.globalMilestones', 'Hitos Globales')}</h2>
+                  <p className={`text-xs ${mutedClass} hidden print:block`}>
+                    {selectedProjectFilter === 'ALL'
+                      ? t('strategicPlanning.showingAllProjects', 'Mostrando todos los proyectos')
+                      : t('strategicPlanning.filteredBy', `Filtrado por: ${projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter}`, { project: projects.find((p) => String(p.id) === String(selectedProjectFilter))?.name || selectedProjectFilter })}
+                  </p>
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-2.5 print:hidden">
-                    {visibleMilestones.map((milestone) => {
-                      const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
-                      const associatedProject = projects.find(
-                        (p) => String(p.id) === String(milestone.projectId || milestone.project)
-                      );
-                      return (
-                        <article key={milestone.id} className={`flex items-center justify-between gap-4 p-3 ${nestedClass} print:bg-white print:border-slate-200`} title={milestone.description}>
+
+                {/* CONTROLES DE ORDENAMIENTO E INDICADOR DE PROYECTO ACTIVO */}
+                <div className="flex flex-wrap items-center gap-2.5 no-print print:hidden">
+                  <SortDropdown
+                    value={milestoneSortOrder}
+                    onChange={(nextSort) => {
+                      setMilestoneSortOrder(nextSort);
+                      setMilestonePage(1);
+                    }}
+                    categories={milestoneSortCategories}
+                    optionsMap={milestoneSortOptionsMap}
+                    label={t('strategicPlanning.sort', 'Ordenar:')}
+                    buttonClassName="w-[225px]"
+                    ariaLabel={t('strategicPlanning.sortGlobalMilestones', 'Ordenar hitos globales')}
+                  />
+
+                  {activeProject ? (
+                    <span className="shrink-0 rounded bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
+                      {activeProject.code ? `${activeProject.code} · ` : ''}{activeProject.name}
+                    </span>
+                  ) : (
+                    <span className={`text-xs ${mutedClass}`}>
+                      {filteredMilestones.length} {filteredMilestones.length === 1 ? t('strategicPlanning.milestoneRegistered', 'hito registrado') : t('strategicPlanning.milestonesRegistered', 'hitos registrados')}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                {filteredMilestones.length === 0 ? (
+                  <div className={`p-6 text-center text-xs text-slate-500 dark:text-slate-400 midnight:text-cyan-500/70 ${nestedClass}`}>
+                    {selectedProjectFilter === 'ALL'
+                      ? t('strategicPlanning.noMilestones', 'No hay hitos globales registrados.')
+                      : t('strategicPlanning.noMilestonesForProject', 'No hay hitos registrados para el proyecto seleccionado.')}
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2.5 print:hidden">
+                      {visibleMilestones.map((milestone) => {
+                        const status = milestoneStatuses.find((item) => item.id === (milestone.status || '').toLowerCase()) || milestoneStatuses[0];
+                        const associatedProject = projects.find(
+                          (p) => String(p.id) === String(milestone.projectId || milestone.project)
+                        );
+                        return (
+                          <article key={milestone.id} className={`flex items-center justify-between gap-4 p-2.5 sm:p-3 ${nestedClass} print:bg-white print:border-slate-200`} title={milestone.description}>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className={`text-sm font-semibold truncate ${headingClass}`}>{milestone.title}</h3>
@@ -634,6 +748,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
                 </>
               )}
             </div>
+            </div>
 
             <Pagination
               currentPage={currentMilestonePage}
@@ -648,52 +763,152 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           </section>
 
           {/* CONTROL PRESUPUESTARIO */}
-          <section className={`${cardClass} p-5 md:p-6 xl:col-span-2 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
-            <div className="flex items-center justify-between">
-              <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.budgetControl', 'Control Presupuestario')}</h2>
-              {activeProject && (
-                <span className="shrink-0 rounded bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
-                  {activeProject.code || activeProject.name}
-                </span>
-              )}
-            </div>
-
-            <div className="flex justify-center py-5">
-              <div
-                className="flex h-36 w-36 items-center justify-center rounded-full transition-colors duration-300"
-                style={{
-                  background:
-                    totalBudget > 0
-                      ? `conic-gradient(#3978c6 0 ${availablePct}%, #10b981 ${availablePct}% 100%)`
-                      : 'conic-gradient(#64748b 0% 100%, #64748b 100% 100%)',
-                }}
-              >
-                <div className="flex h-[94px] w-[94px] flex-col items-center justify-center rounded-full bg-white transition-colors duration-300 dark:bg-[#161b22] midnight:bg-[#0a1120]">
-                  <strong className={`text-xl ${headingClass}`}>{formatBudget(totalBudget)}</strong>
-                  <span className={`mt-1 text-[10px] ${mutedClass}`}>
-                    {totalBudget > 0 ? t('strategicPlanning.budget', 'Presupuesto') : t('strategicPlanning.unassigned', 'Sin asignar')}
+          <section className={`${cardClass} p-5 md:p-6 xl:col-span-2 flex flex-col justify-between print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-base font-semibold ${headingClass}`}>{t('strategicPlanning.budgetControl', 'Control Presupuestario')}</h2>
+                {activeProject && (
+                  <span className="shrink-0 rounded bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 midnight:bg-cyan-950 midnight:text-cyan-400">
+                    {activeProject.code || activeProject.name}
                   </span>
+                )}
+              </div>
+
+              <div className="flex justify-center py-5">
+                <div
+                  className="flex h-44 w-44 items-center justify-center rounded-full transition-colors duration-300"
+                  style={{
+                    background:
+                      totalBudget > 0
+                        ? `conic-gradient(#3978c6 0 ${availablePct}%, #10b981 ${availablePct}% 100%)`
+                        : 'conic-gradient(#64748b 0% 100%, #64748b 100% 100%)',
+                  }}
+                >
+                  <div className="flex h-[116px] w-[116px] flex-col items-center justify-center rounded-full bg-white transition-colors duration-300 dark:bg-[#161b22] midnight:bg-[#0a1120]">
+                    <strong className={`text-2xl ${headingClass}`}>{formatBudget(totalBudget)}</strong>
+                    <span className={`mt-1 text-xs ${mutedClass}`}>
+                      {totalBudget > 0 ? t('strategicPlanning.budget', 'Presupuesto') : t('strategicPlanning.unassigned', 'Sin asignar')}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 border-b border-slate-200 pb-5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-white/10 dark:text-slate-400 midnight:border-cyan-900/30 midnight:text-cyan-600">
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> {t('strategicPlanning.available', 'Disponible')} ({availablePct}%)</span>
+                <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-500" /> {t('strategicPlanning.executed', 'Ejecutado')} ({executedPct}%)</span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <div>
+                  <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.total', 'Total')}</p>
+                  <strong className={`mt-1 block text-sm ${headingClass}`}>{formatBudget(totalBudget)}</strong>
+                </div>
+                <div>
+                  <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.executed', 'Ejecutado')}</p>
+                  <strong className="mt-1 block text-sm text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">{formatBudget(executedBudget)}</strong>
+                </div>
+                <div>
+                  <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.available', 'Disponible')}</p>
+                  <strong className="mt-1 block text-sm text-blue-600 transition-colors duration-300 dark:text-blue-400 midnight:text-blue-400">{formatBudget(availableBudget)}</strong>
+                </div>
+              </div>
+
+              {/* SEPARADOR LIMPIO */}
+              <div className="my-4 border-t border-slate-200 transition-colors duration-300 dark:border-white/10 midnight:border-cyan-900/30" />
+
+              {/* SUPERVISIÓN POR ÁREA TÉCNICA */}
+              <div>
+                <div className="mb-3">
+                  <h3 className={`text-xs font-semibold ${headingClass}`}>
+                    {t('strategicPlanning.technicalAreaDistribution', 'Distribución por Área Técnica')}
+                  </h3>
+                  <p className={`text-[10px] ${mutedClass}`}>
+                    {t('strategicPlanning.areaDistributionSubtitle', 'Supervisión de capital por especialidad técnica')}
+                  </p>
+                </div>
+
+                {activeProject ? (
+                  /* DETALLE DEL PROYECTO SELECCIONADO */
+                  <div className={`p-3 space-y-2.5 ${nestedClass}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-medium ${mutedClass}`}>
+                        {t('strategicPlanning.discipline', 'Especialidad')}
+                      </span>
+                      <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${getAreaBadgeColorClass(activeProject.area || 'Civil')}`}>
+                        {activeProject.area || 'Civil'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-medium ${mutedClass}`}>
+                        {t('strategicPlanning.duration', 'Duración')}
+                      </span>
+                      <span className={`text-xs font-semibold ${headingClass}`}>
+                        {activeProject.duration_months || 1} {t('strategicPlanning.months', 'meses')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-medium ${mutedClass}`}>
+                        {t('strategicPlanning.progress', 'Avance')}
+                      </span>
+                      <span className={`text-xs font-semibold ${headingClass}`}>
+                        {activeProject.progress || 0}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-medium ${mutedClass}`}>
+                        {t('strategicPlanning.executionRate', 'Tasa de Ejecución')}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">
+                        {executedPct}%
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* BARRAS POR ÁREA EN VISTA GENERAL */
+                  <div className="space-y-3">
+                    {areaDistribution.map((item) => (
+                      <div key={item.name} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={`font-medium ${headingClass}`}>
+                            {item.name}{' '}
+                            <span className={`font-normal text-[10px] ${mutedClass}`}>
+                              ({item.count} {t('strategicPlanning.projectsCountLabel', 'prjs')})
+                            </span>
+                          </span>
+                          <span className={`font-mono text-[11px] ${mutedClass}`}>
+                            {item.percentage}% · {formatBudget(item.budget)}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full overflow-hidden bg-slate-100 transition-colors duration-300 dark:bg-slate-800 midnight:bg-cyan-950">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${getAreaBarColorClass(item.name)}`}
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 border-b border-slate-200 pb-5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-white/10 dark:text-slate-400 midnight:border-cyan-900/30 midnight:text-cyan-600">
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-[#3978c6]" /> {t('strategicPlanning.available', 'Disponible')} ({availablePct}%)</span>
-              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-500" /> {t('strategicPlanning.executed', 'Ejecutado')} ({executedPct}%)</span>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div>
-                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.total', 'Total')}</p>
-                <strong className={`mt-1 block text-sm ${headingClass}`}>{formatBudget(totalBudget)}</strong>
+            {/* MÉTRICAS GENERALES DE CARTERA */}
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <div className={`p-2.5 ${nestedClass}`}>
+                <p className={`text-[10px] ${mutedClass}`}>
+                  {t('strategicPlanning.avgBudgetPerProject', 'Presupuesto Promedio')}
+                </p>
+                <strong className={`mt-0.5 block text-xs font-semibold ${headingClass}`}>
+                  {formatBudget(portfolioSummary.avgBudget)}
+                </strong>
               </div>
-              <div>
-                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.executed', 'Ejecutado')}</p>
-                <strong className="mt-1 block text-sm text-emerald-600 transition-colors duration-300 dark:text-emerald-400 midnight:text-emerald-300">{formatBudget(executedBudget)}</strong>
-              </div>
-              <div>
-                <p className={`text-[10px] ${mutedClass}`}>{t('strategicPlanning.available', 'Disponible')}</p>
-                <strong className="mt-1 block text-sm text-blue-600 transition-colors duration-300 dark:text-blue-400 midnight:text-blue-400">{formatBudget(availableBudget)}</strong>
+              <div className={`p-2.5 ${nestedClass}`}>
+                <p className={`text-[10px] ${mutedClass}`}>
+                  {t('strategicPlanning.activePortfolioCount', 'Iniciativas en Cartera')}
+                </p>
+                <strong className={`mt-0.5 block text-xs font-semibold ${headingClass}`}>
+                  {portfolioSummary.count}
+                </strong>
               </div>
             </div>
           </section>

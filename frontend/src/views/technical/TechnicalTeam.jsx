@@ -27,6 +27,7 @@ import {
 import projectsApi from '../../services/projectsApi';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { localizeApiErrorMessage } from '../../utils/asyncHandler';
 import {
   cardClass,
   nestedClass,
@@ -356,7 +357,7 @@ export default function TechnicalTeam({
 
   return (
     <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 pb-8">
+      <div className="flex w-full flex-col gap-5 pb-8">
         <PageHeader
           title={t('technicalTeam.pageTitle', 'Gestión del Equipo Técnico')}
           subtitle={t('technicalTeam.pageSubtitle', 'Coordinación de equipos especializados por área técnica')}
@@ -385,7 +386,11 @@ export default function TechnicalTeam({
         </PageHeader>
         <p role="status" className="sr-only">{feedback}</p>
         {syncLoading && <p className={`text-xs ${mutedClass}`}>{t('technicalTeam.syncing', 'Sincronizando con el servidor...')}</p>}
-        {syncError && <InlineAlert variant="error" showIcon>{syncError}</InlineAlert>}
+        {syncError && (
+          <InlineAlert variant="error" showIcon>
+            {localizeApiErrorMessage(syncError, t)}
+          </InlineAlert>
+        )}
         <section className="flex flex-col gap-3 border-b border-slate-200 pb-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30 lg:flex-row lg:items-center lg:justify-between">
           {/* Píldoras de filtro por especialidad */}
           <div className="flex max-w-full gap-2 overflow-x-auto pb-1">

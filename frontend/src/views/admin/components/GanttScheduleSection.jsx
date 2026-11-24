@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SlidersHorizontal, Flag } from 'lucide-react';
 import EmptyState from '../../../components/common/EmptyState';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -26,6 +26,23 @@ export default function GanttScheduleSection({
   const windowStart = `${selectedYear}-01-01`;
   const windowMonths = 12;
 
+  // Pre-indexar hitos por ID de proyecto en O(M) para evitar filtrado O(P * M) en cada fila
+  const milestonesByProjectId = useMemo(() => {
+    const map = new Map();
+    if (Array.isArray(milestones)) {
+      for (const m of milestones) {
+        const pid = String(m.projectId ?? m.project);
+        let list = map.get(pid);
+        if (!list) {
+          list = [];
+          map.set(pid, list);
+        }
+        list.push(m);
+      }
+    }
+    return map;
+  }, [milestones]);
+
   return (
     <section className={`${cardClass} overflow-hidden p-0 md:p-0 print:border print:border-slate-300 print:shadow-none print:bg-white avoid-break`}>
       <div className="overflow-x-auto p-5 md:p-6 print:p-3 print:overflow-visible">
@@ -49,9 +66,7 @@ export default function GanttScheduleSection({
               displayedProjects.map((project) => {
                 const gov = evaluateProjectGovernance(project.totalBudget || project.budget);
                 const isAbove100k = gov.isRequired;
-                const projectMilestones = milestones.filter(
-                  (m) => String(m.projectId) === String(project.id) || String(m.project) === String(project.id)
-                );
+                const projectMilestones = milestonesByProjectId.get(String(project.id)) || [];
 
                 // Cálculo puro de geometría con tolerancia a snake_case/camelCase y fallback legado
                 const sDate = project.startDate || project.start_date;
@@ -85,7 +100,7 @@ export default function GanttScheduleSection({
                       : 'rounded-md';
 
                 return (
-                  <div key={project.name} className="grid min-h-12 grid-cols-[220px_1fr] items-center">
+                  <div key={project.id || project.code || project.name} className="grid min-h-12 grid-cols-[220px_1fr] items-center">
                     <div className="pr-5">
                       <div className="flex items-center gap-1.5">
                         <p className={`text-sm font-semibold truncate ${headingClass}`}>{project.name}</p>

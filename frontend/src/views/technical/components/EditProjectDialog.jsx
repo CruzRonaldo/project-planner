@@ -37,12 +37,15 @@ export default function EditProjectDialog({
     endDate: project.endDate || '',
     totalBudget: project.totalBudget ?? '',
     status: project.status || 'planning',
+    statusReason: project.status_change_reason || project.statusReason || '',
     leaderId: project.leaderId || leadersList[0]?.id || 1,
     driveFolder: project.driveFolder || '',
     description: project.description || '',
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const requiresReason = ['paused', 'stand_by', 'risk', 'cancelled'].includes(draft.status);
 
   const changeField = (field) => (event) => {
     setDraft((current) => ({ ...current, [field]: event.target.value }));
@@ -80,11 +83,16 @@ export default function EditProjectDialog({
       setError('La fecha de entrega debe ser posterior a la fecha de inicio.');
       return;
     }
+    if (requiresReason && !draft.statusReason.trim()) {
+      setError(t('portfolio.statusReasonRequired', 'Debes ingresar el motivo de la decisión para la bitácora de auditoría.'));
+      return;
+    }
 
     await runSafe(
       () =>
         onSubmit(project.id, {
           ...draft,
+          status_change_reason: draft.statusReason.trim(),
           leaderId: !isAdmin
             ? project.leaderId || draft.leaderId
             : draft.leaderId,
@@ -285,6 +293,21 @@ export default function EditProjectDialog({
             ))}
           </select>
         </label>
+
+        {requiresReason && (
+          <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
+            {t('portfolio.statusReasonLabel', 'Motivo del cambio de estado / justificación para auditoría')}{' '}
+            <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
+            <textarea
+              required
+              rows={2}
+              value={draft.statusReason}
+              onChange={changeField('statusReason')}
+              placeholder={t('portfolio.statusReasonPlaceholder', 'Indica el motivo técnico, operativo o financiero por el que se detiene o cancela el proyecto...')}
+              className={`${inputClass} resize-none mt-1`}
+            />
+          </label>
+        )}
 
         <label className="text-xs text-slate-500 dark:text-slate-300 midnight:text-cyan-500/70 sm:col-span-2">
           {t('portfolio.driveFolder', 'Carpeta de Google Drive')}
