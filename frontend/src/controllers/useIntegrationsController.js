@@ -13,7 +13,26 @@ function getStoredIntegrations() {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(INTEGRATIONS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data && Array.isArray(data.integrations)) {
+      data.integrations = data.integrations.map((item) => {
+        if (item.id === 'make' && item.extraConfig?.tasks) {
+          const cleanTasks = item.extraConfig.tasks.filter((t) =>
+            ['two_factor', 'notifications'].includes(t.id)
+          );
+          return {
+            ...item,
+            extraConfig: {
+              ...item.extraConfig,
+              tasks: cleanTasks,
+            },
+          };
+        }
+        return item;
+      });
+    }
+    return data;
   } catch {
     return null;
   }
@@ -282,7 +301,9 @@ export function useIntegrationsController({
     if (!error && response) {
       const res = response;
       if (res.is_configured || (res.tasks && res.tasks.length > 0) || res.webhook_url || res.usage?.configured || res.has_api_token) {
-        const tasksList = res.tasks || [];
+        const tasksList = (res.tasks || []).filter((t) =>
+          ['two_factor', 'notifications'].includes(t.id)
+        );
         const activeConfigured = tasksList.filter(
           (t) => Boolean(t.enabled ?? true) && Boolean(t.endpoint?.trim())
         );

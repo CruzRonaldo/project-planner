@@ -32,8 +32,14 @@ const resolveTaskIcon = (task) => {
   return (task && taskIconMap[task.id]) || Workflow;
 };
 
+const VALID_TASK_IDS = new Set(['two_factor', 'notifications']);
+
 const normalizeTasksWithIcons = (rawTasks) => {
-  if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
+  const filtered = Array.isArray(rawTasks)
+    ? rawTasks.filter((t) => t && VALID_TASK_IDS.has(t.id))
+    : [];
+
+  if (filtered.length === 0) {
     return defaultTasks.map((tItem) => ({
       ...tItem,
       api_token: '',
@@ -42,7 +48,19 @@ const normalizeTasksWithIcons = (rawTasks) => {
       usage: null,
     }));
   }
-  return rawTasks.map((t) => ({
+
+  const taskMap = new Map(filtered.map((t) => [t.id, t]));
+  const fullTasks = defaultTasks.map((defTask) => {
+    const existing = taskMap.get(defTask.id);
+    if (!existing) return defTask;
+    return {
+      ...defTask,
+      ...existing,
+      icon: resolveTaskIcon(existing),
+    };
+  });
+
+  return fullTasks.map((t) => ({
     ...t,
     api_token: t.api_token || '',
     has_api_token: Boolean(t.has_api_token),
