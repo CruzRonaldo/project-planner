@@ -558,7 +558,7 @@ export default function HumanResources({
                   value={sortOrder}
                   onChange={(nextSort) => {
                     setSortOrder(nextSort);
-                    setPageSelection((prev) => ({ ...prev, page: 1 }));
+                    setPageSelection({ query, status: statusFilterKey, sort: nextSort, page: 1 });
                   }}
                   categories={personnelSortCategories}
                   label={t('humanResources.sortLabel', 'Ordenar:')}
@@ -636,7 +636,9 @@ export default function HumanResources({
                 totalItems={filteredMembers.length}
                 pageSize={pageSize}
                 itemLabel={t('humanResources.membersLabel', 'integrantes')}
-                onPageChange={(nextPage) => setPageSelection({ query, status: statusFilterKey, page: nextPage })}
+                onPageChange={(nextPage) =>
+                  setPageSelection({ query, status: statusFilterKey, sort: sortOrder, page: nextPage })
+                }
               />
             </div>
           </section>

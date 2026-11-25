@@ -175,6 +175,12 @@ test('Pagination renderiza navegacion accesible, rango de elementos y estados di
     assert.ok(htmlFirstPage.includes('aria-label="Página anterior"'));
     assert.ok(htmlFirstPage.includes('disabled=""'));
     assert.ok(htmlFirstPage.includes('aria-label="Página siguiente"'));
+    assert.ok(htmlFirstPage.includes('enabled:cursor-pointer'));
+    assert.ok(htmlFirstPage.includes('disabled:cursor-not-allowed'));
+    assert.ok(htmlFirstPage.includes('enabled:hover:bg-slate-100'));
+    assert.ok(htmlFirstPage.includes('dark:enabled:hover:bg-[#21262d]'));
+    assert.ok(htmlFirstPage.includes('midnight:enabled:hover:bg-cyan-950/60'));
+    assert.ok(!htmlFirstPage.includes('disabled:pointer-events-none'));
 
     const htmlLastPage = renderToStaticMarkup(
       React.createElement(Pagination, {
