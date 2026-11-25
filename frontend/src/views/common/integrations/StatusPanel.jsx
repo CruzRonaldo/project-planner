@@ -2,11 +2,35 @@ import React from 'react';
 import EmptyState from '../../../components/common/EmptyState';
 import { cardClass, nestedClass } from './constants';
 import { useLanguage } from '../../../context/LanguageContext';
+import { computeActivityChartPoints } from '../../../utils/integrations';
 
-export default function StatusPanel({ summary, hasActivities = false }) {
+export default function StatusPanel({ summary, activities = [], hasActivities = false }) {
   const { t } = useLanguage();
-  const chartPoints = '0,78 28,62 56,84 84,54 112,31 140,70 168,59 196,47 224,51 252,29 280,39 308,14';
-  const onlinePercent = summary.total > 0 ? Math.round((summary.active / summary.total) * 100) : 0;
+  const chartPoints =
+    computeActivityChartPoints(activities) ||
+    '0,85 28,85 56,85 84,85 112,85 140,85 168,85 196,85 224,85 252,85 280,85 308,85';
+  const onlinePercent =
+    summary.total > 0
+      ? Math.round(((summary.active + (summary.partial || 0) * 0.5) / summary.total) * 100)
+      : 0;
+
+  const uptimeColorClass =
+    summary.uptime >= 95
+      ? 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300'
+      : summary.uptime >= 70
+        ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-300'
+        : summary.uptime > 0
+          ? 'text-red-600 dark:text-red-400 midnight:text-red-300'
+          : 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600';
+
+  const uptimeLabel =
+    summary.uptime > 0
+      ? summary.uptime >= 95
+        ? t('integrations.uptimeExcellent', 'Excelente')
+        : summary.uptime >= 70
+          ? t('integrations.uptimeGood', 'Operativo')
+          : t('integrations.requiresAttention', 'Requiere atención')
+      : t('integrations.noData', 'Sin datos');
 
   return (
     <aside className={`h-full p-5 ${cardClass}`} aria-labelledby="general-status-title">
@@ -49,14 +73,8 @@ export default function StatusPanel({ summary, hasActivities = false }) {
             <strong className="text-2xl text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50">
               {summary.uptime > 0 ? `${summary.uptime.toFixed(1)}%` : '--'}
             </strong>
-            <span
-              className={`text-[10px] ${
-                summary.uptime > 0
-                  ? 'text-emerald-600 dark:text-emerald-400 midnight:text-emerald-300'
-                  : 'text-slate-500 dark:text-slate-400 midnight:text-cyan-600'
-              }`}
-            >
-              {summary.uptime > 0 ? t('integrations.uptimeExcellent', 'Excelente') : t('integrations.noData', 'Sin datos')}
+            <span className={`text-[10px] ${uptimeColorClass}`}>
+              {uptimeLabel}
             </span>
           </div>
         </div>
@@ -138,14 +156,29 @@ export default function StatusPanel({ summary, hasActivities = false }) {
           {t('integrations.slaTitle', 'SLA y Mantenimiento')}
         </h3>
         <div className="mt-3 space-y-2 text-[10px] text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70">
-          <p className="flex items-center gap-2">
-            <i className="h-2 w-2 rounded-full bg-emerald-400" /> {t('integrations.slaOperational', 'Operacional (sin incidencias)')}
+          <p className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <i className="h-2 w-2 rounded-full bg-emerald-400" /> {t('integrations.slaOperational', 'Operacional (sin incidencias)')}
+            </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
+              {summary.connected ?? summary.active ?? 0}
+            </span>
           </p>
-          <p className="flex items-center gap-2">
-            <i className="h-2 w-2 rounded-full bg-amber-400" /> {t('integrations.slaDegraded', 'Rendimiento degradado')}
+          <p className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <i className="h-2 w-2 rounded-full bg-amber-400" /> {t('integrations.slaDegraded', 'Rendimiento degradado')}
+            </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
+              {summary.partial ?? 0}
+            </span>
           </p>
-          <p className="flex items-center gap-2">
-            <i className="h-2 w-2 rounded-full bg-red-400" /> {t('integrations.slaOutage', 'Interrupción del servicio')}
+          <p className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2">
+              <i className="h-2 w-2 rounded-full bg-red-400" /> {t('integrations.slaOutage', 'Interrupción del servicio')}
+            </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200 midnight:text-cyan-100">
+              {summary.offline ?? 0}
+            </span>
           </p>
         </div>
       </div>

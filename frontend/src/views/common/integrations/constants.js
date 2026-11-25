@@ -34,6 +34,15 @@ export const resolveLastActivity = (act, t) => {
   if (!act || act === 'Sin actividad') return t('integrations.noActivity', 'Sin actividad');
   if (act === 'Sin conexión') return t('integrations.noConnection', 'Sin conexión');
   if (act === 'Verificado ahora') return t('integrations.verifiedNow', 'Verificado ahora');
+  if (typeof act === 'string' && (act === 'Nunca' || act.toLowerCase() === 'nunca' || act.toLowerCase() === 'never')) {
+    return t('integrations.never', 'Nunca');
+  }
+  if (typeof act === 'string' && (act.toLowerCase() === 'hace un momento' || act.toLowerCase() === 'just now')) {
+    return t('integrations.justNow', 'Hace un momento');
+  }
+  if (typeof act === 'string' && (act.toLowerCase() === 'reciente' || act.toLowerCase() === 'recent')) {
+    return t('integrations.recent', 'Reciente');
+  }
   if (act === 'Hace 10 minutos') return t('integrations.tenMinutesAgo', 'Hace 10 minutos');
   if (act === 'Hace 1 hora') return t('integrations.oneHourAgo', 'Hace 1 hora');
   if (act === 'Hace 2 horas') return t('integrations.twoHoursAgo', 'Hace 2 horas');

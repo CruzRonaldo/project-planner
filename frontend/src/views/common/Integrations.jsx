@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   filterIntegrations,
   summarizeIntegrations,
-  testIntegration,
   updateIntegration,
 } from '../../utils/integrations';
 import {
@@ -10,11 +9,9 @@ import {
   updateRevitStatus,
 } from '../../controllers';
 import api, { baseURL as apiBaseUrl } from '../../services/api';
-import { makeApi } from '../../services/makeApi';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { runSafe } from '../../utils/asyncHandler';
-import ModalDialog from '../../components/common/ModalDialog';
 import PageHeader from '../../components/common/PageHeader';
 import RevitModal from './components/RevitModal';
 import {
@@ -157,39 +154,6 @@ export default function Integrations({
     });
   };
 
-  const test = async (integrationId, customEndpoint) => {
-    if (integrationId === 'drive') {
-      await refreshGoogleDrive(true);
-      return;
-    }
-
-    if (integrationId === 'make') {
-      const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
-      const [res, error] = await runSafe(
-        () => makeApi.testConnection(webhookUrl),
-        {
-          showToast,
-          successTitle: 'Conexión con Make Exitosa',
-          successMessage: (r) => r?.message || 'El webhook de Make respondió correctamente.',
-          fallbackError: 'Error de conexión con el webhook de Make.',
-        }
-      );
-      if (!error && res) {
-        onChange(testIntegration(data, integrationId));
-        setSelectedId(null);
-      }
-      return;
-    }
-
-    onChange(testIntegration(data, integrationId));
-    setSelectedId(null);
-    showToast({
-      title: t('toasts.testCompleted', 'Prueba Completada'),
-      message: t('toasts.testCompletedMsg', 'La integración se marcó como conectada en la sesión actual.'),
-      type: 'info',
-    });
-  };
-
   const connectGoogleDrive = () => {
     window.open(
       googleDriveConnectUrl,
@@ -209,11 +173,7 @@ export default function Integrations({
         <PageHeader
           title={t('integrations.pageTitle', 'Integraciones')}
           subtitle={t('integrations.pageSubtitle', 'Conectividad con servicios externos y automatización')}
-        >
-          <span className="w-fit rounded-md border border-slate-300 px-2.5 py-1.5 text-[10px] text-slate-500 transition-colors duration-300 dark:border-[#30363d] dark:text-slate-400 midnight:border-cyan-800/40 midnight:text-cyan-600">
-            {t('integrations.demoNote', 'Google Drive real · Otras integraciones en demostración')}
-          </span>
-        </PageHeader>
+        />
 
         <p
           role="status"
@@ -241,26 +201,6 @@ export default function Integrations({
             integration={selected}
             onSave={save}
           />
-        )}
-
-        {selected && selected.id !== 'drive' && selected.id !== 'make' && selected.id !== 'revit' && (
-          <ModalDialog
-            isOpen={Boolean(selected)}
-            onClose={() => setSelectedId(null)}
-            title={t('integrations.configureIntegration', 'Configurar {name}', { name: selected.name })}
-            subtitle={t('integrations.integrationSettings', 'Ajustes de integración')}
-            showFooter={false}
-          >
-            <IntegrationEditor
-              key={selected.id}
-              integration={selected}
-              onSave={save}
-              onTest={test}
-              onConnect={connectGoogleDrive}
-              onCancel={() => setSelectedId(null)}
-              testing={false}
-            />
-          </ModalDialog>
         )}
 
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
@@ -298,7 +238,8 @@ export default function Integrations({
 
           <StatusPanel
             summary={summary}
-            hasActivities={(data?.activities?.length ?? 0) > 0}
+            activities={visibleData?.activities || []}
+            hasActivities={(visibleData?.activities?.length ?? 0) > 0}
           />
         </div>
       </div>

@@ -1119,7 +1119,11 @@
     "gap_desc": "Mayor desfase",
     "gap_asc": "Menor desfase",
     "cpm_desc": "Más tareas CPM vencidas",
-    "cpm_asc": "Menos tareas CPM vencidas"
+    "cpm_asc": "Menos tareas CPM vencidas",
+    "activity-date-desc": "Más recientes",
+    "activity-date-asc": "Más antiguas",
+    "activity-status-desc": "Errores primero",
+    "activity-status-asc": "Exitosas primero"
   },
   "toasts": {
     "Orden Emitida": "Orden Emitida",
@@ -1256,7 +1260,12 @@
     "projectDeleteError": "Error al eliminar el proyecto.",
     "¡Proyecto Creado con Éxito!": "¡Proyecto Creado con Éxito!",
     "¡Proyecto Actualizado!": "¡Proyecto Actualizado!",
-    "No se ha configurado ninguna URL de webhook para Make.": "No se ha configurado ninguna URL de webhook para Make."
+    "No se ha configurado ninguna URL de webhook para Make.": "No se ha configurado ninguna URL de webhook para Make.",
+    "loadFilesError": "No se pudieron cargar los archivos de Google Drive.",
+    "createFolderError": "No se pudo crear la carpeta de Google Drive.",
+    "uploadFileError": "No se pudo subir el archivo a Google Drive.",
+    "renameError": "No se pudo cambiar el nombre del elemento.",
+    "deleteDriveError": "No se pudo eliminar el elemento de Google Drive."
   },
   "rolesManagement": {
     "title": "Administración de roles",
@@ -1328,7 +1337,6 @@
   "integrations": {
     "pageTitle": "Integraciones",
     "pageSubtitle": "Conectividad con servicios externos y automatización",
-    "demoNote": "Google Drive real · Otras integraciones en demostración",
     "searchPlaceholder": "Buscar integraciones...",
     "integratedServicesAria": "Servicios integrados",
     "noIntegrationsFound": "No se encontraron integraciones con esa búsqueda.",
@@ -1345,6 +1353,7 @@
     "totalAvailable": "Disponibles",
     "totalIssues": "Con advertencia",
     "activityListTitle": "Registro de Actividad de Integraciones",
+    "activitiesLabel": "actividades",
     "noActivities": "No hay actividad que coincida con la búsqueda.",
     "clearFilter": "Limpiar filtro",
     "testConnection": "Probar conexión",
@@ -1381,10 +1390,14 @@
     "noActivity": "Sin actividad",
     "noConnection": "Sin conexión",
     "verifiedNow": "Verificado ahora",
+    "never": "Nunca",
+    "justNow": "Hace un momento",
+    "recent": "Reciente",
     "tenMinutesAgo": "Hace 10 minutos",
     "oneHourAgo": "Hace 1 hora",
     "twoHoursAgo": "Hace 2 horas",
     "uptimeExcellent": "Excelente",
+    "uptimeGood": "Operativo",
     "noData": "Sin datos",
     "requiresAttention": "Requiere atención",
     "noIncidents": "Sin incidencias",
@@ -1434,7 +1447,7 @@
     "inactive": "Inactivo",
     "testing": "Probando...",
     "automationGeneralStatus": "Estado general de automatización",
-    "activeTasksCount": "{active} de {total} tareas activas",
+    "activeTasksCount": "{active} de {total} tareas configuradas",
     "activeScenarios": "Escenarios Activos",
     "taskName": "Nombre de la Tarea",
     "driveSubtitleNotice": "Estado consultado directamente desde Google Drive mediante Django.",
@@ -1449,6 +1462,29 @@
     "freq_Cada_10_min": "Cada 10 min",
     "freq_Cada_30_min": "Cada 30 min",
     "freq_Cada_hora": "Cada hora",
+    "freq_Tiempo_real": "Tiempo real",
+    "modeRealtime": "Modo: Tiempo real por evento",
+    "advancedSettings": "Ajustes avanzados",
+    "makeApiTokenLabel": "Make API Token (Opcional)",
+    "makeApiTokenHelp": "Opcional: Token generado en Make.com (Perfil → API Tokens) para consultar automáticamente el límite y consumo real de operaciones de tu cuenta.",
+    "makeTaskApiTokenLabel": "Make API Token (Opcional)",
+    "makeTaskApiTokenHelp": "Opcional: Token para consultar el saldo de operaciones de la cuenta de Make vinculada a esta tarea.",
+    "makeTaskApiTokenConfigured": "Token configurado",
+    "taskTokenSettingsAria": "Ajustes de token para {name}",
+    "makeApiTokenPlaceholder": "Ingresa tu token de API de Make",
+    "makeApiTokenStoredPlaceholder": "Token configurado en el servidor (ingresa uno nuevo para reemplazar)",
+    "clearApiToken": "Eliminar token",
+    "apiTokenConfigured": "Token API configurado",
+    "accountPaused": "Cuenta pausada en Make por límite excedido ({used} ops)",
+    "creditsAvailable": "Créditos disponibles",
+    "operations": "ops",
+    "invalidUrlTitle": "URL Inválida",
+    "invalidUrlMsg": "El webhook de {name} debe comenzar con http:// o https://.",
+    "webhookConnectedTitle": "Webhook {name} Conectado",
+    "webhookConnectedMsg": "El escenario de Make para {name} respondió con éxito.",
+    "webhookConnectError": "No se pudo conectar con el webhook de {name}.",
+    "makeConfigSaved": "Configuración de Make persistida correctamente.",
+    "makeConfigSaveError": "Error al persistir en el servidor.",
     "bimVaultTitle": "Bóveda BIM Colaborativa (APS)",
     "bimVaultSubtitle": "Gestiona y visualiza modelos 3D compartidos con todo el equipo.",
     "integrationStatusLabel": "Estado de la integración",
@@ -1472,7 +1508,14 @@
     "unknownUploader": "Desconocido",
     "confirmDeleteTitle": "Confirmar eliminación",
     "confirmDeleteDesc": "¿Estás seguro de que deseas eliminar este modelo de la bóveda? Esta acción no se puede deshacer.",
-    "vaultNotice": "Bóveda colaborativa. Los archivos están disponibles para todos los miembros con acceso."
+    "vaultNotice": "Bóveda colaborativa. Los archivos están disponibles para todos los miembros con acceso.",
+    "warningTitle": "Advertencia de Notificaciones",
+    "makeDeactivationWarning": "Hay tareas o escenarios desactivados. Los eventos asociados no se enviarán a Make ni a los canales de correo externos.",
+    "allConnections": "Todas las conexiones",
+    "filterByConnectionAria": "Filtrar actividades por conexión",
+    "sortActivitiesAria": "Ordenar actividades de integración",
+    "renamePrompt": "Nuevo nombre del elemento:",
+    "deleteConfirm": "¿Deseas enviar \"{name}\" a la papelera de Google Drive?"
   },
   "manual": {
     "pageTitle": "Manual de Usuario",
@@ -1541,9 +1584,9 @@
         "summary": "Matriz de asignación de carga laboral, registro y resolución de incidencias y exportación a Excel."
       },
       "08-integraciones": {
-        "title": "Integraciones Externas y Servicios",
+        "title": "Integraciones y Servicios Cloud",
         "shortTitle": "Integraciones",
-        "summary": "Conexión con Make (Integromat), repositorio documental en Google Drive y visor 3D Autodesk BIM/APS."
+        "summary": "Google Drive OAuth, visor 3D Autodesk APS/Revit, webhooks agnósticos con Make, monitoreo de créditos y auditoría global."
       },
       "09-auditoria-periodica": {
         "title": "Auditoría Periódica de Proyectos",
@@ -1565,12 +1608,7 @@
         "shortTitle": "Notificaciones",
         "summary": "Arquitectura multicanal de alertas (Toasts instantáneos, centro in-app en barra superior y Webhooks)."
       },
-      "13-make-webhooks": {
-        "title": "Automatizaciones y Webhooks con Make",
-        "shortTitle": "Make & Webhooks",
-        "summary": "Arquitectura de Django Signals, despacho asíncrono con transaction.on_commit y escenarios en Make."
-      },
-      "14-soporte": {
+      "13-soporte": {
         "title": "Resolución de Problemas y Soporte",
         "shortTitle": "Soporte y FAQs",
         "summary": "Matriz de resolución rápida de errores, escalamiento por niveles y buenas prácticas operativas."

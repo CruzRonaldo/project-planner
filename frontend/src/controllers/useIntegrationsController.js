@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api, { baseURL as apiBaseUrl } from '../services/api';
 import { makeApi } from '../services/makeApi';
-import { createIntegrationsData } from '../mocks';
 import { runSafe } from '../utils/asyncHandler';
 import {
   updateIntegration,
@@ -43,13 +42,13 @@ export function createEmptyIntegrations() {
         icon: 'cloud',
         status: 'offline',
         description: 'Sincronización de documentación y planos en la nube.',
-        endpoint: 'Carpeta /Project Planner',
+        endpoint: 'Sin cuenta conectada',
         frequency: 'Cada 10 min',
         errors: 0,
         lastActivity: 'Sin actividad',
         metrics: [
-          { key: 'files', value: 0, label: 'archivos' },
-          { key: 'projects', value: 0, label: 'proyectos' },
+          { key: 'account', value: 0, label: 'cuentas conectadas' },
+          { key: 'api', value: 'Pendiente', label: 'Google Drive API' },
         ],
       },
       {
@@ -58,13 +57,13 @@ export function createEmptyIntegrations() {
         icon: 'model',
         status: 'offline',
         description: 'Importación de datos de modelado 3D BIM.',
-        endpoint: 'BIM 360 / Modelos',
+        endpoint: 'Bóveda BIM Colaborativa',
         frequency: 'Cada hora',
         errors: 0,
         lastActivity: 'Sin actividad',
         metrics: [
-          { key: 'models', value: 0, label: 'modelos' },
-          { key: 'sync', value: '-', label: 'última sync' },
+          { key: 'models', value: 0, label: 'modelos activos' },
+          { key: 'api', value: 'Pendiente', label: 'Estado API' },
         ],
       },
       {
@@ -73,8 +72,8 @@ export function createEmptyIntegrations() {
         icon: 'automation',
         status: 'offline',
         description: 'Automatización de procesos y conexión con servicios de terceros.',
-        endpoint: 'Escenarios / Operaciones',
-        frequency: 'Cada 30 min',
+        endpoint: 'Sin webhook configurado',
+        frequency: 'Tiempo real',
         errors: 0,
         lastActivity: 'Sin actividad',
         metrics: [
@@ -187,15 +186,26 @@ export function updateRevitStatus(data, revitStatus) {
  * @returns {Object} Estados y operaciones de conectores externos
  */
 export function useIntegrationsController({
-  hideMocks = false,
+  hideMocks: _hideMocks = false,
   showToast,
 } = {}) {
   const [integrationsData, setIntegrationsData] = useState(() => {
     const stored = getStoredIntegrations();
     if (stored && Array.isArray(stored.integrations) && stored.integrations.length > 0) {
-      return stored;
+      // Detect and purge old mock seed data (e.g., hardcoded 99.84 uptime or "Torre Reforma" activities)
+      const hasMockArtifacts =
+        stored.uptime === 99.84 ||
+        (Array.isArray(stored.activities) &&
+          stored.activities.some(
+            (a) =>
+              typeof a?.title === 'string' &&
+              (a.title.includes('Torre Reforma') || a.title.includes('Subestación'))
+          ));
+      if (!hasMockArtifacts) {
+        return stored;
+      }
     }
-    return hideMocks ? createEmptyIntegrations() : createIntegrationsData();
+    return createEmptyIntegrations();
   });
   const [integrationsQuery, setIntegrationsQuery] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -271,7 +281,21 @@ export function useIntegrationsController({
     );
     if (!error && response) {
       const res = response;
-      if (res.is_configured || (res.tasks && res.tasks.length > 0) || res.webhook_url) {
+      if (res.is_configured || (res.tasks && res.tasks.length > 0) || res.webhook_url || res.usage?.configured || res.has_api_token) {
+        const tasksList = res.tasks || [];
+        const activeConfigured = tasksList.filter(
+          (t) => Boolean(t.enabled ?? true) && Boolean(t.endpoint?.trim())
+        );
+        const withErrors = tasksList.filter(
+          (t) =>
+            Boolean(t.enabled ?? true) &&
+            Boolean(t.endpoint?.trim()) &&
+            Boolean(t.usage?.is_paused || t.usage?.error)
+        );
+        const metrics = [
+          { key: 'scenarios', value: activeConfigured.length, label: 'escenarios' },
+          { key: 'errors', value: withErrors.length, label: 'con error' },
+        ];
         setIntegrationsData((prev) => {
           const integrations = (prev?.integrations || []).map((item) => {
             if (item.id !== 'make') return item;
@@ -284,9 +308,14 @@ export function useIntegrationsController({
               status: res.status || (res.is_configured ? 'connected' : item.status),
               frequency: res.frequency || item.frequency,
               endpoint: endpoint,
+              errors: withErrors.length,
+              metrics,
               extraConfig: {
-                tasks: res.tasks || [],
+                ...item.extraConfig,
+                tasks: tasksList,
                 primaryUrl: res.webhook_url || '',
+                usage: res.usage || null,
+                hasApiToken: Boolean(res.has_api_token),
               },
             };
           });

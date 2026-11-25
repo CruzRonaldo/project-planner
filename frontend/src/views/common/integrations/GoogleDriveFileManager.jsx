@@ -48,7 +48,7 @@ export default function GoogleDriveFileManager({ connected }) {
       {
         setLoading,
         showToast,
-        fallbackError: 'No se pudieron cargar los archivos de Google Drive.',
+        fallbackError: t('toasts.loadFilesError', 'No se pudieron cargar los archivos de Google Drive.'),
       }
     );
 
@@ -124,7 +124,7 @@ export default function GoogleDriveFileManager({ connected }) {
         showToast,
         successTitle: t('toasts.folderCreated', 'Carpeta Creada'),
         successMessage: t('toasts.folderCreatedMsg', `Carpeta "${cleanName}" creada correctamente.`, { name: cleanName }),
-        fallbackError: 'No se pudo crear la carpeta de Google Drive.',
+        fallbackError: t('toasts.createFolderError', 'No se pudo crear la carpeta de Google Drive.'),
       }
     );
 
@@ -160,7 +160,7 @@ export default function GoogleDriveFileManager({ connected }) {
         showToast,
         successTitle: t('toasts.fileUploaded', 'Archivo Subido'),
         successMessage: t('toasts.fileUploadedMsg', `"${selectedFile.name}" subido con éxito a Google Drive.`, { name: selectedFile.name }),
-        fallbackError: 'No se pudo subir el archivo a Google Drive.',
+        fallbackError: t('toasts.uploadFileError', 'No se pudo subir el archivo a Google Drive.'),
       }
     );
 
@@ -171,7 +171,8 @@ export default function GoogleDriveFileManager({ connected }) {
   };
 
   const renameDriveItem = async (item) => {
-    const newName = window.prompt('Nuevo nombre:', item.name)?.trim();
+    const promptMessage = t('integrations.renamePrompt', 'Nuevo nombre:', { name: item.name });
+    const newName = window.prompt(promptMessage, item.name)?.trim();
     if (!newName || newName === item.name) return;
 
     const [, err] = await runSafe(
@@ -184,7 +185,7 @@ export default function GoogleDriveFileManager({ connected }) {
         showToast,
         successTitle: t('toasts.itemRenamed', 'Elemento Renombrado'),
         successMessage: t('toasts.itemRenamedMsg', `Se actualizó el nombre a "${newName}".`, { name: newName }),
-        fallbackError: 'No se pudo cambiar el nombre del elemento.',
+        fallbackError: t('toasts.renameError', 'No se pudo cambiar el nombre del elemento.'),
       }
     );
 
@@ -194,9 +195,12 @@ export default function GoogleDriveFileManager({ connected }) {
   };
 
   const deleteDriveItem = async (item) => {
-    const confirmed = window.confirm(
-      `¿Deseas enviar "${item.name}" a la papelera de Google Drive?`
+    const confirmMessage = t(
+      'integrations.deleteConfirm',
+      `¿Deseas enviar "${item.name}" a la papelera de Google Drive?`,
+      { name: item.name }
     );
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
 
     const [, err] = await runSafe(
@@ -206,7 +210,7 @@ export default function GoogleDriveFileManager({ connected }) {
         showToast,
         successTitle: t('toasts.itemDeleted', 'Elemento Eliminado'),
         successMessage: t('toasts.itemDeletedMsg', `"${item.name}" fue enviado a la papelera.`, { name: item.name }),
-        fallbackError: 'No se pudo eliminar el elemento de Google Drive.',
+        fallbackError: t('toasts.deleteDriveError', 'No se pudo eliminar el elemento de Google Drive.'),
       }
     );
 
