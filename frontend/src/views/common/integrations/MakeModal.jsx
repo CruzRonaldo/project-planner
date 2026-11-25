@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   RotateCw,
   Save,
-  ShieldAlert,
   Workflow,
   Zap,
 } from 'lucide-react';
@@ -24,7 +23,6 @@ import IntegrationStatus from './IntegrationStatus';
 const taskIconMap = {
   two_factor: Lock,
   notifications: Bell,
-  governance: ShieldAlert,
 };
 
 const resolveTaskIcon = (task) => {
@@ -76,19 +74,6 @@ const defaultTasks = [
     event: 'project.assignment',
     endpoint: '',
     enabled: true,
-    api_token: '',
-    has_api_token: false,
-    clear_api_token: false,
-    usage: null,
-  },
-  {
-    id: 'governance',
-    name: 'Gobernanza Presupuestaria ($100k)',
-    description: 'Avisos automáticos cuando un proyecto iguala o supera el umbral de $100k.',
-    icon: ShieldAlert,
-    event: 'governance.budget_alert',
-    endpoint: '',
-    enabled: false,
     api_token: '',
     has_api_token: false,
     clear_api_token: false,

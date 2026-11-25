@@ -1447,8 +1447,6 @@
     "makeTask_two_factor_desc": "Envío de códigos OTP por correo o SMS durante el inicio de sesión.",
     "makeTask_notifications_name": "Notificaciones y Asignaciones",
     "makeTask_notifications_desc": "Alertas en tiempo real al asignar personal técnico o modificar hitos.",
-    "makeTask_governance_name": "Gobernanza Presupuestaria ($100k)",
-    "makeTask_governance_desc": "Avisos automáticos cuando un proyecto iguala o supera el umbral de $100k.",
     "active": "Activo",
     "inactive": "Inactivo",
     "testing": "Probando...",

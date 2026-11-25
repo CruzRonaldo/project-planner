@@ -79,24 +79,60 @@ The **Autodesk Platform Services (APS) / Revit** connector provides a collaborat
 
 Project Planner dispatches real-time automated notifications and events through a **standard HTTP POST webhook bus**. This per-task decoupled architecture does not rely on a single fixed connection or shared global credentials, allowing each **Make** scenario to be managed independently.
 
-If a Make account exhausts its monthly operations quota, or if different areas of the organization operate with separate Make accounts (for example, one account dedicated to 2FA authentication and another separate account for operational notifications or financial governance), the Administrator can **replace or rotate the webhook URL and optional API token at any time** in each task card, without touching source code or restarting services.
+If a Make account exhausts its monthly operations quota, or if different areas of the organization operate with separate Make accounts (for example, one account dedicated to 2FA authentication and another separate account for operational notifications), the Administrator can **replace or rotate the webhook URL and optional API token at any time** in each task card, without touching source code or restarting services.
 
 #### Scope by Platform Role
 - **For the Administrator:** Exclusive technical management: enabling or disabling tasks, configuring and rotating Make webhook URLs, assigning and rotating optional API tokens for operations monitoring, running individual diagnostic tests, and verifying audit trails in `SecurityAuditLog`.
 - **For the Technical Team:** Read-only consultation and operational monitoring visibility: checking service connectivity status, monitoring that their project events are dispatched properly, and reviewing the recent activity log, without permissions to modify credentials or endpoints.
 
-The platform emits standard JSON payloads across these operational events:
+### Activation Scenarios and Payloads (Make Events)
 
-1. **Two-Factor Authentication (`auth.two_factor`):**  
-   Dispatches temporary OTP codes via email or SMS during secure login.
-2. **Notifications & Assignments (`project.created`, `project.leader_assigned`, `task.assigned` / `project.assignment`):**  
-   Real-time alerts when creating a project, assigning or changing the lead engineer, or issuing a work order.
-3. **$100k Budget Governance Alert (`governance.budget_alert`):**  
-   Mandatory preventive alert triggered whenever a project meets or exceeds $100,000 USD in budget for Steering Committee review.
+The platform emits standard JSON payloads in real time across specific operational and security scenarios. These events are routed through the two configured tasks in the modal (**2FA** and **Notifications & Assignments**) or through dedicated endpoints when configured on the server:
+
+#### 1. Authentication and Security
+* **Two-Factor Authentication (`auth.two_factor`):**  
+  * **When it triggers:** During login when the user has 2FA enabled or conditional bypass active.  
+  * **Dispatched data:** Temporary OTP code, recipient user email, and expiration window.  
+* **Password Change Security Alert (`auth.password_changed`):**  
+  * **When it triggers:** Immediately after a user successfully updates or resets their password.  
+  * **Dispatched data:** User identifier, full name, email, client IP address, browser User-Agent, and active session revocation confirmation (`sessions_invalidated: true`).  
+* **Email Address Change Security Alert (`auth.email_changed`):**  
+  * **When it triggers:** Whenever a user modifies their email address in their profile settings.  
+  * **Dispatched data:** User identifier, previous email (`old_email`), new email (`new_email`), client IP address, and preventive session revocation.
+
+#### 2. Project Operations and Field Work
+* **Project Registration (`project.created`):**  
+  * **When it triggers:** Upon registering and saving a new project in Portfolio.  
+  * **Dispatched data:** Project code, name, allocated budget, start/end dates, and assigned lead engineer.  
+* **Lead Engineer Assignment or Reassignment (`project.leader_assigned`):**  
+  * **When it triggers:** When appointing for the first time or replacing the Lead Engineer responsible for a project.  
+  * **Dispatched data:** Leader name, corporate email, technical area, project name/code, and authorizer details.  
+* **Work Order / Task Assignment (`task.assigned`):**  
+  * **When it triggers:** When creating or rescheduling a task or reassigning its technical specialist in Operations.  
+  * **Dispatched data:** Task title, assignee name, email, deadlines, priority, Critical Path status, and associated project.
+
+#### 3. Technical Staff Directory and Transfers
+* **New Technical Member Registration (`member.created`):**  
+  * **When it triggers:** When adding a new technician, engineer, or specialist in Team Directory.  
+  * **Dispatched data:** Full name, email, professional role, specialty area, availability percentage, and initial project assignment.  
+* **Operational Technician Reassignment (`member.reassigned`):**  
+  * **When it triggers:** Whenever an operational technician is transferred between projects.  
+  * **Dispatched data:** Technician name, previous project (`previous_project_name`), destination project (`new_project_name`), receiving lead engineer email, and allocation percentage.
+
+#### 4. Strategic Milestones, Notices and Incidents
+* **Global Milestone Creation (`milestone.created`):**  
+  * **When it triggers:** When scheduling a key municipal, structural, or contractual milestone in Strategic Planning.  
+  * **Dispatched data:** Milestone title, commitment date (`due_date`), project details, lead engineer, and consolidated team email list (`team_emails`).  
+* **Personnel Incident Registration (`incident.registered`):**  
+  * **When it triggers:** When registering a medical leave, legal permit, or temporary absence in Human Resources.  
+  * **Dispatched data:** Incident type (medical-leave, etc.), start and end dates, reason, affected technician, designated backup member, and lead engineer email.  
+* **Video Conference Scheduling (`meeting.created`):**  
+  * **When it triggers:** When organizing a collaborative virtual session in Jitsi for a project.  
+  * **Dispatched data:** Meeting title, encrypted room name, direct access URL (`meeting_url`), scheduled timestamp, and invited team emails.
 
 ### Per-Task Configuration and Test Buttons
 
-The **Multitask Configuration of Make** modal independently manages each of the three operational scenarios (**2FA**, **Notifications & Assignments**, and **$100k Budget Governance**). Each task card includes:
+The **Multitask Configuration of Make** modal independently manages each of the two operational scenarios (**2FA** and **Notifications & Assignments**). Each task card includes:
 
 - **Independent toggle (*Active / Inactive*):** enables or pauses event dispatch for that specific task without affecting the others.
 - **Individual endpoint:** dedicated input field for the target webhook URL (`https://...`).
@@ -136,7 +172,7 @@ Upon saving or reopening the panel:
 - It displays a **progress bar** with the available credit percentage and exact balance (`available / limit ops`).
 - When credits reach **0%**, the bar turns red and displays the alert **Account paused in Make due to exceeded limit**.
 
-> **Multi-account and rotation support:** the **`···`** button is independent per task card. You can bind different Make accounts to 2FA, Notifications, or Governance, or rotate smoothly to another account if one exhausts its monthly quota. To unlink a token, open **`···`** and select **Remove token**.
+> **Multi-account and rotation support:** the **`···`** button is independent per task card. You can bind different Make accounts to 2FA or Notifications, or rotate smoothly to another account if one exhausts its monthly quota. To unlink a token, open **`···`** and select **Remove token**.
 
 ### Connect Destination Channels in Make.com
 1. In your **Make.com** account, open the scenario linked to the Project Planner webhook.

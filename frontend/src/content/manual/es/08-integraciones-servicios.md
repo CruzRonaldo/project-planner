@@ -79,24 +79,60 @@ El conector de **Autodesk Platform Services (APS) / Revit** integra una bóveda 
 
 Project Planner despacha notificaciones y eventos automáticos en tiempo real mediante un **bus de webhooks estándar HTTP POST**. Esta arquitectura desacoplada por tarea no depende de una única conexión fija ni de credenciales globales compartidas, lo que permite administrar cada escenario de **Make** de forma independiente.
 
-Si una cuenta de Make agota su cuota mensual de operaciones, o si distintas áreas de la organización operan con cuentas separadas de Make (por ejemplo, una cuenta dedicada para autenticación 2FA y otra cuenta independiente para notificaciones operativas o gobernanza financiera), el Administrador puede **sustituir o rotar en cualquier momento la URL del webhook y el token API opcional** en cada recuadro de tarea, sin tocar el código fuente ni reiniciar servicios.
+Si una cuenta de Make agota su cuota mensual de operaciones, o si distintas áreas de la organización operan con cuentas separadas de Make (por ejemplo, una cuenta dedicada para autenticación 2FA y otra cuenta independiente para notificaciones operativas), el Administrador puede **sustituir o rotar en cualquier momento la URL del webhook y el token API opcional** en cada recuadro de tarea, sin tocar el código fuente ni reiniciar servicios.
 
 #### Alcance según su rol en la plataforma
 - **Para el Administrador:** Gestión técnica exclusiva: activación o desactivación de tareas, configuración y rotación de URLs de Make, asignación y rotación de tokens API opcionales para monitoreo de operaciones, pruebas individuales de diagnóstico y verificación de auditoría en `SecurityAuditLog`.
 - **Para el Equipo Técnico:** Visibilidad de consulta y monitoreo operativo: comprobar el estado de conectividad de los servicios, supervisar que los eventos de sus proyectos se envíen correctamente y revisar la bitácora de actividad reciente, sin permisos para modificar credenciales ni endpoints.
 
-El sistema emite cargas JSON estándar ante los siguientes eventos operativos:
+### Escenarios de Activación y Cargas Útiles (Eventos Make)
 
-1. **Autenticación de 2 Factores (`auth.two_factor`):**  
-   Envío de códigos OTP temporales por correo o SMS durante el inicio de sesión seguro.
-2. **Notificaciones y Asignaciones (`project.created`, `project.leader_assigned`, `task.assigned` / `project.assignment`):**  
-   Alertas en tiempo real al registrar una obra, asignar o cambiar al líder técnico, o emitir una orden de trabajo.
-3. **Gobernanza Presupuestaria ($100k) (`governance.budget_alert`):**  
-   Alerta preventiva obligatoria que se activa cuando una obra iguala o supera los $100.000 USD de presupuesto para revisión del Comité Directivo.
+El sistema emite cargas JSON en tiempo real ante escenarios operativos y de seguridad específicos. Estos eventos se canalizan a través de las dos tareas configuradas en el modal (**2FA** y **Notificaciones y Asignaciones**) o mediante endpoints dedicados si están configurados en el servidor:
+
+#### 1. Autenticación y Seguridad
+* **Autenticación de 2 Factores (`auth.two_factor`):**  
+  * **Cuándo se activa:** Al iniciar sesión cuando el usuario tiene activo 2FA o bypass condicional.  
+  * **Datos emitidos:** Código OTP temporal, correo del usuario destinatario y tiempo de expiración.  
+* **Alerta de Cambio de Contraseña (`auth.password_changed`):**  
+  * **Cuándo se activa:** Inmediatamente después de que un usuario modifica o restablece exitosamente su contraseña.  
+  * **Datos emitidos:** Identificador y nombre del usuario, correo electrónico, dirección IP, agente de navegador (*User-Agent*) y confirmación de sesiones revocadas (`sessions_invalidated: true`).  
+* **Alerta de Cambio de Correo Electrónico (`auth.email_changed`):**  
+  * **Cuándo se activa:** Cuando un usuario actualiza su dirección de correo en su perfil.  
+  * **Datos emitidos:** Identificador de usuario, correo electrónico anterior (`old_email`), correo electrónico nuevo (`new_email`), dirección IP y revocación preventiva de sesiones activas.
+
+#### 2. Gestión Operativa de Proyectos y Obras
+* **Alta de Proyecto u Obra (`project.created`):**  
+  * **Cuándo se activa:** Al registrar y guardar una nueva obra en el Portafolio.  
+  * **Datos emitidos:** Código de obra, nombre del proyecto, presupuesto asignado, fecha de inicio/fin y líder asignado.  
+* **Designación o Relevo de Líder Técnico (`project.leader_assigned`):**  
+  * **Cuándo se activa:** Al nombrar por primera vez o reasignar al Líder Técnico responsable de un proyecto.  
+  * **Datos emitidos:** Nombre del líder, correo corporativo, área técnica, nombre y código del proyecto y usuario que autorizó el nombramiento.  
+* **Asignación de Tarea u Orden de Trabajo (`task.assigned`):**  
+  * **Cuándo se activa:** Al emitir o programar una nueva tarea operativa o cambiar su especialista responsable en Operaciones.  
+  * **Datos emitidos:** Título de la tarea, especialista asignado, correo, fechas límites, prioridad, criticidad en ruta crítica (*Critical Path*) y proyecto asociado.
+
+#### 3. Directorio de Personal y Reasignaciones
+* **Registro de Nuevo Miembro Técnico (`member.created`):**  
+  * **Cuándo se activa:** Al dar de alta a un nuevo técnico, ingeniero o especialista en el Directorio de Personal.  
+  * **Datos emitidos:** Nombre completo, correo, rol profesional, especialidad, porcentaje de disponibilidad y proyecto inicial.  
+* **Reasignación de Técnico Operativo (`member.reassigned`):**  
+  * **Cuándo se activa:** Cuando un técnico es transferido de una obra a otra en el equipo.  
+  * **Datos emitidos:** Nombre del técnico, obra anterior (`previous_project_name`), nueva obra de destino (`new_project_name`), líder técnico receptor y porcentaje de dedicación.
+
+#### 4. Hitos Estratégicos, Novedades e Incidencias
+* **Creación de Hito Global (`milestone.created`):**  
+  * **Cuándo se activa:** Al programar un hito clave de entrega municipal, estructural o comercial en Planificación Estratégica.  
+  * **Datos emitidos:** Título del hito, fecha compromiso (`due_date`), proyecto, líder responsable y lista consolidada de correos del equipo (`team_emails`).  
+* **Registro de Incidencia de Personal (`incident.registered`):**  
+  * **Cuándo se activa:** Al registrar una baja temporal médica, permiso legal o ausencia de un técnico en Recursos Humanos.  
+  * **Datos emitidos:** Tipo de novedad (*medical-leave*, permiso, etc.), fechas de inicio y fin, motivo, técnico titular, técnico de respaldo (*backup*) designado y correo del líder para gestión de reemplazo.  
+* **Agendamiento de Videoconferencia (`meeting.created`):**  
+  * **Cuándo se activa:** Al crear una sesión virtual colaborativa en Jitsi asociada a la obra.  
+  * **Datos emitidos:** Título de reunión, sala cifrada, enlace directo de acceso (`meeting_url`), fecha programada y correos del equipo.
 
 ### Configuración por Tarea y Botones de Prueba
 
-El modal **Configuración Multitarea de Make** permite gestionar de forma independiente cada uno de los tres escenarios (**2FA**, **Notificaciones y Asignaciones** y **Gobernanza Presupuestaria ($100k)**). Cada recuadro incluye:
+El modal **Configuración Multitarea de Make** permite gestionar de forma independiente cada uno de los dos escenarios (**2FA** y **Notificaciones y Asignaciones**). Cada recuadro incluye:
 
 - **Interruptor independiente (*Activo / Inactivo*):** habilita o pausa el envío de eventos de esa tarea sin afectar a las demás.
 - **Endpoint individual:** campo para ingresar la URL específica del webhook receptor (`https://...`).
@@ -136,7 +172,7 @@ Al guardar o reabrir el panel:
 - Muestra una **barra de progreso** con el porcentaje disponible y el saldo exacto (`disponibles / límite ops`).
 - Si los créditos llegan al **0%**, la barra cambia a rojo mostrando la alerta **Cuenta pausada en Make por límite excedido**.
 
-> **Soporte multi-cuenta y rotación:** el botón **`···`** es independiente por cada tarea. Puede vincular cuentas distintas de Make para 2FA, Notificaciones o Gobernanza, o rotar rápidamente a otra cuenta si una agota su cuota mensual. Para desvincular un token, abra **`···`** y seleccione **Eliminar token**.
+> **Soporte multi-cuenta y rotación:** el botón **`···`** es independiente por cada tarea. Puede vincular cuentas distintas de Make para 2FA o Notificaciones, o rotar rápidamente a otra cuenta si una agota su cuota mensual. Para desvincular un token, abra **`···`** y seleccione **Eliminar token**.
 
 ### Conectar canales de destino en Make.com
 1. En su cuenta de **Make.com**, abra el escenario vinculado al webhook de Project Planner.

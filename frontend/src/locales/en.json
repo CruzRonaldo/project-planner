@@ -1447,8 +1447,6 @@
     "makeTask_two_factor_desc": "Dispatch OTP codes via email or SMS during login.",
     "makeTask_notifications_name": "Notifications & Assignments",
     "makeTask_notifications_desc": "Real-time alerts when assigning technical staff or updating milestones.",
-    "makeTask_governance_name": "Budgetary Governance ($100k)",
-    "makeTask_governance_desc": "Automatic notices when a project reaches or exceeds the $100k threshold.",
     "active": "Active",
     "inactive": "Inactive",
     "testing": "Testing...",

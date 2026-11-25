@@ -23,15 +23,6 @@
       "api_token": "949ff905-079c-4013-a43c-80af71ed1018"
     },
     {
-      "id": "governance",
-      "name": "Gobernanza Presupuestaria ($100k)",
-      "description": "Avisos automáticos cuando un proyecto iguala o supera el umbral de $100k.",
-      "event": "governance.budget_alert",
-      "endpoint": "",
-      "enabled": true,
-      "api_token": ""
-    },
-    {
       "id": "auth_password_changed",
       "name": "Alerta de Seguridad: Cambio de Contraseña",
       "description": "Notificación de seguridad inmediata cuando un usuario actualiza su contraseña.",
