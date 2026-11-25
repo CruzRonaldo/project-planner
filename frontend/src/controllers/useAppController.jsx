@@ -18,6 +18,7 @@ import {
   RolesManagement,
   Configuration,
   UserManualView,
+  ProjectAuditView,
 } from '../views';
 
 /**
@@ -69,8 +70,20 @@ export function useAppController() {
   // 6. Dominio de Conectores Externos e Integraciones (Google Drive, Make, Revit)
   const integrations = useIntegrationsController({ hideMocks });
 
-  // 7. Estado local para búsqueda en Manual de Usuario
+  // 7. Estado local para búsqueda en Manual de Usuario y resaltado temporal de proyecto
   const [manualQuery, setManualQuery] = React.useState('');
+  const [highlightedProjectId, setHighlightedProjectId] = React.useState(null);
+
+  // Navegación centralizada con soporte de selección/resaltado temporal de proyectos
+  const handleNavigate = useCallback(
+    (target, options) => {
+      if (options?.projectId || options?.projectCode) {
+        setHighlightedProjectId(options.projectId || options.projectCode);
+      }
+      navigation.setActiveView(target, options);
+    },
+    [navigation]
+  );
 
   // Sincronizar asignaciones remotas de proyectos al equipo técnico si se reciben del backend
   useEffect(() => {
@@ -186,6 +199,8 @@ export function useAppController() {
           isAdmin={auth.isAdmin}
           currentUser={auth.displayedCurrentUser}
           currentUserName={auth.displayedCurrentUser?.name}
+          highlightedProjectId={highlightedProjectId}
+          onClearHighlight={() => setHighlightedProjectId(null)}
         />
       );
     }
@@ -270,11 +285,18 @@ export function useAppController() {
         />
       );
     }
-    if (navigation.activeView === 'roles' && auth.isAdmin) {
+    if (
+      (navigation.activeView === 'roles' || navigation.activeView === 'role-management') &&
+      (auth.isAdmin || auth.isSubAdmin)
+    ) {
       return (
         <RolesManagement
           users={team.users}
           onToggleSubAdmin={team.handleToggleSubAdmin}
+          currentUser={auth.displayedCurrentUser}
+          isAdmin={auth.isAdmin}
+          isSubAdmin={auth.isSubAdmin}
+          onNavigate={navigation.setActiveView}
         />
       );
     }
@@ -287,11 +309,21 @@ export function useAppController() {
         />
       );
     }
+    if (navigation.activeView === 'project-audit' || navigation.activeView === 'auditoria') {
+      return (
+        <ProjectAuditView
+          onNavigate={handleNavigate}
+          canManage={auth.canManage}
+          isAdmin={auth.isAdmin}
+          currentUser={auth.displayedCurrentUser}
+        />
+      );
+    }
     return (
       <DashboardContent
         portfolioData={projects.portfolioData}
         strategicPlanningData={projects.strategicPlanningData}
-        onNavigate={navigation.setActiveView}
+        onNavigate={handleNavigate}
       />
     );
   }, [
@@ -347,6 +379,8 @@ export function useAppController() {
     theme.setTheme,
     responsibleOptions,
     manualQuery,
+    handleNavigate,
+    highlightedProjectId,
   ]);
 
   return {
@@ -354,11 +388,12 @@ export function useAppController() {
     isAuthenticated: auth.isAuthenticated,
     displayedCurrentUser: auth.displayedCurrentUser,
     activeView: navigation.activeView,
-    setActiveView: navigation.setActiveView,
+    setActiveView: handleNavigate,
     fontScale: theme.fontScale,
     setFontScale: theme.setFontScale,
     theme: theme.theme,
     setTheme: theme.setTheme,
+    toggleTheme: theme.toggleTheme,
     users: team.users,
     handleLogin: auth.handleLogin,
     handleLogout: auth.handleLogout,

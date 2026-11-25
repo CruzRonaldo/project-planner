@@ -1,4 +1,60 @@
 /**
+ * Localiza un mensaje de error utilizando la función de traducción (t) de i18n.
+ * Busca coincidencias directas en la clave `toasts.<error>` o en la raíz,
+ * y en mensajes compuestos descompone por oraciones para traducir cada segmento.
+ *
+ * @param {string} errorString - Mensaje de error a traducir.
+ * @param {Function} t - Función traductora de useLanguage.
+ * @returns {string} Mensaje traducido o el original como fallback.
+ */
+export function localizeApiErrorMessage(errorString, t) {
+  if (!errorString || typeof errorString !== 'string' || typeof t !== 'function') {
+    return errorString || '';
+  }
+
+  // 1. Coincidencia directa completa en namespace toasts
+  const directToast = t(`toasts.${errorString}`, null);
+  if (directToast && directToast !== `toasts.${errorString}`) {
+    return directToast;
+  }
+
+  // 2. Coincidencia directa completa en raíz
+  const directRoot = t(errorString, null);
+  if (directRoot && directRoot !== errorString) {
+    return directRoot;
+  }
+
+  // 3. Coincidencia para sufijos conocidos de caché / contingencia
+  const CACHE_SUFFIX = 'Se mantiene la última copia disponible.';
+  if (errorString.includes(CACHE_SUFFIX)) {
+    const mainPart = errorString.replace(CACHE_SUFFIX, '').trim();
+    const mainTranslated = mainPart
+      ? (t(`toasts.${mainPart}`, null) || t(mainPart, null) || mainPart)
+      : '';
+    const suffixTranslated =
+      t(`toasts.${CACHE_SUFFIX}`, null) || t(CACHE_SUFFIX, null) || CACHE_SUFFIX;
+    return [mainTranslated, suffixTranslated].filter(Boolean).join(' ');
+  }
+
+  // 4. Fallback para mensajes compuestos generales (separados por punto y espacio)
+  const sentences = errorString.split(/(?<=[.!?])\s+/);
+  if (sentences && sentences.length > 1) {
+    const translatedParts = sentences.map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return '';
+      const partToast = t(`toasts.${trimmed}`, null);
+      if (partToast && partToast !== `toasts.${trimmed}`) return partToast;
+      const partRoot = t(trimmed, null);
+      if (partRoot && partRoot !== trimmed) return partRoot;
+      return trimmed;
+    });
+    return translatedParts.filter(Boolean).join(' ');
+  }
+
+  return errorString;
+}
+
+/**
  * Utilidades para manejo seguro de operaciones asíncronas y extracción
  * consistente de mensajes de error de APIs (Axios / Django REST Framework).
  */

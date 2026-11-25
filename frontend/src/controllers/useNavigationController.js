@@ -50,28 +50,36 @@ export function useNavigationController({
   const activeView = useMemo(() => {
     if (normalizedPath === '/login') return 'login';
     if (normalizedPath === '/' || normalizedPath === '/dashboard') return 'dashboard';
-    const matched = NAVIGATION_ITEMS.find((item) => item.path === normalizedPath);
+    const matched = NAVIGATION_ITEMS.find(
+      (item) => item.path === normalizedPath || (item.aliases && item.aliases.includes(normalizedPath))
+    );
     return matched ? matched.id : 'dashboard';
   }, [normalizedPath]);
 
-  // 3. Navegación declarativa por URL con guardia de permisos (RBAC)
+  // 3. Navegación declarativa por URL con guardia de permisos (RBAC) y soporte de opciones/estado
   const setActiveView = useCallback(
-    (target) => {
+    (target, options) => {
+      const navOptions = options?.state
+        ? options
+        : options && typeof options === 'object'
+        ? { state: options }
+        : undefined;
+
       if (target === 'login') {
-        navigate('/login');
+        navigate('/login', navOptions);
         return;
       }
       const item = NAVIGATION_ITEMS.find(
-        (n) => n.id === target || n.path === target
+        (n) => n.id === target || n.path === target || (n.aliases && (n.aliases.includes(target) || n.aliases.includes(`/${target}`)))
       );
       if (item) {
         if (hasViewAccess(item.id, currentUser)) {
-          navigate(item.path);
+          navigate(item.path, navOptions);
         } else {
           navigate('/dashboard', { replace: true });
         }
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', navOptions);
       }
     },
     [currentUser, navigate]

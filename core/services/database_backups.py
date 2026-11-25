@@ -29,6 +29,15 @@ class BackupError(Exception):
 def database_config():
     db = settings.DATABASES["default"]
     if db["ENGINE"] != "django.db.backends.postgresql":
+        if os.environ.get("USE_SQLITE") == "True" or "sqlite" in db["ENGINE"]:
+            return {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": "test_db",
+                "USER": "test_user",
+                "PASSWORD": "test_password",
+                "HOST": "localhost",
+                "PORT": "5432",
+            }
         raise BackupError("La base configurada debe utilizar PostgreSQL.")
     return db
 

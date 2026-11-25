@@ -139,12 +139,21 @@ export function useAuthController({
           : currentUser.username ||
             registeredCurrentUser?.name ||
             'Usuario'),
+      isSubAdmin: Boolean(
+        currentUser.isSubAdmin ||
+        currentUser.role === USER_ROLES.SUBADMIN ||
+        currentUser.role === 'subadmin' ||
+        registeredCurrentUser?.isSubAdmin
+      ),
       roleLabel:
         currentUser.role === USER_ROLES.ADMIN ||
         currentUser.is_superuser ||
         currentUser.accountType === USER_ROLES.ADMIN
           ? 'Project Manager'
-          : registeredCurrentUser?.isSubAdmin
+          : (currentUser.isSubAdmin ||
+             currentUser.role === USER_ROLES.SUBADMIN ||
+             currentUser.role === 'subadmin' ||
+             registeredCurrentUser?.isSubAdmin)
             ? 'SubAdministrador'
             : 'Equipo Técnico',
     };
@@ -157,6 +166,10 @@ export function useAuthController({
 
   const isSubAdmin =
     displayedCurrentUser?.roleLabel === 'SubAdministrador' ||
+    Boolean(displayedCurrentUser?.isSubAdmin) ||
+    currentUser?.role === USER_ROLES.SUBADMIN ||
+    currentUser?.role === 'subadmin' ||
+    Boolean(currentUser?.isSubAdmin) ||
     Boolean(registeredCurrentUser?.isSubAdmin);
 
   const canManage = isAdmin || isSubAdmin;

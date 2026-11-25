@@ -54,10 +54,10 @@ export default function Pagination({
   };
 
   const buttonBaseClass =
-    'inline-flex items-center justify-center rounded p-1 transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:opacity-30 disabled:pointer-events-none disabled:cursor-not-allowed ' +
-    'border border-slate-200 bg-white text-slate-500 hover:text-slate-900 ' +
-    'dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:hover:text-white ' +
-    'midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-600 midnight:hover:text-cyan-50';
+    'inline-flex items-center justify-center rounded p-1 transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 enabled:cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ' +
+    'border border-slate-200 bg-white text-slate-500 enabled:hover:bg-slate-100 enabled:hover:border-slate-300 enabled:hover:text-slate-900 enabled:active:scale-95 ' +
+    'dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:enabled:hover:bg-[#21262d] dark:enabled:hover:border-slate-600 dark:enabled:hover:text-white ' +
+    'midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-600 midnight:enabled:hover:border-cyan-700/60 midnight:enabled:hover:bg-cyan-950/60 midnight:enabled:hover:text-cyan-50';
 
   return (
     <nav

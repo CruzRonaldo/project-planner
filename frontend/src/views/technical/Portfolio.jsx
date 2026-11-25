@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Cloud, FolderPlus } from "lucide-react";
+import { Cloud, FolderPlus, ClipboardCheck, UserCheck } from "lucide-react";
 import { useToast } from "../../context/ToastContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { runSafe } from "../../utils/asyncHandler";
 import { projectStatuses } from "../../constants/portfolio";
-import { filterPortfolio, sortPortfolioProjects, portfolioSortCategories } from "../../utils/portfolio";
+import { filterPortfolio, sortPortfolioProjects, portfolioSortCategories, isUserProject } from "../../utils/portfolio";
 import projectsApi from "../../services/projectsApi";
 import Pagination from "../../components/common/Pagination";
 import {
@@ -23,9 +23,10 @@ import {
   NewProjectDialog,
   EditProjectDialog,
   ConfirmDeleteDialog,
+  PeriodicProjectAuditModal,
 } from "./components";
 
-export { NewProjectDialog, EditProjectDialog, ConfirmDeleteDialog, ProjectCard };
+export { NewProjectDialog, EditProjectDialog, ConfirmDeleteDialog, ProjectCard, PeriodicProjectAuditModal };
 
 const PROJECTS_PER_PAGE = 6;
 const CHANGES_PER_PAGE = 5;
@@ -63,6 +64,8 @@ export default function Portfolio({
   isAdmin = false,
   currentUser = null,
   currentUserName = "",
+  highlightedProjectId = null,
+  onClearHighlight = null,
 }) {
   const { t, lang } = useLanguage();
   const filters = useMemo(() => [
@@ -75,21 +78,122 @@ export default function Portfolio({
   const [activeFilter, setActiveFilter] = useState("all");
   const [syncing, setSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [selectedDetailProject, setSelectedDetailProject] = useState(null);
   const { showToast } = useToast();
   const [sortOrder, setSortOrder] = useState('budget_desc');
+  const [onlyMyProjects, setOnlyMyProjects] = useState(false);
+
+  const myProjectsCount = useMemo(() => {
+    return (data?.projects || []).filter((p) => isUserProject(p, currentUser)).length;
+  }, [data?.projects, currentUser]);
+
   const visible = filterPortfolio(data, query, activeFilter);
-  const sortedProjects = sortPortfolioProjects(visible.projects, sortOrder);
-  const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", sort: "budget_desc", page: 1 });
+  const scopedProjects = useMemo(() => {
+    if (!onlyMyProjects) return visible.projects;
+    return visible.projects.filter((p) => isUserProject(p, currentUser));
+  }, [visible.projects, onlyMyProjects, currentUser]);
+  const sortedProjects = sortPortfolioProjects(scopedProjects, sortOrder);
+  const [projectPageSelection, setProjectPageSelection] = useState({ query: "", filter: "all", scope: "all", sort: "budget_desc", page: 1 });
   const [changePageSelection, setChangePageSelection] = useState({ query: "", page: 1 });
+  const [activeHighlightId, setActiveHighlightId] = useState(null);
+
+  // Efecto reactivo para resaltado luminoso temporal y posicionamiento directo de proyecto
+  useEffect(() => {
+    if (!highlightedProjectId || !data?.projects?.length) return;
+
+    const target = data.projects.find(
+      (p) =>
+        String(p.id) === String(highlightedProjectId) ||
+        p.code === highlightedProjectId ||
+        p.name === highlightedProjectId
+    );
+    if (!target) return;
+
+    // Asegurar visibilidad: limpiar filtros restrictivos si ocultan el proyecto objetivo
+    let nextFilter = activeFilter;
+    if (activeFilter !== 'all' && target.status !== activeFilter) {
+      nextFilter = 'all';
+      setActiveFilter('all');
+    }
+
+    let nextScope = onlyMyProjects ? 'my' : 'all';
+    if (onlyMyProjects && !isUserProject(target, currentUser)) {
+      nextScope = 'all';
+      setOnlyMyProjects(false);
+    }
+
+    let nextQuery = query;
+    if (query) {
+      const qNorm = (query || '').toLowerCase().trim();
+      const matchesTarget =
+        (target.name || '').toLowerCase().includes(qNorm) ||
+        (target.code || '').toLowerCase().includes(qNorm);
+      if (!matchesTarget) {
+        nextQuery = '';
+        if (onQueryChange) onQueryChange('');
+      }
+    }
+
+    setActiveHighlightId(target.id);
+
+    // Calcular la página correspondiente en la lista ordenada
+    const allMatching = (data?.projects || []).filter((p) => {
+      if (nextFilter !== 'all' && p.status !== nextFilter) return false;
+      if (nextScope === 'my' && !isUserProject(p, currentUser)) return false;
+      if (nextQuery) {
+        const qNorm = nextQuery.toLowerCase().trim();
+        return (
+          (p.name || '').toLowerCase().includes(qNorm) ||
+          (p.code || '').toLowerCase().includes(qNorm)
+        );
+      }
+      return true;
+    });
+    const sorted = sortPortfolioProjects(allMatching, sortOrder);
+    const targetIdx = sorted.findIndex((p) => p.id === target.id);
+    if (targetIdx >= 0) {
+      const targetPage = Math.floor(targetIdx / PROJECTS_PER_PAGE) + 1;
+      setProjectPageSelection({
+        query: nextQuery,
+        filter: nextFilter,
+        scope: nextScope,
+        sort: sortOrder,
+        page: targetPage,
+      });
+    }
+
+    // Scroll suave hacia la tarjeta del proyecto con halo de resplandor
+    const scrollTimer = setTimeout(() => {
+      const cardEl =
+        document.getElementById(`project-card-${target.id}`) ||
+        document.getElementById(`project-card-${target.code}`) ||
+        document.querySelector(`[data-project-code="${target.code}"]`);
+      if (cardEl) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 150);
+
+    // Apagar la luz luminosa suavemente tras un breve tiempo (2.0 segundos)
+    const clearTimer = setTimeout(() => {
+      setActiveHighlightId(null);
+      if (onClearHighlight) onClearHighlight();
+    }, 2000);
+
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(clearTimer);
+    };
+  }, [highlightedProjectId, data?.projects]);
 
   const totalProjectPages = Math.max(1, Math.ceil(sortedProjects.length / PROJECTS_PER_PAGE));
   const safeProjectPage =
     projectPageSelection.query === query &&
     projectPageSelection.filter === activeFilter &&
+    projectPageSelection.scope === (onlyMyProjects ? 'my' : 'all') &&
     projectPageSelection.sort === sortOrder
       ? Math.min(projectPageSelection.page, totalProjectPages)
       : 1;
@@ -405,36 +509,80 @@ export default function Portfolio({
 
   return (
     <main className="flex-1 overflow-y-auto bg-slate-50 p-4 text-slate-900 transition-colors duration-300 dark:bg-[#0d1117] dark:text-slate-100 midnight:bg-[#050B14] midnight:text-cyan-50 md:p-6 lg:p-8">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-8">
+      <div className="flex w-full flex-col gap-6 pb-8">
         <section className="flex flex-col gap-5">
           <PageHeader
             title={t("portfolio.title", "Repositorio de Proyectos")}
             subtitle={t("portfolio.subtitle", "Control presupuestal en tiempo real y supervisión financiera de obra")}
           >
-            {canManage && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setDialogOpen(true)}
-                className="inline-flex w-fit items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500 shadow-sm"
+                onClick={() => setIsAuditModalOpen(true)}
+                className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition-colors duration-300 hover:bg-slate-100 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:bg-[#0a1120] midnight:text-cyan-200 midnight:hover:bg-cyan-900/40 shadow-sm"
               >
-                <FolderPlus size={17} /> {t("portfolio.createProject", "Crear Proyecto")}
+                <ClipboardCheck size={17} /> {t("portfolio.periodicAuditBtn", "Auditoría Periódica")}
               </button>
-            )}
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setDialogOpen(true)}
+                  className="inline-flex w-fit items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-300 hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500 shadow-sm"
+                >
+                  <FolderPlus size={17} /> {t("portfolio.createProject", "Crear Proyecto")}
+                </button>
+              )}
+            </div>
           </PageHeader>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
-              {filters.map((filter) => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  onClick={() => setActiveFilter(filter.id)}
-                  aria-pressed={activeFilter === filter.id}
-                  className={`shrink-0 rounded-lg border px-4 py-2 text-xs font-medium transition-colors duration-300 ${activeFilter === filter.id ? "border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300" : "border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50"}`}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Chip Conmutador de Ámbito: Mis Proyectos */}
+              <button
+                type="button"
+                onClick={() => setOnlyMyProjects(!onlyMyProjects)}
+                aria-pressed={onlyMyProjects}
+                aria-label={t('portfolio.filterMyProjectsAria', 'Filtrar por mis proyectos asignados')}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+                  onlyMyProjects
+                    ? 'border-cyan-500 bg-cyan-500/10 text-cyan-700 shadow-sm dark:border-blue-500 dark:bg-blue-500/15 dark:text-blue-300 midnight:border-cyan-500 midnight:bg-cyan-500/20 midnight:text-cyan-200'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200 midnight:border-cyan-900/40 midnight:bg-[#0a1120] midnight:text-cyan-400/80 midnight:hover:text-cyan-200'
+                }`}
+              >
+                <UserCheck size={13} className={onlyMyProjects ? 'text-cyan-600 dark:text-blue-400 midnight:text-cyan-400' : 'opacity-70'} />
+                <span>{t('portfolio.myProjectsScope', 'Mis proyectos')}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                    onlyMyProjects
+                      ? 'bg-cyan-600 text-white dark:bg-blue-600 midnight:bg-cyan-500'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 midnight:bg-cyan-950 midnight:text-cyan-300'
+                  }`}
                 >
-                  {filter.label}
-                </button>
-              ))}
+                  {myProjectsCount}
+                </span>
+              </button>
+
+              {/* Separador vertical sutil */}
+              <div className="hidden h-5 w-px bg-slate-200 dark:bg-[#30363d] midnight:bg-cyan-900/40 sm:block" />
+
+              {/* Píldoras de filtro por estado */}
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
+                {filters.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setActiveFilter(filter.id)}
+                    aria-pressed={activeFilter === filter.id}
+                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors duration-200 ${
+                      activeFilter === filter.id
+                        ? 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-blue-500 dark:bg-blue-500/10 dark:text-blue-300 midnight:border-cyan-500 midnight:bg-cyan-500/15 midnight:text-cyan-300'
+                        : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-400/40 hover:text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-400 dark:hover:text-white midnight:border-cyan-900/30 midnight:bg-[#0a1120] midnight:text-cyan-500/70 midnight:hover:text-cyan-50'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex flex-wrap items-center shrink-0 gap-3">
               <SortDropdown
@@ -448,14 +596,15 @@ export default function Portfolio({
                 buttonClassName="w-[225px]"
                 ariaLabel={t("portfolio.sortLabel", "Ordenar proyectos del portafolio")}
               />
-              {(query || activeFilter !== "all") && (
-                <ClearFiltersButton
-                  onClick={() => {
-                    setActiveFilter("all");
-                    onQueryChange("");
-                  }}
-                />
-              )}
+              <ClearFiltersButton
+                onClick={() => {
+                  setActiveFilter("all");
+                  setOnlyMyProjects(false);
+                  onQueryChange("");
+                }}
+                disabled={!(query || activeFilter !== "all" || onlyMyProjects)}
+                showIcon
+              />
               <button
                 type="button"
                 onClick={handleSync}
@@ -477,17 +626,11 @@ export default function Portfolio({
         </section>
 
         <section aria-live="polite">
-          {visible.projects.length ? (
+          {scopedProjects.length ? (
             <>
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 {paginatedProjects.map((project) => {
-                const isProjectLeader = Boolean(
-                  currentUser && (
-                    (project.leaderEmail && currentUser.email && project.leaderEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
-                    (project.leaderId && (String(project.leaderId) === String(currentUser.id) || String(project.leaderId) === String(currentUser.db_id))) ||
-                    (project.leaderName && currentUser.name && project.leaderName.toLowerCase() === currentUser.name.toLowerCase())
-                  )
-                );
+                const isProjectLeader = isUserProject(project, currentUser);
                 const canEditProject = isAdmin || canManage || isProjectLeader;
                 const canDeleteProject = isAdmin;
 
@@ -501,6 +644,7 @@ export default function Portfolio({
                     canManage={canEditProject}
                     isAdmin={isAdmin}
                     isProjectLeader={isProjectLeader}
+                    isHighlighted={String(activeHighlightId) === String(project.id) || activeHighlightId === project.code}
                   />
                 );
               })}
@@ -508,14 +652,32 @@ export default function Portfolio({
             <Pagination
               currentPage={safeProjectPage}
               totalPages={totalProjectPages}
-              totalItems={visible.projects.length}
+              totalItems={scopedProjects.length}
               pageSize={PROJECTS_PER_PAGE}
               itemLabel={t('portfolio.projectsCountLabel', 'proyectos')}
-              onPageChange={(nextPage) => setProjectPageSelection({ query, filter: activeFilter, page: nextPage })}
+              onPageChange={(nextPage) => setProjectPageSelection({ query, filter: activeFilter, scope: onlyMyProjects ? 'my' : 'all', sort: sortOrder, page: nextPage })}
               hideOnSinglePage={true}
               className="mt-6"
             />
           </>
+        ) : onlyMyProjects ? (
+          <EmptyState
+            title={t('portfolio.noMyProjectsTitle', 'Sin proyectos asignados')}
+            description={t('portfolio.noMyProjectsMsg', 'No tienes proyectos bajo tu liderazgo que coincidan con los filtros seleccionados.')}
+            className={`${cardClass} p-10 text-sm`}
+            action={
+              <button
+                type="button"
+                onClick={() => {
+                  setOnlyMyProjects(false);
+                  setActiveFilter('all');
+                }}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-cyan-500 dark:bg-blue-600 dark:hover:bg-blue-500 midnight:bg-cyan-600 midnight:hover:bg-cyan-500"
+              >
+                {t('portfolio.viewAllProjects', 'Ver todos los proyectos')}
+              </button>
+            }
+          />
         ) : (
             <EmptyState
               description={t("portfolio.noProjectsDesc", "No hay proyectos que coincidan con los filtros.")}
@@ -626,6 +788,15 @@ export default function Portfolio({
           currentUser={currentUser}
         />
       )}
+      <PeriodicProjectAuditModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        currentUser={currentUser}
+        onCreateProject={canManage ? () => {
+          setIsAuditModalOpen(false);
+          setDialogOpen(true);
+        } : undefined}
+      />
     </main>
   );
 }

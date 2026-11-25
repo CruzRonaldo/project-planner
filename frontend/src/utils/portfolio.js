@@ -154,3 +154,48 @@ export function sortPortfolioProjects(projects = [], sortOrder = 'budget_desc') 
       return copy;
   }
 }
+
+/**
+ * Determina si un proyecto pertenece o está bajo el liderazgo/autoría del usuario actual.
+ *
+ * @param {Object} project - Objeto del proyecto con datos de líder o equipo.
+ * @param {Object|null} user - Usuario actual autenticado (currentUser).
+ * @returns {boolean} true si el proyecto pertenece al usuario.
+ */
+export function isUserProject(project, user) {
+  if (!project || !user) return false;
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const userName = (user.name || '').toLowerCase().trim();
+  const userId = String(user.id || user.db_id || '').trim();
+
+  // 1. Coincidencia por correo electrónico del líder
+  if (userEmail) {
+    if (project.leaderEmail && project.leaderEmail.toLowerCase().trim() === userEmail) return true;
+    if (project.leader_email && project.leader_email.toLowerCase().trim() === userEmail) return true;
+  }
+
+  // 2. Coincidencia por identificador (ID) de líder o técnico
+  if (userId) {
+    if (project.leaderId && String(project.leaderId).trim() === userId) return true;
+    if (project.leader_id && String(project.leader_id).trim() === userId) return true;
+  }
+
+  // 3. Coincidencia por nombre completo del líder
+  if (userName) {
+    if (project.leaderName && project.leaderName.toLowerCase().trim() === userName) return true;
+    if (project.leader_name && project.leader_name.toLowerCase().trim() === userName) return true;
+  }
+
+  // 4. Coincidencia dentro de los integrantes del equipo asignados al proyecto
+  if (Array.isArray(project.team_members)) {
+    const isMember = project.team_members.some((m) => {
+      if (!m) return false;
+      const mEmail = (m.email || '').toLowerCase().trim();
+      const mId = String(m.id || '').trim();
+      return (userEmail && mEmail === userEmail) || (userId && mId === userId);
+    });
+    if (isMember) return true;
+  }
+
+  return false;
+}

@@ -282,3 +282,139 @@ test('Recursos Humanos y sus diálogos integran runSafe para el manejo seguro de
     await server.close();
   }
 });
+
+function findReactElement(node, predicate) {
+  if (!node || typeof node !== 'object') return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findReactElement(child, predicate);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (predicate(node)) return node;
+  return findReactElement(node.props?.children, predicate);
+}
+
+function createHookRunner(Component, props) {
+  const states = [];
+  const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+  return () => {
+    const previousDispatcher = internals.H;
+    let hookIndex = 0;
+    internals.H = {
+      useState(initialState) {
+        const index = hookIndex++;
+        if (!(index in states)) {
+          states[index] = typeof initialState === 'function' ? initialState() : initialState;
+        }
+        const setState = (updater) => {
+          states[index] = typeof updater === 'function' ? updater(states[index]) : updater;
+        };
+        return [states[index], setState];
+      },
+      useMemo(factory, deps) {
+        const index = hookIndex++;
+        const previous = states[index];
+        if (!previous || !deps || deps.some((dep, depIndex) => !Object.is(dep, previous.deps[depIndex]))) {
+          states[index] = { value: factory(), deps };
+        }
+        return states[index].value;
+      },
+      useContext(context) {
+        return context._currentValue;
+      },
+      useCallback(fn) {
+        return fn;
+      },
+      useRef(initialValue) {
+        const index = hookIndex++;
+        if (!(index in states)) states[index] = { current: initialValue };
+        return states[index];
+      },
+      useEffect() {},
+    };
+
+    try {
+      return Component(props);
+    } finally {
+      internals.H = previousDispatcher;
+    }
+  };
+}
+
+test('HumanResources navega a la página 2 de personal manteniendo sortOrder y Pagination expone cursores', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { default: HumanResources } = await server.ssrLoadModule('/src/views/human-resources/HumanResources.jsx');
+    const { default: Pagination } = await server.ssrLoadModule('/src/components/common/Pagination.jsx');
+    const { default: SortDropdown } = await server.ssrLoadModule('/src/components/common/SortDropdown.jsx');
+
+    const data = createHumanResourcesData();
+    const renderHR = createHookRunner(HumanResources, {
+      data,
+      onChange: () => {},
+      onQueryChange: () => {},
+      canManage: true,
+    });
+
+    let tree = renderHR();
+    let pagination = findReactElement(tree, (node) => node.type === Pagination && node.props?.pageSize === 8);
+    let sortDropdown = findReactElement(tree, (node) => node.type === SortDropdown);
+    assert.equal(pagination.props.currentPage, 1);
+    assert.equal(sortDropdown.props.value, 'avail_desc');
+
+    pagination.props.onPageChange(2);
+    tree = renderHR();
+    pagination = findReactElement(tree, (node) => node.type === Pagination && node.props?.pageSize === 8);
+    assert.equal(pagination.props.currentPage, 2);
+
+    const personnelSection = findReactElement(
+      tree,
+      (node) => node.type === 'section' && node.props?.['aria-labelledby'] === 'personnel-assignment-title'
+    );
+    const pageTwoRowsAvail = findReactElement(personnelSection, (node) => node.type === 'tbody').props.children[0];
+    const expectedAvailSecondPageFirst = sortPersonnelMembers(data.members, 'avail_desc')[8];
+    assert.equal(pageTwoRowsAvail[0].key, expectedAvailSecondPageFirst.id);
+
+    sortDropdown = findReactElement(tree, (node) => node.type === SortDropdown);
+    sortDropdown.props.onChange('name_asc');
+    tree = renderHR();
+    sortDropdown = findReactElement(tree, (node) => node.type === SortDropdown);
+    pagination = findReactElement(tree, (node) => node.type === Pagination && node.props?.pageSize === 8);
+    assert.equal(sortDropdown.props.value, 'name_asc');
+    assert.equal(pagination.props.currentPage, 1);
+
+    pagination.props.onPageChange(2);
+    tree = renderHR();
+    sortDropdown = findReactElement(tree, (node) => node.type === SortDropdown);
+    pagination = findReactElement(tree, (node) => node.type === Pagination && node.props?.pageSize === 8);
+    assert.equal(sortDropdown.props.value, 'name_asc');
+    assert.equal(pagination.props.currentPage, 2);
+
+    const personnelSectionSorted = findReactElement(
+      tree,
+      (node) => node.type === 'section' && node.props?.['aria-labelledby'] === 'personnel-assignment-title'
+    );
+    const pageTwoRowsName = findReactElement(personnelSectionSorted, (node) => node.type === 'tbody').props.children[0];
+    const expectedNameSecondPageFirst = sortPersonnelMembers(data.members, 'name_asc')[8];
+    assert.equal(pageTwoRowsName[0].key, expectedNameSecondPageFirst.id);
+
+    const paginationHtml = renderToStaticMarkup(
+      React.createElement(Pagination, {
+        currentPage: 1,
+        totalPages: 3,
+        totalItems: 18,
+        pageSize: 8,
+        itemLabel: 'integrantes',
+        onPageChange: () => {},
+      })
+    );
+    assert.ok(paginationHtml.includes('enabled:cursor-pointer'));
+    assert.ok(paginationHtml.includes('disabled:cursor-not-allowed'));
+    assert.ok(!paginationHtml.includes('disabled:pointer-events-none'));
+  } finally {
+    await server.close();
+  }
+});

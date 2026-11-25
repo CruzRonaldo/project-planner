@@ -1,7 +1,8 @@
 {
   "webhook_url": "https://hook.us2.make.com/d7u7iyyxqiacm1uz99efyiiek753s4ze",
-  "status": "connected",
-  "frequency": "Cada 30 min",
+  "api_token": "",
+  "status": "partial",
+  "frequency": "Tiempo real",
   "tasks": [
     {
       "id": "two_factor",
@@ -9,7 +10,8 @@
       "description": "Envío de códigos OTP por correo o SMS durante el inicio de sesión.",
       "event": "auth.two_factor",
       "endpoint": "",
-      "enabled": false
+      "enabled": true,
+      "api_token": ""
     },
     {
       "id": "notifications",
@@ -17,15 +19,62 @@
       "description": "Alertas en tiempo real al asignar personal técnico o modificar hitos.",
       "event": "project.assignment",
       "endpoint": "https://hook.us2.make.com/d7u7iyyxqiacm1uz99efyiiek753s4ze",
-      "enabled": true
+      "enabled": true,
+      "api_token": "949ff905-079c-4013-a43c-80af71ed1018"
     },
     {
-      "id": "governance",
-      "name": "Gobernanza Presupuestaria ($100k)",
-      "description": "Avisos automáticos cuando un proyecto iguala o supera el umbral de $100k.",
-      "event": "governance.budget_alert",
+      "id": "auth_password_changed",
+      "name": "Alerta de Seguridad: Cambio de Contraseña",
+      "description": "Notificación de seguridad inmediata cuando un usuario actualiza su contraseña.",
+      "event": "auth.password_changed",
       "endpoint": "",
-      "enabled": false
+      "enabled": true,
+      "api_token": ""
+    },
+    {
+      "id": "auth_email_changed",
+      "name": "Alerta de Seguridad: Cambio de Correo",
+      "description": "Notificación de seguridad cuando se modifica el correo electrónico de un usuario.",
+      "event": "auth.email_changed",
+      "endpoint": "",
+      "enabled": true,
+      "api_token": ""
+    },
+    {
+      "id": "member_created",
+      "name": "Nuevo Miembro Técnico",
+      "description": "Notificación al registrar un nuevo miembro en el equipo de trabajo.",
+      "event": "member.created",
+      "endpoint": "",
+      "enabled": true,
+      "api_token": ""
+    },
+    {
+      "id": "member_reassigned",
+      "name": "Reasignación de Miembro Técnico",
+      "description": "Alerta cuando un técnico es transferido o reasignado a otro proyecto.",
+      "event": "member.reassigned",
+      "endpoint": "",
+      "enabled": true,
+      "api_token": ""
+    },
+    {
+      "id": "milestone_created",
+      "name": "Nuevo Hito Global",
+      "description": "Notificación al equipo cuando se programa un nuevo hito o fase clave del proyecto.",
+      "event": "milestone.created",
+      "endpoint": "",
+      "enabled": true,
+      "api_token": ""
+    },
+    {
+      "id": "incident_registered",
+      "name": "Incidente o Novedad de Personal",
+      "description": "Aviso inmediato al líder y gestión ante incapacidades, permisos o reemplazos de personal.",
+      "event": "incident.registered",
+      "endpoint": "",
+      "enabled": true,
+      "api_token": ""
     }
   ]
 }

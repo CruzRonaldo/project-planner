@@ -11,6 +11,10 @@ from .models import (
     Task,
     PerformanceMetric,
     DriveLink,
+    ProjectChangeLog,
+    ScheduleAdjustment,
+    SecurityAuditLog,
+    AuditPurgeLog,
 )
 
 
@@ -144,3 +148,78 @@ class DocumentEmbeddingAdmin(admin.ModelAdmin):
     list_display = ('title', 'created_at')
     search_fields = ('title', 'content')
     readonly_fields = ('created_at',)
+
+
+@admin.register(ProjectChangeLog)
+class ProjectChangeLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'get_project_display', 'action_type', 'user_name')
+    list_filter = ('action_type', 'created_at')
+    search_fields = ('project_code', 'project_name', 'user_name', 'description')
+    readonly_fields = [field.name for field in ProjectChangeLog._meta.fields]
+
+    def get_project_display(self, obj):
+        code = (obj.project.code if obj.project else None) or obj.project_code
+        name = (obj.project.name if obj.project else None) or obj.project_name
+        if code or name:
+            return f"[{code or 'S/C'}] {name or ''}".strip()
+        return "Proyecto Eliminado"
+    get_project_display.short_description = "Proyecto"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SecurityAuditLog)
+class SecurityAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'user', 'action', 'ip_address')
+    list_filter = ('action', 'created_at')
+    search_fields = ('user__username', 'user__email', 'description', 'ip_address')
+    readonly_fields = [field.name for field in SecurityAuditLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ScheduleAdjustment)
+class ScheduleAdjustmentAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'project', 'previous_period', 'next_period', 'reason', 'date')
+    list_filter = ('date', 'created_at', 'project')
+    search_fields = ('project__name', 'project__code', 'reason', 'previous_period', 'next_period')
+    readonly_fields = [field.name for field in ScheduleAdjustment._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AuditPurgeLog)
+class AuditPurgeLogAdmin(admin.ModelAdmin):
+    list_display = ('executed_at', 'triggered_by', 'total_purged', 'was_dry_run', 'status', 'execution_time_seconds')
+    list_filter = ('was_dry_run', 'status', 'executed_at')
+    readonly_fields = [field.name for field in AuditPurgeLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

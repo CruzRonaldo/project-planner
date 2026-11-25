@@ -9,6 +9,7 @@ import {
   Code,
   Settings,
   BookOpen,
+  ClipboardCheck,
   X,
   PanelLeftClose,
 } from 'lucide-react';
@@ -23,8 +24,9 @@ const mainItems = [
   { id: 'operations', label: 'Gestión Operativa', icon: Zap, shortcut: 'Shift + 4', enabled: true },
   { id: 'technical-team', label: 'Equipo Técnico', icon: Users, shortcut: 'Shift + 5', enabled: true },
   { id: 'human-resources', label: 'Recursos Humanos', icon: UserCog, shortcut: 'Shift + 6', enabled: true },
-  { id: 'integrations', label: 'Integraciones', icon: Code, shortcut: 'Shift + 7', enabled: true },
-  { id: 'manual', label: 'Manual de Usuario', icon: BookOpen, shortcut: 'Shift + 8', enabled: true },
+  { id: 'project-audit', label: 'Auditoría de Proyectos', icon: ClipboardCheck, shortcut: 'Shift + 7', enabled: true },
+  { id: 'integrations', label: 'Integraciones', icon: Code, shortcut: 'Shift + 8', enabled: true },
+  { id: 'manual', label: 'Manual de Usuario', icon: BookOpen, shortcut: 'Shift + 9', enabled: true },
 ];
 
 const VIEW_SHORTCUTS = {
@@ -34,9 +36,12 @@ const VIEW_SHORTCUTS = {
   operations: 'Shift + 4',
   'technical-team': 'Shift + 5',
   'human-resources': 'Shift + 6',
-  integrations: 'Shift + 7',
-  manual: 'Shift + 8',
-  configuracion: 'Shift + 9',
+  'project-audit': 'Shift + 7',
+  auditoria: 'Shift + 7',
+  integrations: 'Shift + 8',
+  manual: 'Shift + 9',
+  roles: 'Shift + 9',
+  'role-management': 'Shift + 9',
 };
 
 const NAV_TRANSLATION_MAP = {
@@ -52,6 +57,10 @@ const NAV_TRANSLATION_MAP = {
   manual: 'nav.manual',
   settings: 'nav.settings',
   configuracion: 'nav.settings',
+  roles: 'nav.roles',
+  'role-management': 'nav.roles',
+  auditoria: 'nav.auditoria',
+  'project-audit': 'nav.auditoria',
 };
 
 export default function Sidebar({
@@ -253,8 +262,7 @@ export default function Sidebar({
                   <button
                     type="button"
                     onClick={() => handleNavigation('configuracion')}
-                    aria-label={`${settingsLabel} (${formatShortcut('Shift + 9')})`}
-                    title={isOpenDesktop ? t('sidebar.shortcutTooltip', 'Atajo: {shortcut}', { shortcut: formatShortcut('Shift + 9') }) : undefined}
+                    aria-label={settingsLabel}
                     aria-current={activeView === 'configuracion' ? 'page' : undefined}
                     className={`flex items-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                       isOpenDesktop
@@ -282,9 +290,6 @@ export default function Sidebar({
                       className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3.5 hidden md:flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-900/95 dark:bg-slate-900/95 midnight:bg-[#071326] px-2.5 py-1.5 text-xs font-medium text-slate-100 shadow-2xl border border-slate-700/80 dark:border-slate-800 midnight:border-cyan-800/60 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                     >
                       <span>{settingsLabel}</span>
-                      <span className="text-[10px] font-mono text-cyan-300 dark:text-cyan-400">
-                        ({formatShortcut('Shift + 9')})
-                      </span>
                     </div>
                   )}
                 </>

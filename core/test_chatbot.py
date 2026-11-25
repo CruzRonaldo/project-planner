@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -30,7 +30,7 @@ class ChatbotEndpointTests(TestCase):
     def test_chatbot_admin_authenticated(self, mock_get_embedding, mock_generate_rag_response):
         mock_get_embedding.return_value = [0.1] * 768
 
-        def fake_stream(user_query, context_chunks, user_role, stream):
+        def fake_stream(user_query, context_chunks, user_role, stream, **kwargs):
             yield "Respuesta "
             yield "simulada "
             yield "para Admin"
@@ -55,7 +55,7 @@ class ChatbotEndpointTests(TestCase):
     def test_chatbot_tech_user_authenticated(self, mock_get_embedding, mock_generate_rag_response):
         mock_get_embedding.return_value = [0.1] * 768
 
-        def fake_stream(user_query, context_chunks, user_role, stream):
+        def fake_stream(user_query, context_chunks, user_role, stream, **kwargs):
             yield "Respuesta "
             yield "para Técnico"
 
@@ -73,6 +73,36 @@ class ChatbotEndpointTests(TestCase):
         chunks = [c.decode('utf-8') if isinstance(c, bytes) else c for c in response.streaming_content]
         full_text = "".join(chunks)
         self.assertEqual(full_text, 'Respuesta para Técnico')
+
+    def test_chatbot_rejects_unauthenticated_requests(self):
+        response = self.client.post(
+            '/api/chatbot/',
+            {'message': 'Intenta responder sin una sesión.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch('core.chatbot_views.generate_rag_response')
+    @patch('core.chatbot_views.get_embedding')
+    def test_chatbot_ignores_role_sent_by_client(self, mock_get_embedding, mock_generate_rag_response):
+        mock_get_embedding.return_value = [0.1] * 768
+        mock_generate_rag_response.return_value = iter(['Respuesta segura'])
+        token = issue_session_token(self.tech_user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+        response = self.client.post(
+            '/api/chatbot/',
+            {'message': 'Muéstrame información.', 'role': 'Admin', 'user_role': 'Admin'},
+            format='json',
+        )
+        list(response.streaming_content)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_generate_rag_response.assert_called_once()
+        call_kwargs = mock_generate_rag_response.call_args.kwargs
+        self.assertEqual(call_kwargs['user_role'], 'Técnico')
+        self.assertEqual(call_kwargs['user_id'], str(self.tech_user.pk))
 
     def test_chatbot_missing_message(self):
         token = issue_session_token(self.tech_user)
@@ -122,6 +152,7 @@ class ChatbotEndpointTests(TestCase):
             self.assertEqual(len(vector), 768)
             self.assertEqual(vector[0], 0.123)
 
+    @override_settings(AI_CHAT_PROVIDER='openrouter', COZE_ENABLED=False)
     @patch('core.services.ai_service._get_openrouter_client')
     def test_ai_service_generate_rag_response_text(self, mock_get_client):
         mock_client = MagicMock()
@@ -141,3 +172,44 @@ class ChatbotEndpointTests(TestCase):
             )
 
         self.assertEqual(result, "Respuesta técnica fundamentada en contexto")
+
+    @override_settings(
+        AI_CHAT_PROVIDER='coze',
+        COZE_ENABLED=True,
+        COZE_INCLUDE_RAG_CONTEXT=False,
+    )
+    @patch('core.services.coze_service.stream_coze_response')
+    def test_ai_service_selects_coze_only_when_enabled(self, mock_stream_coze_response):
+        mock_stream_coze_response.return_value = iter(['Respuesta Coze'])
+
+        result = generate_rag_response(
+            user_query='Consulta de prueba',
+            context_chunks=['CONTEXTO PRIVADO QUE NO DEBE SALIR'],
+            user_role='Técnico',
+            stream=True,
+            user_id='25',
+        )
+
+        self.assertEqual(''.join(result), 'Respuesta Coze')
+        mock_stream_coze_response.assert_called_once()
+        self.assertEqual(mock_stream_coze_response.call_args.kwargs['user_id'], '25')
+        self.assertEqual(
+            mock_stream_coze_response.call_args.kwargs['user_query'],
+            'Consulta de prueba',
+        )
+
+    @override_settings(AI_CHAT_PROVIDER='coze', COZE_ENABLED=False)
+    @patch('core.services.ai_service._stream_rag_response')
+    def test_ai_service_keeps_current_provider_when_coze_is_disabled(self, mock_openrouter_stream):
+        mock_openrouter_stream.return_value = iter(['Proveedor actual'])
+
+        result = generate_rag_response(
+            user_query='Consulta de prueba',
+            context_chunks=[],
+            user_role='Admin',
+            stream=True,
+            user_id='1',
+        )
+
+        self.assertEqual(''.join(result), 'Proveedor actual')
+        mock_openrouter_stream.assert_called_once()

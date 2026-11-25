@@ -50,7 +50,7 @@ from .models import (
     TwoFactorProfile,
 )
 
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from .authentication import PasswordBoundAuthentication, issue_session_token
 
@@ -97,6 +97,60 @@ from core.services.aps_service import APSService
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def get_client_ip(request):
+    """
+    Obtiene la dirección IP real del cliente considerando proxies inversos.
+    Lee el primer valor de HTTP_X_FORWARDED_FOR con fallback a REMOTE_ADDR.
+    """
+    if not request:
+        return None
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+        if ip:
+            return ip[:45]
+    remote_addr = request.META.get('REMOTE_ADDR')
+    if remote_addr:
+        return remote_addr.strip()[:45]
+    return None
+
+
+def _resolve_audit_actor(request):
+    """Obtiene el usuario autenticado o un fallback administrativo para auditoría."""
+    req_user = getattr(request, "user", None)
+    if req_user is not None and getattr(req_user, "is_authenticated", False):
+        return req_user
+    return User.objects.filter(is_superuser=True).first() or User.objects.first()
+
+
+def _record_integration_audit(
+    request,
+    build_description,
+    old_value: str | None = None,
+    new_value: str | None = None,
+    log_context: str = "Integrations",
+) -> None:
+    """Registra un evento integration_update en SecurityAuditLog sin interrumpir el flujo."""
+    try:
+        actor_user = _resolve_audit_actor(request)
+        if not actor_user:
+            logger.warning(f"[{log_context}] No se pudo registrar auditoría: no hay usuario disponible.")
+            return
+
+        actor_name = f"{actor_user.first_name} {actor_user.last_name}".strip() or actor_user.username
+        ip_addr = get_client_ip(request)
+        SecurityAuditLog.objects.create(
+            user=actor_user,
+            action="integration_update",
+            description=build_description(actor_name),
+            old_value=old_value[:255] if old_value is not None else None,
+            new_value=new_value[:255] if new_value is not None else None,
+            ip_address=ip_addr if ip_addr and len(ip_addr) <= 45 else None,
+        )
+    except Exception as audit_err:
+        logger.warning(f"[{log_context}] Error al registrar SecurityAuditLog: {audit_err}")
 
 
 def test_db_connection(request):
@@ -254,6 +308,7 @@ def login_view(request):
 
 
 @api_view(['GET', 'PATCH'])
+@authentication_classes([SimpleUserAuthentication, SessionAuthentication])
 @permission_classes([AllowAny])
 def users_status_view(request):
     """
@@ -301,6 +356,24 @@ def users_status_view(request):
         return Response(users_list, status=status.HTTP_200_OK)
 
     elif request.method == 'PATCH':
+        actor = getattr(request, 'user', None)
+        if not actor or not actor.is_authenticated:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Autenticación requerida para modificar roles de usuario.'
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        if not actor.is_superuser:
+            return Response(
+                {
+                    'status': 'error',
+                    'message': 'Solo el Administrador Principal puede otorgar, revocar o modificar roles de usuario.'
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         user_id = request.data.get('id', '')
         is_sub_admin = request.data.get('isSubAdmin')
         clean_username = str(user_id).replace('usr-', '').strip()
@@ -309,6 +382,11 @@ def users_status_view(request):
             u = User.objects.filter(id=request.data.get('db_id')).first()
 
         if u and is_sub_admin is not None:
+            if u.is_superuser:
+                return Response(
+                    {'status': 'error', 'message': 'No es posible modificar el rol del Administrador Principal.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             u.is_staff = bool(is_sub_admin)
             u.save(update_fields=['is_staff'])
             return Response({'status': 'success', 'isSubAdmin': u.is_staff}, status=status.HTTP_200_OK)
@@ -401,6 +479,18 @@ def change_password_view(request):
     user.save()
     new_session_token = issue_session_token(user)
 
+    # Disparar alerta de seguridad hacia Make.com
+    try:
+        from .services.make_service import dispatch_security_alert_webhook
+        dispatch_security_alert_webhook(
+            event='auth.password_changed',
+            user=user,
+            request=request,
+            extra_data={'recipient_email': user.email or ''}
+        )
+    except Exception as exc:
+        logger.warning(f"[Make Security] Error al despachar auth.password_changed: {exc}")
+
     # Registrar en bitácora de auditoría
     try:
         actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
@@ -470,6 +560,7 @@ def format_known_country_phone(digits_after_plus: str) -> str | None:
 
 
 @api_view(['GET', 'PATCH', 'POST'])
+@authentication_classes([SimpleUserAuthentication, SessionAuthentication])
 @permission_classes([AllowAny])
 def user_profile_view(request):
     """
@@ -478,19 +569,24 @@ def user_profile_view(request):
     validando unicidad y registrando cada cambio en la bitácora de auditoría.
     """
     data = request.data if request.method in ['POST', 'PATCH'] else request.query_params
-    identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
     user_id = data.get('user_id') or data.get('userId') or data.get('id')
+    identifier = (data.get('identifier') or data.get('username') or '').strip()
 
     user = None
-    if user_id and str(user_id).isdigit():
+    if request.user and request.user.is_authenticated:
+        user = request.user
+    elif user_id and str(user_id).isdigit():
         user = User.objects.filter(id=int(user_id)).first()
-    if not user and identifier:
+    elif identifier:
         clean_id = str(identifier).replace('usr-', '').strip()
         user = User.objects.filter(
             Q(username__iexact=identifier) | Q(email__iexact=identifier) | Q(username__iexact=clean_id)
         ).first()
-    if not user and request.user and request.user.is_authenticated:
-        user = request.user
+    elif data.get('email'):
+        email_cand = str(data.get('email')).strip()
+        user = User.objects.filter(
+            Q(email__iexact=email_cand) | Q(username__iexact=email_cand)
+        ).first()
 
     if not user:
         return Response({
@@ -504,7 +600,51 @@ def user_profile_view(request):
         # 1. Actualizar foto / avatar
         if 'photo' in data or 'avatar' in data:
             photo_val = data.get('photo') if 'photo' in data else data.get('avatar')
-            profile.avatar = photo_val or None
+            if photo_val:
+                # Validar tamaño máximo de string (~80 KB = 81,920 caracteres)
+                if len(photo_val) > 80 * 1024:
+                    return Response({
+                        'status': 'error',
+                        'message': 'La imagen de avatar excede el tamaño máximo permitido de 80 KB.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Validar formato Data URI estricto (image/jpeg, image/png, image/webp)
+                match = re.match(r'^data:(image/(?:jpeg|png|webp));base64,(.+)$', photo_val)
+                if not match:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Formato de imagen no permitido. Solo se aceptan data URIs en formato image/jpeg, image/png o image/webp.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                mime_type = match.group(1)
+                b64_content = match.group(2)
+
+                try:
+                    raw_bytes = base64.b64decode(b64_content, validate=True)
+                except Exception:
+                    return Response({
+                        'status': 'error',
+                        'message': 'El contenido del avatar no es una codificación Base64 válida.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Comprobar magic bytes correspondientes
+                is_valid = False
+                if mime_type == 'image/jpeg':
+                    is_valid = raw_bytes.startswith(b'\xff\xd8\xff')
+                elif mime_type == 'image/png':
+                    is_valid = raw_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+                elif mime_type == 'image/webp':
+                    is_valid = len(raw_bytes) >= 12 and raw_bytes[:4] == b'RIFF' and raw_bytes[8:12] == b'WEBP'
+
+                if not is_valid:
+                    return Response({
+                        'status': 'error',
+                        'message': 'Los bytes de la imagen no coinciden con la cabecera MIME declarada (archivo corrupto o tipo inválido).'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                profile.avatar = photo_val
+            else:
+                profile.avatar = None
 
         # 2. Actualizar teléfono
         if 'phone' in data:
@@ -639,6 +779,20 @@ def user_profile_view(request):
         new_session_token = None
         if email_changed:
             new_session_token = issue_session_token(user)
+            try:
+                from .services.make_service import dispatch_security_alert_webhook
+                dispatch_security_alert_webhook(
+                    event='auth.email_changed',
+                    user=user,
+                    request=request,
+                    extra_data={
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'recipient_email': new_email,
+                    }
+                )
+            except Exception as exc:
+                logger.warning(f"[Make Security] Error al despachar auth.email_changed: {exc}")
 
         response_payload = {
             'status': 'success',
@@ -966,6 +1120,38 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             })
         return super().update(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save()
+        if creator:
+            instance._assigned_by = creator
+            instance.created_by = creator
+        else:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
     def perform_update(self, serializer):
         from .services.personnel_incidents import (
             build_field_changes,
@@ -1108,7 +1294,33 @@ class PersonnelIncidentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(created_by=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
     def destroy(self, request, *args, **kwargs):
         incident = self.get_object()
@@ -1198,6 +1410,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
       ante los eventos 'project.created', 'project.updated' y 'project.deleted'.
     - Optimización de Cronograma: Expone la acción `/projects/{id}/optimize/` para el análisis
       heurístico de holguras y compresión de rutas críticas mediante `analyze_project_timeline`.
+    - Auditoría Periódica de Portafolio: Expone `/projects/periodic-audit/` para el análisis
+      multivariable de salud, ruta crítica (CPM) e inactividad (STALE) por ventanas periódicas.
     """
     authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Project.objects.prefetch_related('milestones', 'tasks', 'team_members__technical_area').all()
@@ -1226,11 +1440,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     Q(username__iexact=creator_identifier.strip())
                 ).first()
 
+        user = getattr(request, 'user', None)
+        actor_name = "system"
+        if user and user.is_authenticated:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            actor_name = full_name or user.username
+
         serializer = self.get_serializer(data=request.data)
+        serializer._actor_name = actor_name
         serializer.is_valid(raise_exception=True)
 
         # 3. Guardar pasando creador y líder seleccionado en memoria para post_save
-        project = serializer.save(created_by=creator, selected_leader=selected_leader)
+        project = serializer.save(_actor_name=actor_name, created_by=creator, selected_leader=selected_leader)
+        project._actor_name = actor_name
+        ProjectChangeLog.objects.filter(project=project, action_type='PROJECT_CREATED').update(user_name=actor_name)
         if not creator:
             fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
             fallback_email = request.data.get('creator_email')
@@ -1252,6 +1475,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        old_status = instance.status
 
         # Identificar creador / editor autenticado
         user = getattr(request, 'user', None)
@@ -1291,6 +1515,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        # Auditoría de cambio de estado: propagar motivo en memoria al modelo para el signal
+        status_reason = (
+            request.data.get('status_change_reason')
+            or request.data.get('statusReason')
+            or ''
+        )
+        if status_reason:
+            instance._status_change_reason = status_reason
+
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            full_name = f"{user.first_name} {user.last_name}".strip()
+            instance._actor_name = full_name or user.username
+        else:
+            fallback_user = request.data.get('userName') or request.data.get('user_name')
+            if fallback_user:
+                instance._actor_name = str(fallback_user)[:150]
+
         project = serializer.save()
 
         # Actualizar asignación del líder técnico si viene especificado en la petición
@@ -1341,6 +1583,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @action(detail=False, methods=['get'], url_path='periodic-audit')
+    def periodic_audit(self, request):
+        from .services.project_audit_service import analyze_periodic_project_audit
+
+        period = request.query_params.get('period', 'monthly')
+        reference_date = request.query_params.get('reference_date') or request.query_params.get('date')
+        report = analyze_periodic_project_audit(period=period, reference_date=reference_date)
+        return Response(report, status=status.HTTP_200_OK)
+
 
 class MilestoneViewSet(viewsets.ModelViewSet):
     """CRUD y gestión de entregas clave para Hitos Estratégicos.
@@ -1350,6 +1601,7 @@ class MilestoneViewSet(viewsets.ModelViewSet):
     Soporta filtrado por proyecto mediante el query parameter `?project=<id>`.
     """
 
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Milestone.objects.select_related("project").all()
     serializer_class = MilestoneSerializer
 
@@ -1361,6 +1613,35 @@ class MilestoneViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(project_id=project_id)
 
         return queryset
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(creator=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -1567,6 +1848,15 @@ def google_drive_callback_view(request):
         )
 
         request.session.pop("google_drive_oauth_state", None)
+        _record_integration_audit(
+            request,
+            lambda actor_name: (
+                f"El usuario **{actor_name}** vinculó y autorizó exitosamente la cuenta de Google Drive."
+            ),
+            old_value="desconectado",
+            new_value="conectado",
+            log_context="Google Drive Callback",
+        )
         frontend_url = settings.GOOGLE_DRIVE_FRONTEND_URL.rstrip("/")
 
         return redirect(f"{frontend_url}/?google_drive=connected")
@@ -2005,8 +2295,19 @@ class BIMModelDetailView(APIView):
             model = BIMModel.objects.get(pk=pk)
             name = request.data.get("name")
             if name:
+                old_name = model.name
                 model.name = name
                 model.save(update_fields=['name'])
+                _record_integration_audit(
+                    request,
+                    lambda actor_name: (
+                        f"El usuario **{actor_name}** renombró el modelo BIM de "
+                        f"**{old_name}** a **{name}** en Autodesk APS."
+                    ),
+                    old_value=old_name,
+                    new_value=name,
+                    log_context="APS Model Patch",
+                )
             return Response({"status": "success", "message": "Nombre del modelo actualizado."})
         except BIMModel.DoesNotExist:
             return Response({"status": "error", "message": "Modelo no encontrado."}, status=404)
@@ -2016,7 +2317,18 @@ class BIMModelDetailView(APIView):
     def delete(self, request, pk):
         try:
             model = BIMModel.objects.get(pk=pk)
+            model_name = model.name
             model.delete()
+            _record_integration_audit(
+                request,
+                lambda actor_name: (
+                    f"El usuario **{actor_name}** eliminó el modelo BIM **{model_name}** "
+                    "de la bóveda de Autodesk APS."
+                ),
+                old_value=model_name,
+                new_value="eliminado",
+                log_context="APS Model Delete",
+            )
             return Response({"status": "success", "message": "Modelo eliminado localmente."})
         except BIMModel.DoesNotExist:
             return Response({"status": "error", "message": "Modelo no encontrado."}, status=404)
@@ -2059,6 +2371,16 @@ class APSUploadView(APIView):
                 object_id=object_id,
                 size_bytes=size_bytes,
                 uploaded_by=request.user
+            )
+
+            _record_integration_audit(
+                request,
+                lambda actor_name: (
+                    f"El usuario **{actor_name}** subió el modelo BIM **{filename}** a Autodesk APS."
+                ),
+                old_value="",
+                new_value=filename,
+                log_context="APS Upload",
             )
 
             return Response({
@@ -2136,7 +2458,7 @@ class CreateTechnicianView(APIView):
     serializer_class = CreateTechnicianSerializer
 
     def post(self, request):
-        serializer = CreateTechnicianSerializer(data=request.data)
+        serializer = CreateTechnicianSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         technician = serializer.save()
 
@@ -2370,11 +2692,37 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(created_by=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
 
-class ProjectChangeLogViewSet(viewsets.ModelViewSet):
-    """CRUD para historial de cambios en proyectos (Portafolio)."""
+class ProjectChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consulta de solo lectura para historial de cambios en proyectos (Portafolio). Inmutable vía API."""
     queryset = ProjectChangeLog.objects.select_related('project').all()
     serializer_class = ProjectChangeLogSerializer
 
@@ -2386,8 +2734,8 @@ class ProjectChangeLogViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ScheduleAdjustmentViewSet(viewsets.ModelViewSet):
-    """CRUD para historial de reajustes de cronograma (Planificacion Estrategica)."""
+class ScheduleAdjustmentViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consulta de solo lectura para historial de reajustes de cronograma. Inmutable vía API."""
     queryset = ScheduleAdjustment.objects.select_related('project').all()
     serializer_class = ScheduleAdjustmentSerializer
 

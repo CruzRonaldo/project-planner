@@ -30,7 +30,59 @@ const AUDIT_ACTION_MAP = {
   profile_update: 'notifications.auditProfileUpdateTitle',
   'Actualización de Perfil': 'notifications.auditProfileUpdateTitle',
   'Profile Update': 'notifications.auditProfileUpdateTitle',
+  integration_update: 'notifications.auditIntegrationUpdateTitle',
+  'Modificación de Integraciones': 'notifications.auditIntegrationUpdateTitle',
+  'Integration Modification': 'notifications.auditIntegrationUpdateTitle',
+  'Integrations Modification': 'notifications.auditIntegrationUpdateTitle',
 };
+
+const MAKE_CHANGE_LABEL_REPLACEMENTS = [
+  [/Notificaciones y Asignaciones/g, 'Notifications & Assignments'],
+  [/Gobernanza de Presupuesto/g, 'Budget Governance'],
+  [/Autenticación de 2 Factores/g, 'Two-Factor Authentication'],
+];
+
+/**
+ * Traduce al inglés los fragmentos descriptivos generados por el backend para cambios de Make/Webhooks.
+ * @param {string} rawChanges - Cadena de cambios separados por punto y coma
+ * @returns {string} Cadena de cambios traducida al inglés
+ */
+function translateMakeChangesToEnglish(rawChanges = '') {
+  if (!rawChanges) return '';
+
+  return rawChanges
+    .split(/;\s*/)
+    .map((segment) => {
+      let translated = segment.trim();
+      translated = translated
+        .replace(/\bURL global\b/g, 'Global URL')
+        .replace(/\bvac[ií][ao]\b/g, 'empty')
+        .replace(/\bFrecuencia\b/g, 'Frequency')
+        .replace(/\bEstado\b/g, 'Status')
+        .replace(/Token de API de Make actualizado/g, 'Make API token updated')
+        .replace(/Token de API de (.+?) actualizado/g, 'API token of $1 updated')
+        .replace(/Endpoint de (.+?) \((.+?)\)/g, 'Endpoint of $1 ($2)')
+        .replace(/Tarea (.+?) (?:configurada \(activada\)|activada)/g, 'Task $1 enabled')
+        .replace(/Tarea (.+?) (?:configurada \(desactivada\)|desactivada)/g, 'Task $1 disabled');
+
+      for (const [pattern, replacement] of MAKE_CHANGE_LABEL_REPLACEMENTS) {
+        translated = translated.replace(pattern, replacement);
+      }
+      return translated;
+    })
+    .join('; ');
+}
+
+/**
+ * Busca la primera coincidencia entre múltiples expresiones regulares equivalentes (con o sin negritas).
+ */
+function matchFirst(text, patterns) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match;
+  }
+  return null;
+}
 
 /**
  * Función interna para traducir con fallback e interpolación segura en ausencia de t.
@@ -150,7 +202,79 @@ export function formatNotificationDetail(detail = '', t) {
     );
   }
 
-  // 5. Hito próximo
+  // 5. Auditoría: Modificación de integraciones (Make/Webhooks)
+  const integrationMatch = matchFirst(detail, [
+    /El usuario \*\*(.*?)\*\* modificó la configuración de integraciones \(Make\/Webhooks\)\. Cambios: (.*)\./,
+    /El usuario (.*?) modificó la configuración de integraciones \(Make\/Webhooks\)\. Cambios: (.*)\./,
+  ]);
+  if (integrationMatch) {
+    const isEnglish = translateWithFallback(t, 'notifications.auditPrefix', 'Auditoría') === 'Audit';
+    const changesText = isEnglish
+      ? translateMakeChangesToEnglish(integrationMatch[2])
+      : integrationMatch[2];
+    return translateWithFallback(
+      t,
+      'notifications.auditIntegrationUpdateDetail',
+      'El usuario **{name}** modificó la configuración de integraciones (Make/Webhooks). Cambios: {changes}.',
+      { name: integrationMatch[1], changes: changesText }
+    );
+  }
+
+  // 6. Auditoría: Vinculación de Google Drive OAuth
+  const driveMatch = matchFirst(detail, [
+    /El usuario \*\*(.*?)\*\* vinculó y autorizó exitosamente la cuenta de Google Drive\./,
+    /El usuario (.*?) vinculó y autorizó exitosamente la cuenta de Google Drive\./,
+  ]);
+  if (driveMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditDriveConnectedDetail',
+      'El usuario **{name}** vinculó y autorizó exitosamente la cuenta de Google Drive.',
+      { name: driveMatch[1] }
+    );
+  }
+
+  // 7. Auditoría: Autodesk APS (subida, renombrado y eliminación de modelos BIM)
+  const apsUploadMatch = matchFirst(detail, [
+    /El usuario \*\*(.*?)\*\* subió el modelo BIM \*\*(.*?)\*\* a Autodesk APS\./,
+    /El usuario (.*?) subió el modelo BIM (.*?) a Autodesk APS\./,
+  ]);
+  if (apsUploadMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditApsUploadDetail',
+      'El usuario **{name}** subió el modelo BIM **{file}** a Autodesk APS.',
+      { name: apsUploadMatch[1], file: apsUploadMatch[2] }
+    );
+  }
+
+  const apsRenameMatch = matchFirst(detail, [
+    /El usuario \*\*(.*?)\*\* renombró el modelo BIM de \*\*(.*?)\*\* a \*\*(.*?)\*\* en Autodesk APS\./,
+    /El usuario (.*?) renombró el modelo BIM de (.*?) a (.*?) en Autodesk APS\./,
+  ]);
+  if (apsRenameMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditApsRenameDetail',
+      'El usuario **{name}** renombró el modelo BIM de **{old}** a **{new}** en Autodesk APS.',
+      { name: apsRenameMatch[1], old: apsRenameMatch[2], new: apsRenameMatch[3] }
+    );
+  }
+
+  const apsDeleteMatch = matchFirst(detail, [
+    /El usuario \*\*(.*?)\*\* eliminó el modelo BIM \*\*(.*?)\*\* de la bóveda de Autodesk APS\./,
+    /El usuario (.*?) eliminó el modelo BIM (.*?) de la bóveda de Autodesk APS\./,
+  ]);
+  if (apsDeleteMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditApsDeleteDetail',
+      'El usuario **{name}** eliminó el modelo BIM **{file}** de la bóveda de Autodesk APS.',
+      { name: apsDeleteMatch[1], file: apsDeleteMatch[2] }
+    );
+  }
+
+  // 8. Hito próximo
   const milestoneMatch =
     detail.match(/Proyecto \*\*(.*?)\*\* \((.*?)\) programado para (.*?)\./) ||
     detail.match(/Proyecto (.*?) \((.*?)\) programado para (.*?)\./);

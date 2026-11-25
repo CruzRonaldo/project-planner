@@ -2,7 +2,7 @@
 export { RolesManagement, StrategicPlanning } from './admin';
 
 // Technical
-export { Portfolio, Operations, TechnicalTeam } from './technical';
+export { Portfolio, Operations, TechnicalTeam, ProjectAuditView } from './technical';
 
 // Projects
 export { ProjectDetail } from './projects';

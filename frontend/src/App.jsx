@@ -3,8 +3,8 @@ import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
 import { LoadingScreen, LoginScreen } from './views';
 import { useAppController } from './controllers';
+import { hasViewAccess } from './config/navigation.config';
 import ChatWidget from './components/common/ChatWidget';
-
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -33,6 +33,8 @@ export default function App() {
     displayedCurrentUser,
     activeView,
     setActiveView,
+    theme,
+    toggleTheme,
     users,
     handleLogin,
     handleLogout,
@@ -47,7 +49,7 @@ export default function App() {
   // Atajos de teclado para accesibilidad (A11y):
   // - Escape: cerrar menú móvil
   // - Shift + 0: alternar barra lateral en escritorio (expandir / colapsar)
-  // - Shift + 1 .. 8: cambiar de vista directamente
+  // - Shift + 1 .. 9: cambiar de vista directamente
   React.useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -93,12 +95,13 @@ export default function App() {
           Numpad5: 'technical-team',
           Digit6: 'human-resources',
           Numpad6: 'human-resources',
-          Digit7: 'integrations',
-          Numpad7: 'integrations',
-          Digit8: 'manual',
-          Numpad8: 'manual',
-          Digit9: 'configuracion',
-          Numpad9: 'configuracion',
+          // Shift + 7 asignado a Auditoría de Proyectos (Admin y Subadmin)
+          Digit7: 'project-audit',
+          Numpad7: 'project-audit',
+          Digit8: 'integrations',
+          Numpad8: 'integrations',
+          Digit9: 'manual',
+          Numpad9: 'manual',
         };
 
         const keyFallbackMap = {
@@ -117,28 +120,31 @@ export default function App() {
           '&': 'human-resources',
           '^': 'human-resources',
           '6': 'human-resources',
-          '/': 'integrations',
-          '7': 'integrations',
-          // Shift + 8 para Manual de Usuario (en ES '(', en US '*')
-          '(': 'manual',
-          '*': 'manual',
-          '8': 'manual',
-          // Shift + 9 para Configuración (en teclado ES genera ')', en US genera '(')
-          ')': 'configuracion',
-          '9': 'configuracion',
+          // Shift + 7 para Auditoría de Proyectos
+          '/': 'project-audit',
+          '7': 'project-audit',
+          // Shift + 8 para Integraciones (en ES '(', en US '*')
+          '(': 'integrations',
+          '*': 'integrations',
+          '8': 'integrations',
+          // Shift + 9 para Manual de Usuario (en teclado ES genera ')')
+          ')': 'manual',
+          '9': 'manual',
         };
 
         const targetView = shortcutToView[code] || keyFallbackMap[key];
         if (targetView) {
-          event.preventDefault();
-          setActiveView(targetView);
+          if (hasViewAccess(targetView, displayedCurrentUser)) {
+            event.preventDefault();
+            setActiveView(targetView);
+          }
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveView, toggleDesktopSidebar]);
+  }, [setActiveView, toggleDesktopSidebar, displayedCurrentUser]);
 
   // Cerrar automáticamente el menú móvil cuando la ventana escala a vista de escritorio (>= 768px)
   React.useEffect(() => {
@@ -185,6 +191,8 @@ export default function App() {
             onLogout={handleLogout}
             onNavigate={setActiveView}
             onOpenMobileMenu={() => setMobileMenuOpen(true)}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
           {renderActiveView()}
         </div>

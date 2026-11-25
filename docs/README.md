@@ -6,6 +6,8 @@ Bienvenido a la base de conocimiento y documentación técnica de **Project Plan
 
 > **Accesibilidad:** consulta el [Análisis de Accesibilidad WCAG](./general/05-analisis-accesibilidad-wcag.md), evaluado con **WCAG 2.2, nivel AA**, para conocer el alcance, las evidencias y el plan de mejora.
 
+> **Evolución del asistente:** consulta el [Plan de incorporación futura de Coze](./general/06-plan-integracion-coze.md), preparado para una activación opcional y segura sin reemplazar el proveedor actual.
+
 ---
 
 ## 🏛️ 1. [Documentación General y Arquitectura](./general/)
@@ -17,6 +19,7 @@ Documentación transversal sobre la arquitectura del sistema, ciclo de vida corp
 * **[03. Documentación Frontend](./general/03.%20Documentación%20Frontend.md):** Arquitectura React, catálogo de vistas, rutas y políticas de guards.
 * **[04. Matriz de Historias de Usuario (HU)](./general/04.%20Matriz%20de%20Historias%20de%20Usuario%20(HU).md):** Criterios de aceptación (Gherkin), trazabilidad y DoD.
 * **[05. Análisis de Accesibilidad WCAG](./general/05-analisis-accesibilidad-wcag.md):** Evaluación preliminar WCAG 2.2 AA, hallazgos, evidencias y plan de validación.
+* **[06. Plan de incorporación futura de Coze](./general/06-plan-integracion-coze.md):** Arquitectura, seguridad, variables, etapas, pruebas, activación y rollback de la integración opcional.
 
 ---
 

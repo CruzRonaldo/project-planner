@@ -243,9 +243,9 @@ export default function ChatWidget({ currentUser }) {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                  <span>{t('chatWidget.title', 'Asistente AI')}</span>
+                  <span>{t('chatWidget.title', 'Asistente IA')}</span>
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/40">
-                    Gemini SSE
+                    {t('chatWidget.configurableProvider', 'Proveedor configurable')}
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400 flex items-center gap-1.5">

@@ -83,14 +83,14 @@ test('es.json y en.json tienen una estructura de claves simétrica y completa', 
   assert.equal(en.months['1'], 'Jan');
 
   // Validar claves específicas de common
-  const commonKeys = ['save', 'cancel', 'edit', 'delete', 'search', 'loading', 'close', 'back', 'actions', 'confirm'];
+  const commonKeys = ['save', 'cancel', 'edit', 'delete', 'search', 'loading', 'close', 'back', 'actions', 'confirm', 'refresh'];
   for (const k of commonKeys) {
     assert.ok(es.common[k], `common.${k} debe estar definido en es.json`);
     assert.ok(en.common[k], `common.${k} debe estar definido en en.json`);
   }
 
   // Validar claves de nav
-  const navKeys = ['dashboard', 'planning', 'portfolio', 'operations', 'technicalTeam', 'humanResources', 'integrations', 'manual', 'settings'];
+  const navKeys = ['dashboard', 'planning', 'portfolio', 'operations', 'technicalTeam', 'humanResources', 'integrations', 'manual', 'settings', 'roles'];
   for (const k of navKeys) {
     assert.ok(es.nav[k], `nav.${k} debe estar definido en es.json`);
     assert.ok(en.nav[k], `nav.${k} debe estar definido en en.json`);
@@ -564,6 +564,9 @@ test('es.json y en.json tienen una estructura de claves simétrica y completa', 
     'noActivity',
     'noConnection',
     'verifiedNow',
+    'never',
+    'justNow',
+    'recent',
     'tenMinutesAgo',
     'oneHourAgo',
     'twoHoursAgo',
@@ -806,7 +809,7 @@ test('Topbar traduce elementos accesibles y ya no incluye selector de idioma en 
       )
     );
     assert.ok(htmlEs.includes('Buscar proyectos, hitos o equipos...'));
-    assert.ok(htmlEs.includes('Manual de Usuario'));
+    assert.ok(htmlEs.includes('Cambiar tema de la interfaz'));
     assert.ok(htmlEs.includes('Atajo de búsqueda:'));
     assert.ok(!htmlEs.includes('aria-label="Seleccionar idioma / Select language"'), 'Ya no debe contener el selector de idioma en la barra superior');
 
@@ -821,7 +824,7 @@ test('Topbar traduce elementos accesibles y ya no incluye selector de idioma en 
       )
     );
     assert.ok(htmlEn.includes('Search projects, milestones or teams...'));
-    assert.ok(htmlEn.includes('User Manual'));
+    assert.ok(htmlEn.includes('Toggle interface theme'));
     assert.ok(htmlEn.includes('Search shortcut:'));
     assert.ok(!htmlEn.includes('aria-label="Seleccionar idioma / Select language"'), 'Ya no debe contener el selector de idioma en la barra superior');
 
@@ -868,7 +871,7 @@ test('PreferencesCard renderiza selector limpio de Idioma junto a Zona Horaria y
     assert.ok(htmlEs.includes('English (EN)'));
     assert.ok(htmlEs.includes('Zona Horaria'), 'Debe conservar el campo adyacente de Zona Horaria');
     assert.ok(htmlEs.includes('Tamaño de letra'), 'Debe conservar el control de escala de letra');
-    assert.ok(htmlEs.includes('Tema de Interfaz'), 'Debe conservar el selector de tema');
+    assert.ok(!htmlEs.includes('Tema de Interfaz'), 'El selector de tema se trasladó al Topbar para evitar redundancia');
 
     // Render en inglés tras conmutación
     const htmlEn = renderToStaticMarkup(
@@ -890,7 +893,7 @@ test('PreferencesCard renderiza selector limpio de Idioma junto a Zona Horaria y
     assert.ok(htmlEn.includes('System Preferences'), 'Debe reflejar System Preferences en inglés');
     assert.ok(htmlEn.includes('Time Zone'), 'Debe reflejar Time Zone en inglés');
     assert.ok(htmlEn.includes('Font Size'), 'Debe reflejar Font Size en inglés');
-    assert.ok(htmlEn.includes('Interface Theme'), 'Debe reflejar Interface Theme en inglés');
+    assert.ok(!htmlEn.includes('Interface Theme'), 'Interface Theme se trasladó al Topbar para evitar redundancia');
   } finally {
     await server.close();
   }
@@ -1417,7 +1420,7 @@ test('RolesManagement traduce título, subtítulo, tarjetas de resumen, roles y 
     const { LanguageProvider } = await server.ssrLoadModule('/src/context/LanguageContext.jsx');
 
     const sampleUsers = [
-      { id: 1, name: 'Admin Boss', email: 'admin@corp.com', isOnline: true, isAdmin: true, isSubAdmin: false },
+      { id: 1, name: 'Admin Boss', email: 'admin@corp.com', isOnline: true, isAdmin: true, isSubAdmin: false, avatar: 'https://example.com/avatar1.jpg' },
       { id: 2, name: 'Carlos Tech', email: 'carlos@corp.com', isOnline: false, isAdmin: false, isSubAdmin: true },
       { id: 3, name: 'Ana Member', email: 'ana@corp.com', isOnline: true, isAdmin: false, isSubAdmin: false },
     ];
@@ -1434,6 +1437,7 @@ test('RolesManagement traduce título, subtítulo, tarjetas de resumen, roles y 
 
     assert.ok(htmlEn.includes('Roles Management'), 'Debe traducir título a Roles Management');
     assert.ok(htmlEn.includes('Exclusive Administrator access'), 'Debe traducir acceso exclusivo');
+    assert.ok(htmlEn.includes('https://example.com/avatar1.jpg'), 'Debe renderizar la imagen de avatar si el usuario la tiene');
     assert.ok(htmlEn.includes('Users'), 'Debe traducir métrica Users');
     assert.ok(htmlEn.includes('SubAdministrators'), 'Debe traducir métrica SubAdministrators');
     assert.ok(htmlEn.includes('Online'), 'Debe traducir estado Online');
@@ -1704,10 +1708,10 @@ test('DashboardContent se traduce adecuadamente al renderizarse con LanguageProv
     assert.ok(htmlEn.includes('Critical Path Alerts'), 'Debe traducir Critical Path Alerts');
     assert.ok(htmlEn.includes('At risk'), 'Debe traducir estado At risk');
     assert.ok(htmlEn.includes('Progress by Project'), 'Debe traducir Progress by Project');
-    assert.ok(htmlEn.includes('Budget Control'), 'Debe traducir Budget Control');
-    assert.ok(htmlEn.includes('Assigned'), 'Debe traducir Assigned en el gráfico de presupuesto');
-    assert.ok(htmlEn.includes('Total: $500K'), 'Debe mostrar leyenda Total en gráfico');
-    assert.ok(htmlEn.includes('Used: $250K'), 'Debe mostrar leyenda Used en gráfico');
+    assert.ok(htmlEn.includes('Portfolio Health'), 'Debe traducir Portfolio Health');
+    assert.ok(htmlEn.includes('On Track'), 'Debe traducir On Track en el anillo de salud');
+    assert.ok(htmlEn.includes('On Schedule'), 'Debe traducir On Schedule en el desglose de salud');
+    assert.ok(htmlEn.includes('View Complete Audit'), 'Debe traducir botón View Complete Audit');
 
     // Probar estados vacíos en inglés
     const emptyHtmlEn = renderToStaticMarkup(
@@ -2030,14 +2034,14 @@ test('manualSections: getManualSections y getMarkdownContent resuelven metadatos
 
     const tEn = createTranslate('en');
     const sectionsEn = getManualSections('en', tEn);
-    assert.equal(sectionsEn.length, 10);
+    assert.equal(sectionsEn.length, 14);
     assert.equal(sectionsEn[0].title, 'Index and General Structure');
     assert.equal(sectionsEn[1].shortTitle, 'Access & 2FA');
     assert.ok(sectionsEn[0].content.length > 50, 'Debe cargar contenido en inglés de README.md');
 
     const tEs = createTranslate('es');
     const sectionsEs = getManualSections('es', tEs);
-    assert.equal(sectionsEs.length, 10);
+    assert.equal(sectionsEs.length, 14);
     assert.equal(sectionsEs[0].title, 'Índice y Estructura General');
     assert.equal(sectionsEs[1].shortTitle, 'Acceso y 2FA');
     assert.ok(sectionsEs[0].content.length > 50, 'Debe cargar contenido en español de README.md');
@@ -2164,6 +2168,14 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
       formatNotificationTitle('Auditoría: Actualización de Perfil', tEn),
       'Audit: Profile Update'
     );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Modificación de Integraciones', tEs),
+      'Auditoría: Modificación de Integraciones'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Modificación de Integraciones', tEn),
+      'Audit: Integration Modification'
+    );
 
     // Hito próximo
     assert.equal(
@@ -2226,6 +2238,55 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
       'User **ronaldo** changed their access email from **old@mail.com** to **new@mail.com**.'
     );
 
+    // Auditoría: Integraciones (Make/Webhooks, Google Drive, Autodesk APS)
+    const makeDetail =
+      'El usuario **ROnaldo Cruz Alvarez** modificó la configuración de integraciones (Make/Webhooks). Cambios: Token de API de Notificaciones y Asignaciones actualizado.';
+    assert.equal(formatNotificationDetail(makeDetail, tEs), makeDetail);
+    assert.ok(
+      formatNotificationDetail(makeDetail, tEn).includes(
+        'User **ROnaldo Cruz Alvarez** updated the integrations configuration (Make/Webhooks). Changes: API token of Notifications & Assignments updated.'
+      )
+    );
+
+    const makeComplexDetail =
+      "El usuario **Admin** modificó la configuración de integraciones (Make/Webhooks). Cambios: URL global (vacía -> https://hook.make.com/1); Frecuencia (5 -> 15); Estado (active -> inactive); Token de API de Make actualizado; Endpoint de 'Gobernanza de Presupuesto' (vacío -> https://hook.make.com/2); Tarea 'Autenticación de 2 Factores' configurada (activada); Tarea 'Notificaciones y Asignaciones' desactivada.";
+    assert.equal(
+      formatNotificationDetail(makeComplexDetail, tEn),
+      "User **Admin** updated the integrations configuration (Make/Webhooks). Changes: Global URL (empty -> https://hook.make.com/1); Frequency (5 -> 15); Status (active -> inactive); Make API token updated; Endpoint of 'Budget Governance' (empty -> https://hook.make.com/2); Task 'Two-Factor Authentication' enabled; Task 'Notifications & Assignments' disabled."
+    );
+
+    const driveDetail =
+      'El usuario **ROnaldo Cruz Alvarez** vinculó y autorizó exitosamente la cuenta de Google Drive.';
+    assert.equal(formatNotificationDetail(driveDetail, tEs), driveDetail);
+    assert.ok(
+      formatNotificationDetail(driveDetail, tEn).includes(
+        'User **ROnaldo Cruz Alvarez** successfully linked and authorized the Google Drive account.'
+      )
+    );
+
+    const apsUploadDetail = 'El usuario **Ana** subió el modelo BIM **torre.rvt** a Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsUploadDetail, tEs), apsUploadDetail);
+    assert.equal(
+      formatNotificationDetail(apsUploadDetail, tEn),
+      'User **Ana** uploaded BIM model **torre.rvt** to Autodesk APS.'
+    );
+
+    const apsRenameDetail =
+      'El usuario **Ana** renombró el modelo BIM de **v1.rvt** a **v2.rvt** en Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsRenameDetail, tEs), apsRenameDetail);
+    assert.equal(
+      formatNotificationDetail(apsRenameDetail, tEn),
+      'User **Ana** renamed BIM model from **v1.rvt** to **v2.rvt** in Autodesk APS.'
+    );
+
+    const apsDeleteDetail =
+      'El usuario **Ana** eliminó el modelo BIM **v2.rvt** de la bóveda de Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsDeleteDetail, tEs), apsDeleteDetail);
+    assert.equal(
+      formatNotificationDetail(apsDeleteDetail, tEn),
+      'User **Ana** deleted BIM model **v2.rvt** from the Autodesk APS vault.'
+    );
+
     // Hito próximo
     const milestoneDetail = 'Proyecto **Torre Titan** (PRJ-99) programado para 2026-11-30.';
     assert.equal(
@@ -2254,6 +2315,14 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
     assert.equal(formatAuditAction('email_change', 'Cambio de Correo Electrónico', tEn), 'Email Address Change');
     assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEs), 'Actualización de Perfil');
     assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEn), 'Profile Update');
+    assert.equal(
+      formatAuditAction('integration_update', 'Modificación de Integraciones', tEs),
+      'Modificación de Integraciones'
+    );
+    assert.equal(
+      formatAuditAction('integration_update', 'Modificación de Integraciones', tEn),
+      'Integration Modification'
+    );
   } finally {
     await server.close();
   }

@@ -3,11 +3,11 @@ import sys
 import threading
 from django.conf import settings
 from django.db import transaction
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, post_delete, pre_save, pre_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 
-from .models import Project, Task, ProjectMeeting, TeamMember
+from .models import Project, Task, ProjectMeeting, TeamMember, Milestone, PersonnelIncident
 from .services import make_service
 
 logger = logging.getLogger(__name__)
@@ -97,22 +97,45 @@ def handle_project_deleted(sender, instance, **kwargs):
     _dispatch_async_webhook(event='project.deleted', data=payload)
 
 
+def _get_project_leader(project):
+    """
+    Identifica el líder o director asignado a un proyecto.
+    Prioriza miembros con permisos de gestión en su rol o palabras clave de liderazgo.
+    """
+    if not project:
+        return None
+    leader = project.team_members.filter(role__can_manage_projects=True).first()
+    if leader:
+        return leader
+    for member in project.team_members.select_related('role').all():
+        if member.role and any(kw in (member.role.name or '').lower() for kw in ['líder', 'lider', 'director', 'coordinador', 'pm', 'lead', 'gerente']):
+            return member
+    return project.team_members.first()
+
+
 # =========================================================================
-# 2. Evento: Asignación de Líder a Proyecto ('project.leader_assigned')
+# 2. Evento: Asignación de Líder y Reasignación de Personal ('project.leader_assigned', 'member.reassigned')
 # =========================================================================
 @receiver(pre_save, sender=TeamMember)
 def track_team_member_project_change(sender, instance, **kwargs):
     """
-    Rastrea el project_id anterior para detectar reasignaciones de proyecto.
+    Rastrea el project_id y el nombre del proyecto anterior para detectar reasignaciones de proyecto.
     """
     if instance.pk:
         try:
-            old = TeamMember.objects.filter(pk=instance.pk).values('project_id').first()
-            instance._old_project_id = old['project_id'] if old else None
+            old = TeamMember.objects.filter(pk=instance.pk).select_related('project').first()
+            if old:
+                instance._old_project_id = old.project_id
+                instance._old_project_name = old.project.name if old.project else ''
+            else:
+                instance._old_project_id = None
+                instance._old_project_name = ''
         except Exception:
             instance._old_project_id = None
+            instance._old_project_name = ''
     else:
         instance._old_project_id = None
+        instance._old_project_name = ''
 
 
 @receiver(post_save, sender=TeamMember)
@@ -173,6 +196,53 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
         }
         _dispatch_async_webhook(event='project.leader_assigned', data=payload)
 
+    elif not created and old_project_id != instance.project_id and instance.project:
+        # Reasignación de personal técnico operativo a otro proyecto ('member.reassigned')
+        creator = (
+            getattr(instance, '_assigned_by', None)
+            or getattr(instance, 'created_by', None)
+            or getattr(instance, 'assigned_by', None)
+            or getattr(instance, 'owner', None)
+        )
+        creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+        creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+        if creator:
+            creator_email = getattr(creator, 'email', '') or creator_email
+            creator_name = (
+                getattr(creator, 'username', '')
+                or (creator.get_username() if hasattr(creator, 'get_username') else '')
+                or getattr(creator, 'get_full_name', lambda: '')()
+                or str(creator)
+            )
+
+        member_name = f"{instance.first_name} {instance.last_name}".strip()
+        new_leader = _get_project_leader(instance.project)
+        new_leader_email = new_leader.email if new_leader and new_leader.email else ''
+
+        prev_project_name = getattr(instance, '_old_project_name', '') or ''
+        if not prev_project_name and old_project_id:
+            old_p = Project.objects.filter(pk=old_project_id).values_list('name', flat=True).first()
+            prev_project_name = old_p or ''
+
+        payload = {
+            'member_name': member_name,
+            'member_email': instance.email or '',
+            'previous_project_name': prev_project_name,
+            'new_project_name': instance.project.name,
+            'new_project_code': instance.project.code,
+            'allocation_percentage': instance.allocation_percentage,
+            'new_leader_email': new_leader_email,
+            'creator_name': creator_name,
+            'creator_email': creator_email,
+            'member_id': instance.id,
+            'previous_project_id': old_project_id,
+            'new_project_id': instance.project.id,
+            'role': instance.role.name if instance.role else '',
+            'technical_area': instance.technical_area.name if instance.technical_area else '',
+        }
+        _dispatch_async_webhook(event='member.reassigned', data=payload)
+
 
 @receiver(post_save, sender=TeamMember)
 def handle_member_created(sender, instance, created, **kwargs):
@@ -180,19 +250,41 @@ def handle_member_created(sender, instance, created, **kwargs):
         return
     if getattr(instance, '_skip_member_created_signal', False):
         return
-    # Evitar colisión si es líder, o enviar de todas formas los datos del nuevo miembro
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or getattr(instance, 'created_by', None)
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
     name = f"{instance.first_name} {instance.last_name}".strip()
     payload = {
         'member_id': instance.id,
         'first_name': instance.first_name,
         'last_name': instance.last_name,
         'name': name,
+        'member_name': name,
         'email': instance.email or '',
+        'member_email': instance.email or '',
         'role': instance.role.name if instance.role else '',
         'technical_area': instance.technical_area.name if instance.technical_area else '',
         'project_name': instance.project.name if instance.project else '',
         'project_code': instance.project.code if instance.project else '',
         'status': instance.status.name if instance.status else '',
+        'creator_name': creator_name,
+        'creator_email': creator_email,
     }
     _dispatch_async_webhook(event='member.created', data=payload)
 
@@ -335,3 +427,277 @@ def handle_meeting_created(sender, instance, created, **kwargs):
         'team_emails': team_emails,
     }
     _dispatch_async_webhook(event='meeting.created', data=payload)
+
+
+# =========================================================================
+# 5. Auditoría de Proyectos (Deltas de Cambios y Eliminación Histórica)
+# =========================================================================
+from .models import ProjectChangeLog
+import datetime
+
+
+@receiver(pre_save, sender=Project)
+def capture_old_project_state(sender, instance, **kwargs):
+    """
+    Captura el estado previo del proyecto antes de guardar para comparar deltas.
+    """
+    if instance.pk:
+        instance._old_instance = Project.objects.filter(pk=instance.pk).first()
+    else:
+        instance._old_instance = None
+
+
+@receiver(post_save, sender=Project)
+def log_project_changes(sender, instance, created, **kwargs):
+    """
+    Genera automáticamente un registro en ProjectChangeLog tras la creación o modificación.
+    Usa un esquema compacto libre de redundancias para optimizar almacenamiento en PostgreSQL/Supabase.
+    """
+    actor_name = getattr(instance, '_actor_name', None) or 'system'
+    today = datetime.date.today()
+
+    if created:
+        initial_deltas = {
+            'name': {'old': None, 'new': instance.name},
+            'code': {'old': None, 'new': instance.code},
+            'budget': {'old': None, 'new': float(instance.budget) if instance.budget is not None else 0.0},
+            'status': {'old': None, 'new': instance.status},
+        }
+        ProjectChangeLog.objects.create(
+            project=instance,
+            project_code=instance.code,
+            project_name=instance.name,
+            action_type='PROJECT_CREATED',
+            field_changes=initial_deltas,
+            description=f"Alta del proyecto '{instance.name}' ({instance.code})",
+            user_name=actor_name,
+            date=today,
+        )
+        return
+
+    old = getattr(instance, '_old_instance', None)
+    if not old:
+        return
+
+    deltas = {}
+    if old.budget != instance.budget:
+        deltas['budget'] = {
+            'old': float(old.budget) if old.budget is not None else 0.0,
+            'new': float(instance.budget) if instance.budget is not None else 0.0,
+        }
+    if old.status != instance.status:
+        deltas['status'] = {
+            'old': old.status,
+            'new': instance.status,
+        }
+    if old.start_date != instance.start_date:
+        deltas['start_date'] = {
+            'old': str(old.start_date) if old.start_date else None,
+            'new': str(instance.start_date) if instance.start_date else None,
+        }
+    if old.end_date != instance.end_date:
+        deltas['end_date'] = {
+            'old': str(old.end_date) if old.end_date else None,
+            'new': str(instance.end_date) if instance.end_date else None,
+        }
+    if old.name != instance.name:
+        deltas['name'] = {
+            'old': old.name,
+            'new': instance.name,
+        }
+    if old.description != instance.description:
+        deltas['description'] = {
+            'old': old.description,
+            'new': instance.description,
+        }
+
+    # Si no hubo cambios reales en los campos de negocio: NO CREAR LOG
+    if not deltas:
+        return
+
+    # Clasificación simple del evento
+    status_reason = getattr(instance, '_status_change_reason', '') or getattr(instance, '_status_reason', '')
+    desc = ''
+    if 'status' in deltas and len(deltas) == 1:
+        action_type = 'STATUS_CHANGE'
+        desc = f"Cambio de estado a {instance.get_status_display()}."
+        if status_reason and str(status_reason).strip():
+            desc += f" Motivo: {str(status_reason).strip()}"
+    elif 'budget' in deltas and len(deltas) == 1:
+        action_type = 'BUDGET_UPDATE'
+    elif ('start_date' in deltas or 'end_date' in deltas) and len(deltas) <= 2:
+        action_type = 'SCHEDULE_SHIFT'
+    else:
+        action_type = 'PROJECT_UPDATE'
+        if 'status' in deltas and status_reason:
+            desc = f"Cambio de estado a {instance.get_status_display()}. Motivo: {str(status_reason).strip()}"
+
+    ProjectChangeLog.objects.create(
+        project=instance,
+        project_code=instance.code,
+        project_name=instance.name,
+        action_type=action_type,
+        field_changes=deltas,
+        user_name=actor_name,
+        date=today,
+        description=desc,  # Si está vacío, la descripción se calcula dinámicamente en el serializer
+    )
+
+
+@receiver(pre_delete, sender=Project)
+def log_project_deletion(sender, instance, **kwargs):
+    """
+    Registra una última línea de auditoría antes de la eliminación física del proyecto.
+    Como la FK project tiene on_delete=SET_NULL, el historial se preserva para siempre.
+    """
+    actor_name = getattr(instance, '_actor_name', None) or 'system'
+    today = datetime.date.today()
+
+    ProjectChangeLog.objects.create(
+        project=None,
+        project_code=instance.code,
+        project_name=instance.name,
+        action_type='PROJECT_DELETED',
+        field_changes={
+            'status': {'old': instance.status, 'new': 'DELETED'},
+            'budget': {'old': float(instance.budget) if instance.budget is not None else 0.0, 'new': 0.0},
+        },
+        description=f"Eliminación permanente del proyecto '{instance.name}' ({instance.code})",
+        user_name=actor_name,
+        date=today,
+    )
+
+
+# =========================================================================
+# 6. Evento: Creación de Hito Global / Estratégico ('milestone.created')
+# =========================================================================
+@receiver(post_save, sender=Milestone)
+def handle_milestone_created(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if getattr(instance, '_skip_milestone_signal', False):
+        return
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or getattr(instance, 'created_by', None)
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
+    project = instance.project
+    project_name = project.name if project else ''
+    project_code = project.code if project else ''
+
+    leader = _get_project_leader(project)
+    leader_name = f"{leader.first_name} {leader.last_name}".strip() if leader else 'Sin Asignar'
+    leader_email = leader.email if leader and leader.email else ''
+
+    team_emails = []
+    seen = set()
+    if project:
+        member_emails = (
+            project.team_members
+            .exclude(email__isnull=True)
+            .exclude(email__exact='')
+            .values_list('email', flat=True)
+        )
+        for em in member_emails:
+            clean_em = em.strip()
+            if clean_em and clean_em.lower() not in seen:
+                seen.add(clean_em.lower())
+                team_emails.append(clean_em)
+
+    payload = {
+        'id': instance.id,
+        'milestone_id': instance.id,
+        'title': instance.name,
+        'name': instance.name,
+        'description': instance.description or '',
+        'due_date': str(instance.target_date) if instance.target_date else '',
+        'target_date': str(instance.target_date) if instance.target_date else '',
+        'project_name': project_name,
+        'project_code': project_code,
+        'leader_name': leader_name,
+        'leader_email': leader_email,
+        'team_emails': team_emails,
+        'creator_name': creator_name,
+        'creator_email': creator_email,
+        'status': instance.get_status_display(),
+    }
+    _dispatch_async_webhook(event='milestone.created', data=payload)
+
+
+# =========================================================================
+# 7. Evento: Registro de Incidencia de Personal ('incident.registered')
+# =========================================================================
+@receiver(post_save, sender=PersonnelIncident)
+def handle_incident_registered(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if getattr(instance, '_skip_incident_signal', False):
+        return
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or instance.created_by
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
+    member = instance.member
+    member_name = f"{member.first_name} {member.last_name}".strip() if member else ''
+    member_email = member.email if member and member.email else ''
+
+    backup = instance.backup_member
+    backup_name = f"{backup.first_name} {backup.last_name}".strip() if backup else ''
+    backup_email = backup.email if backup and backup.email else ''
+
+    project = member.project if member else None
+    project_name = project.name if project else ''
+
+    leader = _get_project_leader(project)
+    leader_email = leader.email if leader and leader.email else ''
+
+    payload = {
+        'id': instance.id,
+        'incident_id': instance.id,
+        'incident_type': instance.incident_type,
+        'incident_type_display': instance.get_incident_type_display(),
+        'status': instance.workflow_status,
+        'workflow_status': instance.workflow_status,
+        'start_date': str(instance.start_date),
+        'end_date': str(instance.end_date),
+        'reason': instance.reason or '',
+        'member_name': member_name,
+        'member_email': member_email,
+        'backup_name': backup_name,
+        'backup_email': backup_email,
+        'project_name': project_name,
+        'leader_email': leader_email,
+        'creator_name': creator_name,
+        'creator_email': creator_email,
+    }
+    _dispatch_async_webhook(event='incident.registered', data=payload)

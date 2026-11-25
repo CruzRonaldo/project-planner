@@ -197,9 +197,11 @@ export default function WorkOrdersSection({
               hideOnSinglePage={false}
             />
           </div>
-          {hasActiveFilters && (
-            <ClearFiltersButton onClick={onClearFilters} />
-          )}
+          <ClearFiltersButton
+            onClick={onClearFilters}
+            disabled={!hasActiveFilters}
+            showIcon
+          />
         </div>
       </footer>
     </section>

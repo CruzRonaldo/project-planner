@@ -26,7 +26,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Puebla la base de datos con un ecosistema completo y realista de datos semilla (20 proyectos, 18 técnicos, 52 hitos, tareas operativas, incidencias y auditoría)."
+    help = "Puebla la base de datos con un ecosistema completo y realista de datos semilla (ecosistema anual de 480 proyectos para auditoría periódica, 18 técnicos, hitos, ruta crítica e incidencias)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,7 +37,13 @@ class Command(BaseCommand):
         parser.add_argument(
             '--demo-projects',
             action='store_true',
-            help='Inserta proyectos, hitos, órdenes, incidencias y auditoría de demostración.',
+            help='Inserta proyectos, hitos, órdenes, incidencias y auditoría de demostración (ecosistema de 480 proyectos para auditoría anual).',
+        )
+        parser.add_argument(
+            '--monthly-projects',
+            type=int,
+            default=40,
+            help='Cantidad de proyectos por mes a generar para la ventana anual de auditoría (por defecto: 40 proyectos/mes x 12 meses = 480 proyectos).',
         )
 
     @transaction.atomic
@@ -57,6 +63,7 @@ class Command(BaseCommand):
             PersonnelIncident.objects.all().delete()
             TeamMember.objects.all().delete()
             Project.objects.all().delete()
+            ProjectChangeLog.objects.all().delete()  # Limpia registros creados por señales pre_delete
             Role.objects.all().delete()
             TechnicalArea.objects.all().delete()
             TeamStatus.objects.all().delete()
@@ -808,13 +815,419 @@ class Command(BaseCommand):
                     created_adjustments += 1
             self.stdout.write(self.style.SUCCESS(f"[OK] Historial de reajustes de cronograma registrado ({created_adjustments})."))
 
+            # =========================================================================
+            # 15. ECOSISTEMA ANUAL PARA AUDITORÍA PERIÓDICA (~40 PROYECTOS/MES x 12 MESES)
+            # =========================================================================
+            monthly_target = options.get('monthly_projects') or 40
+            total_target = max(len(projects), monthly_target * 12)
+            existing_total = Project.objects.count()
+            projects_to_generate_count = max(0, total_target - existing_total)
+
+            if projects_to_generate_count > 0:
+                self.stdout.write(self.style.NOTICE(
+                    f"\n[AUDITORÍA] Generando {projects_to_generate_count} proyectos adicionales para completar la ventana anual "
+                    f"({monthly_target} proyectos/mes x 12 meses = {total_target} total en portafolio)..."
+                ))
+
+                audit_project_types = [
+                    # Civil - Edificaciones
+                    ("Torre Corporativa", "Civil", ["Cimentación Profunda y Muros Pantalla", "Estructura Principal y Placas"], ["Excavación y muros pantalla", "Vaciado de losas postensadas"]),
+                    ("Residencial Multifamiliar", "Civil", ["Excavación y Calzaduras", "Techado de Pisos Típicos"], ["Sostenimiento perimetral", "Encofrado y armado de vigas"]),
+                    ("Condominio Urbanístico", "Civil", ["Movimiento de Tierras y Rasantes", "Redes de Servicios Básicos"], ["Nivelación topográfica", "Tendido de tuberías matrices"]),
+                    ("Edificio de Oficinas", "Civil", ["Cimentaciones y Sótanos", "Casco Estructural Aporticado"], ["Muros anclados", "Losa aligerada y columnas"]),
+                    ("Complejo Comercial", "Civil", ["Cierre de Casco Estructural", "Distribución de Locales"], ["Cimentaciones aisladas", "Estructura metálica de techos"]),
+
+                    # Civil - Infraestructura Vial
+                    ("Puente Vehicular", "Civil", ["Ensayos Geotécnicos en Lecho", "Izaje de Vigas Postensadas"], ["Perforación de pilotes", "Montaje de vigas de 40m"]),
+                    ("Viaducto Elevado", "Civil", ["Cimentación de Pilares Centrales", "Lanzamiento de Vigas Cajón"], ["Armado de fustes y capiteles", "Montaje de superestructura"]),
+                    ("Intercambio Vial", "Civil", ["Diseño Geométrico y Rasantes", "Construcción de Pasos a Desnivel"], ["Muros de tierra armada", "Puentes de paso superior"]),
+                    ("Túnel Carretero", "Civil", ["Perforación de Bóveda Principal", "Revestimiento con Concreto Lanzado"], ["Voladura controlada NATM", "Impermeabilización con geomembrana"]),
+                    ("Autopista Tramo Interurbano", "Civil", ["Explanaciones y Terraplenes", "Base Granular y Drenajes"], ["Corte y relleno de taludes", "Construcción de alcantarillas y cunetas"]),
+
+                    # Civil - Hidráulica y Sanitaria
+                    ("Planta de Tratamiento Sanitaria", "Civil", ["Tanques de Sedimentación", "Montaje Electromecánico"], ["Vaciado de tanques circulares", "Instalación de difusores y sopladores"]),
+                    ("Red Matriz de Agua Potable", "Civil", ["Zanjeo y Cama de Apoyo", "Tendido de Tubería PEAD"], ["Excavación en zanja urbana", "Termofusión de tuberías"]),
+                    ("Canal de Irrigación Agrícola", "Civil", ["Perfilado de Caja de Canal", "Revestimiento de Concreto Simple"], ["Desbroce y movimiento de tierras", "Vaciado continuo con regla"]),
+                    ("Reservorio Apoyado de Agua", "Civil", ["Losa de Fondo y Zapatas", "Muros Cilíndricos Postensados"], ["Concreto con impermeabilizante", "Tensado de cables"]),
+
+                    # Sistemas - TI, Telecomunicaciones y Energía
+                    ("Centro de Datos Tier III", "Sistemas", ["Acometida Eléctrica Redundante", "Instalación de Racks y Climatización"], ["Tendido de doble acometida", "Montaje de unidades CRAC"]),
+                    ("Plataforma Cloud Distribuida", "Sistemas", ["Arquitectura de Microservicios", "Despliegue en Kubernetes y CI/CD"], ["Modelado de API REST", "Configuración de pipelines"]),
+                    ("Red Troncal de Fibra Óptica", "Sistemas", ["Tendido de Cable Óptico Monomodo", "Empalmes por Fusión y ODF"], ["Canalización subterránea", "Fusión de hilos"]),
+                    ("Subestación Digital SCADA", "Sistemas", ["Configuración de RTU y Protocolo IEC", "Integración de Celdas de Media Tensión"], ["Parametrización de relés", "Cableado de señales"]),
+                    ("Parque Solar Fotovoltaico", "Sistemas", ["Hincado de Estructuras y Trackers", "Montaje de Paneles Solares"], ["Cimentación de perfiles", "Conexión de inversores"]),
+
+                    # Arquitectura - Equipamiento Urbano y Modelado BIM
+                    ("Hospital de Alta Complejidad", "Arquitectura", ["Compatibilización BIM MEP", "Módulos Quirúrgicos Blindados"], ["Modelado Revit 3D", "Ensayos de aisladores"]),
+                    ("Campus Universitario Pabellón", "Arquitectura", ["Expediente BIM Multidisciplinario", "Estructura Metálica de Auditorio"], ["Coordinación Navisworks", "Montaje de cerchas"]),
+                    ("Complejo Polideportivo Municipal", "Arquitectura", ["Techado de Coliseo Cerrado", "Piscina Olímpica y Filtración"], ["Montaje de cubierta", "Instalación de bombas"]),
+                    ("Biblioteca Digital e Innovación", "Arquitectura", ["Restauración de Muros Patrimoniales", "Salas Inmersivas y Red WiFi 6"], ["Consolidación histórica", "Instalación de pantallas"]),
+                    ("Terminal Terrestre Intermodal", "Arquitectura", ["Estudio de Tráfico y Accesos", "Nave Central de Andenes"], ["Simulación de flujos", "Estructura metálica espacial"]),
+                ]
+
+                audit_locations = [
+                    "Altavista", "Bellavista", "Bicentenario", "Costa Verde", "El Golf", "El Roble",
+                    "El Trébol", "Horizonte", "La Arboleda", "La Ensenada", "La Floresta", "La Molina",
+                    "Las Cumbres", "Las Lomas", "Las Palmeras", "Las Terrazas", "Los Álamos", "Los Andes",
+                    "Los Cipreses", "Los Laureles", "Los Olivos", "Los Portales", "Los Sauces", "Miraflores",
+                    "Mirador del Valle", "Monte Azul", "Monte Carlo", "Nueva Esperanza", "Pampa Grande",
+                    "Primavera", "Puente Piedra", "Real del Sur", "Río Rímac", "San Andrés", "San Antonio",
+                    "San Gabriel", "San Isidro", "San Patricio", "Santa Clara", "Santa María", "Santa Teresa",
+                    "Sierra Nevada", "Sol Dorado", "Sol Naciente", "Surquillo", "Valle Azul", "Valle Hermoso",
+                    "Valle Verde", "Villa del Sol", "Villa Marina"
+                ]
+
+                audit_critical_justifications = [
+                    "Motivo: Retraso en suministro de vigas postensadas y contingencia geológica en terreno.",
+                    "Motivo: Desfase en ruta crítica por retrasos de contratista estructural e importación de insumos.",
+                    "Motivo: Observaciones estructurales pendientes de subsanación ante el supervisor municipal.",
+                    "Motivo: Dificultades geotécnicas en nivel freático que obligaron a rediseñar la cimentación.",
+                    "Motivo: Paralización temporal de obras por observaciones en expediente de seguridad y sismo.",
+                    "Motivo: Contingencia por huelga de transporte que interrumpió el abastecimiento de concreto.",
+                ]
+
+                audit_standby_justifications = [
+                    "Motivo: Proyecto en Stand-by por reevaluación presupuestal del cliente inversionista.",
+                    "Motivo: En espera de aprobación de licencia de edificación y permisos municipales.",
+                    "Motivo: Suspensión temporal acordada contractualmente a la espera de financiamiento bancario.",
+                    "Motivo: Proyecto en pausa técnica hasta culminación de obras viales complementarias en la zona.",
+                ]
+
+                audit_adjustment_reasons = [
+                    "Ampliación de alcance contractual aprobada por el comitente.",
+                    "Contingencia climática por intensas lluvias y crecida de cauces.",
+                    "Retraso por entrega de insumos estructurales y equipamiento importado.",
+                    "Optimización técnica de ruta crítica y compatibilización BIM multidisciplinaria.",
+                    "Modificación de especificaciones técnicas a solicitud de la entidad supervisora.",
+                    "Reprogramación por disponibilidad de maquinaria especializada en sitio.",
+                ]
+
+                today = datetime.date.today()
+                areas_by_name = {a.name: a for a in TechnicalArea.objects.all()}
+                members_by_area = {}
+                for m in TeamMember.objects.select_related('technical_area').all():
+                    area_name = m.technical_area.name if m.technical_area else 'Civil'
+                    members_by_area.setdefault(area_name, []).append(m)
+
+                # Construir 12 meses cronológicos (desde hace 11 meses hasta el mes actual)
+                month_dates = []
+                curr_y = today.year
+                curr_m = today.month
+                for offset in range(11, -1, -1):
+                    m = curr_m - offset
+                    y = curr_y
+                    while m <= 0:
+                        m += 12
+                        y -= 1
+                    month_dates.append(datetime.date(y, m, 1))
+
+                projects_per_month = projects_to_generate_count // 12
+                remainder = projects_to_generate_count % 12
+
+                projects_to_create = []
+                project_metadata = []
+                code_counter = Project.objects.count() + 1
+                used_names = set(Project.objects.values_list('name', flat=True))
+
+                for m_idx, m_start in enumerate(month_dates):
+                    month_count = projects_per_month + (1 if m_idx < remainder else 0)
+                    months_ago = 11 - m_idx
+
+                    for p_in_month in range(month_count):
+                        ptype_data = audit_project_types[(code_counter + p_in_month) % len(audit_project_types)]
+                        type_title, area_name, m_names, t_titles = ptype_data
+
+                        loc = audit_locations[(code_counter * 7 + p_in_month) % len(audit_locations)]
+                        phase_num = (code_counter % 3) + 1
+                        p_name = f"{type_title} {loc}" if phase_num == 1 else f"{type_title} {loc} Fase {phase_num}"
+                        if p_name in used_names:
+                            p_name = f"{p_name} Sector {((code_counter % 5) + 1)}"
+                        used_names.add(p_name)
+
+                        day = min(28, max(1, (p_in_month * 3) % 28 + 1))
+                        p_start_date = datetime.date(m_start.year, m_start.month, day)
+
+                        duration_months = 4 + (code_counter % 8)
+                        end_year = p_start_date.year + (p_start_date.month + duration_months - 1) // 12
+                        end_month = (p_start_date.month + duration_months - 1) % 12 + 1
+                        end_day = min(28, p_start_date.day)
+                        p_end_date = datetime.date(end_year, end_month, end_day)
+
+                        budget = float(350000 + ((code_counter * 83120) % 4150000))
+
+                        # Distribución determinista y equilibrada para KPIs de auditoría:
+                        # 60% HEALTHY (0..5), 15% WARNING (6), 15% CRITICAL (7..8), 10% STALE (9)
+                        p_cycle = p_in_month % 10
+                        if p_cycle < 6:
+                            profile = 'HEALTHY'
+                        elif p_cycle == 6:
+                            profile = 'WARNING'
+                        elif p_cycle in (7, 8):
+                            profile = 'CRITICAL'
+                        else:
+                            profile = 'STALE'
+
+                        if profile == 'STALE':
+                            status = 'STAND_BY' if (code_counter % 2 == 0) else 'PLANNING'
+                        elif profile == 'CRITICAL':
+                            status = 'RISK' if (code_counter % 2 == 0) else 'IN_PROGRESS'
+                        elif months_ago >= 6 and today > p_end_date:
+                            status = 'COMPLETED'
+                        elif months_ago == 0 and p_start_date > today - datetime.timedelta(days=7):
+                            status = 'PLANNING'
+                        else:
+                            status = 'IN_PROGRESS'
+
+                        code = f"PRJ-2026-{code_counter:03d}"
+                        code_counter += 1
+
+                        proj = Project(
+                            code=code,
+                            name=p_name,
+                            description=f"Proyecto de {area_name.lower()} y desarrollo técnico ({p_name}).",
+                            start_date=p_start_date,
+                            end_date=p_end_date,
+                            duration_months=duration_months,
+                            budget=budget,
+                            status=status,
+                        )
+                        projects_to_create.append(proj)
+                        project_metadata.append({
+                            'code': code,
+                            'area_name': area_name,
+                            'profile': profile,
+                            'status': status,
+                            'start_date': p_start_date,
+                            'end_date': p_end_date,
+                            'duration_months': duration_months,
+                            'm_names': m_names,
+                            't_titles': t_titles,
+                        })
+
+                created_additional_projects = Project.objects.bulk_create(projects_to_create, batch_size=500)
+                proj_map = {p.code: p for p in created_additional_projects}
+                for p in created_additional_projects:
+                    projects[p.code] = p
+
+                milestones_to_create = []
+                tasks_to_create = []
+                changelogs_to_create = []
+                adjustments_to_create = []
+
+                for meta in project_metadata:
+                    proj = proj_map[meta['code']]
+                    p_start = meta['start_date']
+                    p_end = meta['end_date']
+                    profile = meta['profile']
+                    area_name = meta['area_name']
+                    area_obj = areas_by_name.get(area_name) or list(areas_by_name.values())[0]
+                    area_members = members_by_area.get(area_name, []) or list(members_by_area.values())[0]
+
+                    total_days = max(1, (p_end - p_start).days)
+                    elapsed_days = max(0, min(total_days, (today - p_start).days))
+                    expected_progress = int((elapsed_days / total_days) * 100) if today >= p_start else 0
+                    mid_date = p_start + datetime.timedelta(days=total_days // 2)
+                    m_names = meta['m_names']
+
+                    # Proyectos STALE: sin tareas ni logs recientes para reflejar inactividad en el ciclo auditado
+                    if profile == 'STALE':
+                        continue
+
+                    # 1. Hitos estratégicos
+                    if profile == 'CRITICAL':
+                        m1_status = 'DELAYED' if today > mid_date else 'IN_PROGRESS'
+                        m1_cdate = None
+                        m2_status = 'DELAYED' if today > p_end else 'PENDING'
+                        m2_cdate = None
+                    elif profile == 'WARNING':
+                        m1_status = 'COMPLETED' if today >= mid_date else 'IN_PROGRESS'
+                        m1_cdate = mid_date if today >= mid_date else None
+                        m2_status = 'IN_PROGRESS' if today >= mid_date else 'PENDING'
+                        m2_cdate = None
+                    else:  # HEALTHY
+                        m1_status = 'COMPLETED' if today >= mid_date else 'IN_PROGRESS'
+                        m1_cdate = mid_date if today >= mid_date else None
+                        m2_status = 'COMPLETED' if today >= p_end else ('IN_PROGRESS' if today >= mid_date else 'PENDING')
+                        m2_cdate = p_end if today >= p_end else None
+
+                    milestones_to_create.append(Milestone(
+                        project=proj,
+                        name=m_names[0] if len(m_names) > 0 else "Hito de Cimentación",
+                        description=f"Fase inicial de ejecución para {proj.name}.",
+                        target_date=mid_date,
+                        completed_date=m1_cdate,
+                        status=m1_status,
+                    ))
+                    milestones_to_create.append(Milestone(
+                        project=proj,
+                        name=m_names[1] if len(m_names) > 1 else "Hito Estructural",
+                        description=f"Fase intermedia para {proj.name}.",
+                        target_date=p_end,
+                        completed_date=m2_cdate,
+                        status=m2_status,
+                    ))
+
+                    # 2. Tareas en ruta crítica y regulares
+                    member1 = area_members[proj.id % len(area_members)] if area_members else None
+                    member2 = area_members[(proj.id + 1) % len(area_members)] if area_members else None
+
+                    if profile == 'HEALTHY':
+                        if today >= p_end:
+                            prog1 = 100
+                            prog2 = 100
+                        elif today >= mid_date:
+                            prog1 = 100
+                            second_half_total = max(1, (p_end - mid_date).days)
+                            second_half_elapsed = min(second_half_total, (today - mid_date).days)
+                            prog2 = min(98, max(5, int((second_half_elapsed / second_half_total) * 100)))
+                        else:
+                            first_half_total = max(1, (mid_date - p_start).days)
+                            first_half_elapsed = min(first_half_total, (today - p_start).days)
+                            prog1 = min(98, max(5, int((first_half_elapsed / first_half_total) * 100)))
+                            prog2 = 0
+
+                        t1_end = mid_date
+                        t1_status = 'DONE' if prog1 >= 100 else 'IN_PROGRESS'
+                        t2_end = p_end
+                        t2_status = 'DONE' if prog2 >= 100 else ('IN_PROGRESS' if prog2 > 0 else 'TODO')
+                        t1_is_cp = True
+
+                    elif profile == 'WARNING':
+                        if today >= mid_date:
+                            prog1 = 100
+                            t1_status = 'DONE'
+                            second_half_total = max(1, (p_end - mid_date).days)
+                            second_half_elapsed = min(second_half_total, (today - mid_date).days)
+                            expected_prog2 = int((second_half_elapsed / second_half_total) * 100)
+                            prog2 = max(5, expected_prog2 - 30)
+                            t2_status = 'IN_PROGRESS'
+                        else:
+                            first_half_total = max(1, (mid_date - p_start).days)
+                            first_half_elapsed = min(first_half_total, (today - p_start).days)
+                            expected_prog1 = int((first_half_elapsed / first_half_total) * 100)
+                            prog1 = max(5, expected_prog1 - 30)
+                            prog2 = 0
+                            t1_status = 'IN_PROGRESS'
+                            t2_status = 'TODO'
+
+                        t1_end = mid_date
+                        t2_end = p_end
+                        t1_is_cp = True
+
+                    elif profile == 'CRITICAL':
+                        prog1 = 20
+                        prog2 = 5
+                        t1_is_cp = True
+                        if today > p_start + datetime.timedelta(days=10):
+                            t1_end = today - datetime.timedelta(days=5)
+                        else:
+                            t1_end = mid_date
+                        t1_status = 'IN_PROGRESS'
+                        t2_end = p_end
+                        t2_status = 'TODO'
+
+                    tasks_to_create.append(Task(
+                        project=proj,
+                        category=area_obj,
+                        assigned_to=member1,
+                        title=meta['t_titles'][0] if len(meta['t_titles']) > 0 else "Partida preliminar y estructural",
+                        description=f"Ejecución en ruta crítica de {proj.name}.",
+                        start_date=p_start,
+                        end_date=t1_end,
+                        duration_days=max(1, (t1_end - p_start).days),
+                        progress=prog1,
+                        is_critical_path=t1_is_cp,
+                        tolerance_days=7,
+                        status=t1_status,
+                    ))
+                    tasks_to_create.append(Task(
+                        project=proj,
+                        category=area_obj,
+                        assigned_to=member2,
+                        title=meta['t_titles'][1] if len(meta['t_titles']) > 1 else "Acabados y servicios técnicos",
+                        description=f"Partida de avance para {proj.name}.",
+                        start_date=mid_date if mid_date < p_end else p_start,
+                        end_date=t2_end,
+                        duration_days=max(1, (t2_end - p_start).days),
+                        progress=prog2,
+                        is_critical_path=False,
+                        tolerance_days=10,
+                        status=t2_status,
+                    ))
+
+                    # 3. Bitácora de cambios y justificaciones de auditoría
+                    if profile == 'CRITICAL':
+                        just = audit_critical_justifications[proj.id % len(audit_critical_justifications)]
+                        cdate = today - datetime.timedelta(days=(proj.id % 20) + 1)
+                        changelogs_to_create.append(ProjectChangeLog(
+                            project=proj,
+                            project_code=proj.code,
+                            project_name=proj.name,
+                            action_type='STATUS_CHANGE',
+                            description=just,
+                            user_name="Carlos Mendoza",
+                            date=cdate,
+                        ))
+                    elif profile == 'WARNING':
+                        cdate = today - datetime.timedelta(days=(proj.id % 15) + 1)
+                        changelogs_to_create.append(ProjectChangeLog(
+                            project=proj,
+                            project_code=proj.code,
+                            project_name=proj.name,
+                            action_type='UPDATE',
+                            description=f"Reprogramación y ajuste operativo en {proj.name}.",
+                            user_name="Andrea Rojas",
+                            date=cdate,
+                        ))
+                    elif profile == 'HEALTHY':
+                        cdate = today - datetime.timedelta(days=(proj.id % 22) + 1)
+                        changelogs_to_create.append(ProjectChangeLog(
+                            project=proj,
+                            project_code=proj.code,
+                            project_name=proj.name,
+                            action_type='UPDATE',
+                            description=f"Seguimiento mensual y certificación de hito en {proj.name}.",
+                            user_name="Luis Gonzales",
+                            date=cdate,
+                        ))
+
+                    # 4. Historial de reajustes de cronograma (~12% de proyectos)
+                    if proj.id % 8 == 0:
+                        reason = audit_adjustment_reasons[proj.id % len(audit_adjustment_reasons)]
+                        adate = today - datetime.timedelta(days=(proj.id % 45) + 5)
+                        adjustments_to_create.append(ScheduleAdjustment(
+                            project=proj,
+                            previous_period=f"{p_start.strftime('%b')} - {(p_end - datetime.timedelta(days=30)).strftime('%b %Y')}",
+                            next_period=f"{p_start.strftime('%b')} - {p_end.strftime('%b %Y')}",
+                            reason=reason,
+                            date=adate,
+                        ))
+
+                Milestone.objects.bulk_create(milestones_to_create, batch_size=500)
+                Task.objects.bulk_create(tasks_to_create, batch_size=500)
+                ProjectChangeLog.objects.bulk_create(changelogs_to_create, batch_size=500)
+                ScheduleAdjustment.objects.bulk_create(adjustments_to_create, batch_size=500)
+
+                self.stdout.write(self.style.SUCCESS(
+                    f"[OK] Ecosistema anual de auditoría completado: {len(created_additional_projects)} proyectos, "
+                    f"{len(milestones_to_create)} hitos, {len(tasks_to_create)} tareas en ruta crítica, "
+                    f"{len(changelogs_to_create)} justificaciones y {len(adjustments_to_create)} reajustes."
+                ))
+
+        total_projects_count = Project.objects.count()
+        total_milestones_count = Milestone.objects.count()
+        total_tasks_count = Task.objects.count()
+        total_changelogs_count = ProjectChangeLog.objects.count()
+        total_adjustments_count = ScheduleAdjustment.objects.count()
+
         self.stdout.write(self.style.SUCCESS("\n========================================================"))
-        self.stdout.write(self.style.SUCCESS("  BASE DE DATOS POBLADA EXITOSAMENTE CON ECOSISTEMA COMPLETO"))
-        self.stdout.write(self.style.SUCCESS("  - 20 Proyectos en Portafolio"))
-        self.stdout.write(self.style.SUCCESS("  - 18 Técnicos en Equipo y RRHH"))
-        self.stdout.write(self.style.SUCCESS("  - 52 Hitos Estratégicos en Calendario Maestro"))
-        self.stdout.write(self.style.SUCCESS("  - 23 Tareas y Órdenes Operativas"))
-        self.stdout.write(self.style.SUCCESS("  - 8 Incidencias de Personal"))
-        self.stdout.write(self.style.SUCCESS("  - 12 Registros de Auditoría y Movimientos"))
+        self.stdout.write(self.style.SUCCESS("  BASE DE DATOS POBLADA EXITOSAMENTE CON ECOSISTEMA ANUAL"))
+        self.stdout.write(self.style.SUCCESS(f"  - {total_projects_count} Proyectos en Portafolio"))
+        self.stdout.write(self.style.SUCCESS(f"  - 18 Técnicos en Equipo y RRHH"))
+        self.stdout.write(self.style.SUCCESS(f"  - {total_milestones_count} Hitos Estratégicos en Calendario Maestro"))
+        self.stdout.write(self.style.SUCCESS(f"  - {total_tasks_count} Tareas y Órdenes en Ruta Crítica (CPM)"))
+        self.stdout.write(self.style.SUCCESS(f"  - 8 Incidencias de Personal"))
+        self.stdout.write(self.style.SUCCESS(f"  - {total_changelogs_count} Registros de Auditoría y Justificaciones"))
+        self.stdout.write(self.style.SUCCESS(f"  - {total_adjustments_count} Historial de Reajustes de Cronograma"))
         self.stdout.write(self.style.SUCCESS("  - 8 Reuniones de Proyecto"))
         self.stdout.write(self.style.SUCCESS("========================================================\n"))
