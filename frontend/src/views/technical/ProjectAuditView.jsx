@@ -498,17 +498,18 @@ export default function ProjectAuditView({
               ariaLabel={t('audit.sortLabel', 'Ordenar proyectos auditados')}
             />
 
-            {hasActiveFilters && (
-              <ClearFiltersButton
-                onClick={() => {
-                  setHealthFilter('ALL');
-                  handleSearchChange('');
-                  setSortOrder('budget_desc');
-                }}
-                label={t('audit.clearFilters', 'Restablecer')}
-                showIcon
-              />
-            )}
+            <ClearFiltersButton
+              onClick={() => {
+                setHealthFilter('ALL');
+                setOnlyMyProjects(false);
+                handleSearchChange('');
+                setSortOrder('budget_desc');
+                setCurrentPage(1);
+              }}
+              label={t('audit.clearFilters', 'Restablecer')}
+              disabled={!hasActiveFilters}
+              showIcon
+            />
           </div>
         </section>
 

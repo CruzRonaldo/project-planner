@@ -596,15 +596,15 @@ export default function Portfolio({
                 buttonClassName="w-[225px]"
                 ariaLabel={t("portfolio.sortLabel", "Ordenar proyectos del portafolio")}
               />
-              {(query || activeFilter !== "all" || onlyMyProjects) && (
-                <ClearFiltersButton
-                  onClick={() => {
-                    setActiveFilter("all");
-                    setOnlyMyProjects(false);
-                    onQueryChange("");
-                  }}
-                />
-              )}
+              <ClearFiltersButton
+                onClick={() => {
+                  setActiveFilter("all");
+                  setOnlyMyProjects(false);
+                  onQueryChange("");
+                }}
+                disabled={!(query || activeFilter !== "all" || onlyMyProjects)}
+                showIcon
+              />
               <button
                 type="button"
                 onClick={handleSync}

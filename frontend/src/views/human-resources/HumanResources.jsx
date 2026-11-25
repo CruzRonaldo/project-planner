@@ -571,12 +571,11 @@ export default function HumanResources({
                     {syncError ? t('humanResources.syncError', 'Error de sincronización') : syncLoading ? t('humanResources.syncing', 'Sincronizando...') : t('humanResources.syncPending', 'Pendiente de sincronización')}
                   </span>
                 )}
-                {(query || !isAll) && (
-                  <ClearFiltersButton
-                    onClick={() => { setSelectedStatuses([]); onQueryChange(''); }}
-                    showIcon
-                  />
-                )}
+                <ClearFiltersButton
+                  onClick={() => { setSelectedStatuses([]); onQueryChange(''); }}
+                  disabled={!(query || !isAll)}
+                  showIcon
+                />
               </div>
             </div>
             <div className="mt-3 px-4 sm:px-5">

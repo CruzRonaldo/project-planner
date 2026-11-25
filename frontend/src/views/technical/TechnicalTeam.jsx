@@ -435,15 +435,15 @@ export default function TechnicalTeam({
               ariaLabel={t('technicalTeam.sortAriaLabel', 'Ordenar equipo técnico')}
             />
 
-            {(query || areaFilter !== 'all') && (
-              <ClearFiltersButton
-                onClick={() => {
-                  setAreaFilter('all');
-                  setPage(1);
-                  onQueryChange('');
-                }}
-              />
-            )}
+            <ClearFiltersButton
+              onClick={() => {
+                setAreaFilter('all');
+                setPage(1);
+                onQueryChange('');
+              }}
+              disabled={!(query || areaFilter !== 'all')}
+              showIcon
+            />
           </div>
         </section>
         <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,2.3fr)_minmax(260px,0.8fr)]">
