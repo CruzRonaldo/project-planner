@@ -60,6 +60,39 @@ Respuesta de texto normalizada hacia React
 
 Django actúa como única puerta de entrada. El navegador nunca se comunica directamente con Coze.
 
+### 3.1 Modalidad B: Agente Autónomo Externo en Coze.com (Plugins / Tools de Consulta)
+
+Adicionalmente a la delegación interna de chat, la arquitectura está preparada para el escenario donde **el Agente de Coze opera de forma externa e independiente** (en la web de Coze.com, canales de Discord, Microsoft Teams o portal externo):
+
+```text
+Usuario en plataforma Coze (coze.com / Bot externo)
+        │
+        ▼
+Agente Autónomo Coze
+        │
+        ▼ Invoca Plugin / Tool HTTP (OpenAPI schema.yml)
+        │ Headers: Authorization: Bearer <service_token>
+        ▼
+API REST de Project Planner (Django REST Framework)
+        │
+        ├── GET /api/projects/      --> Consulta de obras, avances, presupuestos
+        ├── GET /api/tasks/         --> Órdenes de trabajo, asignaciones, ruta crítica
+        ├── GET /api/milestones/    --> Hitos y fechas de entrega
+        └── GET /api/team-members/  --> Disponibilidad de especialistas y áreas
+        │
+        ▼
+Respuesta JSON segura (Solo Lectura / RBAC)
+        │
+        ▼
+El Agente de Coze sintetiza y responde al usuario en su propia plataforma
+```
+
+#### Reglas de operación para el Agente Externo:
+1. **Consumo vía Plugins de Coze:** En Coze Studio se registra un **Plugin Personalizado** importando el esquema OpenAPI oficial [`schema.yml`](../schema.yml).
+2. **Modo Estricto Solo Lectura (*Read-Only*):** El agente externo únicamente tiene acceso a métodos HTTP `GET`. Quedan prohibidas llamadas `POST`, `PUT`, `PATCH` o `DELETE` que intenten mutar el estado de los proyectos.
+3. **Credencial de Servicio Dedicada:** El agente se autentica mediante un token de servicio con rol de consulta restringida, garantizando que no pueda ver salarios ni información de recursos humanos sensible.
+4. **Cero Conexión Directa a BD:** Coze jamás se conecta directamente a PostgreSQL/Supabase; toda consulta viaja serializada, validada y auditada a través de las vistas de Django.
+
 ## 4. Preparación incorporada
 
 La rama incluye una preparación que no activa llamadas externas por sí sola:
