@@ -38,9 +38,9 @@ La vista de **Auditoría Periódica de Proyectos** evalúa de forma preventiva e
 
 ## 9.1 Consultar la auditoría periódica y cambiar el ciclo
 
-**Disponible para:** todos los roles.
+**Disponible para:** Administrador y Subadministrador.
 
-1. En el menú lateral, seleccione **“Auditoría de Proyectos”** (`Shift + 9`).
+1. En el menú lateral, seleccione **“Auditoría de Proyectos”** (`Shift + 7`).
 2. En la franja superior, elija el periodo que desea evaluar (**Monthly (30 days)**, **Quarterly (90 days)** o **Semiannual (180 days)**).
 3. Si desea ver únicamente sus proyectos asignados, active la casilla **My projects**.
 4. Revise las tarjetas de diagnóstico para conocer el total de obras evaluadas y cuántas se encuentran en cronograma o en alerta.
@@ -51,7 +51,7 @@ La vista de **Auditoría Periódica de Proyectos** evalúa de forma preventiva e
 
 ## 9.2 Filtrar y ordenar la lista de obras
 
-**Disponible para:** todos los roles.
+**Disponible para:** Administrador y Subadministrador.
 
 1. Escriba en la caja de búsqueda para localizar un proyecto por código o nombre.
 2. En el desplegable **Sort by**, seleccione el criterio de ordenamiento que requiera:
@@ -66,7 +66,7 @@ La vista de **Auditoría Periódica de Proyectos** evalúa de forma preventiva e
 
 ## 9.3 Acceder directamente al proyecto en el Portafolio
 
-**Disponible para:** todos los roles.
+**Disponible para:** Administrador y Subadministrador.
 
 1. En la fila del proyecto auditado que requiera supervisión, presione el botón **[Go to Portfolio →]**.
 
@@ -78,7 +78,7 @@ La vista de **Auditoría Periódica de Proyectos** evalúa de forma preventiva e
 
 ## 9.4 Exportar el informe oficial de auditoría en CSV
 
-**Disponible para:** todos los roles.
+**Disponible para:** Administrador y Subadministrador.
 
 1. Defina los filtros de ciclo y búsqueda deseados en la tabla.
 2. En la esquina superior derecha, presione el botón azul **[Export to CSV]**.

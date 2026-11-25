@@ -38,9 +38,9 @@ The **Periodic Project Audit** view evaluates overall portfolio health and facil
 
 ## 9.1 Consult Periodic Audit and Change Timeframe
 
-**Available for:** all roles.
+**Available for:** Administrator and Subadministrator.
 
-1. In the sidebar, select **“Project Audit”** (`Shift + 9`).
+1. In the sidebar, select **“Project Audit”** (`Shift + 7`).
 2. In the top bar, choose the timeframe to evaluate (**Monthly (30 days)**, **Quarterly (90 days)**, or **Semiannual (180 days)**).
 3. Check the **My projects** box if you only wish to review your assigned works.
 4. Review the diagnostic cards to see total works audited and how many are on schedule versus flagged.
@@ -51,7 +51,7 @@ The **Periodic Project Audit** view evaluates overall portfolio health and facil
 
 ## 9.2 Filter and Sort Audited Works
 
-**Available for:** all roles.
+**Available for:** Administrator and Subadministrator.
 
 1. Type in the search box to locate a project by code or title.
 2. In the **Sort by** dropdown, choose the sorting criteria:
@@ -66,7 +66,7 @@ The **Periodic Project Audit** view evaluates overall portfolio health and facil
 
 ## 9.3 Access the Project Directly in the Portfolio
 
-**Available for:** all roles.
+**Available for:** Administrator and Subadministrator.
 
 1. On the row of an audited project requiring supervision, click the **[Go to Portfolio →]** button.
 
@@ -78,7 +78,7 @@ The **Periodic Project Audit** view evaluates overall portfolio health and facil
 
 ## 9.4 Export Official Audit Report as CSV
 
-**Available for:** all roles.
+**Available for:** Administrator and Subadministrator.
 
 1. Configure your desired cycle and search filters in the table.
 2. In the upper right corner, click the blue **[Export to CSV]** button.

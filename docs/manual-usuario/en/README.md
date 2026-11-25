@@ -29,8 +29,8 @@ Each chapter is dedicated individually to a specific module or view of the platf
 7. **[Chapter 7: Human Resources, Workload Balance, and Incidents](./07-recursos-humanos.md)**  
    *Workload allocation matrix, burnout prevention, incident approval workflow (Approve, Reject, Finalize), and Excel export.*
 
-8. **[Chapter 8: External Cloud Integrations and Services](./08-integraciones-servicios.md)**  
-   *Make webhook connection, Google Drive shared folders, and interactive 3D model viewer in Autodesk Revit.*
+8. **[Chapter 8: Cloud Integrations and Services](./08-integraciones-servicios.md)**  
+   *Google Drive OAuth, Autodesk APS/Revit 3D viewer, agnostic Make webhooks (2FA, notifications, $100k governance), credit monitoring, and global `SecurityAuditLog` auditing.*
 
 9. **[Chapter 9: Periodic Project Audit (Deviations and Health)](./09-auditoria-periodica.md)**  
    *Audit cycles (30, 90, and 180 days), deviation diagnostics, sorting by overdue critical tasks, direct portfolio access, and CSV report.*
@@ -44,10 +44,7 @@ Each chapter is dedicated individually to a specific module or view of the platf
 12. **[Chapter 12: Notification Center and Alert Control](./12-control-de-notificaciones.md)**  
     *Topbar notification drawer, popup colored toast alerts, and automated email alerts dispatched via Make.*
 
-13. **[Chapter 13: Automations and Integration with Make](./13-configuracion-make.md)**  
-    *Corporate webhook setup, connection testing, and automated events dispatched to downstream external channels.*
-
-14. **[Chapter 14: Frequently Asked Questions and Troubleshooting](./14-solucion-de-problemas.md)**  
+13. **[Chapter 13: Frequently Asked Questions and Troubleshooting](./13-solucion-de-problemas.md)**  
     *Rapid diagnostic matrix for login issues, filters, permissions, automated alerts, and technical support escalation.*
 
 ---

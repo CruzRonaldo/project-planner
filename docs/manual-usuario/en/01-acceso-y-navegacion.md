@@ -109,9 +109,9 @@ The left sidebar allows swift navigation across platform modules:
 | `Shift + 4` | Open Operations Management. |
 | `Shift + 5` | Open Technical Team Directory. |
 | `Shift + 6` | Open Human Resources. |
-| `Shift + 7` | Open Integraciones. |
-| `Shift + 8` | Open User Manual. |
-| `Shift + 9` | Open Settings. |
+| `Shift + 7` | Open Project Audit (Admin and Subadmin). |
+| `Shift + 8` | Open Integrations. |
+| `Shift + 9` | Open User Manual. |
 | `Ctrl + K` | Focus global search bar at any time. |
 
 ---

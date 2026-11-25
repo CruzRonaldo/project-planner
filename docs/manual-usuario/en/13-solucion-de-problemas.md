@@ -1,4 +1,4 @@
-# 14. Frequently Asked Questions and Troubleshooting
+# 13. Frequently Asked Questions and Troubleshooting
 
 [← Back to Index](./README.md)
 

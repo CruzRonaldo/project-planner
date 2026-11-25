@@ -31,6 +31,9 @@ test('useNavigationController calcula items permitidos y placeholders según rol
     assert.equal(hasViewAccess('roles', adminUser), true);
     assert.equal(hasViewAccess('roles', subAdminUser), true);
     assert.equal(hasViewAccess('roles', techUser), false);
+    assert.equal(hasViewAccess('project-audit', adminUser), true);
+    assert.equal(hasViewAccess('project-audit', subAdminUser), true);
+    assert.equal(hasViewAccess('project-audit', techUser), false);
 
     // Placeholders contextuales
     assert.ok(getSearchPlaceholder('planning').toLowerCase().includes('planificación'));
@@ -64,7 +67,7 @@ test('MANUAL_SECTIONS aplica RBAC: el capítulo de roles es exclusivo de admin y
     // Simular el filtro de un usuario sin privilegios de admin (isAdmin = false)
     const userVisibleChapters = MANUAL_SECTIONS.filter((s) => s.roleRequired !== 'admin');
     assert.equal(userVisibleChapters.some((s) => s.id === '10-roles'), false);
-    assert.equal(userVisibleChapters.length, 13); // 13 no administrativos (15 en total - 2 de admin: roles y make)
+    assert.equal(userVisibleChapters.length, 13); // 13 no administrativos (14 en total - 1 de admin: roles)
   } finally {
     await server.close();
   }

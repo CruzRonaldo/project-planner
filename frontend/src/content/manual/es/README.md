@@ -30,7 +30,7 @@ Cada capítulo está dedicado de manera individual a un módulo o vista de la pl
    *Matriz de carga laboral, prevención de sobrecarga, flujo de aprobación de incidencias (Aprobar, Rechazar, Finalizar) y exportación a Excel.*
 
 8. **[Capítulo 8: Integraciones y Servicios Cloud](./08-integraciones-servicios.md)**  
-   *Conexión con Make, vinculación de carpetas compartidas en Google Drive y visor interactivo de modelos 3D en Autodesk Revit.*
+   *Google Drive OAuth, visor 3D Autodesk APS/Revit, webhooks agnósticos con Make (2FA, notificaciones, gobernanza $100k), monitoreo de créditos y auditoría global `SecurityAuditLog`.*
 
 9. **[Capítulo 9: Auditoría Periódica de Proyectos (Desviaciones y Salud)](./09-auditoria-periodica.md)**  
    *Ciclos de auditoría (30, 90 y 180 días), diagnóstico de desvíos, ordenamiento por tareas críticas, acceso directo al portafolio y reporte CSV.*
@@ -44,10 +44,7 @@ Cada capítulo está dedicado de manera individual a un módulo o vista de la pl
 12. **[Capítulo 12: Centro y Control de Notificaciones](./12-control-de-notificaciones.md)**  
     *Bandeja de avisos en la barra superior, alertas emergentes de colores y avisos automáticos por correo electrónico mediante Make.*
 
-13. **[Capítulo 13: Automatizaciones y Conexión con Make](./13-configuracion-make.md)**  
-    *Configuración del webhook institucional, prueba de enlace y eventos automáticos despachados a canales externos.*
-
-14. **[Capítulo 14: Solución de Problemas Frecuentes (Troubleshooting)](./14-solucion-de-problemas.md)**  
+13. **[Capítulo 13: Solución de Problemas Frecuentes (Troubleshooting)](./13-solucion-de-problemas.md)**  
     *Matriz de diagnóstico rápido para incidencias de acceso, filtros, permisos, avisos y canales de soporte.*
 
 ---

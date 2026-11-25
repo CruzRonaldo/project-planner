@@ -1,81 +1,168 @@
-# 8. External Cloud Integrations and Services
+# 8. Cloud Integrations and Services
 
 [← Back to Index](./README.md)
 
 ---
 
-## Screen Spaces and Service Connectors
+## Connectors Overview
 
-The **Integraciones** module centralizes communication with external cloud platforms and tools extending Project Planner's capabilities:
+The **Integrations** module (`Shift + 8`) centralizes communication with the three external services that extend Project Planner's operational, documentary, and automation capabilities:
 
-- **1. Make (Integromat) Connector — Administrator Only:**
-  - **Status Indicator:** Shows *Connected* (in green) or *Disconnected* (in gray).
-  - **Primary Webhook URL:** Webhook endpoint listening for platform signals.
-  - **Sync Frequency:** Schedule selector (e.g., *Every 15 min*, *Every 30 min*, *Real-time*).
-  - **Task Toggle Switches:** Enable or pause tasks individually:
-    - *Two-Factor Authentication (2FA):* Delivery of temporary security codes.
-    - *Notifications & Assignments:* Immediate alerts to Discord or corporate email upon new projects or work orders.
-    - *Budget Governance ($100k):* Automated alert triggered when a project meets or exceeds $100,000 USD.
-  - **[Test Connection] Button:** Sends a diagnostic health check to confirm the webhook is listening.
-
-- **2. Google Drive Connector:**
-  - Displays connection state and the email of the linked corporate Google account.
-  - **[Connect Google Drive] Button:** Launches secure OAuth authorization with Google.
-  - **[Test Connection] Button:** Verifies in real time that cloud storage access remains valid.
-
-- **3. Autodesk APS / Revit 3D Viewer:**
-  - Embedded browser viewer allowing inspection of architectural, structural, and MEP models in IFC and Revit (`.rvt`) formats without desktop CAD software.
-  - **Visualization Tools:**
-    - Interactive 3D orbit and rotation with mouse.
-    - Cross-section cut tool to inspect internal slabs and structural columns.
-    - Layer visibility filters to isolate structural framing, architectural walls, or MEP ducts.
+1. **Google Drive:** corporate document repository via OAuth.
+2. **Autodesk APS / Revit:** interactive 3D BIM viewer and cloud model vault.
+3. **Make and Automation Webhooks:** agnostic HTTP POST bus for real-time event dispatch, optional credit monitoring, and security auditing.
 
 ![Integrations Panel](../../assets/manual/09-integraciones-servicios.png)
-*Figure 8.1: Active integrations panel displaying Make, Google Drive, and Autodesk Revit.*
+*Figure 8.1: Active integrations panel displaying Google Drive, Autodesk Revit, and Make status.*
 
 ---
 
 ## 8.1 Check General Integrations Status
 
+**Available for:** Administrator and Subadministrator (Make configuration is Administrator-only).
+
+1. In the sidebar, select **“Integrations”** (`Shift + 8`).
+2. Review each connector card to verify its current state: **Connected** (green), **Partial** (amber, for Make), or **Disconnected** (gray).
+3. Check the live counters and the last reported activity timestamp on each card.
+
+---
+
+## 8.2 Connector 1: Google Drive (Document Repository)
+
 **Available for:** Administrator and Subadministrator.
 
-1. In the sidebar, select **“Integrations”** (`Shift + 7`).
-2. Review cards to verify whether services are marked as **Connected** (green) or **Disconnected** (gray).
-3. Check the reported last synchronization timestamp on each card.
+The **Google Drive** card lets you link a corporate Google account to synchronize documentation, project folders, and blueprints in the cloud.
+
+### Tools and states
+- **Status indicator:** shows **Connected** along with the authorized Google display name and email, or **Disconnected** when no active credential exists.
+- **[Connect Google Drive] button:** opens a secure tab to complete the corporate Google OAuth authorization flow.
+- **[Test Connection] button:** verifies in real time that the OAuth token remains valid and refreshes linked file and project counts.
+
+### Steps to link Google Drive
+1. On the **Google Drive** card, click **[Connect Google Drive]**.
+2. In the popup tab, sign in with your corporate Google account and grant the requested permissions.
+3. Return to Project Planner and click **[Test Connection]**.
+
+**Expected result and audit:** the card switches to **Connected**, displays the authorized email address, and automatically logs the linking event in **`SecurityAuditLog`**.
 
 ---
 
-## 8.2 Connect Google Drive with the Platform
+## 8.3 Connector 2: Autodesk APS / Revit (Interactive 3D BIM Viewer)
 
-**Available for:** Administrator and Subadministrator.
+**Available for:** all roles (model uploads, renames, and deletions are recorded in the security audit log).
 
-1. On the **Google Drive** card, click the **[Connect Google Drive]** button.
-2. In the browser popup window, sign in with your corporate Google account and grant permissions.
-3. Return to Project Planner and click the **[Test Connection]** button.
+The **Autodesk Platform Services (APS) / Revit** connector provides a collaborative vault and an embedded browser 3D viewer to inspect architectural, structural, and MEP models in IFC and Revit (`.rvt`) formats without installing desktop CAD software.
 
-**Expected result:** the card updates status to **Connected** and displays the authorized email address.
+### 3D Viewer Tools
+- **Interactive 3D orbit and rotation:** rotate, pan, and zoom into the structure directly with the mouse.
+- **Cross-section cut tool:** inspect interior slabs, columns, and beams using section planes.
+- **Layer filter and model browser:** isolate or hide specific disciplines (walls, steel framing, or MEP ducts).
 
----
+### Audited Model Vault Management
+- **Upload and automatic translation:** when uploading a file via the APS/BIM module, the platform transfers it to the Autodesk OSS bucket, encodes its URN, triggers cloud translation, and registers it in the local vault (`BIMModel`).
+- **Rename, download, and delete:** authorized users can rename a model, obtain a signed download URL, or remove it from the vault.
 
-## 8.3 Configure Make Webhook and Toggle Automated Tasks
+### Steps to explore a 3D model
+1. Open **Integrations** (`Shift + 8`) or go to a project technical sheet with a linked BIM model.
+2. Select a model from the vault and click the **3D Viewer** button.
+3. Use your mouse to orbit and zoom, and toggle section planes or layers as needed.
 
-**Available for:** Administrator only.
-
-1. On the **Make** card, click **[Configure Webhook]**.
-2. Paste the URL endpoint generated in your Make.com scenario.
-3. Toggle on the switches for tasks you wish to enable (*2FA*, *Notifications*, *Budget Governance*).
-4. Click **[Save]**.
-5. Click **[Test Connection]** to ensure the platform receives a successful response.
-
-**Expected result:** the platform confirms that the webhook responded successfully.
+**Audit trail:** every BIM model upload, rename, or deletion automatically creates an entry in **`SecurityAuditLog`**.
 
 ---
 
-## 8.4 Explore a 3D Model in the Revit Viewer
+## 8.4 Connector 3: Make and Automation Webhooks
 
-**Available for:** all roles.
+**Available for:** exclusive management and configuration by the Administrator; operational status and activity log visibility for the Technical Team.
 
-1. Navigate to the technical sheet of a project that has a 3D model linked.
-2. Click the **3D Viewer** button.
-3. Use your mouse to rotate, pan, and zoom into the structure.
-4. Use the layers side panel to toggle visibility of specific components (e.g., viewing only structural framing).
+### Decoupled HTTP POST Architecture: Switching and Rotating Between Make Accounts
+
+Project Planner dispatches real-time automated notifications and events through a **standard HTTP POST webhook bus**. This per-task decoupled architecture does not rely on a single fixed connection or shared global credentials, allowing each **Make** scenario to be managed independently.
+
+If a Make account exhausts its monthly operations quota, or if different areas of the organization operate with separate Make accounts (for example, one account dedicated to 2FA authentication and another separate account for operational notifications or financial governance), the Administrator can **replace or rotate the webhook URL and optional API token at any time** in each task card, without touching source code or restarting services.
+
+#### Scope by Platform Role
+- **For the Administrator:** Exclusive technical management: enabling or disabling tasks, configuring and rotating Make webhook URLs, assigning and rotating optional API tokens for operations monitoring, running individual diagnostic tests, and verifying audit trails in `SecurityAuditLog`.
+- **For the Technical Team:** Read-only consultation and operational monitoring visibility: checking service connectivity status, monitoring that their project events are dispatched properly, and reviewing the recent activity log, without permissions to modify credentials or endpoints.
+
+The platform emits standard JSON payloads across these operational events:
+
+1. **Two-Factor Authentication (`auth.two_factor`):**  
+   Dispatches temporary OTP codes via email or SMS during secure login.
+2. **Notifications & Assignments (`project.created`, `project.leader_assigned`, `task.assigned` / `project.assignment`):**  
+   Real-time alerts when creating a project, assigning or changing the lead engineer, or issuing a work order.
+3. **$100k Budget Governance Alert (`governance.budget_alert`):**  
+   Mandatory preventive alert triggered whenever a project meets or exceeds $100,000 USD in budget for Steering Committee review.
+
+### Per-Task Configuration and Test Buttons
+
+The **Multitask Configuration of Make** modal independently manages each of the three operational scenarios (**2FA**, **Notifications & Assignments**, and **$100k Budget Governance**). Each task card includes:
+
+- **Independent toggle (*Active / Inactive*):** enables or pauses event dispatch for that specific task without affecting the others.
+- **Individual endpoint:** dedicated input field for the target webhook URL (`https://...`).
+- **[Test Webhook] button:** sends an isolated diagnostic signal to that endpoint to verify connectivity and response immediately.
+
+#### Configuration steps
+1. In **Integrations** (`Shift + 8`), locate the **Make** card and click **[Configure]**.
+2. For each task you wish to enable, turn on its toggle (*Active*) and paste the webhook URL generated in the corresponding Make scenario.
+3. Click **[Test Webhook]** on each configured card to validate its response.
+4. Click **[Save scenarios]**.
+
+### Real Dynamic States and Card Metrics
+
+The status badge at the top of the modal and on the **Integrations** card reflects the actual state of enabled tasks:
+
+- **Disconnected:** no webhook URLs are configured, or all tasks are switched off (*Inactive*).
+- **Partial:** at least one enabled task has a configured webhook, while other enabled tasks still have an empty or pending endpoint.
+- **Connected:** every enabled task has a valid webhook endpoint configured.
+
+The summary card displays two real-time counters:
+- **`scenarios`:** live count of enabled tasks that have a configured webhook endpoint.
+- **`with error`:** count of configured tasks reporting operational failures (for example, an account paused at 0% credits or a rejected queue such as `Queue is full`).
+
+### Optional Credit Monitoring via API Token (`···` Button)
+
+Webhook dispatch works **100% without an API Token**. Optionally, you can attach a read-only token per task card to monitor monthly operations consumption directly from Project Planner:
+
+1. Sign in to **Make.com** and go to **Profile → API tokens**.
+2. Create a token granting only read permissions:
+   - `organizations:read`
+   - `users:read`
+3. Inside the **Make** modal in Project Planner, click the subtle three-dots **`···`** button to the right of **[Test Webhook]** on the desired task.
+4. Paste the value into **Make API Token (Optional)** and click **[Save scenarios]**.
+
+Upon saving or reopening the panel:
+- Project Planner queries the Make API and automatically detects your organization's plan and limits (e.g., **Free 1,000 ops**, **Core 10,000 ops**, etc.).
+- It displays a **progress bar** with the available credit percentage and exact balance (`available / limit ops`).
+- When credits reach **0%**, the bar turns red and displays the alert **Account paused in Make due to exceeded limit**.
+
+> **Multi-account and rotation support:** the **`···`** button is independent per task card. You can bind different Make accounts to 2FA, Notifications, or Governance, or rotate smoothly to another account if one exhausts its monthly quota. To unlink a token, open **`···`** and select **Remove token**.
+
+### Connect Destination Channels in Make.com
+1. In your **Make.com** account, open the scenario linked to the Project Planner webhook.
+2. Add your desired downstream module (**Email** with Gmail/Microsoft 365, **Discord**, or **Slack**).
+3. Map the incoming JSON payload fields (project code, project name, assigned specialist, OTP code, or budget).
+4. Save and activate the scenario in **ON** mode.
+
+**If a test fails:** verify that the URL starts with `http://` or `https://`, has no trailing spaces, the Make.com scenario is turned **ON**, and the webhook queue does not return `Queue is full`.
+
+---
+
+## 8.5 Integrations Activity Log
+
+At the bottom of the **Integrations** view, the **Integrations Activity Log** provides a chronological trail with built-in search filtering:
+
+- **5-item pagination:** the list is automatically paginated in blocks of **5 items per page** to keep the interface clean.
+- **In-memory cap:** the session operational activity log retains up to **30 recent events** (evicting older entries as new tests or saves occur).
+
+---
+
+## 8.6 Global Security Audit Log (`SecurityAuditLog`)
+
+Every critical administrative change across all three connectors is automatically recorded in the immutable **`SecurityAuditLog`** table under **`integration_update`**, ensuring multi-administrator traceability:
+
+| Service | Audited events | Recorded fields |
+| :--- | :--- | :--- |
+| **Google Drive** | Successful OAuth linking and authorization | Actor, description, `old_value="desconectado"`, `new_value="conectado"`, timestamp, and IP |
+| **Autodesk APS / Revit** | BIM model upload, rename, and deletion | Actor, previous/new model name (`old_value` / `new_value`), timestamp, and IP |
+| **Make & Webhooks** | Task enable/disable, webhook URL changes, and API token updates/removals | Actor, per-task change breakdown, prior and updated URL (`old_value` / `new_value`), timestamp, and IP (without exposing plaintext secrets) |

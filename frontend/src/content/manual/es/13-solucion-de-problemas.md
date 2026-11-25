@@ -1,4 +1,4 @@
-# 14. Solución de Problemas Frecuentes (Troubleshooting)
+# 13. Solución de Problemas Frecuentes (Troubleshooting)
 
 [← Volver al índice](./README.md)
 

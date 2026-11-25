@@ -109,9 +109,9 @@ La barra lateral izquierda permite desplazarse rápidamente entre los módulos d
 | `Shift + 4` | Abrir Gestión Operativa. |
 | `Shift + 5` | Abrir Directorio de Equipo Técnico. |
 | `Shift + 6` | Abrir Recursos Humanos. |
-| `Shift + 7` | Abrir Integraciones. |
-| `Shift + 8` | Abrir el Manual de Usuario. |
-| `Shift + 9` | Abrir Configuración. |
+| `Shift + 7` | Abrir Auditoría de Proyectos (Admin y Subadmin). |
+| `Shift + 8` | Abrir Integraciones. |
+| `Shift + 9` | Abrir el Manual de Usuario. |
 | `Ctrl + K` | Activar el buscador global en cualquier momento. |
 
 ---

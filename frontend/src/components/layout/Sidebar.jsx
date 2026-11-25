@@ -24,9 +24,9 @@ const mainItems = [
   { id: 'operations', label: 'Gestión Operativa', icon: Zap, shortcut: 'Shift + 4', enabled: true },
   { id: 'technical-team', label: 'Equipo Técnico', icon: Users, shortcut: 'Shift + 5', enabled: true },
   { id: 'human-resources', label: 'Recursos Humanos', icon: UserCog, shortcut: 'Shift + 6', enabled: true },
-  { id: 'integrations', label: 'Integraciones', icon: Code, shortcut: 'Shift + 7', enabled: true },
-  { id: 'manual', label: 'Manual de Usuario', icon: BookOpen, shortcut: 'Shift + 8', enabled: true },
-  { id: 'project-audit', label: 'Auditoría de Proyectos', icon: ClipboardCheck, shortcut: 'Shift + 9', enabled: true },
+  { id: 'project-audit', label: 'Auditoría de Proyectos', icon: ClipboardCheck, shortcut: 'Shift + 7', enabled: true },
+  { id: 'integrations', label: 'Integraciones', icon: Code, shortcut: 'Shift + 8', enabled: true },
+  { id: 'manual', label: 'Manual de Usuario', icon: BookOpen, shortcut: 'Shift + 9', enabled: true },
 ];
 
 const VIEW_SHORTCUTS = {
@@ -36,10 +36,10 @@ const VIEW_SHORTCUTS = {
   operations: 'Shift + 4',
   'technical-team': 'Shift + 5',
   'human-resources': 'Shift + 6',
-  integrations: 'Shift + 7',
-  manual: 'Shift + 8',
-  'project-audit': 'Shift + 9',
-  auditoria: 'Shift + 9',
+  'project-audit': 'Shift + 7',
+  auditoria: 'Shift + 7',
+  integrations: 'Shift + 8',
+  manual: 'Shift + 9',
   roles: 'Shift + 9',
   'role-management': 'Shift + 9',
 };

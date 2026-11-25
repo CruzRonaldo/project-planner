@@ -45,8 +45,12 @@ test('NAVIGATION_ITEMS configura roles para perfil (showInSidebar: false) y proj
       'El administrador debe tener auditoría en el sidebar'
     );
     assert.ok(
-      userSidebar.some((i) => i.id === 'project-audit'),
-      'El usuario normal debe tener auditoría en el sidebar'
+      subAdminSidebar.some((i) => i.id === 'project-audit'),
+      'El subadministrador debe tener auditoría en el sidebar'
+    );
+    assert.ok(
+      !userSidebar.some((i) => i.id === 'project-audit'),
+      'El usuario normal NO debe tener auditoría en el sidebar'
     );
     assert.ok(
       !adminSidebar.some((i) => i.id === 'roles'),
@@ -241,7 +245,7 @@ test('NAVIGATION_ITEMS incluye project-audit con ClipboardCheck y habilitado en 
     assert.equal(auditItem.showInSidebar, true);
     assert.equal(auditItem.showInMobile, true);
     assert.equal(auditItem.category, 'technical');
-    assert.deepEqual(auditItem.roles, [USER_ROLES.ADMIN, USER_ROLES.USER]);
+    assert.deepEqual(auditItem.roles, [USER_ROLES.ADMIN, USER_ROLES.SUBADMIN]);
     assert.ok(auditItem.icon, 'Debe tener icono asignado');
   } finally {
     await server.close();
