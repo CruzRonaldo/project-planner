@@ -1446,7 +1446,7 @@
     "makeTask_two_factor_name": "Two-Factor Authentication (2FA)",
     "makeTask_two_factor_desc": "Dispatch OTP codes via email or SMS during login.",
     "makeTask_notifications_name": "Notifications & Assignments",
-    "makeTask_notifications_desc": "Real-time alerts when assigning technical staff or updating milestones.",
+    "makeTask_notifications_desc": "Internal system alerts and notifications (security, staff, milestones, and incidents).",
     "active": "Active",
     "inactive": "Inactive",
     "testing": "Testing...",

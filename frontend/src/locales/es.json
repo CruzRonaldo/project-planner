@@ -1446,7 +1446,7 @@
     "makeTask_two_factor_name": "Autenticación de 2 Factores (2FA)",
     "makeTask_two_factor_desc": "Envío de códigos OTP por correo o SMS durante el inicio de sesión.",
     "makeTask_notifications_name": "Notificaciones y Asignaciones",
-    "makeTask_notifications_desc": "Alertas en tiempo real al asignar personal técnico o modificar hitos.",
+    "makeTask_notifications_desc": "Alertas y notificaciones internas del sistema (seguridad, personal, hitos e incidentes).",
     "active": "Activo",
     "inactive": "Inactivo",
     "testing": "Probando...",

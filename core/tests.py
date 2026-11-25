@@ -584,6 +584,12 @@ class MakeServiceUnitTests(TestCase):
     def test_task_matches_event_supports_member_created(self):
         from core.services.make_service import _task_matches_event
         self.assertTrue(_task_matches_event({'event': 'project.assignment'}, 'member.created'))
+        self.assertTrue(_task_matches_event({'id': 'notifications', 'event': 'project.assignment'}, 'auth.password_changed'))
+        self.assertTrue(_task_matches_event({'id': 'notifications', 'event': 'project.assignment'}, 'auth.email_changed'))
+        self.assertTrue(_task_matches_event({'id': 'notifications', 'event': 'project.assignment'}, 'incident.registered'))
+        self.assertTrue(_task_matches_event({'id': 'notifications', 'event': 'project.assignment'}, 'milestone.created'))
+        self.assertTrue(_task_matches_event({'id': 'notifications', 'event': 'project.assignment'}, 'project.created'))
+        self.assertTrue(_task_matches_event({'id': 'two_factor', 'event': 'auth.two_factor'}, 'auth.two_factor'))
         self.assertTrue(_task_matches_event({'event': 'member.created'}, 'member.created'))
         self.assertFalse(_task_matches_event({'event': 'other.event'}, 'member.created'))
 

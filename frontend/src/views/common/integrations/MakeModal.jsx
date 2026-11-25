@@ -69,7 +69,7 @@ const defaultTasks = [
   {
     id: 'notifications',
     name: 'Notificaciones y Asignaciones',
-    description: 'Alertas en tiempo real al asignar personal técnico o modificar hitos.',
+    description: 'Alertas y notificaciones internas del sistema (seguridad, personal, hitos e incidentes).',
     icon: Bell,
     event: 'project.assignment',
     endpoint: '',

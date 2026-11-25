@@ -320,22 +320,24 @@ def dispatch_security_alert_webhook(event: str, user, request=None, extra_data: 
 def _task_matches_event(task: dict, event: str) -> bool:
     if not isinstance(task, dict) or not event:
         return False
+    task_id = task.get('id')
     task_event = task.get('event')
     if task_event == event:
         return True
-    if task_event == 'project.assignment' and event in (
+    if (task_id == 'notifications' or task_event == 'project.assignment') and event in (
+        'project.created',
         'task.assigned',
         'project.leader_assigned',
         'member.created',
         'member.reassigned',
         'milestone.created',
         'incident.registered',
-    ):
-        return True
-    if task_event == 'auth.security_alert' and event in (
+        'meeting.created',
         'auth.password_changed',
         'auth.email_changed',
     ):
+        return True
+    if (task_id == 'two_factor' or task_event == 'auth.two_factor') and event == 'auth.two_factor':
         return True
     return False
 
