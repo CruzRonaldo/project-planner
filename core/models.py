@@ -540,6 +540,7 @@ class SecurityAuditLog(models.Model):
         ('email_change', 'Cambio de Correo Electrónico'),
         ('password_change', 'Cambio de Contraseña'),
         ('profile_update', 'Actualización de Perfil'),
+        ('integration_update', 'Modificación de Integraciones'),
     )
 
     user = models.ForeignKey(

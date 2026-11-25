@@ -1,3 +1,5 @@
+import json
+import urllib.error
 from unittest.mock import patch, MagicMock
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -585,6 +587,226 @@ class MakeServiceUnitTests(TestCase):
         self.assertTrue(_task_matches_event({'event': 'member.created'}, 'member.created'))
         self.assertFalse(_task_matches_event({'event': 'other.event'}, 'member.created'))
 
+    def test_compute_make_status_cases(self):
+        from core.services.make_service import compute_make_status
+        self.assertEqual(compute_make_status([], ""), "offline")
+        self.assertEqual(compute_make_status([], "https://hook.us1.make.com/global"), "offline")
+        self.assertEqual(
+            compute_make_status(
+                [{"id": "t1", "enabled": False, "endpoint": "https://hook.us1.make.com/1"}],
+                "https://hook.us1.make.com/global",
+            ),
+            "offline",
+        )
+        self.assertEqual(
+            compute_make_status(
+                [
+                    {"id": "t1", "enabled": True, "endpoint": ""},
+                    {"id": "t2", "enabled": False, "endpoint": ""},
+                ],
+                "",
+            ),
+            "offline",
+        )
+        self.assertEqual(
+            compute_make_status(
+                [
+                    {"id": "t1", "enabled": True, "endpoint": ""},
+                    {"id": "t2", "enabled": False, "endpoint": ""},
+                ],
+                "https://hook.us1.make.com/global",
+            ),
+            "connected",
+        )
+        self.assertEqual(
+            compute_make_status(
+                [
+                    {"id": "t1", "enabled": True, "endpoint": "https://hook.us1.make.com/1"},
+                    {"id": "t2", "enabled": False, "endpoint": ""},
+                ],
+                "",
+            ),
+            "connected",
+        )
+        self.assertEqual(
+            compute_make_status(
+                [
+                    {"id": "t1", "enabled": True, "endpoint": "https://hook.us1.make.com/1"},
+                    {"id": "t2", "enabled": True, "endpoint": ""},
+                ],
+                "https://hook.us1.make.com/global",
+            ),
+            "partial",
+        )
+
+    @patch("core.views_make.test_make_connection")
+    def test_make_connection_view_diagnostic_messages(self, mock_test_conn):
+        client = APIClient()
+
+        # 1. Queue is full
+        mock_test_conn.return_value = {
+            "success": False,
+            "status_code": 400,
+            "response": "Queue is full.",
+            "message": "No fue posible completar la notificación a Make.",
+        }
+        resp_queue = client.post("/api/integrations/make/test/", {"webhook_url": "https://hook.us1.make.com/abc"}, format="json")
+        self.assertEqual(resp_queue.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(resp_queue.data.get("status"), "error")
+        self.assertIn("Queue is full", resp_queue.data.get("message", ""))
+        self.assertEqual(resp_queue.data.get("message"), resp_queue.data.get("detail"))
+
+        # 2. HTTP 404
+        mock_test_conn.return_value = {
+            "success": False,
+            "status_code": 404,
+            "response": "Not Found",
+            "message": "No fue posible completar la notificación a Make.",
+        }
+        resp_404 = client.post("/api/integrations/make/test/", {"webhook_url": "https://hook.us1.make.com/abc"}, format="json")
+        self.assertEqual(resp_404.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("HTTP 404", resp_404.data.get("message", ""))
+
+        # 3. HTTP 400 genérico
+        mock_test_conn.return_value = {
+            "success": False,
+            "status_code": 400,
+            "response": "Bad payload",
+            "message": "No fue posible completar la notificación a Make.",
+        }
+        resp_400 = client.post("/api/integrations/make/test/", {"webhook_url": "https://hook.us1.make.com/abc"}, format="json")
+        self.assertEqual(resp_400.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Bad payload", resp_400.data.get("message", ""))
+
+        # 4. Éxito
+        mock_test_conn.return_value = {
+            "success": True,
+            "status_code": 200,
+            "response": "Accepted",
+            "message": "Evento enviado correctamente a Make.",
+        }
+        resp_ok = client.post("/api/integrations/make/test/", {"webhook_url": "https://hook.us1.make.com/abc"}, format="json")
+        self.assertEqual(resp_ok.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_ok.data.get("status"), "success")
+        self.assertEqual(resp_ok.data.get("message"), "Evento enviado correctamente a Make.")
+
+    @patch("core.views_make.send_make_webhook")
+    def test_trigger_make_event_view_diagnostic_messages(self, mock_send_webhook):
+        client = APIClient()
+        mock_send_webhook.return_value = {
+            "success": False,
+            "status_code": 400,
+            "response": "Queue is full.",
+            "message": "No fue posible completar la notificación a Make.",
+        }
+        resp = client.post(
+            "/api/integrations/make/trigger/",
+            {"event": "project.alert", "data": {"id": 1}},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(resp.data.get("status"), "error")
+        self.assertIn("Queue is full", resp.data.get("message", ""))
+        self.assertEqual(resp.data.get("message"), resp.data.get("detail"))
+
+    def test_extract_make_zone(self):
+        from core.services.make_service import extract_make_zone
+        self.assertEqual(extract_make_zone("https://hook.us2.make.com/abc123"), "us2")
+        self.assertEqual(extract_make_zone("https://hook.eu1.make.com/xyz789"), "eu1")
+        self.assertEqual(extract_make_zone(""), "us1")
+        self.assertEqual(extract_make_zone("https://hook.make.com/legacy"), "us1")
+
+    def test_fetch_make_account_usage_unconfigured(self):
+        from core.services.make_service import fetch_make_account_usage
+        res = fetch_make_account_usage(api_token="")
+        self.assertFalse(res["configured"])
+        self.assertEqual(res["limit"], 0)
+        self.assertIsNone(res["error"])
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_make_account_usage_success(self, mock_urlopen):
+        from core.services.make_service import fetch_make_account_usage
+        resp_orgs = MagicMock()
+        resp_orgs.read.return_value = json.dumps({
+            "organizations": [
+                {"id": 9386201, "name": "Acme Corp"}
+            ]
+        }).encode("utf-8")
+        resp_detail = MagicMock()
+        resp_detail.read.return_value = json.dumps({
+            "organization": {
+                "id": 9386201,
+                "name": "Acme Corp",
+                "operations": 2000,
+                "isPaused": False,
+                "nextReset": "2026-12-01T00:00:00.000Z",
+                "license": {"operations": 10000},
+            }
+        }).encode("utf-8")
+
+        cm_orgs = MagicMock()
+        cm_orgs.__enter__.return_value = resp_orgs
+        cm_detail = MagicMock()
+        cm_detail.__enter__.return_value = resp_detail
+        mock_urlopen.side_effect = [cm_orgs, cm_detail]
+
+        res = fetch_make_account_usage(api_token="mk_test_secret_token", zone="eu1")
+        self.assertEqual(mock_urlopen.call_count, 2)
+        self.assertEqual(mock_urlopen.call_args_list[0][0][0].full_url, "https://eu1.make.com/api/v2/organizations")
+        self.assertEqual(mock_urlopen.call_args_list[1][0][0].full_url, "https://eu1.make.com/api/v2/organizations/9386201")
+        self.assertTrue(res["configured"])
+        self.assertEqual(res["limit"], 10000)
+        self.assertEqual(res["used"], 2000)
+        self.assertEqual(res["available"], 8000)
+        self.assertEqual(res["percent"], 80.0)
+        self.assertFalse(res["is_paused"])
+        self.assertEqual(res["next_reset"], "2026-12-01T00:00:00.000Z")
+        self.assertEqual(res["organization_name"], "Acme Corp")
+        self.assertIsNone(res["error"])
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_make_account_usage_paused_exceeded_limit(self, mock_urlopen):
+        from core.services.make_service import fetch_make_account_usage
+        resp_orgs = MagicMock()
+        resp_orgs.read.return_value = json.dumps({
+            "organizations": [{"id": 9386201, "name": "Demo Org"}]
+        }).encode("utf-8")
+        resp_detail = MagicMock()
+        resp_detail.read.return_value = json.dumps({
+            "organization": {
+                "id": 9386201,
+                "name": "Demo Org",
+                "operations": 1024,
+                "isPaused": True,
+                "nextReset": "2026-12-10T00:00:00.000Z",
+                "license": {"operations": 1000},
+            }
+        }).encode("utf-8")
+
+        cm_orgs = MagicMock()
+        cm_orgs.__enter__.return_value = resp_orgs
+        cm_detail = MagicMock()
+        cm_detail.__enter__.return_value = resp_detail
+        mock_urlopen.side_effect = [cm_orgs, cm_detail]
+
+        res = fetch_make_account_usage(api_token="mk_test_secret_token", zone="us2")
+        self.assertTrue(res["configured"])
+        self.assertEqual(res["limit"], 1000)
+        self.assertEqual(res["used"], 1024)
+        self.assertEqual(res["available"], 0)
+        self.assertEqual(res["percent"], 0.0)
+        self.assertTrue(res["is_paused"])
+        self.assertEqual(res["next_reset"], "2026-12-10T00:00:00.000Z")
+        self.assertIsNone(res["error"])
+
+    @patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timeout"))
+    def test_fetch_make_account_usage_handles_network_error(self, mock_urlopen):
+        from core.services.make_service import fetch_make_account_usage
+        res = fetch_make_account_usage(api_token="mk_test_secret_token", zone="us2")
+        self.assertTrue(res["configured"])
+        self.assertEqual(res["limit"], 0)
+        self.assertIsNotNone(res["error"])
+
 
 class MakeSignalsIntegrationTests(TestCase):
     """Pruebas de integración de Django Signals para notificaciones hacia Make (Integromat)."""
@@ -593,6 +815,8 @@ class MakeSignalsIntegrationTests(TestCase):
         from core.services.make_service import CONFIG_FILE_PATH
         self._orig_webhook_url = getattr(settings, 'MAKE_WEBHOOK_URL', '')
         self._orig_config_content = CONFIG_FILE_PATH.read_text(encoding='utf-8') if CONFIG_FILE_PATH.exists() else None
+        if CONFIG_FILE_PATH.exists():
+            CONFIG_FILE_PATH.unlink()
         self.area = TechnicalArea.objects.create(name="Estructuras y BIM", description="Área técnica de prueba")
         self.role_leader = Role.objects.create(
             name="Líder de Proyecto",
@@ -1218,7 +1442,8 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertTrue(status_resp.data.get("is_configured"))
         self.assertEqual(status_resp.data.get("webhook_url"), "https://hook.eu2.make.com/main_endpoint")
         self.assertEqual(status_resp.data.get("status"), "connected")
-        self.assertEqual(status_resp.data.get("frequency"), "Cada hora")
+        self.assertEqual(status_resp.data.get("frequency"), "Tiempo real")
+        self.assertFalse(status_resp.data.get("has_api_token"))
         self.assertEqual(len(status_resp.data.get("tasks", [])), 2)
 
     @patch("core.services.make_service.send_make_webhook")
@@ -1285,6 +1510,306 @@ class MakeSignalsIntegrationTests(TestCase):
         kwargs = mock_send.call_args[1]
         self.assertEqual(kwargs.get("event"), "project.created")
         self.assertEqual(kwargs.get("webhook_url"), custom_endpoint)
+
+    def test_save_make_config_creates_security_audit_log(self):
+        """Al modificar la configuración de Make vía API, se registra un evento integration_update en SecurityAuditLog."""
+        from core.services.make_service import save_make_config
+
+        old_url = "https://hook.eu2.make.com/old_endpoint"
+        new_url = "https://hook.eu2.make.com/new_endpoint"
+
+        save_make_config({
+            "webhook_url": old_url,
+            "status": "connected",
+            "frequency": "Cada 30 min",
+            "tasks": [
+                {
+                    "id": "two_factor",
+                    "name": "Autenticación de 2 Factores (2FA)",
+                    "event": "auth.two_factor",
+                    "endpoint": old_url,
+                    "enabled": True,
+                },
+            ],
+        })
+
+        SecurityAuditLog.objects.filter(action="integration_update").delete()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            HTTP_X_FORWARDED_FOR="203.0.113.10, 10.0.0.1",
+        )
+
+        response = api_client.post(
+            "/api/integrations/make/config/",
+            {
+                "webhook_url": new_url,
+                "status": "partial",
+                "frequency": "Cada 10 min",
+                "tasks": [
+                    {
+                        "id": "two_factor",
+                        "name": "Autenticación de 2 Factores (2FA)",
+                        "event": "auth.two_factor",
+                        "endpoint": new_url,
+                        "enabled": False,
+                    },
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        audit_qs = SecurityAuditLog.objects.filter(action="integration_update")
+        self.assertTrue(audit_qs.exists())
+        audit_log = audit_qs.first()
+        self.assertEqual(audit_log.user, self.user_admin)
+        self.assertEqual(audit_log.old_value, old_url)
+        self.assertEqual(audit_log.new_value, new_url)
+        self.assertEqual(audit_log.ip_address, "203.0.113.10")
+        self.assertIn("admin_user", audit_log.description)
+        self.assertIn("desactivada", audit_log.description)
+
+    def test_save_make_config_api_token_audit_does_not_leak_secret(self):
+        """Al actualizar el API Token de Make, se audita el cambio sin exponer el token en texto plano."""
+        secret_token = "mk_super_secret_token_12345"
+        SecurityAuditLog.objects.filter(action="integration_update").delete()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.post(
+            "/api/integrations/make/config/",
+            {
+                "webhook_url": "https://hook.us2.make.com/main_endpoint",
+                "api_token": secret_token,
+                "tasks": [
+                    {
+                        "id": "two_factor",
+                        "name": "2FA",
+                        "event": "auth.two_factor",
+                        "endpoint": "https://hook.us2.make.com/2fa",
+                        "enabled": True,
+                    },
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn("api_token", response.data.get("config", {}))
+        self.assertTrue(response.data.get("config", {}).get("has_api_token"))
+
+        audit_log = SecurityAuditLog.objects.filter(action="integration_update").first()
+        self.assertIsNotNone(audit_log)
+        self.assertIn("Token de API de Make actualizado", audit_log.description)
+        self.assertNotIn(secret_token, audit_log.description)
+        self.assertNotIn(secret_token, audit_log.old_value or "")
+        self.assertNotIn(secret_token, audit_log.new_value or "")
+
+    @patch("core.views_make.fetch_make_account_usage")
+    def test_per_task_api_token_persistence_preservation_status_and_audit(self, mock_fetch_usage):
+        """Valida guardado, preservación, limpieza, consulta de créditos por tarea y auditoría sin fuga de secretos."""
+        from core.services.make_service import get_make_config
+
+        task_secret = "mk_task_secret_2fa_999"
+        mock_fetch_usage.return_value = {
+            "configured": True,
+            "limit": 10000,
+            "used": 1500,
+            "available": 8500,
+            "percent": 85.0,
+            "organization_name": "Org 2FA",
+            "error": None,
+        }
+
+        SecurityAuditLog.objects.filter(action="integration_update").delete()
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # 1. Guardar token específico para la tarea two_factor
+        resp_save = api_client.post(
+            "/api/integrations/make/config/",
+            {
+                "webhook_url": "https://hook.eu2.make.com/2fa",
+                "tasks": [
+                    {
+                        "id": "two_factor",
+                        "name": "Autenticación 2FA",
+                        "event": "auth.two_factor",
+                        "endpoint": "https://hook.eu2.make.com/2fa",
+                        "enabled": True,
+                        "api_token": task_secret,
+                    },
+                    {
+                        "id": "notifications",
+                        "name": "Notificaciones",
+                        "event": "project.assignment",
+                        "endpoint": "https://hook.us2.make.com/notif",
+                        "enabled": True,
+                        "api_token": "",
+                    },
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(resp_save.status_code, status.HTTP_200_OK)
+        saved_tasks = resp_save.data.get("config", {}).get("tasks", [])
+        self.assertNotIn("api_token", saved_tasks[0])
+        self.assertTrue(saved_tasks[0].get("has_api_token"))
+        self.assertFalse(saved_tasks[1].get("has_api_token"))
+
+        # Verificar auditoría sin exponer secreto
+        audit_log = SecurityAuditLog.objects.filter(action="integration_update").first()
+        self.assertIsNotNone(audit_log)
+        self.assertIn("Token de API de 'Autenticación 2FA' actualizado", audit_log.description)
+        self.assertNotIn(task_secret, audit_log.description)
+
+        # 2. Consultar status: debe llamar fetch_make_account_usage con zona eu2 y remover api_token
+        resp_status = api_client.get("/api/integrations/make/status/")
+        self.assertEqual(resp_status.status_code, status.HTTP_200_OK)
+        status_tasks = resp_status.data.get("tasks", [])
+        self.assertEqual(len(status_tasks), 2)
+        self.assertNotIn("api_token", status_tasks[0])
+        self.assertTrue(status_tasks[0].get("has_api_token"))
+        self.assertEqual(status_tasks[0].get("usage", {}).get("percent"), 85.0)
+        self.assertFalse(status_tasks[1].get("has_api_token"))
+        self.assertIsNone(status_tasks[1].get("usage"))
+        mock_fetch_usage.assert_any_call(task_secret, zone="eu2")
+
+        # 3. Guardar de nuevo con preserve_api_token=True debe preservar el token
+        resp_preserve = api_client.post(
+            "/api/integrations/make/config/",
+            {
+                "webhook_url": "https://hook.eu2.make.com/2fa",
+                "tasks": [
+                    {
+                        "id": "two_factor",
+                        "name": "Autenticación 2FA",
+                        "event": "auth.two_factor",
+                        "endpoint": "https://hook.eu2.make.com/2fa",
+                        "enabled": True,
+                        "api_token": "",
+                        "preserve_api_token": True,
+                    },
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(resp_preserve.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_make_config()["tasks"][0]["api_token"], task_secret)
+
+        # 4. Guardar con api_token vacío explícito (sin preserve_api_token) debe limpiarlo
+        resp_clear = api_client.post(
+            "/api/integrations/make/config/",
+            {
+                "webhook_url": "https://hook.eu2.make.com/2fa",
+                "tasks": [
+                    {
+                        "id": "two_factor",
+                        "name": "Autenticación 2FA",
+                        "event": "auth.two_factor",
+                        "endpoint": "https://hook.eu2.make.com/2fa",
+                        "enabled": True,
+                        "api_token": "",
+                    },
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(resp_clear.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_make_config()["tasks"][0]["api_token"], "")
+        self.assertFalse(resp_clear.data["config"]["tasks"][0]["has_api_token"])
+
+    @patch("core.views.process_oauth_callback")
+    def test_google_drive_callback_creates_security_audit_log(self, mock_process_oauth):
+        """Al completar OAuth de Google Drive, se registra un evento integration_update en SecurityAuditLog."""
+        SecurityAuditLog.objects.filter(action="integration_update").delete()
+
+        session = self.client.session
+        session["google_drive_oauth_state"] = "state_token_123"
+        session.save()
+
+        response = self.client.get(
+            "/api/integrations/google-drive/callback/?state=state_token_123&code=abc",
+            HTTP_X_FORWARDED_FOR="198.51.100.22",
+        )
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
+        mock_process_oauth.assert_called_once()
+
+        audit_log = SecurityAuditLog.objects.filter(action="integration_update").first()
+        self.assertIsNotNone(audit_log)
+        self.assertEqual(audit_log.old_value, "desconectado")
+        self.assertEqual(audit_log.new_value, "conectado")
+        self.assertEqual(audit_log.ip_address, "198.51.100.22")
+        self.assertIn("Google Drive", audit_log.description)
+
+    @patch("core.views.APSService.translate_model")
+    @patch("core.views.APSService.upload_file")
+    def test_aps_upload_rename_and_delete_create_security_audit_logs(self, mock_upload, mock_translate):
+        """Subir, renombrar y eliminar modelos BIM en Autodesk APS registran eventos en SecurityAuditLog."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from core.models import BIMModel
+
+        mock_upload.return_value = {"objectId": "urn:adsk.objects:os.object:bucket/modelo.rvt"}
+        SecurityAuditLog.objects.filter(action="integration_update").delete()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            HTTP_X_FORWARDED_FOR="198.51.100.45",
+        )
+
+        # 1. Subida de modelo BIM
+        dummy_file = SimpleUploadedFile("torre_norte.rvt", b"bim-binary-data")
+        resp_upload = api_client.post(
+            "/api/integrations/aps/upload/",
+            {"file": dummy_file},
+            format="multipart",
+        )
+        self.assertEqual(resp_upload.status_code, status.HTTP_200_OK)
+        model = BIMModel.objects.get(name="torre_norte.rvt")
+
+        upload_log = SecurityAuditLog.objects.filter(
+            action="integration_update", new_value="torre_norte.rvt"
+        ).first()
+        self.assertIsNotNone(upload_log)
+        self.assertEqual(upload_log.user, self.user_admin)
+        self.assertEqual(upload_log.ip_address, "198.51.100.45")
+        self.assertIn("torre_norte.rvt", upload_log.description)
+
+        # 2. Renombrar modelo BIM
+        resp_patch = api_client.patch(
+            f"/api/integrations/aps/models/{model.id}/",
+            {"name": "torre_norte_v2.rvt"},
+            format="json",
+        )
+        self.assertEqual(resp_patch.status_code, status.HTTP_200_OK)
+
+        rename_log = SecurityAuditLog.objects.filter(
+            action="integration_update",
+            old_value="torre_norte.rvt",
+            new_value="torre_norte_v2.rvt",
+        ).first()
+        self.assertIsNotNone(rename_log)
+        self.assertIn("torre_norte.rvt", rename_log.description)
+        self.assertIn("torre_norte_v2.rvt", rename_log.description)
+
+        # 3. Eliminar modelo BIM
+        resp_delete = api_client.delete(f"/api/integrations/aps/models/{model.id}/")
+        self.assertEqual(resp_delete.status_code, status.HTTP_200_OK)
+
+        delete_log = SecurityAuditLog.objects.filter(
+            action="integration_update",
+            old_value="torre_norte_v2.rvt",
+            new_value="eliminado",
+        ).first()
+        self.assertIsNotNone(delete_log)
+        self.assertIn("torre_norte_v2.rvt", delete_log.description)
 
 
 class MilestoneStrategicPlanningTests(TestCase):

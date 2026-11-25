@@ -117,6 +117,42 @@ def get_client_ip(request):
     return None
 
 
+def _resolve_audit_actor(request):
+    """Obtiene el usuario autenticado o un fallback administrativo para auditoría."""
+    req_user = getattr(request, "user", None)
+    if req_user is not None and getattr(req_user, "is_authenticated", False):
+        return req_user
+    return User.objects.filter(is_superuser=True).first() or User.objects.first()
+
+
+def _record_integration_audit(
+    request,
+    build_description,
+    old_value: str | None = None,
+    new_value: str | None = None,
+    log_context: str = "Integrations",
+) -> None:
+    """Registra un evento integration_update en SecurityAuditLog sin interrumpir el flujo."""
+    try:
+        actor_user = _resolve_audit_actor(request)
+        if not actor_user:
+            logger.warning(f"[{log_context}] No se pudo registrar auditoría: no hay usuario disponible.")
+            return
+
+        actor_name = f"{actor_user.first_name} {actor_user.last_name}".strip() or actor_user.username
+        ip_addr = get_client_ip(request)
+        SecurityAuditLog.objects.create(
+            user=actor_user,
+            action="integration_update",
+            description=build_description(actor_name),
+            old_value=old_value[:255] if old_value is not None else None,
+            new_value=new_value[:255] if new_value is not None else None,
+            ip_address=ip_addr if ip_addr and len(ip_addr) <= 45 else None,
+        )
+    except Exception as audit_err:
+        logger.warning(f"[{log_context}] Error al registrar SecurityAuditLog: {audit_err}")
+
+
 def test_db_connection(request):
     """
     Endpoint para probar la conectividad directa entre Backend (Django) y la Base de Datos.
@@ -1692,6 +1728,15 @@ def google_drive_callback_view(request):
         )
 
         request.session.pop("google_drive_oauth_state", None)
+        _record_integration_audit(
+            request,
+            lambda actor_name: (
+                f"El usuario **{actor_name}** vinculó y autorizó exitosamente la cuenta de Google Drive."
+            ),
+            old_value="desconectado",
+            new_value="conectado",
+            log_context="Google Drive Callback",
+        )
         frontend_url = settings.GOOGLE_DRIVE_FRONTEND_URL.rstrip("/")
 
         return redirect(f"{frontend_url}/?google_drive=connected")
@@ -2130,8 +2175,19 @@ class BIMModelDetailView(APIView):
             model = BIMModel.objects.get(pk=pk)
             name = request.data.get("name")
             if name:
+                old_name = model.name
                 model.name = name
                 model.save(update_fields=['name'])
+                _record_integration_audit(
+                    request,
+                    lambda actor_name: (
+                        f"El usuario **{actor_name}** renombró el modelo BIM de "
+                        f"**{old_name}** a **{name}** en Autodesk APS."
+                    ),
+                    old_value=old_name,
+                    new_value=name,
+                    log_context="APS Model Patch",
+                )
             return Response({"status": "success", "message": "Nombre del modelo actualizado."})
         except BIMModel.DoesNotExist:
             return Response({"status": "error", "message": "Modelo no encontrado."}, status=404)
@@ -2141,7 +2197,18 @@ class BIMModelDetailView(APIView):
     def delete(self, request, pk):
         try:
             model = BIMModel.objects.get(pk=pk)
+            model_name = model.name
             model.delete()
+            _record_integration_audit(
+                request,
+                lambda actor_name: (
+                    f"El usuario **{actor_name}** eliminó el modelo BIM **{model_name}** "
+                    "de la bóveda de Autodesk APS."
+                ),
+                old_value=model_name,
+                new_value="eliminado",
+                log_context="APS Model Delete",
+            )
             return Response({"status": "success", "message": "Modelo eliminado localmente."})
         except BIMModel.DoesNotExist:
             return Response({"status": "error", "message": "Modelo no encontrado."}, status=404)
@@ -2184,6 +2251,16 @@ class APSUploadView(APIView):
                 object_id=object_id,
                 size_bytes=size_bytes,
                 uploaded_by=request.user
+            )
+
+            _record_integration_audit(
+                request,
+                lambda actor_name: (
+                    f"El usuario **{actor_name}** subió el modelo BIM **{filename}** a Autodesk APS."
+                ),
+                old_value="",
+                new_value=filename,
+                log_context="APS Upload",
             )
 
             return Response({
