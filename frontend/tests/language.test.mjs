@@ -2168,6 +2168,14 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
       formatNotificationTitle('Auditoría: Actualización de Perfil', tEn),
       'Audit: Profile Update'
     );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Modificación de Integraciones', tEs),
+      'Auditoría: Modificación de Integraciones'
+    );
+    assert.equal(
+      formatNotificationTitle('Auditoría: Modificación de Integraciones', tEn),
+      'Audit: Integration Modification'
+    );
 
     // Hito próximo
     assert.equal(
@@ -2230,6 +2238,55 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
       'User **ronaldo** changed their access email from **old@mail.com** to **new@mail.com**.'
     );
 
+    // Auditoría: Integraciones (Make/Webhooks, Google Drive, Autodesk APS)
+    const makeDetail =
+      'El usuario **ROnaldo Cruz Alvarez** modificó la configuración de integraciones (Make/Webhooks). Cambios: Token de API de Notificaciones y Asignaciones actualizado.';
+    assert.equal(formatNotificationDetail(makeDetail, tEs), makeDetail);
+    assert.ok(
+      formatNotificationDetail(makeDetail, tEn).includes(
+        'User **ROnaldo Cruz Alvarez** updated the integrations configuration (Make/Webhooks). Changes: API token of Notifications & Assignments updated.'
+      )
+    );
+
+    const makeComplexDetail =
+      "El usuario **Admin** modificó la configuración de integraciones (Make/Webhooks). Cambios: URL global (vacía -> https://hook.make.com/1); Frecuencia (5 -> 15); Estado (active -> inactive); Token de API de Make actualizado; Endpoint de 'Gobernanza de Presupuesto' (vacío -> https://hook.make.com/2); Tarea 'Autenticación de 2 Factores' configurada (activada); Tarea 'Notificaciones y Asignaciones' desactivada.";
+    assert.equal(
+      formatNotificationDetail(makeComplexDetail, tEn),
+      "User **Admin** updated the integrations configuration (Make/Webhooks). Changes: Global URL (empty -> https://hook.make.com/1); Frequency (5 -> 15); Status (active -> inactive); Make API token updated; Endpoint of 'Budget Governance' (empty -> https://hook.make.com/2); Task 'Two-Factor Authentication' enabled; Task 'Notifications & Assignments' disabled."
+    );
+
+    const driveDetail =
+      'El usuario **ROnaldo Cruz Alvarez** vinculó y autorizó exitosamente la cuenta de Google Drive.';
+    assert.equal(formatNotificationDetail(driveDetail, tEs), driveDetail);
+    assert.ok(
+      formatNotificationDetail(driveDetail, tEn).includes(
+        'User **ROnaldo Cruz Alvarez** successfully linked and authorized the Google Drive account.'
+      )
+    );
+
+    const apsUploadDetail = 'El usuario **Ana** subió el modelo BIM **torre.rvt** a Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsUploadDetail, tEs), apsUploadDetail);
+    assert.equal(
+      formatNotificationDetail(apsUploadDetail, tEn),
+      'User **Ana** uploaded BIM model **torre.rvt** to Autodesk APS.'
+    );
+
+    const apsRenameDetail =
+      'El usuario **Ana** renombró el modelo BIM de **v1.rvt** a **v2.rvt** en Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsRenameDetail, tEs), apsRenameDetail);
+    assert.equal(
+      formatNotificationDetail(apsRenameDetail, tEn),
+      'User **Ana** renamed BIM model from **v1.rvt** to **v2.rvt** in Autodesk APS.'
+    );
+
+    const apsDeleteDetail =
+      'El usuario **Ana** eliminó el modelo BIM **v2.rvt** de la bóveda de Autodesk APS.';
+    assert.equal(formatNotificationDetail(apsDeleteDetail, tEs), apsDeleteDetail);
+    assert.equal(
+      formatNotificationDetail(apsDeleteDetail, tEn),
+      'User **Ana** deleted BIM model **v2.rvt** from the Autodesk APS vault.'
+    );
+
     // Hito próximo
     const milestoneDetail = 'Proyecto **Torre Titan** (PRJ-99) programado para 2026-11-30.';
     assert.equal(
@@ -2258,6 +2315,14 @@ test('Notificaciones y bitácora de auditoría se formatean y traducen adecuadam
     assert.equal(formatAuditAction('email_change', 'Cambio de Correo Electrónico', tEn), 'Email Address Change');
     assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEs), 'Actualización de Perfil');
     assert.equal(formatAuditAction('profile_update', 'Actualización de Perfil', tEn), 'Profile Update');
+    assert.equal(
+      formatAuditAction('integration_update', 'Modificación de Integraciones', tEs),
+      'Modificación de Integraciones'
+    );
+    assert.equal(
+      formatAuditAction('integration_update', 'Modificación de Integraciones', tEn),
+      'Integration Modification'
+    );
   } finally {
     await server.close();
   }
