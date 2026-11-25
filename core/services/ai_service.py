@@ -353,7 +353,23 @@ def _sync_rag_response(user_query: str, context_chunks: list, user_role: str = '
         return _format_error_message(exc)
 
 
-def generate_rag_response(user_query: str, context_chunks: list, user_role: str = 'user', stream: bool = True):
+def _use_coze_provider() -> bool:
+    """Indica si Coze fue seleccionado y habilitado explícitamente."""
+    provider = str(getattr(settings, 'AI_CHAT_PROVIDER', 'openrouter')).strip().lower()
+    enabled = bool(getattr(settings, 'COZE_ENABLED', False))
+    if provider == 'coze' and not enabled:
+        logger.warning("AI_CHAT_PROVIDER=coze, pero COZE_ENABLED=False; se mantiene OpenRouter.")
+    return provider == 'coze' and enabled
+
+
+def generate_rag_response(
+    user_query: str,
+    context_chunks: list,
+    user_role: str = 'user',
+    stream: bool = True,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
+):
     """Construye un prompt enriquecido con RAG combinando la consulta del usuario
 
     con los fragmentos más relevantes recuperados de la base de datos (pgvector).
@@ -368,6 +384,29 @@ def generate_rag_response(user_query: str, context_chunks: list, user_role: str 
     Returns:
         Generator[str, None, None] | str: Flujo en tiempo real o respuesta textual unificada.
     """
+    if _use_coze_provider():
+        from .coze_service import get_coze_response, stream_coze_response
+
+        include_rag_context = bool(getattr(settings, 'COZE_INCLUDE_RAG_CONTEXT', False))
+        if context_chunks and not include_rag_context:
+            logger.info(
+                "El contexto RAG local no se enviará a Coze porque COZE_INCLUDE_RAG_CONTEXT=False."
+            )
+        coze_kwargs = {
+            'user_query': (
+                _build_rag_prompt(user_query, context_chunks)
+                if include_rag_context
+                else user_query
+            ),
+            'user_role': user_role,
+            'user_id': str(user_id or 'anonymous'),
+            'system_instruction': _get_system_instruction(user_role),
+            'conversation_id': conversation_id,
+        }
+        if stream:
+            return stream_coze_response(**coze_kwargs)
+        return get_coze_response(**coze_kwargs)
+
     if stream:
         return _stream_rag_response(user_query, context_chunks, user_role)
     return _sync_rag_response(user_query, context_chunks, user_role)

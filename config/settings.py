@@ -260,11 +260,21 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 
 # ==========================================================
-# AI ASSISTANT (OPENROUTER + GOOGLE GEMINI EMBEDDINGS)
+# AI ASSISTANT (PROVEEDOR SELECCIONABLE + GOOGLE GEMINI EMBEDDINGS)
 # ==========================================================
+AI_CHAT_PROVIDER = env('AI_CHAT_PROVIDER', default='openrouter').strip().lower()
 OPENROUTER_API_KEY = env('OPENROUTER_API_KEY', default=os.environ.get('OPENROUTER_API_KEY', '')).strip()
 GEMINI_API_KEY = env('GEMINI_API_KEY', default=os.environ.get('GEMINI_API_KEY', '')).strip()
 HUGGINGFACE_API_KEY = env('HUGGINGFACE_API_KEY', default=os.environ.get('HUGGINGFACE_API_KEY', '')).strip()
+
+# Coze permanece desactivado hasta que el equipo configure y valide la integración.
+COZE_ENABLED = env.bool('COZE_ENABLED', default=False)
+COZE_API_TOKEN = env('COZE_API_TOKEN', default=os.environ.get('COZE_API_TOKEN', '')).strip()
+COZE_BOT_ID = env('COZE_BOT_ID', default=os.environ.get('COZE_BOT_ID', '')).strip()
+COZE_API_BASE_URL = env('COZE_API_BASE_URL', default='https://api.coze.com').strip().rstrip('/')
+COZE_REQUEST_TIMEOUT = env.int('COZE_REQUEST_TIMEOUT', default=30)
+COZE_AUTO_SAVE_HISTORY = env.bool('COZE_AUTO_SAVE_HISTORY', default=False)
+COZE_INCLUDE_RAG_CONTEXT = env.bool('COZE_INCLUDE_RAG_CONTEXT', default=False)
 
 # ==========================================================
 # SEGURIDAD DEFENSIVA Y CABECERAS HTTP (OWASP)
@@ -277,4 +287,3 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_HTTPONLY = True
-
