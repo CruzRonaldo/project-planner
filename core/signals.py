@@ -7,7 +7,7 @@ from django.db.models.signals import post_save, post_delete, pre_save, pre_delet
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 
-from .models import Project, Task, ProjectMeeting, TeamMember
+from .models import Project, Task, ProjectMeeting, TeamMember, Milestone, PersonnelIncident
 from .services import make_service
 
 logger = logging.getLogger(__name__)
@@ -97,22 +97,45 @@ def handle_project_deleted(sender, instance, **kwargs):
     _dispatch_async_webhook(event='project.deleted', data=payload)
 
 
+def _get_project_leader(project):
+    """
+    Identifica el líder o director asignado a un proyecto.
+    Prioriza miembros con permisos de gestión en su rol o palabras clave de liderazgo.
+    """
+    if not project:
+        return None
+    leader = project.team_members.filter(role__can_manage_projects=True).first()
+    if leader:
+        return leader
+    for member in project.team_members.select_related('role').all():
+        if member.role and any(kw in (member.role.name or '').lower() for kw in ['líder', 'lider', 'director', 'coordinador', 'pm', 'lead', 'gerente']):
+            return member
+    return project.team_members.first()
+
+
 # =========================================================================
-# 2. Evento: Asignación de Líder a Proyecto ('project.leader_assigned')
+# 2. Evento: Asignación de Líder y Reasignación de Personal ('project.leader_assigned', 'member.reassigned')
 # =========================================================================
 @receiver(pre_save, sender=TeamMember)
 def track_team_member_project_change(sender, instance, **kwargs):
     """
-    Rastrea el project_id anterior para detectar reasignaciones de proyecto.
+    Rastrea el project_id y el nombre del proyecto anterior para detectar reasignaciones de proyecto.
     """
     if instance.pk:
         try:
-            old = TeamMember.objects.filter(pk=instance.pk).values('project_id').first()
-            instance._old_project_id = old['project_id'] if old else None
+            old = TeamMember.objects.filter(pk=instance.pk).select_related('project').first()
+            if old:
+                instance._old_project_id = old.project_id
+                instance._old_project_name = old.project.name if old.project else ''
+            else:
+                instance._old_project_id = None
+                instance._old_project_name = ''
         except Exception:
             instance._old_project_id = None
+            instance._old_project_name = ''
     else:
         instance._old_project_id = None
+        instance._old_project_name = ''
 
 
 @receiver(post_save, sender=TeamMember)
@@ -173,6 +196,53 @@ def handle_leader_assigned(sender, instance, created, **kwargs):
         }
         _dispatch_async_webhook(event='project.leader_assigned', data=payload)
 
+    elif not created and old_project_id != instance.project_id and instance.project:
+        # Reasignación de personal técnico operativo a otro proyecto ('member.reassigned')
+        creator = (
+            getattr(instance, '_assigned_by', None)
+            or getattr(instance, 'created_by', None)
+            or getattr(instance, 'assigned_by', None)
+            or getattr(instance, 'owner', None)
+        )
+        creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+        creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+        if creator:
+            creator_email = getattr(creator, 'email', '') or creator_email
+            creator_name = (
+                getattr(creator, 'username', '')
+                or (creator.get_username() if hasattr(creator, 'get_username') else '')
+                or getattr(creator, 'get_full_name', lambda: '')()
+                or str(creator)
+            )
+
+        member_name = f"{instance.first_name} {instance.last_name}".strip()
+        new_leader = _get_project_leader(instance.project)
+        new_leader_email = new_leader.email if new_leader and new_leader.email else ''
+
+        prev_project_name = getattr(instance, '_old_project_name', '') or ''
+        if not prev_project_name and old_project_id:
+            old_p = Project.objects.filter(pk=old_project_id).values_list('name', flat=True).first()
+            prev_project_name = old_p or ''
+
+        payload = {
+            'member_name': member_name,
+            'member_email': instance.email or '',
+            'previous_project_name': prev_project_name,
+            'new_project_name': instance.project.name,
+            'new_project_code': instance.project.code,
+            'allocation_percentage': instance.allocation_percentage,
+            'new_leader_email': new_leader_email,
+            'creator_name': creator_name,
+            'creator_email': creator_email,
+            'member_id': instance.id,
+            'previous_project_id': old_project_id,
+            'new_project_id': instance.project.id,
+            'role': instance.role.name if instance.role else '',
+            'technical_area': instance.technical_area.name if instance.technical_area else '',
+        }
+        _dispatch_async_webhook(event='member.reassigned', data=payload)
+
 
 @receiver(post_save, sender=TeamMember)
 def handle_member_created(sender, instance, created, **kwargs):
@@ -180,19 +250,41 @@ def handle_member_created(sender, instance, created, **kwargs):
         return
     if getattr(instance, '_skip_member_created_signal', False):
         return
-    # Evitar colisión si es líder, o enviar de todas formas los datos del nuevo miembro
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or getattr(instance, 'created_by', None)
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
     name = f"{instance.first_name} {instance.last_name}".strip()
     payload = {
         'member_id': instance.id,
         'first_name': instance.first_name,
         'last_name': instance.last_name,
         'name': name,
+        'member_name': name,
         'email': instance.email or '',
+        'member_email': instance.email or '',
         'role': instance.role.name if instance.role else '',
         'technical_area': instance.technical_area.name if instance.technical_area else '',
         'project_name': instance.project.name if instance.project else '',
         'project_code': instance.project.code if instance.project else '',
         'status': instance.status.name if instance.status else '',
+        'creator_name': creator_name,
+        'creator_email': creator_email,
     }
     _dispatch_async_webhook(event='member.created', data=payload)
 
@@ -474,3 +566,138 @@ def log_project_deletion(sender, instance, **kwargs):
         user_name=actor_name,
         date=today,
     )
+
+
+# =========================================================================
+# 6. Evento: Creación de Hito Global / Estratégico ('milestone.created')
+# =========================================================================
+@receiver(post_save, sender=Milestone)
+def handle_milestone_created(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if getattr(instance, '_skip_milestone_signal', False):
+        return
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or getattr(instance, 'created_by', None)
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
+    project = instance.project
+    project_name = project.name if project else ''
+    project_code = project.code if project else ''
+
+    leader = _get_project_leader(project)
+    leader_name = f"{leader.first_name} {leader.last_name}".strip() if leader else 'Sin Asignar'
+    leader_email = leader.email if leader and leader.email else ''
+
+    team_emails = []
+    seen = set()
+    if project:
+        member_emails = (
+            project.team_members
+            .exclude(email__isnull=True)
+            .exclude(email__exact='')
+            .values_list('email', flat=True)
+        )
+        for em in member_emails:
+            clean_em = em.strip()
+            if clean_em and clean_em.lower() not in seen:
+                seen.add(clean_em.lower())
+                team_emails.append(clean_em)
+
+    payload = {
+        'id': instance.id,
+        'milestone_id': instance.id,
+        'title': instance.name,
+        'name': instance.name,
+        'description': instance.description or '',
+        'due_date': str(instance.target_date) if instance.target_date else '',
+        'target_date': str(instance.target_date) if instance.target_date else '',
+        'project_name': project_name,
+        'project_code': project_code,
+        'leader_name': leader_name,
+        'leader_email': leader_email,
+        'team_emails': team_emails,
+        'creator_name': creator_name,
+        'creator_email': creator_email,
+        'status': instance.get_status_display(),
+    }
+    _dispatch_async_webhook(event='milestone.created', data=payload)
+
+
+# =========================================================================
+# 7. Evento: Registro de Incidencia de Personal ('incident.registered')
+# =========================================================================
+@receiver(post_save, sender=PersonnelIncident)
+def handle_incident_registered(sender, instance, created, **kwargs):
+    if not created:
+        return
+    if getattr(instance, '_skip_incident_signal', False):
+        return
+
+    creator = (
+        getattr(instance, '_assigned_by', None)
+        or instance.created_by
+        or getattr(instance, 'assigned_by', None)
+        or getattr(instance, 'owner', None)
+    )
+    creator_email = getattr(instance, '_fallback_creator_email', '') or ''
+    creator_name = getattr(instance, '_fallback_creator_name', '') or ''
+
+    if creator:
+        creator_email = getattr(creator, 'email', '') or creator_email
+        creator_name = (
+            getattr(creator, 'username', '')
+            or (creator.get_username() if hasattr(creator, 'get_username') else '')
+            or getattr(creator, 'get_full_name', lambda: '')()
+            or str(creator)
+        )
+
+    member = instance.member
+    member_name = f"{member.first_name} {member.last_name}".strip() if member else ''
+    member_email = member.email if member and member.email else ''
+
+    backup = instance.backup_member
+    backup_name = f"{backup.first_name} {backup.last_name}".strip() if backup else ''
+    backup_email = backup.email if backup and backup.email else ''
+
+    project = member.project if member else None
+    project_name = project.name if project else ''
+
+    leader = _get_project_leader(project)
+    leader_email = leader.email if leader and leader.email else ''
+
+    payload = {
+        'id': instance.id,
+        'incident_id': instance.id,
+        'incident_type': instance.incident_type,
+        'incident_type_display': instance.get_incident_type_display(),
+        'status': instance.workflow_status,
+        'workflow_status': instance.workflow_status,
+        'start_date': str(instance.start_date),
+        'end_date': str(instance.end_date),
+        'reason': instance.reason or '',
+        'member_name': member_name,
+        'member_email': member_email,
+        'backup_name': backup_name,
+        'backup_email': backup_email,
+        'project_name': project_name,
+        'leader_email': leader_email,
+        'creator_name': creator_name,
+        'creator_email': creator_email,
+    }
+    _dispatch_async_webhook(event='incident.registered', data=payload)

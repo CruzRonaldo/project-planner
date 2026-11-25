@@ -481,6 +481,44 @@ class MilestoneSerializer(serializers.ModelSerializer):
         rep['blocking'] = True
         return rep
 
+    def create(self, validated_data):
+        creator = validated_data.pop('creator', None) or self.context.get('creator')
+        request = self.context.get('request')
+        if not creator and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            creator = request.user
+
+        if not creator and request and hasattr(request, 'data'):
+            creator_identifier = (
+                request.data.get('creator_email')
+                or request.data.get('creator_username')
+                or request.data.get('createdBy')
+                or request.data.get('created_by')
+                or request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = Milestone(**validated_data)
+        if creator:
+            instance._assigned_by = creator
+            instance.created_by = creator
+        elif request and hasattr(request, 'data'):
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
+        instance.save()
+        return instance
+
 
 def resolve_team_member(val):
     """
@@ -1268,7 +1306,10 @@ class CreateTechnicianSerializer(serializers.Serializer):
         user.set_password(password)
         user.save()
 
-        return TeamMember.objects.create(
+        request = self.context.get('request')
+        assigned_by = request.user if request and getattr(request, 'user', None) and request.user.is_authenticated else None
+
+        member = TeamMember(
             first_name=first_name,
             last_name=last_name,
             email=email,
@@ -1280,6 +1321,19 @@ class CreateTechnicianSerializer(serializers.Serializer):
             allocation_percentage=allocation_percentage,
             is_active=True,
         )
+        if assigned_by:
+            member._assigned_by = assigned_by
+            member.created_by = assigned_by
+        elif request and hasattr(request, 'data'):
+            fallback_name = request.data.get('creator_name') or request.data.get('createdBy')
+            fallback_email = request.data.get('creator_email')
+            if fallback_name:
+                member._fallback_creator_name = fallback_name
+            if fallback_email:
+                member._fallback_creator_email = fallback_email
+
+        member.save()
+        return member
 
 
 class ProjectMeetingSerializer(serializers.ModelSerializer):

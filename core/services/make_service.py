@@ -256,13 +256,86 @@ def fetch_make_account_usage(api_token: str = None, zone: str = None, timeout: i
         return _empty_make_usage(configured=True, error=str(exc))
 
 
+def extract_client_request_metadata(request) -> dict:
+    """
+    Extrae la dirección IP real del cliente y su User-Agent a partir del objeto HttpRequest.
+    Prioriza HTTP_X_FORWARDED_FOR tomando el primer salto, con fallback a REMOTE_ADDR.
+    """
+    if not request:
+        return {'ip_address': '', 'user_agent': ''}
+
+    ip_raw = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR') or ''
+    if ',' in ip_raw:
+        ip_raw = ip_raw.split(',')[0].strip()
+    else:
+        ip_raw = str(ip_raw).strip()
+
+    user_agent = str(request.META.get('HTTP_USER_AGENT') or '').strip()
+
+    return {
+        'ip_address': ip_raw[:45] if ip_raw else '',
+        'user_agent': user_agent,
+    }
+
+
+def dispatch_security_alert_webhook(event: str, user, request=None, extra_data: dict = None):
+    """
+    Construye y despacha de manera asíncrona una alerta de seguridad hacia Make.com
+    (ej. auth.password_changed, auth.email_changed).
+    Garantiza que sessions_invalidated: True y los metadatos del cliente viajen completos.
+    """
+    from core.signals import _dispatch_async_webhook
+
+    meta = extract_client_request_metadata(request)
+
+    actor_name = ""
+    if user:
+        if hasattr(user, 'get_full_name'):
+            actor_name = user.get_full_name().strip()
+        if not actor_name and hasattr(user, 'first_name') and hasattr(user, 'last_name'):
+            actor_name = f"{user.first_name} {user.last_name}".strip()
+        if not actor_name and hasattr(user, 'username'):
+            actor_name = user.username or ''
+
+    actor_username = getattr(user, 'username', '') if user else ''
+    actor_email = getattr(user, 'email', '') if user else ''
+    actor_id = getattr(user, 'id', None) if user else None
+
+    payload = {
+        'actor_id': actor_id,
+        'actor_name': actor_name,
+        'actor_username': actor_username,
+        'actor_email': actor_email,
+        'ip_address': meta['ip_address'],
+        'user_agent': meta['user_agent'],
+        'sessions_invalidated': True,
+    }
+
+    if extra_data and isinstance(extra_data, dict):
+        payload.update(extra_data)
+
+    _dispatch_async_webhook(event=event, data=payload)
+
+
 def _task_matches_event(task: dict, event: str) -> bool:
     if not isinstance(task, dict) or not event:
         return False
     task_event = task.get('event')
     if task_event == event:
         return True
-    if task_event == 'project.assignment' and event in ('task.assigned', 'project.leader_assigned', 'member.created'):
+    if task_event == 'project.assignment' and event in (
+        'task.assigned',
+        'project.leader_assigned',
+        'member.created',
+        'member.reassigned',
+        'milestone.created',
+        'incident.registered',
+    ):
+        return True
+    if task_event == 'auth.security_alert' and event in (
+        'auth.password_changed',
+        'auth.email_changed',
+    ):
         return True
     return False
 
@@ -271,11 +344,20 @@ def is_event_enabled(event: str) -> bool:
     """
     Verifica si un evento específico de Make está habilitado según las tareas configuradas.
     Retorna False si la tarea coincidente tiene enabled=False, True en cualquier otro caso.
+    Prioriza coincidencias exactas antes de coincidencias agrupadas.
     """
     if not event:
         return True
     config = get_make_config()
     tasks = config.get('tasks', [])
+
+    # 1. Prioridad: coincidencia exacta por nombre de evento
+    for task in tasks:
+        if isinstance(task, dict) and task.get('event') == event:
+            if task.get('enabled') is False:
+                return False
+
+    # 2. Coincidencia agrupada
     for task in tasks:
         if _task_matches_event(task, event):
             if task.get('enabled') is False:
@@ -295,6 +377,17 @@ def get_configured_make_webhook_url(event: str = None) -> str:
     tasks = config.get('tasks', [])
 
     if event and tasks:
+        # 1. Prioridad: coincidencia exacta por evento
+        for task in tasks:
+            if isinstance(task, dict) and task.get('event') == event:
+                if task.get('enabled') is False:
+                    return ""
+                task_endpoint = str(task.get('endpoint') or '').strip()
+                if task_endpoint:
+                    return task_endpoint
+                break
+
+        # 2. Coincidencia por grupo
         for task in tasks:
             if _task_matches_event(task, event):
                 if task.get('enabled') is False:

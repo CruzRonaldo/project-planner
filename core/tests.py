@@ -1812,6 +1812,277 @@ class MakeSignalsIntegrationTests(TestCase):
         self.assertIn("torre_norte_v2.rvt", delete_log.description)
 
 
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_auth_password_changed_webhook(self, mock_send):
+        """Al cambiar la contraseña de usuario, se despacha auth.password_changed con metadatos de seguridad."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "current_password": "SecurePassword123!",
+            "new_password": "NewSecurePassword456!",
+            "confirm_password": "NewSecurePassword456!",
+        }
+        response = api_client.post("/api/auth/change-password/", payload, format="json", HTTP_USER_AGENT="Mozilla/5.0 TestBrowser")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        # Buscar el evento auth.password_changed
+        pwd_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "auth.password_changed":
+                pwd_call = call[1]
+                break
+
+        self.assertIsNotNone(pwd_call, "El evento auth.password_changed debió ser despachado")
+        data = pwd_call.get("data", {})
+        self.assertEqual(data.get("actor_id"), self.user_dev.id)
+        self.assertEqual(data.get("actor_username"), "lucas_vargas")
+        self.assertEqual(data.get("actor_email"), "lucas.vargas@polyline.com")
+        self.assertTrue(data.get("sessions_invalidated"))
+        self.assertEqual(data.get("recipient_email"), "lucas.vargas@polyline.com")
+        self.assertIn("ip_address", data)
+        self.assertEqual(data.get("user_agent"), "Mozilla/5.0 TestBrowser")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_auth_email_changed_webhook(self, mock_send):
+        """Al modificar el correo electrónico del usuario, se despacha auth.email_changed."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "email": "lucas.actualizado@polyline.com",
+        }
+        response = api_client.patch("/api/auth/profile/", payload, format="json", HTTP_USER_AGENT="SecurityAuditAgent/1.0")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        email_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "auth.email_changed":
+                email_call = call[1]
+                break
+
+        self.assertIsNotNone(email_call, "El evento auth.email_changed debió ser despachado")
+        data = email_call.get("data", {})
+        self.assertEqual(data.get("actor_id"), self.user_dev.id)
+        self.assertEqual(data.get("old_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("new_email"), "lucas.actualizado@polyline.com")
+        self.assertEqual(data.get("recipient_email"), "lucas.actualizado@polyline.com")
+        self.assertTrue(data.get("sessions_invalidated"))
+        self.assertEqual(data.get("user_agent"), "SecurityAuditAgent/1.0")
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_member_created_webhook_via_technician_creation(self, mock_send):
+        """Al crear un técnico desde CreateTechnicianView, despacha member.created con creador autenticado sin contraseñas."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "first_name": "Daniel",
+            "last_name": "Rios",
+            "email": "daniel.rios@polyline.com",
+            "password": "SecurePassword123!",
+            "specialty": "Especialista BIM",
+            "area": "structures",
+            "status": "active",
+            "project": self.project.name,
+            "availability": 100,
+            "allocation_percentage": 50,
+        }
+        response = api_client.post("/api/technicians/create/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        member_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "member.created":
+                member_call = call[1]
+                break
+
+        self.assertIsNotNone(member_call, "El evento member.created debió despacharse")
+        data = member_call.get("data", {})
+        self.assertEqual(data.get("member_name"), "Daniel Rios")
+        self.assertEqual(data.get("member_email"), "daniel.rios@polyline.com")
+        self.assertEqual(data.get("role"), "Especialista BIM")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+        # Seguridad estricta: nunca enviar contraseñas o credenciales en el webhook
+        self.assertNotIn("password", data)
+        self.assertNotIn("current_password", data)
+        self.assertNotIn("token", data)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_member_reassigned_signal_when_technician_changes_project(self, mock_send):
+        """Al reasignar un técnico operativo (no líder) a otro proyecto, despacha member.reassigned."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        # Asignar previamente al proyecto 1
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        mock_send.reset_mock()
+
+        # Crear segundo proyecto con su propio líder
+        second_project = Project.objects.create(
+            code="PRJ-TEST-REASSIGN",
+            name="Edificio Torre Norte",
+            start_date="2026-07-01",
+            end_date="2026-12-01",
+            duration_months=5,
+            budget=300000.00,
+        )
+        self.member_leader.project = second_project
+        self.member_leader.save()
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        response = api_client.patch(
+            f"/api/team-members/{self.member_dev.id}/",
+            {"project": second_project.id, "allocation_percentage": 75},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        reassign_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "member.reassigned":
+                reassign_call = call[1]
+                break
+
+        self.assertIsNotNone(reassign_call, "El evento member.reassigned debió ser despachado")
+        data = reassign_call.get("data", {})
+        self.assertEqual(data.get("member_name"), "Lucas Vargas")
+        self.assertEqual(data.get("member_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("previous_project_name"), self.project.name)
+        self.assertEqual(data.get("new_project_name"), second_project.name)
+        self.assertEqual(data.get("new_project_code"), second_project.code)
+        self.assertEqual(data.get("allocation_percentage"), 75)
+        self.assertEqual(data.get("new_leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+        # Confirmar que no despachó project.leader_assigned ya que es un técnico operativo
+        events = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertNotIn("project.leader_assigned", events)
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_milestone_created_webhook_via_api(self, mock_send):
+        """Al crear un hito global desde MilestoneViewSet, despacha milestone.created con datos del líder y equipo."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        # Asignar miembros al proyecto para verificar team_emails
+        self.member_leader.project = self.project
+        self.member_leader.save()
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_dev)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "title": "Aprobación de Planos Municipales",
+            "project": self.project.id,
+            "targetDate": "2026-05-15",
+            "description": "Obtención de licencia y sellado por colegio de ingenieros",
+            "status": "pending",
+        }
+        response = api_client.post("/api/milestones/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        milestone_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "milestone.created":
+                milestone_call = call[1]
+                break
+
+        self.assertIsNotNone(milestone_call, "El evento milestone.created debió ser despachado")
+        data = milestone_call.get("data", {})
+        self.assertEqual(data.get("title"), "Aprobación de Planos Municipales")
+        self.assertEqual(data.get("due_date"), "2026-05-15")
+        self.assertEqual(data.get("description"), "Obtención de licencia y sellado por colegio de ingenieros")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("project_code"), self.project.code)
+        self.assertEqual(data.get("leader_name"), "Elena Rostova")
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("creator_name"), "lucas_vargas")
+        self.assertEqual(data.get("creator_email"), "lucas.vargas@polyline.com")
+        self.assertIn("elena.rostova@polyline.com", data.get("team_emails", []))
+        self.assertIn("lucas.vargas@polyline.com", data.get("team_emails", []))
+
+    @patch("core.services.make_service.send_make_webhook")
+    def test_incident_registered_webhook_and_prevents_duplicate_on_status_change(self, mock_send):
+        """Al registrar una incidencia despacha incident.registered y no duplica el webhook al aprobar o rechazar."""
+        mock_send.return_value = {"success": True, "status_code": 200}
+        self.member_dev.project = self.project
+        self.member_dev.save()
+        self.member_leader.project = self.project
+        self.member_leader.save()
+        mock_send.reset_mock()
+
+        token = issue_session_token(self.user_admin)
+        api_client = APIClient()
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        today = timezone.localdate()
+        from datetime import timedelta
+        start = today + timedelta(days=2)
+        end = today + timedelta(days=12)
+
+        payload = {
+            "member": self.member_dev.id,
+            "incident_type": "medical-leave",
+            "start_date": str(start),
+            "end_date": str(end),
+            "resulting_status": self.status_active.id,
+            "availability": 0,
+            "backup_member": self.member_leader.id,
+            "reason": "Descanso médico postoperatorio",
+        }
+        response = api_client.post("/api/personnel-incidents/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        incident_id = response.data.get("id")
+
+        incident_call = None
+        for call in mock_send.call_args_list:
+            if call[1].get("event") == "incident.registered":
+                incident_call = call[1]
+                break
+
+        self.assertIsNotNone(incident_call, "El evento incident.registered debió ser despachado")
+        data = incident_call.get("data", {})
+        self.assertEqual(data.get("incident_type"), "medical-leave")
+        self.assertEqual(data.get("status"), "pending")
+        self.assertEqual(data.get("start_date"), str(start))
+        self.assertEqual(data.get("end_date"), str(end))
+        self.assertEqual(data.get("reason"), "Descanso médico postoperatorio")
+        self.assertEqual(data.get("member_name"), "Lucas Vargas")
+        self.assertEqual(data.get("member_email"), "lucas.vargas@polyline.com")
+        self.assertEqual(data.get("backup_name"), "Elena Rostova")
+        self.assertEqual(data.get("backup_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("project_name"), self.project.name)
+        self.assertEqual(data.get("leader_email"), "elena.rostova@polyline.com")
+        self.assertEqual(data.get("creator_name"), "admin_user")
+        self.assertEqual(data.get("creator_email"), "admin@polyline.com")
+
+        # Prueba de no duplicación durante cambios de estado de aprobación
+        mock_send.reset_mock()
+        approve_resp = api_client.post(f"/api/personnel-incidents/{incident_id}/approve/", {"comment": "Aprobado por jefatura"}, format="json")
+        self.assertEqual(approve_resp.status_code, status.HTTP_200_OK)
+
+        events_dispatched = [call[1].get("event") for call in mock_send.call_args_list]
+        self.assertNotIn("incident.registered", events_dispatched, "No debe duplicarse incident.registered al aprobar una incidencia")
+
+
+
 class MilestoneStrategicPlanningTests(TestCase):
     """Pruebas del Módulo de Planificación Estratégica e Hitos Globales (/api/milestones/)."""
 

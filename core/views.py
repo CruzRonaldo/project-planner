@@ -479,6 +479,18 @@ def change_password_view(request):
     user.save()
     new_session_token = issue_session_token(user)
 
+    # Disparar alerta de seguridad hacia Make.com
+    try:
+        from .services.make_service import dispatch_security_alert_webhook
+        dispatch_security_alert_webhook(
+            event='auth.password_changed',
+            user=user,
+            request=request,
+            extra_data={'recipient_email': user.email or ''}
+        )
+    except Exception as exc:
+        logger.warning(f"[Make Security] Error al despachar auth.password_changed: {exc}")
+
     # Registrar en bitácora de auditoría
     try:
         actor_name = f"{user.first_name} {user.last_name}".strip() or user.username
@@ -548,6 +560,7 @@ def format_known_country_phone(digits_after_plus: str) -> str | None:
 
 
 @api_view(['GET', 'PATCH', 'POST'])
+@authentication_classes([SimpleUserAuthentication, SessionAuthentication])
 @permission_classes([AllowAny])
 def user_profile_view(request):
     """
@@ -556,19 +569,24 @@ def user_profile_view(request):
     validando unicidad y registrando cada cambio en la bitácora de auditoría.
     """
     data = request.data if request.method in ['POST', 'PATCH'] else request.query_params
-    identifier = (data.get('identifier') or data.get('email') or data.get('username') or '').strip()
     user_id = data.get('user_id') or data.get('userId') or data.get('id')
+    identifier = (data.get('identifier') or data.get('username') or '').strip()
 
     user = None
-    if user_id and str(user_id).isdigit():
+    if request.user and request.user.is_authenticated:
+        user = request.user
+    elif user_id and str(user_id).isdigit():
         user = User.objects.filter(id=int(user_id)).first()
-    if not user and identifier:
+    elif identifier:
         clean_id = str(identifier).replace('usr-', '').strip()
         user = User.objects.filter(
             Q(username__iexact=identifier) | Q(email__iexact=identifier) | Q(username__iexact=clean_id)
         ).first()
-    if not user and request.user and request.user.is_authenticated:
-        user = request.user
+    elif data.get('email'):
+        email_cand = str(data.get('email')).strip()
+        user = User.objects.filter(
+            Q(email__iexact=email_cand) | Q(username__iexact=email_cand)
+        ).first()
 
     if not user:
         return Response({
@@ -761,6 +779,20 @@ def user_profile_view(request):
         new_session_token = None
         if email_changed:
             new_session_token = issue_session_token(user)
+            try:
+                from .services.make_service import dispatch_security_alert_webhook
+                dispatch_security_alert_webhook(
+                    event='auth.email_changed',
+                    user=user,
+                    request=request,
+                    extra_data={
+                        'old_email': old_email,
+                        'new_email': new_email,
+                        'recipient_email': new_email,
+                    }
+                )
+            except Exception as exc:
+                logger.warning(f"[Make Security] Error al despachar auth.email_changed: {exc}")
 
         response_payload = {
             'status': 'success',
@@ -1088,6 +1120,38 @@ class TeamMemberViewSet(viewsets.ModelViewSet):
             })
         return super().update(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save()
+        if creator:
+            instance._assigned_by = creator
+            instance.created_by = creator
+        else:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
+
     def perform_update(self, serializer):
         from .services.personnel_incidents import (
             build_field_changes,
@@ -1230,7 +1294,33 @@ class PersonnelIncidentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(created_by=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
     def destroy(self, request, *args, **kwargs):
         incident = self.get_object()
@@ -1511,6 +1601,7 @@ class MilestoneViewSet(viewsets.ModelViewSet):
     Soporta filtrado por proyecto mediante el query parameter `?project=<id>`.
     """
 
+    authentication_classes = [SimpleUserAuthentication, SessionAuthentication]
     queryset = Milestone.objects.select_related("project").all()
     serializer_class = MilestoneSerializer
 
@@ -1522,6 +1613,35 @@ class MilestoneViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(project_id=project_id)
 
         return queryset
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(creator=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -2338,7 +2458,7 @@ class CreateTechnicianView(APIView):
     serializer_class = CreateTechnicianSerializer
 
     def post(self, request):
-        serializer = CreateTechnicianSerializer(data=request.data)
+        serializer = CreateTechnicianSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         technician = serializer.save()
 
@@ -2572,7 +2692,33 @@ class ProjectMeetingViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        user = getattr(self.request, 'user', None)
+        creator = user if user and user.is_authenticated else None
+        if not creator:
+            creator_identifier = (
+                self.request.data.get('creator_email')
+                or self.request.data.get('creator_username')
+                or self.request.data.get('createdBy')
+                or self.request.data.get('created_by')
+                or self.request.data.get('assigned_by')
+            )
+            if creator_identifier and isinstance(creator_identifier, str):
+                from django.contrib.auth import get_user_model
+                from django.db.models import Q
+                User = get_user_model()
+                creator = User.objects.filter(
+                    Q(email__iexact=creator_identifier.strip()) |
+                    Q(username__iexact=creator_identifier.strip())
+                ).first()
+
+        instance = serializer.save(created_by=creator)
+        if not creator:
+            fallback_name = self.request.data.get('creator_name') or self.request.data.get('createdBy')
+            fallback_email = self.request.data.get('creator_email')
+            if fallback_name:
+                instance._fallback_creator_name = fallback_name
+            if fallback_email:
+                instance._fallback_creator_email = fallback_email
 
 
 class ProjectChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
