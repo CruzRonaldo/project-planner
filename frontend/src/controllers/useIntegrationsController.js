@@ -238,7 +238,7 @@ export function useIntegrationsController({
   // 1. Refrescar estado de Google Drive
   const refreshGoogleDrive = useCallback(async (withFeedback = false) => {
     setTestingDrive(true);
-    const [response, error] = await runSafe(
+    const [_response, error] = await runSafe(
       () => api.get('/integrations/google-drive/status/'),
       {
         showToast: withFeedback && showToast ? showToast : undefined,
@@ -276,7 +276,7 @@ export function useIntegrationsController({
 
   // 2. Refrescar estado de Autodesk Revit APS
   const refreshRevitStatus = useCallback(async () => {
-    const [response, error] = await runSafe(
+    const [_response, error] = await runSafe(
       () => api.get('/integrations/aps/status/'),
       {
         fallbackError: 'No se pudo consultar el estado de Autodesk APS.',
@@ -294,7 +294,7 @@ export function useIntegrationsController({
 
   // 3. Refrescar estado y configuración de Make (Integromat)
   const refreshMakeStatus = useCallback(async () => {
-    const [response, error] = await runSafe(
+    const [_response, error] = await runSafe(
       () => makeApi.getStatus(),
       { fallbackError: 'No se pudo consultar el estado de Make.' }
     );
@@ -353,7 +353,7 @@ export function useIntegrationsController({
   const testMakeConnection = useCallback(async (customEndpoint) => {
     setTestingMake(true);
     const webhookUrl = customEndpoint && customEndpoint.startsWith('http') ? customEndpoint : undefined;
-    const [response, error] = await runSafe(
+    const [_response, error] = await runSafe(
       () => makeApi.testConnection(webhookUrl),
       {
         showToast,
@@ -374,7 +374,7 @@ export function useIntegrationsController({
 
   // 5. Disparar un evento hacia Make (para notificaciones, asignaciones, 2FA, etc.)
   const triggerMakeEvent = useCallback(async (event, payload = {}, webhookUrl = '') => {
-    const [response, error] = await runSafe(
+    const [_response, error] = await runSafe(
       () => makeApi.triggerEvent(event, payload, webhookUrl),
       {
         fallbackError: `No se pudo enviar el evento '${event}' hacia Make.`,

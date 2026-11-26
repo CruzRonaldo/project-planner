@@ -97,12 +97,15 @@ def pg_environment():
     db = database_config()
     # No heredar otra conexión o servicio de libpq del equipo.
     environment = {k: v for k, v in os.environ.items() if not k.startswith("PG")}
+    port = str(db.get("PORT") or "5432")
+    if port == "6543":
+        port = "5432"
     environment.update({
         "PGDATABASE": str(db["NAME"]),
         "PGUSER": str(db.get("USER") or ""),
         "PGPASSWORD": str(db.get("PASSWORD") or ""),
         "PGHOST": str(db.get("HOST") or "127.0.0.1"),
-        "PGPORT": str(db.get("PORT") or "5432"),
+        "PGPORT": port,
         "PGCONNECT_TIMEOUT": "10",
         "PGAPPNAME": "project_planner_backups",
     })
@@ -245,8 +248,8 @@ def metadata(path):
 def list_backups():
     """Lista todos los respaldos locales disponibles ordenados cronológicamente descendente.
 
-    Inspecciona el directorio de respaldos, filtra archivos legítimos con el patrón oficial
-    project_planner_YYYYMMDD_HHMMSS_<hash>.dump y extrae sus metadatos del archivo sidecar JSON.
+    Sincroniza archivos locales existentes con DatabaseBackupLog y devuelve la lista
+    leyendo desde los registros completados ordenados por fecha descendente.
 
     Returns:
         list[dict]: Lista de diccionarios con metadatos:
@@ -257,18 +260,42 @@ def list_backups():
             - size_bytes (int): Tamaño del archivo en bytes.
             - has_checksum (bool): Indica si cuenta con hash SHA-256 verificado.
     """
-    result = []
-    for path in backup_directory().glob("project_planner_*.dump"):
+    from core.models import DatabaseBackupLog
+
+    directory = backup_directory()
+    for path in directory.glob("project_planner_*.dump"):
         if NAME.fullmatch(path.name) and path.is_file() and not path.is_symlink():
-            data = metadata(path)
-            result.append({
-                "filename": path.name, "created_at": data["created_at"],
-                "source": data.get("source", "legacy"),
-                "created_by": data.get("created_by", ""),
-                "size_bytes": path.stat().st_size,
-                "has_checksum": bool(data.get("sha256")),
-            })
-    return sorted(result, key=lambda item: item["created_at"], reverse=True)
+            if not DatabaseBackupLog.objects.filter(filename=path.name).exists():
+                try:
+                    data = metadata(path)
+                    DatabaseBackupLog.objects.create(
+                        filename=path.name,
+                        source=data.get("source", "legacy"),
+                        size_bytes=path.stat().st_size,
+                        sha256=data.get("sha256") or checksum(path),
+                        status="COMPLETED",
+                        storage_provider="local",
+                        storage_path=str(path),
+                    )
+                except Exception as sync_err:
+                    logger.warning("Error sincronizando archivo legado %s: %s", path.name, sync_err)
+
+    logs = (
+        DatabaseBackupLog.objects.filter(status="COMPLETED")
+        .select_related("created_by")
+        .order_by("-created_at")
+    )
+    return [
+        {
+            "filename": log.filename,
+            "created_at": log.created_at.isoformat(),
+            "source": log.source,
+            "created_by": log.created_by.username if log.created_by else "",
+            "size_bytes": log.size_bytes,
+            "has_checksum": bool(log.sha256),
+        }
+        for log in logs
+    ]
 
 
 def validate_archive(path):
@@ -303,7 +330,7 @@ def _create_backup(source, created_by):
     meta_temporary = path.with_suffix(".json.partial")
     try:
         run_pg([
-            executable("pg_dump"), "--format=custom", "--no-owner", "--no-acl",
+            executable("pg_dump"), "--schema=public", "--format=custom", "--no-owner", "--no-acl",
             "--no-password", "--file", str(temporary),
         ])
         validate_archive(temporary)
@@ -318,13 +345,49 @@ def _create_backup(source, created_by):
         os.chmod(meta_temporary, 0o600)
         temporary.replace(path)
         meta_temporary.replace(sidecar)
+
+        try:
+            from core.models import DatabaseBackupLog
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user_obj = None
+            if isinstance(created_by, User):
+                user_obj = created_by
+            elif isinstance(created_by, str) and created_by:
+                user_obj = User.objects.filter(username__iexact=created_by).first()
+
+            DatabaseBackupLog.objects.update_or_create(
+                filename=filename,
+                defaults={
+                    "source": source,
+                    "created_by": user_obj,
+                    "size_bytes": path.stat().st_size,
+                    "sha256": checksum(path),
+                    "storage_provider": "local",
+                    "storage_path": str(path),
+                    "status": "COMPLETED",
+                }
+            )
+        except Exception as log_err:
+            logger.warning("No se pudo registrar DatabaseBackupLog: %s", log_err)
+
         return path
     finally:
         temporary.unlink(missing_ok=True)
         meta_temporary.unlink(missing_ok=True)
 
 
-def create_backup(source="manual", created_by=""):
+def is_auto_backup_enabled() -> bool:
+    """Consulta si los respaldos automáticos se encuentran habilitados en la base de datos."""
+    try:
+        from core.models import BackupConfiguration
+        return BackupConfiguration.get_solo().auto_backup_enabled
+    except Exception as exc:
+        logger.warning("No se pudo consultar BackupConfiguration: %s", exc)
+        return True
+
+
+def create_backup(source="manual", created_by="", ignore_disabled=False):
     """Crea un respaldo consistente de la base de datos PostgreSQL de Project Planner.
 
     Genera un archivo dump en formato binario custom (`pg_dump -Fc`) con compresión nativa,
@@ -334,9 +397,10 @@ def create_backup(source="manual", created_by=""):
     Args:
         source (str): Origen del respaldo ('manual', 'automatic', 'before_restore').
         created_by (str): Nombre o identificador del usuario que inició la operación.
+        ignore_disabled (bool): Si es True, omite la comprobación de auto_backup_enabled.
 
     Returns:
-        Path: Ruta absoluta al archivo .dump generado.
+        Path | None: Ruta absoluta al archivo .dump generado, o None si el automático está pausado.
 
     Raises:
         BackupError: Si el motor de BD no es PostgreSQL, el origen es inválido o ocurre un error de ejecución.
@@ -344,6 +408,12 @@ def create_backup(source="manual", created_by=""):
     database_config()
     if source not in SOURCES:
         raise BackupError("Origen de respaldo inválido.")
+
+    if source == "automatic" and not ignore_disabled:
+        if not is_auto_backup_enabled():
+            logger.info("El respaldo automático se encuentra deshabilitado por el administrador. Omitiendo.")
+            return None
+
     with file_lock(".operation.lock"):
         return _create_backup(source, created_by)
 
@@ -386,7 +456,8 @@ def restore_backup(filename, confirmation, created_by=""):
             connections.close_all()
             run_pg([
                 executable("pg_restore"), "--dbname", str(db["NAME"]),
-                "--clean", "--if-exists", "--single-transaction", "--exit-on-error",
+                "--schema=public",
+                "--clean", "--if-exists", "--single-transaction",
                 "--no-owner", "--no-acl", "--no-password", str(path),
             ], timeout=600, restoring=True)
         except BackupError as error:

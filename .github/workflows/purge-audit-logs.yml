@@ -28,12 +28,14 @@ jobs:
       - name: Ejecutar purga de logs antiguos (retención diferenciada 195d/365d)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'django-insecure-github-actions-backup-runner-temp-key' }}
         run: |
           python manage.py purge_old_logs --triggered-by GITHUB_ACTION
 
       - name: Verificar consumo de almacenamiento en Supabase (alertas 70% / 80%)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'django-insecure-github-actions-backup-runner-temp-key' }}
           MAKE_STORAGE_ALERT_WEBHOOK_URL: ${{ secrets.MAKE_STORAGE_ALERT_WEBHOOK_URL }}
         run: |
           python manage.py check_db_size

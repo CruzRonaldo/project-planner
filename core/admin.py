@@ -15,6 +15,8 @@ from .models import (
     ScheduleAdjustment,
     SecurityAuditLog,
     AuditPurgeLog,
+    DatabaseBackupLog,
+    BackupConfiguration,
 )
 
 
@@ -220,6 +222,35 @@ class AuditPurgeLogAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(DatabaseBackupLog)
+class DatabaseBackupLogAdmin(admin.ModelAdmin):
+    list_display = ('filename', 'source', 'size_bytes', 'sha256', 'status', 'created_at', 'created_by')
+    list_filter = ('source', 'status', 'created_at')
+    search_fields = ('filename', 'sha256', 'created_by__username')
+    readonly_fields = [field.name for field in DatabaseBackupLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BackupConfiguration)
+class BackupConfigurationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'auto_backup_enabled', 'cron_schedule', 'updated_at', 'updated_by')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not BackupConfiguration.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False

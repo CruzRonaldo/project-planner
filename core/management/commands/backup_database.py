@@ -11,6 +11,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         try:
             path = create_backup(source=options["source"], created_by="terminal")
+            if path is None:
+                self.stdout.write(self.style.WARNING("El respaldo automático se encuentra deshabilitado por el administrador. Omitiendo ejecución."))
+                return ""
         except (BackupError, OSError) as error:
             raise CommandError(str(error)) from error
         self.stdout.write(self.style.SUCCESS("Respaldo generado correctamente."))

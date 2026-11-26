@@ -36,6 +36,17 @@ html, body, #root {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Reglas globales de cursor interactivo reutilizables */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* Las etiquetas pequeñas también siguen el tamaño global de letra. */
 .text-[8px] {
   font-size: 0.5rem !important;

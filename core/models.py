@@ -541,6 +541,10 @@ class SecurityAuditLog(models.Model):
         ('password_change', 'Cambio de Contraseña'),
         ('profile_update', 'Actualización de Perfil'),
         ('integration_update', 'Modificación de Integraciones'),
+        ('backup_export', 'Exportación de Respaldo'),
+        ('backup_download', 'Descarga de Respaldo'),
+        ('backup_restore', 'Restauración de Respaldo'),
+        ('backup_toggle_auto', 'Activación/Desactivación de Respaldo Automático'),
     )
 
     user = models.ForeignKey(
@@ -827,3 +831,82 @@ class DocumentEmbedding(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class DatabaseBackupLog(models.Model):
+    """
+    Registro histórico y persistente de copias de seguridad de PostgreSQL.
+    Permite auditar el estado, origen, tamaño y validez criptográfica de cada respaldo.
+    """
+    SOURCE_CHOICES = (
+        ('manual', 'Manual'),
+        ('automatic', 'Automático'),
+        ('before_restore', 'Antes de Restaurar'),
+        ('legacy', 'Anterior'),
+    )
+    STATUS_CHOICES = (
+        ('COMPLETED', 'Completado'),
+        ('FAILED', 'Fallido'),
+        ('IN_PROGRESS', 'En Progreso'),
+    )
+    filename = models.CharField(max_length=255, unique=True, verbose_name="Nombre de archivo")
+    source = models.CharField(max_length=30, choices=SOURCE_CHOICES, default='manual', verbose_name="Origen")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Fecha de creación")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='database_backups',
+        verbose_name="Creado por"
+    )
+    size_bytes = models.BigIntegerField(default=0, verbose_name="Tamaño en bytes")
+    sha256 = models.CharField(max_length=64, blank=True, null=True, verbose_name="Hash SHA-256")
+    storage_provider = models.CharField(max_length=50, default='local', verbose_name="Proveedor de almacenamiento")
+    storage_path = models.CharField(max_length=500, blank=True, null=True, verbose_name="Ruta de almacenamiento")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='COMPLETED', verbose_name="Estado")
+    error_message = models.TextField(blank=True, default="", verbose_name="Mensaje de error")
+
+    class Meta:
+        verbose_name = "Registro de Respaldo"
+        verbose_name_plural = "Historial de Respaldos"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_at'], name='db_backup_created_idx'),
+            models.Index(fields=['status'], name='db_backup_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.filename} ({self.get_source_display()}) - {self.status}"
+
+
+class BackupConfiguration(models.Model):
+    """
+    Configuración global de automatización de respaldos de PostgreSQL.
+    Garantiza persistencia en la base de datos (PostgreSQL) independiente de reinicios de Render.
+    """
+    auto_backup_enabled = models.BooleanField(default=True, verbose_name="Respaldo automático activado")
+    cron_schedule = models.CharField(max_length=50, default="0 8 * * *", verbose_name="Expresión cron")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Última modificación")
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='backup_configurations',
+        verbose_name="Modificado por"
+    )
+
+    class Meta:
+        verbose_name = "Configuración de Respaldos"
+        verbose_name_plural = "Configuración de Respaldos"
+
+    @classmethod
+    def get_solo(cls):
+        config, _ = cls.objects.get_or_create(id=1)
+        return config
+
+    def __str__(self):
+        estado = "Activado" if self.auto_backup_enabled else "Pausado"
+        return f"Configuración de Respaldos: {estado}"
+
