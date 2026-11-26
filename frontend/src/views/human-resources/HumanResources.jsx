@@ -6,7 +6,6 @@ import {
   Pencil,
   RefreshCw,
   Trash2,
-  UserMinus,
   UserX,
   X,
 } from 'lucide-react';

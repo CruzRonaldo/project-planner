@@ -34,6 +34,20 @@ const AUDIT_ACTION_MAP = {
   'Modificación de Integraciones': 'notifications.auditIntegrationUpdateTitle',
   'Integration Modification': 'notifications.auditIntegrationUpdateTitle',
   'Integrations Modification': 'notifications.auditIntegrationUpdateTitle',
+  backup_export: 'notifications.auditBackupExportTitle',
+  'Exportación de Respaldo': 'notifications.auditBackupExportTitle',
+  'Backup Export': 'notifications.auditBackupExportTitle',
+  backup_download: 'notifications.auditBackupDownloadTitle',
+  'Descarga de Respaldo': 'notifications.auditBackupDownloadTitle',
+  'Backup Download': 'notifications.auditBackupDownloadTitle',
+  backup_restore: 'notifications.auditBackupRestoreTitle',
+  'Restauración de Respaldo': 'notifications.auditBackupRestoreTitle',
+  'Restauración de Base de Datos': 'notifications.auditBackupRestoreTitle',
+  'Database Restore': 'notifications.auditBackupRestoreTitle',
+  'Backup Restore': 'notifications.auditBackupRestoreTitle',
+  backup_toggle_auto: 'notifications.auditBackupToggleAutoTitle',
+  'Activación/Desactivación de Respaldo Automático': 'notifications.auditBackupToggleAutoTitle',
+  'Automatic Backup Toggle': 'notifications.auditBackupToggleAutoTitle',
 };
 
 const MAKE_CHANGE_LABEL_REPLACEMENTS = [
@@ -284,6 +298,63 @@ export function formatNotificationDetail(detail = '', t) {
       'notifications.milestoneDetail',
       'Proyecto **{name}** ({code}) programado para {date}.',
       { name: milestoneMatch[1], code: milestoneMatch[2], date: milestoneMatch[3] }
+    );
+  }
+
+  // 9. Auditoría: Respaldo automático activado / pausado
+  const autoBackupMatch = matchFirst(detail, [
+    /Respaldo automático (activado|pausado) por (.+)/,
+  ]);
+  if (autoBackupMatch) {
+    const isPaused = autoBackupMatch[1] === 'pausado';
+    return translateWithFallback(
+      t,
+      isPaused
+        ? 'notifications.auditBackupToggleAutoPausedDetail'
+        : 'notifications.auditBackupToggleAutoEnabledDetail',
+      isPaused
+        ? 'Respaldo automático pausado por {user}'
+        : 'Respaldo automático activado por {user}',
+      { user: autoBackupMatch[2] }
+    );
+  }
+
+  // 10. Auditoría: Exportación manual de respaldo
+  const exportBackupMatch = matchFirst(detail, [
+    /Exportación manual de respaldo \((.+?)\)/,
+  ]);
+  if (exportBackupMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditBackupExportDetail',
+      'Exportación manual de respaldo ({filename})',
+      { filename: exportBackupMatch[1] }
+    );
+  }
+
+  // 11. Auditoría: Descarga de respaldo
+  const downloadBackupMatch = matchFirst(detail, [
+    /Descarga de respaldo \((.+?)\)/,
+  ]);
+  if (downloadBackupMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditBackupDownloadDetail',
+      'Descarga de respaldo ({filename})',
+      { filename: downloadBackupMatch[1] }
+    );
+  }
+
+  // 12. Auditoría: Restauración de respaldo
+  const restoreBackupMatch = matchFirst(detail, [
+    /Restauración de respaldo \((.+?)\)/,
+  ]);
+  if (restoreBackupMatch) {
+    return translateWithFallback(
+      t,
+      'notifications.auditBackupRestoreDetail',
+      'Restauración de respaldo ({filename})',
+      { filename: restoreBackupMatch[1] }
     );
   }
 

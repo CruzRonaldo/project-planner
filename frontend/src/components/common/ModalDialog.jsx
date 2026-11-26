@@ -98,7 +98,7 @@ export default function ModalDialog({
               onClick={onClose}
               disabled={isSubmitting}
               aria-label="Cerrar ventana"
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors duration-200 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50 shrink-0 disabled:opacity-50"
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors duration-200 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white midnight:text-cyan-500/70 midnight:hover:bg-cyan-900/20 midnight:hover:text-cyan-50 shrink-0 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
             >
               <X size={19} />
             </button>
@@ -128,7 +128,7 @@ export default function ModalDialog({
                       type="button"
                       onClick={onClose}
                       disabled={isSubmitting}
-                      className="w-full sm:w-auto rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
+                      className="w-full sm:w-auto rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed dark:border-[#30363d] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white midnight:border-cyan-800/40 midnight:text-cyan-200 midnight:hover:border-cyan-700/50 midnight:hover:bg-cyan-900/30 midnight:hover:text-cyan-50"
                     >
                       {cancelLabel}
                     </button>
@@ -136,7 +136,7 @@ export default function ModalDialog({
                   <button
                     type="submit"
                     disabled={isSubmitting || submitDisabled}
-                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-200 disabled:cursor-wait disabled:opacity-60 ${
+                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                       submitButtonClass ||
                       'bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:text-slate-950 dark:hover:bg-cyan-400 midnight:bg-cyan-500 midnight:text-slate-950 midnight:hover:bg-cyan-400'
                     }`}

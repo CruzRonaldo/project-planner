@@ -12,9 +12,11 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
+from .authentication import PasswordBoundAuthentication
+from .models import SecurityAuditLog, BackupConfiguration
 from .services.database_backups import (
-    BackupError, create_backup, database_config, list_backups,
-    resolve_backup, restore_backup,
+    BackupError, create_backup, database_config, is_auto_backup_enabled,
+    list_backups, resolve_backup, restore_backup,
 )
 
 logger = logging.getLogger(__name__)
@@ -101,7 +103,7 @@ class SecureBackupAuthentication(BasicAuthentication):
 
 
 class IsSuperUser(BasePermission):
-    """Permite el acceso a administradores o superusuarios autorizados."""
+    """Permite el acceso exclusivamente a superusuarios / administradores principales."""
     message = "No tienes permisos para realizar esta acción."
 
     def has_permission(self, request, view):
@@ -110,7 +112,7 @@ class IsSuperUser(BasePermission):
             user
             and user.is_authenticated
             and user.is_active
-            and (user.is_superuser or user.is_staff)
+            and user.is_superuser
         )
 
 
@@ -136,12 +138,29 @@ def download_response(path):
     return response
 
 
+def _record_backup_audit(request, action: str, description: str) -> None:
+    """Registra una operación de respaldo en la bitácora de auditoría de seguridad."""
+    ip_addr = request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR")
+    if ip_addr and "," in ip_addr:
+        ip_addr = ip_addr.split(",")[0].strip()
+    SecurityAuditLog.objects.create(
+        user=request.user,
+        action=action,
+        description=description,
+        ip_address=ip_addr,
+    )
+
+
 @api_view(["GET"])
-@authentication_classes([SecureBackupAuthentication])
+@authentication_classes([PasswordBoundAuthentication, SecureBackupAuthentication])
 @permission_classes([IsSuperUser])
 def backup_history_view(request):
     try:
-        response = Response({"database": str(database_config()["NAME"]), "backups": list_backups()})
+        response = Response({
+            "database": str(database_config()["NAME"]),
+            "auto_backup_enabled": is_auto_backup_enabled(),
+            "backups": list_backups(),
+        })
         response["Cache-Control"] = "no-store"
         return response
     except (BackupError, OSError) as error:
@@ -149,36 +168,94 @@ def backup_history_view(request):
 
 
 @api_view(["POST"])
-@authentication_classes([SecureBackupAuthentication])
+@authentication_classes([PasswordBoundAuthentication, SecureBackupAuthentication])
+@permission_classes([IsSuperUser])
+def toggle_auto_backup_view(request):
+    """Activa o desactiva la ejecución diaria de respaldos automáticos."""
+    try:
+        config = BackupConfiguration.get_solo()
+        raw_enabled = request.data.get("enabled")
+        if raw_enabled is None:
+            config.auto_backup_enabled = not config.auto_backup_enabled
+        else:
+            config.auto_backup_enabled = bool(raw_enabled)
+        config.updated_by = request.user
+        config.save()
+
+        action_desc = "activado" if config.auto_backup_enabled else "pausado"
+        _record_backup_audit(
+            request,
+            action="backup_toggle_auto",
+            description=f"Respaldo automático {action_desc} por {request.user.username}",
+        )
+        response = Response({
+            "auto_backup_enabled": config.auto_backup_enabled,
+            "detail": f"Respaldo automático {action_desc}",
+        })
+        response["Cache-Control"] = "no-store"
+        return response
+    except Exception as error:
+        return error_response(error)
+
+
+@api_view(["POST"])
+@authentication_classes([PasswordBoundAuthentication, SecureBackupAuthentication])
 @permission_classes([IsSuperUser])
 def export_database_view(request):
     try:
         path = create_backup(created_by=request.user.get_username())
+        _record_backup_audit(
+            request,
+            action="backup_export",
+            description=f"Exportación manual de respaldo ({path.name})",
+        )
         return download_response(path)
     except (BackupError, OSError) as error:
         return error_response(error)
 
 
 @api_view(["GET"])
-@authentication_classes([SecureBackupAuthentication])
+@authentication_classes([PasswordBoundAuthentication, SecureBackupAuthentication])
 @permission_classes([IsSuperUser])
 def download_backup_view(request, filename):
     try:
-        return download_response(resolve_backup(filename))
+        path = resolve_backup(filename)
+        _record_backup_audit(
+            request,
+            action="backup_download",
+            description=f"Descarga de respaldo ({path.name})",
+        )
+        return download_response(path)
     except (BackupError, OSError) as error:
         return error_response(error)
 
 
 @api_view(["POST"])
-@authentication_classes([SecureBackupAuthentication])
+@authentication_classes([PasswordBoundAuthentication, SecureBackupAuthentication])
 @permission_classes([IsSuperUser])
 def restore_database_view(request):
     try:
         if request.data.get("confirm_restore") is not True:
             raise BackupError("Debes confirmar expresamente la restauración.")
+        raw_password = (
+            request.data.get("password")
+            if "password" in request.data
+            else request.data.get("admin_password")
+        )
+        if raw_password is not None and (
+            not isinstance(raw_password, str)
+            or not raw_password
+            or not request.user.check_password(raw_password)
+        ):
+            raise BackupError("Contraseña incorrecta.", status=403)
         result = restore_backup(
             request.data.get("filename"), request.data.get("confirm_database"),
             created_by=request.user.get_username(),
+        )
+        _record_backup_audit(
+            request,
+            action="backup_restore",
+            description=f"Restauración de respaldo ({result.get('restored', '')})",
         )
         response = Response({
             "detail": "Restauración completada. Cierra sesión y vuelve a entrar.", **result,

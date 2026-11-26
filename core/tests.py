@@ -2720,6 +2720,90 @@ class BackupAuthenticationAndSecurityTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_accepts_bearer_session_token_of_active_admin(self):
+        token = issue_session_token(self.admin_user)
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("database", response.data)
+        self.assertIn("backups", response.data)
+
+    def test_rejects_regular_user_with_bearer_token(self):
+        token = issue_session_token(self.regular_user)
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_persistent_database_backup_log_listed(self):
+        from core.models import DatabaseBackupLog
+        DatabaseBackupLog.objects.create(
+            filename="project_planner_20261126_120000_test1234.dump",
+            source="automatic",
+            size_bytes=1048576,
+            sha256="abc123sha256fake",
+            status="COMPLETED",
+            created_by=self.admin_user,
+        )
+        token = issue_session_token(self.admin_user)
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        filenames = [b["filename"] for b in response.data.get("backups", [])]
+        self.assertIn("project_planner_20261126_120000_test1234.dump", filenames)
+
+    def test_toggle_auto_backup_flow(self):
+        from core.models import BackupConfiguration, SecurityAuditLog
+        token = issue_session_token(self.admin_user)
+
+        # 1. Desactivar el respaldo automático
+        response = self.client.post(
+            "/api/backups/toggle-auto/",
+            {"enabled": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["auto_backup_enabled"])
+        self.assertFalse(BackupConfiguration.get_solo().auto_backup_enabled)
+
+        # Verificar auditoría registrada
+        audit = SecurityAuditLog.objects.filter(action="backup_toggle_auto").latest("created_at")
+        self.assertIn("pausado", audit.description)
+
+        # 2. Reactivar el respaldo automático
+        response = self.client.post(
+            "/api/backups/toggle-auto/",
+            {"enabled": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["auto_backup_enabled"])
+        self.assertTrue(BackupConfiguration.get_solo().auto_backup_enabled)
+
+    def test_toggle_auto_backup_requires_superuser(self):
+        token = issue_session_token(self.regular_user)
+        response = self.client.post(
+            "/api/backups/toggle-auto/",
+            {"enabled": False},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
 class ScheduleAdjustmentApiTests(APITestCase):
     """Pruebas para el registro y consulta de auditoría de reajustes de cronograma."""
 

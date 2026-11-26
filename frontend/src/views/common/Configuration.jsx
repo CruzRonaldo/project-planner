@@ -97,6 +97,7 @@ export default function Configuration({
     currentUser?.role === 'admin' ||
     Boolean(currentUser?.is_superuser);
   const isSubAdmin = currentUser?.roleLabel === 'SubAdministrador' || currentUser?.isSubAdmin;
+  const canManageBackups = Boolean(currentUser?.is_superuser) || (isAdmin && !isSubAdmin);
 
   const fetchAuditLogs = useCallback(async () => {
     if (!isAdmin) return;
@@ -408,7 +409,7 @@ export default function Configuration({
             isAdmin={isAdmin}
           />
 
-          {isAdmin && (
+          {canManageBackups && (
             <BackupAndSecurityCard
               lastBackup={lastBackup}
               setLastBackup={setLastBackup}
