@@ -46,11 +46,11 @@ function escapeCsv(value) {
 }
 
 export function buildTechnicalTeamCsv(members = []) {
-  const header = ['Nombre', 'Correo', 'Área', 'Especialidad', 'Proyecto asignado', 'Estado', 'Dedicación'];
+  const header = ['Nombre', 'Correo', 'Área', 'Especialidad', 'Proyecto asignado', 'Estado', 'Dedicación', 'Fecha de unión'];
   const rows = (members || []).map((member) => {
     const area = technicalAreas.find((item) => item.id === member.area)?.label ?? member.area;
     const status = technicalStatuses.find((item) => item.id === member.status)?.label ?? member.status;
-    return [getMemberFullName(member), member.email, area, member.specialty, member.project, status, `${member.workload}%`].map(escapeCsv).join(',');
+    return [getMemberFullName(member), member.email, area, member.specialty, member.project, status, `${member.workload}%`, member.createdAt || ''].map(escapeCsv).join(',');
   });
   return [header.join(','), ...rows].join('\n');
 }
@@ -76,7 +76,8 @@ export function addTechnicalMember(data, draft, date = new Date()) {
   const member = {
     id: `tech-${date.getTime()}-${members.length}`,
     firstNames, lastNames, email, specialty, area: draft.area, project,
-    status: draft.status, workload, avatar: draft.avatar || null, createdAt: localDate,
+    status: draft.status, workload, avatar: draft.avatar || null,
+    createdAt: draft.joinedDate ? String(draft.joinedDate).split('T')[0] : date.toISOString().split('T')[0],
   };
   const assignment = {
     id: `assignment-created-${date.getTime()}-${members.length}`,

@@ -34,6 +34,12 @@ export default function ReassignProjectDialog({
   onClose,
 }) {
   const { t } = useLanguage();
+  const formatProjectName = (proj) => {
+    if (!proj || proj === 'Sin proyecto inicial' || proj === 'Sin proyecto' || proj === 'Ninguno') {
+      return t('technicalTeam.noInitialProject', 'Sin proyecto inicial');
+    }
+    return proj;
+  };
   const availableProjects = Array.from(new Set([member?.project, ...projectOptions].filter(Boolean)));
   const [draft, setDraft] = useState({
     project: member?.project ?? '',
@@ -96,7 +102,7 @@ export default function ReassignProjectDialog({
                 {member.specialty}
               </span>
             </div>
-            <p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{t('technicalTeam.currentProject', `Actual: ${member.project}`, { project: member.project })}</p>
+            <p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{t('technicalTeam.currentProject', `Actual: ${formatProjectName(member.project)}`, { project: formatProjectName(member.project) })}</p>
           </div>
         </div>
       )}
@@ -105,7 +111,9 @@ export default function ReassignProjectDialog({
         {t('technicalTeam.newAssignedProject', 'Nuevo proyecto asignado')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span>
         <select autoFocus required value={draft.project} onChange={changeField('project')} className={inputClass}>
           {availableProjects.map((project) => (
-            <option key={project}>{project}</option>
+            <option key={project} value={project}>
+              {formatProjectName(project)}
+            </option>
           ))}
         </select>
       </label>

@@ -158,7 +158,7 @@ export function mapTeamMemberToTechnical(member = {}) {
     status: normalizeTeamStatus(getStatusValue(member), member.is_active),
     workload: normalizePercentage(allocation),
     avatar: member.avatar ?? member.photo ?? member.profile_photo ?? null,
-    createdAt: String(member.created_at ?? member.createdAt ?? '').split('T')[0],
+    createdAt: String(member.joined_date ?? member.created_at ?? member.createdAt ?? '').split('T')[0] || new Date().toISOString().split('T')[0],
   };
 }
 
@@ -194,6 +194,7 @@ export function mapTeamMemberToHumanResources(member = {}) {
     // inactivo se presenta como Stand-by sin alterar el estado real del backend.
     status: normalizedStatus === 'offline' ? 'standby' : normalizedStatus,
     availability: normalizePercentage(availability),
+    createdAt: String(member.joined_date ?? member.created_at ?? member.createdAt ?? '').split('T')[0] || new Date().toISOString().split('T')[0],
   };
 }
 

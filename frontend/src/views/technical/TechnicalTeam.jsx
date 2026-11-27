@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   ArrowLeftRight,
   BriefcaseBusiness,
+  Calendar,
   Download,
   FolderOpen,
   Mail,
@@ -53,6 +54,18 @@ export { AddTechnicalMemberDialog, ReassignProjectDialog, MemberAvatar };
 const headingClass = 'text-slate-900 transition-colors duration-300 dark:text-white midnight:text-cyan-50';
 const mutedClass = 'text-slate-500 transition-colors duration-300 dark:text-slate-400 midnight:text-cyan-500/70';
 const pageSize = 6;
+
+function formatDisplayDate(
+  value,
+  options = { day: '2-digit', month: 'short', year: 'numeric' },
+  locale = 'es-PE',
+  emptyLabel = 'Sin fecha'
+) {
+  if (!value) return emptyLabel;
+  const dateStr = String(value).split('T')[0];
+  const parsed = new Date(`${dateStr}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString(locale, options);
+}
 
 function getFilterBadgeClass(areaId) {
   switch (areaId) {
@@ -136,7 +149,7 @@ export default function TechnicalTeam({
   syncLoading = false,
   syncError = '',
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const membersList = data?.members || [];
   const assignmentsList = data?.assignments || [];
 
@@ -207,6 +220,12 @@ export default function TechnicalTeam({
   const recentAssignments = showAllAssignments ? assignmentsList : assignmentsList.slice(0, 4);
   const reassignMember = membersList.find((member) => member.id === reassignMemberId);
   const availableProjects = Array.from(new Set(['Sin proyecto inicial', ...projectOptions]));
+  const formatProjectName = (proj) => {
+    if (!proj || proj === 'Sin proyecto inicial' || proj === 'Sin proyecto' || proj === 'Ninguno') {
+      return t('technicalTeam.noInitialProject', 'Sin proyecto inicial');
+    }
+    return proj;
+  };
   const filters = useMemo(() => [
     { id: 'all', label: t('technicalTeam.filterAll', 'Todos'), count: summary.total },
     ...technicalAreas.map((area) => ({
@@ -244,10 +263,11 @@ export default function TechnicalTeam({
     setDialogOpen(false);
     setAreaFilter('all');
     setPage(1);
-    const msg = `${getMemberFullName(persistedData.members[0])} fue añadido al equipo técnico y ya puede iniciar sesión.`;
+    const newMemberName = getMemberFullName(persistedData.members[0]);
+    const msg = t('technicalTeam.addSuccessToast', '{name} fue añadido al equipo técnico y ya puede iniciar sesión.', { name: newMemberName });
     setFeedback(msg);
     showToast({
-      title: 'Técnico Añadido',
+      title: t('toasts.memberAddedTitle', 'Técnico Añadido'),
       message: msg,
       type: 'success',
     });
@@ -257,17 +277,18 @@ export default function TechnicalTeam({
     const updated = reassignTechnicalMember(data, reassignMemberId, draft);
     if (updated === data) {
       setReassignMemberId(null);
-      setFeedback(`No había cambios operativos para ${getMemberFullName(reassignMember)}.`);
+      setFeedback(t('technicalTeam.noOperationalChanges', 'No había cambios operativos para {name}.', { name: getMemberFullName(reassignMember) }));
       return;
     }
     onChange(updated);
     try {
       if (onPersistMember) await onPersistMember(reassignMemberId, draft);
       setReassignMemberId(null);
-      const msg = `${getMemberFullName(reassignMember)} fue reasignado y guardado correctamente en el sistema.`;
+      const reassignedName = getMemberFullName(reassignMember);
+      const msg = t('technicalTeam.reassignSuccessToast', '{name} fue reasignado y guardado correctamente en el sistema.', { name: reassignedName });
       setFeedback(msg);
       showToast({
-        title: 'Técnico Reasignado',
+        title: t('toasts.memberReassignedTitle', 'Técnico Reasignado'),
         message: msg,
         type: 'success',
       });
@@ -328,7 +349,9 @@ export default function TechnicalTeam({
         : t('technicalTeam.deactivateSuccessToast', `${memberName} ha sido dado de baja y su estado marcado como 'No disponible'.`, { name: memberName });
     setFeedback(msg);
     showToast({
-      title: mode === 'hard_delete' ? t('toasts.Técnico Eliminado', 'Técnico Eliminado') : t('toasts.Baja Registrada', 'Baja Registrada'),
+      title: mode === 'hard_delete'
+        ? t('toasts.memberDeletedTitle', 'Técnico Eliminado')
+        : t('toasts.memberDeactivatedTitle', 'Baja Registrada'),
       message: msg,
       type: 'success',
     });
@@ -347,10 +370,9 @@ export default function TechnicalTeam({
     link.download = 'equipo-tecnico.csv';
     link.click();
     URL.revokeObjectURL(url);
-    const msg = t('toasts.technicalTeamReportExported', 'Reporte del equipo técnico exportado correctamente.');
     showToast({
-      title: 'Nómina Exportada',
-      message: msg,
+      title: t('toasts.payrollExportedTitle', 'Nómina Exportada'),
+      message: t('toasts.technicalTeamReportExported', 'Reporte del equipo técnico exportado correctamente.'),
       type: 'info',
     });
   };
@@ -439,7 +461,7 @@ export default function TechnicalTeam({
               onClick={() => {
                 setAreaFilter('all');
                 setPage(1);
-                onQueryChange('');
+                if (onQueryChange) onQueryChange('');
               }}
               disabled={!(query || areaFilter !== 'all')}
               showIcon
@@ -494,9 +516,18 @@ export default function TechnicalTeam({
                     </a>
                   </div>
                 )}
-                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>{t('technicalTeam.assignedProject', 'Proyecto asignado')}</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={member.project}>{member.project}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
+                <div className="mt-4"><p className={`text-[9px] font-semibold uppercase tracking-wide ${mutedClass}`}>{t('technicalTeam.assignedProject', 'Proyecto asignado')}</p><div className="mt-2 flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100" title={formatProjectName(member.project)}>{formatProjectName(member.project)}</p><StatusBadge status={member.status} items={technicalStatuses} /></div></div>
                 <div className="mt-5"><div className={`mb-2 flex items-center justify-between text-[10px] ${mutedClass}`}><span>{t('technicalTeam.taskProgress', 'Progreso de tarea')}</span><strong className={member.workload < 50 ? 'text-amber-600 dark:text-amber-400 midnight:text-amber-400' : 'text-blue-600 dark:text-blue-400 midnight:text-blue-400'}>{member.workload}%</strong></div><div role="progressbar" aria-label={t('technicalTeam.progressOf', `Progreso de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={member.workload} className="h-1.5 overflow-hidden rounded-full bg-slate-200 transition-colors duration-300 dark:bg-[#080f1b] midnight:bg-cyan-950"><div className={`h-full rounded-full transition-colors duration-300 ${member.workload < 50 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-blue-500 midnight:bg-cyan-500'}`} style={{ width: `${member.workload}%` }} /></div></div>
-                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>{t('technicalTeam.workLinks', 'Enlaces de trabajo')}</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(`${getMemberFullName(member)} está asignado a ${member.project}.`)} aria-label={t('technicalTeam.viewProjectOf', `Ver proyecto de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.viewAssignedProject', 'Ver proyecto asignado')} className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={t('technicalTeam.reassignTo', `Reasignar a ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.reassignProject', 'Reasignar proyecto')} className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
+                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] transition-colors duration-300 dark:border-[#21262d] midnight:border-cyan-900/20">
+                  <span className={`flex items-center gap-1.5 ${mutedClass}`}>
+                    <Calendar size={12} aria-hidden="true" className="shrink-0 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" />
+                    <span>{t('technicalTeam.joinedDate', 'Fecha de unión:')}</span>
+                  </span>
+                  <time dateTime={member.createdAt || undefined} className="font-medium text-slate-700 dark:text-slate-300 midnight:text-cyan-100">
+                    {formatDisplayDate(member.createdAt, undefined, lang === 'en' ? 'en-US' : 'es-PE', t('technicalTeam.noDate', 'Sin fecha'))}
+                  </time>
+                </div>
+                <footer className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 pt-4 transition-colors duration-300 dark:border-[#30363d] midnight:border-cyan-900/30"><span className={`text-[10px] ${mutedClass}`}>{t('technicalTeam.workLinks', 'Enlaces de trabajo')}</span><div className="flex items-center gap-1.5"><button type="button" onClick={() => setFeedback(t('technicalTeam.memberAssignedToProjectFeedback', '{name} está asignado a {project}.', { name: getMemberFullName(member), project: formatProjectName(member.project) }))} aria-label={t('technicalTeam.viewProjectOf', `Ver proyecto de ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.viewAssignedProject', 'Ver proyecto asignado')} className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition-colors duration-300 hover:text-cyan-600 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-slate-400 dark:hover:text-cyan-400 midnight:border-cyan-800/40 midnight:bg-[#050B14] midnight:hover:text-cyan-300"><FolderOpen size={13} /></button>{canManage && <button type="button" onClick={() => openReassignment(member.id)} aria-label={t('technicalTeam.reassignTo', `Reasignar a ${getMemberFullName(member)}`, { name: getMemberFullName(member) })} title={t('technicalTeam.reassignProject', 'Reasignar proyecto')} className="inline-flex rounded-md border border-cyan-200 bg-cyan-50 p-1.5 text-cyan-700 transition-colors duration-300 hover:bg-cyan-100 dark:border-cyan-500/25 dark:bg-cyan-500/10 dark:text-cyan-400 dark:hover:bg-cyan-500/20 midnight:border-cyan-800/40 midnight:bg-cyan-900/30 midnight:text-cyan-300 midnight:hover:bg-cyan-800/50"><ArrowLeftRight size={13} /></button>}<WhatsAppButton member={member} onShowToast={showToast} /></div></footer>
               </article>)}
               {!visibleMembers.length && <div className={`${cardClass} p-12 text-center text-sm ${mutedClass} sm:col-span-2 xl:col-span-3`}>{t('technicalTeam.noMembers', 'No se encontraron técnicos con estos filtros.')}</div>}
             </div>
@@ -512,7 +543,7 @@ export default function TechnicalTeam({
           </section>
           <div className="space-y-5">
             <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="area-summary-title"><div className="flex items-center justify-between gap-3"><h2 id="area-summary-title" className={`text-base font-semibold ${headingClass}`}>{t('technicalTeam.areaSummary', 'Resumen por Área')}</h2><span className="rounded bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600 transition-colors duration-300 dark:bg-slate-700/40 dark:text-slate-400 midnight:bg-cyan-900/30 midnight:text-cyan-500/70">{summary.total} {t('technicalTeam.totalSuffix', 'Total')}</span></div><div className="mt-4 space-y-3">{technicalAreas.map((area) => <article key={area.id} className={`p-3 ${nestedClass}`}><div className="flex items-center justify-between gap-3"><h3 className={`text-xs font-medium ${headingClass}`}>{t(`technicalTeam.area_${area.id}`, area.label)}</h3><strong className={`rounded bg-white px-2 py-1 text-[10px] shadow-sm transition-colors duration-300 dark:bg-white/[0.03] dark:shadow-none midnight:bg-[#050B14] ${areaDetails[area.id].valueClass}`}>{summary.areas[area.id]} {t('technicalTeam.membersSuffix', 'Miembros')}</strong></div><p className={`mt-2 text-[10px] leading-relaxed ${mutedClass}`}>{areaDetails[area.id].description}</p></article>)}</div></aside>
-            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="recent-technicians-title"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><BriefcaseBusiness size={17} className="shrink-0 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" /><h2 id="recent-technicians-title" className={`truncate text-base font-semibold ${headingClass}`}>{t('technicalTeam.recentAssignments', 'Asignaciones Recientes')}</h2></div><span className="whitespace-nowrap text-[9px] font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">{t('technicalTeam.updatedToday', 'Actualizado hoy')}</span></div><div className="mt-4 divide-y divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-900/30">{recentAssignments.map((assignment) => <article key={assignment.id} className="flex items-start gap-3 py-3 first:pt-0" title={assignment.reason}><time dateTime={assignment.date} className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded bg-slate-100 font-mono text-[8px] uppercase text-slate-500 transition-colors duration-300 dark:bg-[#0c1422] midnight:bg-[#050B14] midnight:text-cyan-600"><strong className="text-[10px] text-slate-800 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit' })}</strong>{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')}</time><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{assignment.memberPrefix} {assignment.memberName}</p><p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{assignment.project}</p></div></article>)}{!recentAssignments.length && <p className={`py-4 text-xs ${mutedClass}`}>{t('technicalTeam.noRecentAssignments', 'Aún no hay movimientos registrados.')}</p>}</div>{(data.assignments ?? []).length > 4 && <button type="button" onClick={() => setShowAllAssignments((current) => !current)} className="mt-4 w-full border-t border-slate-200 pt-4 text-center text-[10px] font-medium text-blue-600 transition-colors duration-300 hover:text-blue-500 dark:border-[#263244] dark:text-blue-400 dark:hover:text-blue-300 midnight:border-cyan-900/30 midnight:text-cyan-400 midnight:hover:text-cyan-300">{showAllAssignments ? t('technicalTeam.viewLessAssignments', 'Ver menos asignaciones') : t('technicalTeam.viewAllAssignments', 'Ver todo el historial de asignaciones →')}</button>}</aside>
+            <aside className={`${cardClass} p-4 sm:p-5`} aria-labelledby="recent-technicians-title"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><BriefcaseBusiness size={17} className="shrink-0 text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" /><h2 id="recent-technicians-title" className={`truncate text-base font-semibold ${headingClass}`}>{t('technicalTeam.recentAssignments', 'Asignaciones Recientes')}</h2></div><span className="whitespace-nowrap text-[9px] font-medium text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">{t('technicalTeam.updatedToday', 'Actualizado hoy')}</span></div><div className="mt-4 divide-y divide-slate-200 transition-colors duration-300 dark:divide-[#30363d] midnight:divide-cyan-900/30">{recentAssignments.map((assignment) => <article key={assignment.id} className="flex items-start gap-3 py-3 first:pt-0" title={assignment.reason}><time dateTime={assignment.date} className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded bg-slate-100 font-mono text-[8px] uppercase text-slate-500 transition-colors duration-300 dark:bg-[#0c1422] midnight:bg-[#050B14] midnight:text-cyan-600"><strong className="text-[10px] text-slate-800 transition-colors duration-300 dark:text-slate-300 midnight:text-cyan-100">{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { day: '2-digit' })}</strong>{new Date(`${assignment.date}T12:00:00`).toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')}</time><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800 transition-colors duration-300 dark:text-slate-200 midnight:text-cyan-100">{assignment.memberPrefix} {assignment.memberName}</p><p className={`mt-1 truncate text-[10px] ${mutedClass}`}>{formatProjectName(assignment.project)}</p></div></article>)}{!recentAssignments.length && <p className={`py-4 text-xs ${mutedClass}`}>{t('technicalTeam.noRecentAssignments', 'Aún no hay movimientos registrados.')}</p>}</div>{(data.assignments ?? []).length > 4 && <button type="button" onClick={() => setShowAllAssignments((current) => !current)} className="mt-4 w-full border-t border-slate-200 pt-4 text-center text-[10px] font-medium text-blue-600 transition-colors duration-300 hover:text-blue-500 dark:border-[#263244] dark:text-blue-400 dark:hover:text-blue-300 midnight:border-cyan-900/30 midnight:text-cyan-400 midnight:hover:text-cyan-300">{showAllAssignments ? t('technicalTeam.viewLessAssignments', 'Ver menos asignaciones') : t('technicalTeam.viewAllAssignments', 'Ver todo el historial de asignaciones →')}</button>}</aside>
           </div>
         </div>
       </div>
