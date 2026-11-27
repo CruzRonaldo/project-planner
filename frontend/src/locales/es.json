@@ -27,7 +27,9 @@
     "active": "Activo",
     "paused": "Pausado",
     "processing": "Procesando...",
-    "error": "Error"
+    "error": "Error",
+    "clearSearch": "Limpiar búsqueda",
+    "clearFilters": "Limpiar filtros"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -178,6 +180,10 @@
     "emailInputLabel": "Correo Electrónico (Gmail, Outlook u otro)",
     "emailPlaceholder": "nombre@gmail.com",
     "emailHelperText": "Se utilizará para iniciar sesión. Al modificarlo, las demás sesiones activas serán cerradas automáticamente por seguridad.",
+    "currentPasswordForEmailLabel": "Contraseña actual (requerida para confirmar el cambio)",
+    "currentPasswordPlaceholder": "Ingrese su contraseña actual",
+    "currentPasswordForEmailHelper": "Por seguridad, debe ingresar su contraseña actual para autorizar la modificación del correo de acceso.",
+    "currentPasswordRequiredForEmail": "Debe ingresar su contraseña actual para confirmar el cambio de correo electrónico.",
     "changePasswordModalTitle": "Cambiar Contraseña",
     "verifyCurrentPasswordSubtitle": "Primero verifique su contraseña actual",
     "enterNewPasswordSubtitle": "Ingrese y confirme su nueva clave de acceso",
@@ -616,7 +622,14 @@
       "Sistemas": "Sistemas",
       "Instalaciones": "Instalaciones",
       "Seguridad y Calidad": "Seguridad y Calidad"
-    }
+    },
+    "orderUpdatedTitle": "Orden Actualizada",
+    "orderUpdatedStatus": "La orden fue actualizada a {status}.",
+    "taskFlowUpdatedTitle": "Flujo de Tareas Actualizado",
+    "taskFlowCompletedAndNext": "Orden {currentCode} completada. Se activó la siguiente orden {nextCode} ({nextTitle}).",
+    "orderIssuedTitle": "Orden Emitida",
+    "orderIssuedMessage": "Orden {code} emitida y añadida al panel operativo.{makeMsg}",
+    "reportExportedTitle": "Reporte Exportado"
   },
   "dashboard": {
     "executiveSummaryAria": "Resumen ejecutivo de proyectos",
@@ -804,7 +817,15 @@
     "yes": "Sí",
     "no": "No",
     "incompleteData": "Datos por completar",
-    "assumptionsAndLimits": "Supuestos y límites del cálculo"
+    "assumptionsAndLimits": "Supuestos y límites del cálculo",
+    "milestoneCreatedTitle": "Hito Creado",
+    "milestoneCreatedMessage": "Hito “{title}” registrado{projectLabel} en el calendario global.",
+    "milestoneUpdatedTitle": "Hito Actualizado",
+    "milestoneUpdatedMessage": "Estado del hito{titleLabel} actualizado a “{statusLabel}”.",
+    "milestoneDeletedTitle": "Hito Eliminado",
+    "milestoneDeletedMessage": "Hito “{title}”{projectLabel} eliminado.",
+    "statusLabel": "Estado",
+    "ofProject": " del proyecto '{project}'"
   },
   "technicalTeam": {
     "pageTitle": "Gestión del Equipo Técnico",
@@ -816,7 +837,8 @@
     "addMember": "Añadir Técnico",
     "addMemberBtn": "Agregar Miembro",
     "viewOnly": "Vista de consulta",
-    "searchPlaceholder": "Buscar miembro...",
+    "searchPlaceholder": "Buscar técnico por nombre, especialidad o correo...",
+    "searchAriaLabel": "Buscar en el equipo técnico",
     "noMembers": "No se encontraron técnicos con estos filtros.",
     "specialty": "Especialidad",
     "status": "Estado",
@@ -927,6 +949,17 @@
     "confirmPasswordPlaceholder": "Repita la contraseña",
     "passwordPolicyError": "La contraseña aún no cumple con: {errors}.",
     "positionPlaceholder": "Arquitecta Principal / BIM",
+    "joinedDate": "Fecha de unión:",
+    "joinedDateField": "Fecha de incorporación / unión",
+    "noDate": "Sin fecha",
+    "addSuccessToast": "{name} fue añadido al equipo técnico y ya puede iniciar sesión.",
+    "reassignSuccessToast": "{name} fue reasignado y guardado correctamente en el sistema.",
+    "noOperationalChanges": "No había cambios operativos para {name}.",
+    "memberAssignedToProjectFeedback": "{name} está asignado a {project}.",
+    "photoFormatError": "La foto debe ser PNG o JPG.",
+    "photoSizeError": "La foto no debe superar 2 MB.",
+    "photoReadError": "No se pudo leer la foto seleccionada.",
+    "noInitialProject": "Sin proyecto inicial",
     "reasons": {
       "Transferencia por inicio de fase de acabados e interiores": "Transferencia por inicio de fase de acabados e interiores",
       "Rebalanceo de carga operativa": "Rebalanceo de carga operativa",
@@ -1082,7 +1115,15 @@
     "actionTitle": "Acción sobre Incidencia",
     "actionType": "Tipo de Acción",
     "actionNotes": "Notas",
-    "confirmAction": "Confirmar Acción"
+    "confirmAction": "Confirmar Acción",
+    "memberUpdatedTitle": "Personal Actualizado",
+    "memberUpdatedMessage": "Los datos del integrante se guardaron correctamente en el sistema.",
+    "incidentRegisteredTitle": "Incidencia Registrada",
+    "incidentRegisteredMessage": "Incidencia registrada{memberLabel} y enviada a revisión.",
+    "incidentWorkflowTitle": "Flujo de Incidencias",
+    "incidentWorkflowMessage": "Incidencia {action} correctamente.",
+    "matrixExportedTitle": "Matriz Exportada",
+    "matrixExportedMessage": "Matriz de Recursos Humanos exportada en Excel con {count} integrantes."
   },
   "statuses": {
     "planning": "En Planificación",
@@ -1291,7 +1332,13 @@
     "createFolderError": "No se pudo crear la carpeta de Google Drive.",
     "uploadFileError": "No se pudo subir el archivo a Google Drive.",
     "renameError": "No se pudo cambiar el nombre del elemento.",
-    "deleteDriveError": "No se pudo eliminar el elemento de Google Drive."
+    "deleteDriveError": "No se pudo eliminar el elemento de Google Drive.",
+    "memberAddedTitle": "Técnico Añadido",
+    "memberReassignedTitle": "Técnico Reasignado",
+    "payrollExportedTitle": "Nómina Exportada",
+    "configSavedTitle": "Configuración Guardada",
+    "noChangesToSave": "No había cambios que guardar.",
+    "configSavedMsg": "Configuración de integración actualizada con éxito."
   },
   "rolesManagement": {
     "title": "Administración de roles",
@@ -1539,7 +1586,25 @@
     "filterByConnectionAria": "Filtrar actividades por conexión",
     "sortActivitiesAria": "Ordenar actividades de integración",
     "renamePrompt": "Nuevo nombre del elemento:",
-    "deleteConfirm": "¿Deseas enviar \"{name}\" a la papelera de Google Drive?"
+    "deleteConfirm": "¿Deseas enviar \"{name}\" a la papelera de Google Drive?",
+    "apsStatusError": "No se pudo consultar el estado de Autodesk APS.",
+    "apsConnected": "Conexión con Autodesk APS establecida.",
+    "apsConnectFailed": "Fallo al conectar con Autodesk APS. Verifica la consola para más detalles.",
+    "modelsLoadFailed": "No se pudieron cargar los modelos de la bóveda.",
+    "modelUploaded": "El modelo {name} se subió y agregó a la bóveda correctamente.",
+    "modelUploadFailed": "Error al subir y traducir el modelo.",
+    "modelRenamedTitle": "Renombrado",
+    "modelRenamedMessage": "El nombre del modelo ha sido actualizado.",
+    "modelRenameFailed": "No se pudo renombrar el modelo.",
+    "modelDeletedTitle": "Eliminado",
+    "modelDeletedMessage": "El modelo se ha eliminado localmente.",
+    "modelDeleteFailed": "No se pudo eliminar el modelo.",
+    "preparingDownloadTitle": "Preparando descarga",
+    "generatingSecureLink": "Generando enlace seguro...",
+    "modelDownloadFailed": "No se pudo descargar el modelo.",
+    "makeConnectionSuccessTitle": "Conexión con Make Exitosa",
+    "makeWebhookSuccess": "El webhook de Make respondió correctamente.",
+    "makeWebhookConnError": "Error de conexión con el webhook de Make."
   },
   "manual": {
     "pageTitle": "Manual de Usuario",
@@ -1698,7 +1763,9 @@
     "sourceManual": "Manual",
     "sourceAutomatic": "Automático",
     "sourceBeforeRestore": "Antes de restaurar",
-    "sourceLegacy": "Anterior"
+    "sourceLegacy": "Anterior",
+    "safetyBackupAvailable": "Copia previa disponible: {backup}",
+    "safetyBackupSaved": "Copia previa guardada: {backup}"
   },
   "passwordPolicy": {
     "title": "Requisitos de la contraseña:",
@@ -1712,5 +1779,11 @@
       "match": "Las contraseñas coinciden",
       "different": "Distinta a la contraseña actual"
     }
+  },
+  "projects": {
+    "videoCallReadyTitle": "Videollamada lista",
+    "videoCallReadyMessage": "La sala \"{title}\" se generó correctamente con Jitsi Meet.",
+    "videoCallErrorTitle": "Error al generar sala",
+    "videoCallErrorMessage": "No se pudo generar la sala de videoconferencia."
   }
 }

@@ -248,6 +248,32 @@ test('SectionCardHeader, FilterTabBar, ReadOnlyField, FootnoteText y ClearFilter
     );
     assert.ok(btnHtml.includes('Limpiar filtros'));
     assert.ok(btnHtml.includes('<button'));
+
+    // ClearFiltersButton y StatusBadge internacionalización en inglés
+    const { LanguageProvider } = await server.ssrLoadModule('/src/context/LanguageContext.jsx');
+    const defaultClearBtn = renderToStaticMarkup(
+      React.createElement(ClearFiltersButton, { onClick: () => {} })
+    );
+    assert.ok(defaultClearBtn.includes('Limpiar filtros'));
+
+    const enClearBtn = renderToStaticMarkup(
+      React.createElement(
+        LanguageProvider,
+        { initialLang: 'en' },
+        React.createElement(ClearFiltersButton, { onClick: () => {} })
+      )
+    );
+    assert.ok(enClearBtn.includes('Clear filters'));
+
+    const { default: StatusBadgeComp } = await server.ssrLoadModule('/src/components/common/StatusBadge.jsx');
+    const enStatusBadge = renderToStaticMarkup(
+      React.createElement(
+        LanguageProvider,
+        { initialLang: 'en' },
+        React.createElement(StatusBadgeComp, { status: 'active', items: [{ id: 'active', shortLabel: 'Activo' }] })
+      )
+    );
+    assert.ok(enStatusBadge.includes('Active'));
   } finally {
     await server.close();
   }

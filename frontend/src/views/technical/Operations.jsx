@@ -145,10 +145,12 @@ export default function Operations({
         progress: nextStatus === 'completed' ? 100 : (prev.progress === 100 ? 50 : prev.progress),
       }));
     }
-    const label = nextStatus === 'completed' ? 'Completada' : 'En progreso';
+    const label = nextStatus === 'completed'
+      ? t('statuses.completed', 'Completada')
+      : t('statuses.inProgress', 'En progreso');
     showToast({
-      title: t('toasts.Orden Actualizada', 'Orden Actualizada'),
-      message: `La orden fue actualizada a **${label}**.`,
+      title: t('operations.orderUpdatedTitle', 'Orden Actualizada'),
+      message: t('operations.orderUpdatedStatus', 'La orden fue actualizada a {status}.', { status: label }),
       type: 'success',
     });
   };
@@ -190,8 +192,12 @@ export default function Operations({
     }
 
     showToast({
-      title: t('toasts.Flujo de Tareas Actualizado', 'Flujo de Tareas Actualizado'),
-      message: `Orden **${currentOrder?.code || ''}** completada. Se activó la siguiente orden **${nextOrderObj?.code || ''}** (${nextOrderObj?.title || ''}).`,
+      title: t('operations.taskFlowUpdatedTitle', 'Flujo de Tareas Actualizado'),
+      message: t('operations.taskFlowCompletedAndNext', 'Orden {currentCode} completada. Se activó la siguiente orden {nextCode} ({nextTitle}).', {
+        currentCode: currentOrder?.code || '',
+        nextCode: nextOrderObj?.code || '',
+        nextTitle: nextOrderObj?.title || '',
+      }),
       type: 'success',
     });
   };
@@ -278,9 +284,11 @@ export default function Operations({
     );
 
     if (createdTask?.make_notification?.success) {
-      makeMsg = ' · Notificación enviada a Make.';
+      makeMsg = ` · ${t('toasts.makeNotificationSent', 'Notificación enviada a Make.')}`;
     } else if (createdTask?.make_notification) {
-      makeMsg = ` · Make: ${createdTask.make_notification.message || 'No fue posible notificar'}`;
+      makeMsg = ` · Make: ${createdTask.make_notification.message || t('toasts.makeCouldNotNotify', 'No fue posible notificar')}`;
+    } else if (makeSynced) {
+      makeMsg = ` ${t('operations.makeOrderNotificationSent', '(Notificación enviada a Make)')}`;
     }
 
     if (taskError) {
@@ -291,10 +299,13 @@ export default function Operations({
     setDialogOpen(false);
     setOrderFilter('all');
     setProjectFilter('all');
-    const msg = `Orden ${updated.orders[0].code} emitida y añadida al panel operativo.${makeMsg}`;
+    const msg = t('operations.orderIssuedMessage', 'Orden {code} emitida y añadida al panel operativo.{makeMsg}', {
+      code: updated.orders[0].code,
+      makeMsg,
+    });
     setFeedback(msg);
     showToast({
-      title: 'Orden Emitida',
+      title: t('operations.orderIssuedTitle', 'Orden Emitida'),
       message: msg,
       type: 'success',
     });
@@ -310,7 +321,7 @@ export default function Operations({
     URL.revokeObjectURL(url);
     const msg = t('toasts.operationsReportExported', 'Reporte operativo exportado correctamente.');
     showToast({
-      title: 'Reporte Exportado',
+      title: t('operations.reportExportedTitle', 'Reporte Exportado'),
       message: msg,
       type: 'info',
     });

@@ -1,11 +1,12 @@
 import React from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Componente unificado para badges de estado, prioridad y workflow.
  *
  * @param {Object} props
  * @param {string} props.status - Identificador o código del estado (ej. 'active', 'pending')
- * @param {string} [props.label] - Texto a mostrar (si se omite, se busca en statusMap o items)
+ * @param {string} [props.label] - Texto a mostrar (si se omite, se busca en statusMap o items y se localiza)
  * @param {Record<string, { label?: string, shortLabel?: string, className?: string }>} [props.statusMap] - Mapa de configuración por clave
  * @param {Array<{ id: string, label?: string, shortLabel?: string, className?: string }>} [props.items] - Catálogo en formato array
  * @param {'xs'|'sm'} [props.size='sm'] - Modificador de escala tipográfica (xs=9px, sm=10px)
@@ -19,6 +20,14 @@ export default function StatusBadge({
   size = 'sm',
   className = '',
 }) {
+  let t = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    t = useLanguage()?.t;
+  } catch {
+    // Soporte para ejecuciones fuera del árbol React
+  }
+
   let matchedConfig = null;
 
   if (items && Array.isArray(items)) {
@@ -31,12 +40,15 @@ export default function StatusBadge({
     'border-slate-200 bg-slate-50 text-slate-600 dark:border-[#30363d] dark:bg-white/5 dark:text-slate-400 midnight:border-cyan-900/30 midnight:bg-cyan-900/20 midnight:text-cyan-600';
 
   const badgeClass = matchedConfig?.className || fallbackClass;
-  const displayLabel =
-    explicitLabel ||
+  const rawLabel =
     matchedConfig?.shortLabel ||
     matchedConfig?.label ||
     status ||
     'Sin estado';
+
+  const displayLabel =
+    explicitLabel ||
+    (status && t ? t(`statuses.${status}`, rawLabel) : rawLabel);
 
   const sizeClass = size === 'xs' ? 'text-[9px] px-1.5 py-0.5' : 'text-[10px] px-2 py-1';
 

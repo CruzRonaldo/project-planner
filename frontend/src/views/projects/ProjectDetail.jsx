@@ -88,8 +88,8 @@ export default function ProjectDetail({
       });
 
       showToast({
-        title: 'Videollamada lista',
-        message: `La sala "${created.title}" se generó correctamente con Jitsi Meet.`,
+        title: t('projects.videoCallReadyTitle', 'Videollamada lista'),
+        message: t('projects.videoCallReadyMessage', 'La sala "{title}" se generó correctamente con Jitsi Meet.', { title: created.title }),
         type: 'success',
       });
 
@@ -104,8 +104,8 @@ export default function ProjectDetail({
     } catch (error) {
       console.error('Error creando videollamada:', error);
       showToast({
-        title: 'Error al generar sala',
-        message: error.response?.data?.detail || 'No se pudo generar la sala de videoconferencia.',
+        title: t('projects.videoCallErrorTitle', 'Error al generar sala'),
+        message: error.response?.data?.detail || t('projects.videoCallErrorMessage', 'No se pudo generar la sala de videoconferencia.'),
         type: 'error',
       });
     } finally {

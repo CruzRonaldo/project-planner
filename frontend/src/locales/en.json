@@ -27,7 +27,9 @@
     "active": "Active",
     "paused": "Paused",
     "processing": "Processing...",
-    "error": "Error"
+    "error": "Error",
+    "clearSearch": "Clear search",
+    "clearFilters": "Clear filters"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -178,6 +180,10 @@
     "emailInputLabel": "Email Address (Gmail, Outlook or other)",
     "emailPlaceholder": "name@gmail.com",
     "emailHelperText": "Used to sign in. Changing it will automatically invalidate all other active sessions for security.",
+    "currentPasswordForEmailLabel": "Current password (required to confirm change)",
+    "currentPasswordPlaceholder": "Enter your current password",
+    "currentPasswordForEmailHelper": "For security reasons, you must enter your current password to authorize changing your access email.",
+    "currentPasswordRequiredForEmail": "You must enter your current password to confirm the email change.",
     "changePasswordModalTitle": "Change Password",
     "verifyCurrentPasswordSubtitle": "First verify your current password",
     "enterNewPasswordSubtitle": "Enter and confirm your new access password",
@@ -616,7 +622,14 @@
       "Sistemas": "Systems",
       "Instalaciones": "Installations",
       "Seguridad y Calidad": "Safety & Quality"
-    }
+    },
+    "orderUpdatedTitle": "Order Updated",
+    "orderUpdatedStatus": "Order was updated to {status}.",
+    "taskFlowUpdatedTitle": "Task Flow Updated",
+    "taskFlowCompletedAndNext": "Order {currentCode} completed. Activated next order {nextCode} ({nextTitle}).",
+    "orderIssuedTitle": "Order Issued",
+    "orderIssuedMessage": "Order {code} issued and added to the operational board.{makeMsg}",
+    "reportExportedTitle": "Report Exported"
   },
   "dashboard": {
     "executiveSummaryAria": "Executive summary of projects",
@@ -804,7 +817,15 @@
     "yes": "Yes",
     "no": "No",
     "incompleteData": "Data to complete",
-    "assumptionsAndLimits": "Assumptions and calculation limits"
+    "assumptionsAndLimits": "Assumptions and calculation limits",
+    "milestoneCreatedTitle": "Milestone Created",
+    "milestoneCreatedMessage": "Milestone “{title}” registered{projectLabel} in the global schedule.",
+    "milestoneUpdatedTitle": "Milestone Updated",
+    "milestoneUpdatedMessage": "Milestone status{titleLabel} updated to “{statusLabel}”.",
+    "milestoneDeletedTitle": "Milestone Deleted",
+    "milestoneDeletedMessage": "Milestone “{title}”{projectLabel} deleted.",
+    "statusLabel": "Status",
+    "ofProject": " of project '{project}'"
   },
   "technicalTeam": {
     "pageTitle": "Technical Team Management",
@@ -816,7 +837,8 @@
     "addMember": "Add Technician",
     "addMemberBtn": "Add Member",
     "viewOnly": "View only",
-    "searchPlaceholder": "Search member...",
+    "searchPlaceholder": "Search technician by name, specialty, or email...",
+    "searchAriaLabel": "Search technical team",
     "noMembers": "No technicians found with these filters.",
     "specialty": "Specialty",
     "status": "Status",
@@ -927,6 +949,17 @@
     "confirmPasswordPlaceholder": "Repeat password",
     "passwordPolicyError": "Password does not yet meet: {errors}.",
     "positionPlaceholder": "Lead Architect / BIM",
+    "joinedDate": "Join date:",
+    "joinedDateField": "Join date / Hire date",
+    "noDate": "No date",
+    "addSuccessToast": "{name} was added to the technical team and can now log in.",
+    "reassignSuccessToast": "{name} was successfully reassigned and saved in the system.",
+    "noOperationalChanges": "No operational changes for {name}.",
+    "memberAssignedToProjectFeedback": "{name} is assigned to {project}.",
+    "photoFormatError": "Photo must be PNG or JPG.",
+    "photoSizeError": "Photo must not exceed 2 MB.",
+    "photoReadError": "Could not read selected photo.",
+    "noInitialProject": "No initial project",
     "reasons": {
       "Transferencia por inicio de fase de acabados e interiores": "Transfer due to start of finishes and interior phase",
       "Rebalanceo de carga operativa": "Operational workload rebalancing",
@@ -1082,7 +1115,15 @@
     "actionTitle": "Action on Incident",
     "actionType": "Action Type",
     "actionNotes": "Notes",
-    "confirmAction": "Confirm Action"
+    "confirmAction": "Confirm Action",
+    "memberUpdatedTitle": "Personnel Updated",
+    "memberUpdatedMessage": "Team member details were saved successfully in the system.",
+    "incidentRegisteredTitle": "Incident Logged",
+    "incidentRegisteredMessage": "Incident logged{memberLabel} and submitted for review.",
+    "incidentWorkflowTitle": "Incident Workflow",
+    "incidentWorkflowMessage": "Incident {action} successfully.",
+    "matrixExportedTitle": "Matrix Exported",
+    "matrixExportedMessage": "Human Resources matrix exported in Excel with {count} members."
   },
   "statuses": {
     "planning": "In Planning",
@@ -1291,7 +1332,13 @@
     "createFolderError": "Could not create Google Drive folder.",
     "uploadFileError": "Could not upload file to Google Drive.",
     "renameError": "Could not rename the item.",
-    "deleteDriveError": "Could not delete the item from Google Drive."
+    "deleteDriveError": "Could not delete the item from Google Drive.",
+    "memberAddedTitle": "Technical Member Added",
+    "memberReassignedTitle": "Technical Member Reassigned",
+    "payrollExportedTitle": "Payroll Exported",
+    "configSavedTitle": "Configuration Saved",
+    "noChangesToSave": "No changes to save.",
+    "configSavedMsg": "Integration settings updated successfully."
   },
   "rolesManagement": {
     "title": "Roles Management",
@@ -1539,7 +1586,25 @@
     "filterByConnectionAria": "Filter activities by connection",
     "sortActivitiesAria": "Sort integration activities",
     "renamePrompt": "New item name:",
-    "deleteConfirm": "Do you want to send \"{name}\" to the Google Drive trash?"
+    "deleteConfirm": "Do you want to send \"{name}\" to the Google Drive trash?",
+    "apsStatusError": "Could not check Autodesk APS status.",
+    "apsConnected": "Connection to Autodesk APS established.",
+    "apsConnectFailed": "Failed to connect to Autodesk APS. Check console for details.",
+    "modelsLoadFailed": "Could not load vault models.",
+    "modelUploaded": "Model {name} was successfully uploaded and added to the vault.",
+    "modelUploadFailed": "Error uploading and translating the model.",
+    "modelRenamedTitle": "Renamed",
+    "modelRenamedMessage": "The model name has been updated.",
+    "modelRenameFailed": "Could not rename the model.",
+    "modelDeletedTitle": "Deleted",
+    "modelDeletedMessage": "The model was deleted locally.",
+    "modelDeleteFailed": "Could not delete the model.",
+    "preparingDownloadTitle": "Preparing download",
+    "generatingSecureLink": "Generating secure link...",
+    "modelDownloadFailed": "Could not download the model.",
+    "makeConnectionSuccessTitle": "Make Connection Successful",
+    "makeWebhookSuccess": "The Make webhook responded successfully.",
+    "makeWebhookConnError": "Connection error with Make webhook."
   },
   "manual": {
     "pageTitle": "User Manual",
@@ -1698,7 +1763,9 @@
     "sourceManual": "Manual",
     "sourceAutomatic": "Automatic",
     "sourceBeforeRestore": "Before restore",
-    "sourceLegacy": "Previous"
+    "sourceLegacy": "Previous",
+    "safetyBackupAvailable": "Previous copy available: {backup}",
+    "safetyBackupSaved": "Previous copy saved: {backup}"
   },
   "passwordPolicy": {
     "title": "Password requirements:",
@@ -1712,5 +1779,11 @@
       "match": "Passwords match",
       "different": "Different from current password"
     }
+  },
+  "projects": {
+    "videoCallReadyTitle": "Video Call Ready",
+    "videoCallReadyMessage": "Room \"{title}\" was successfully generated with Jitsi Meet.",
+    "videoCallErrorTitle": "Error Generating Meeting Room",
+    "videoCallErrorMessage": "Could not generate the video conference room."
   }
 }

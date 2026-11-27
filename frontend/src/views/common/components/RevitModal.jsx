@@ -168,14 +168,14 @@ export default function RevitModal({ onClose }) {
       const response = await revitApi.getToken();
       if (response.data?.access_token) {
         setIsConnected(true);
-        showToast({ title: 'Éxito', message: 'Conexión con Autodesk APS establecida.', type: 'success' });
+        showToast({ title: t('common.success', 'Éxito'), message: t('integrations.apsConnected', 'Conexión con Autodesk APS establecida.'), type: 'success' });
         loadModels();
       } else {
         throw new Error('No se recibió el token de acceso.');
       }
     } catch (err) {
       console.error("Error detallado al conectar con APS:", err);
-      showToast({ title: 'Error', message: 'Fallo al conectar con Autodesk APS. Verifica la consola para más detalles.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.apsConnectFailed', 'Fallo al conectar con Autodesk APS. Verifica la consola para más detalles.'), type: 'error' });
       setIsConnected(false);
     } finally {
       setIsCheckingAuth(false);
@@ -188,7 +188,7 @@ export default function RevitModal({ onClose }) {
       const response = await revitApi.getModels();
       setModels(response.data.models || []);
     } catch {
-      showToast({ title: 'Error', message: 'No se pudieron cargar los modelos de la bóveda.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.modelsLoadFailed', 'No se pudieron cargar los modelos de la bóveda.'), type: 'error' });
     } finally {
       setIsLoadingModels(false);
     }
@@ -201,11 +201,11 @@ export default function RevitModal({ onClose }) {
     setIsUploading(true);
     try {
       await revitApi.uploadModel(file);
-      showToast({ title: 'Éxito', message: `El modelo ${file.name} se subió y agregó a la bóveda correctamente.`, type: 'success' });
+      showToast({ title: t('common.success', 'Éxito'), message: t('integrations.modelUploaded', 'El modelo {name} se subió y agregó a la bóveda correctamente.', { name: file.name }), type: 'success' });
       event.target.value = null;
       loadModels();
     } catch {
-      showToast({ title: 'Error', message: 'Error al subir y traducir el modelo.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.modelUploadFailed', 'Error al subir y traducir el modelo.'), type: 'error' });
     } finally {
       setIsUploading(false);
     }
@@ -214,10 +214,10 @@ export default function RevitModal({ onClose }) {
   const handleRename = async (id, newName) => {
     try {
       await revitApi.renameModel(id, newName);
-      showToast({ title: 'Renombrado', message: 'El nombre del modelo ha sido actualizado.', type: 'success' });
+      showToast({ title: t('integrations.modelRenamedTitle', 'Renombrado'), message: t('integrations.modelRenamedMessage', 'El nombre del modelo ha sido actualizado.'), type: 'success' });
       loadModels();
     } catch {
-      showToast({ title: 'Error', message: 'No se pudo renombrar el modelo.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.modelRenameFailed', 'No se pudo renombrar el modelo.'), type: 'error' });
     }
   };
 
@@ -225,17 +225,17 @@ export default function RevitModal({ onClose }) {
     if (!modelToDelete) return;
     try {
       await revitApi.deleteModel(modelToDelete.id);
-      showToast({ title: 'Eliminado', message: 'El modelo se ha eliminado localmente.', type: 'success' });
+      showToast({ title: t('integrations.modelDeletedTitle', 'Eliminado'), message: t('integrations.modelDeletedMessage', 'El modelo se ha eliminado localmente.'), type: 'success' });
       setModelToDelete(null);
       loadModels();
     } catch {
-      showToast({ title: 'Error', message: 'No se pudo eliminar el modelo.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.modelDeleteFailed', 'No se pudo eliminar el modelo.'), type: 'error' });
     }
   };
 
   const handleDownload = async (model) => {
     try {
-      showToast({ title: 'Preparando descarga', message: 'Generando enlace seguro...', type: 'info' });
+      showToast({ title: t('integrations.preparingDownloadTitle', 'Preparando descarga'), message: t('integrations.generatingSecureLink', 'Generando enlace seguro...'), type: 'info' });
       const response = await revitApi.getDownloadUrl(model.id);
 
       if (response.data?.status === 'success' && response.data.download_url) {
@@ -244,7 +244,7 @@ export default function RevitModal({ onClose }) {
         throw new Error('No se recibió la URL de descarga.');
       }
     } catch {
-      showToast({ title: 'Error', message: 'No se pudo descargar el modelo.', type: 'error' });
+      showToast({ title: t('common.error', 'Error'), message: t('integrations.modelDownloadFailed', 'No se pudo descargar el modelo.'), type: 'error' });
     }
   };
 
