@@ -197,6 +197,19 @@ class TeamMemberHumanResourcesTests(APITestCase):
         self.assertEqual(response.data['allocation_percentage'], 0)
         self.assertIn('updated_at', response.data)
 
+    def test_team_member_serializer_exposes_joined_date(self):
+        from core.serializers import TeamMemberSerializer
+
+        serialized = TeamMemberSerializer(self.member).data
+        expected_date = self.member.created_at.date().isoformat()
+
+        self.assertEqual(serialized['joined_date'], expected_date)
+        self.assertRegex(serialized['joined_date'], r'^\d{4}-\d{2}-\d{2}$')
+
+        response = self.client.get(self.detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['joined_date'], expected_date)
+
     def test_admin_and_subadmin_can_update_percentages(self):
         for actor, availability, allocation in (
             (self.super_admin, 70, 30),
@@ -1862,6 +1875,7 @@ class MakeSignalsIntegrationTests(TestCase):
 
         payload = {
             "email": "lucas.actualizado@polyline.com",
+            "current_password": "SecurePassword123!",
         }
         response = api_client.patch("/api/auth/profile/", payload, format="json", HTTP_USER_AGENT="SecurityAuditAgent/1.0")
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
@@ -2467,6 +2481,7 @@ class UserProfileAPITests(TestCase):
             "identifier": self.email,
             "email": new_email,
             "name": "Administrador Renovado",
+            "current_password": self.password,
         }
         response = self.client.patch(self.profile_url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -2503,6 +2518,7 @@ class UserProfileAPITests(TestCase):
         payload = {
             "identifier": self.email,
             "email": new_email,
+            "current_password": self.password,
         }
         response = session_client.patch(self.profile_url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -2528,6 +2544,7 @@ class UserProfileAPITests(TestCase):
         payload = {
             "identifier": self.email,
             "email": "correo-invalido-sin-arroba",
+            "current_password": self.password,
         }
         response = self.client.patch(self.profile_url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -2540,10 +2557,48 @@ class UserProfileAPITests(TestCase):
         payload = {
             "identifier": self.email,
             "email": other_email,
+            "current_password": self.password,
         }
         response = self.client.patch(self.profile_url, payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("ya está registrado", response.data["message"])
+
+    def test_profile_email_change_requires_and_validates_password(self):
+        new_email = "confirmado.admin@gmail.com"
+
+        # 1. Sin contraseña actual -> 400
+        resp_missing = self.client.patch(
+            self.profile_url,
+            {"identifier": self.email, "email": new_email},
+            format="json",
+        )
+        self.assertEqual(resp_missing.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Debe ingresar su contraseña actual", resp_missing.data["message"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, self.email)
+
+        # 2. Contraseña actual incorrecta -> 400
+        resp_wrong = self.client.patch(
+            self.profile_url,
+            {"identifier": self.email, "email": new_email, "current_password": "WrongPassword999!"},
+            format="json",
+        )
+        self.assertEqual(resp_wrong.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("contraseña actual ingresada es incorrecta", resp_wrong.data["message"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, self.email)
+
+        # 3. Contraseña actual correcta -> 200 y éxito
+        resp_ok = self.client.patch(
+            self.profile_url,
+            {"identifier": self.email, "email": new_email, "current_password": self.password},
+            format="json",
+        )
+        self.assertEqual(resp_ok.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_ok.data["status"], "success")
+        self.assertEqual(resp_ok.data["profile"]["email"], new_email)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, new_email)
 
     def test_update_phone_peru_format_normalizes_to_canonical(self):
         # 9 dígitos sin prefijo se normalizan a canónico +51 9XX XXX XXX

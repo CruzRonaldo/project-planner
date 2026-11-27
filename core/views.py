@@ -719,6 +719,24 @@ def user_profile_view(request):
             old_email = (user.email or '').strip().lower()
 
             if new_email != old_email:
+                current_password = str(
+                    data.get('current_password')
+                    or data.get('currentPassword')
+                    or data.get('password')
+                    or ''
+                ).strip()
+                if user.has_usable_password():
+                    if not current_password:
+                        return Response({
+                            'status': 'error',
+                            'message': 'Debe ingresar su contraseña actual para confirmar el cambio de correo electrónico.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    if not user.check_password(current_password):
+                        return Response({
+                            'status': 'error',
+                            'message': 'La contraseña actual ingresada es incorrecta.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
                 from django.core.validators import validate_email
                 from django.core.exceptions import ValidationError as DjangoValidationError
                 try:

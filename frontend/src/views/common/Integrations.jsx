@@ -123,7 +123,7 @@ export default function Integrations({
     const [response, error] = await runSafe(
       () => api.get('/integrations/aps/status/'),
       {
-        fallbackError: 'No se pudo consultar el estado de Autodesk APS.',
+        fallbackError: t('integrations.apsStatusError', 'No se pudo consultar el estado de Autodesk APS.'),
       }
     );
     if (error || !response?.data) {
@@ -145,11 +145,11 @@ export default function Integrations({
     onChange(updated);
     setSelectedId(null);
     showToast({
-      title: 'Configuración Guardada',
+      title: t('toasts.configSavedTitle', 'Configuración Guardada'),
       message:
         updated === data
-          ? 'No había cambios que guardar.'
-          : 'Configuración de integración actualizada con éxito.',
+          ? t('toasts.noChangesToSave', 'No había cambios que guardar.')
+          : t('toasts.configSavedMsg', 'Configuración de integración actualizada con éxito.'),
       type: 'info',
     });
   };

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api, { baseURL as apiBaseUrl } from '../services/api';
 import { makeApi } from '../services/makeApi';
 import { runSafe } from '../utils/asyncHandler';
+import { useLanguage } from '../context/LanguageContext';
 import {
   updateIntegration,
   testIntegration,
@@ -208,6 +209,7 @@ export function useIntegrationsController({
   hideMocks: _hideMocks = false,
   showToast,
 } = {}) {
+  const { t } = useLanguage();
   const [integrationsData, setIntegrationsData] = useState(() => {
     const stored = getStoredIntegrations();
     if (stored && Array.isArray(stored.integrations) && stored.integrations.length > 0) {
@@ -242,14 +244,16 @@ export function useIntegrationsController({
       () => api.get('/integrations/google-drive/status/'),
       {
         showToast: withFeedback && showToast ? showToast : undefined,
-        successTitle: 'Estado de Google Drive',
+        successTitle: t('toasts.driveStatusTitle', 'Estado de Google Drive'),
         successMessage: (res) => {
           const driveStatus = res?.data;
           return driveStatus?.connected
-            ? `Google Drive conectado correctamente${driveStatus?.email ? `: ${driveStatus.email}` : '.'}`
-            : 'Google Drive todavía no está conectado.';
+            ? (driveStatus?.email
+                ? t('toasts.driveConnectedWithEmail', 'Google Drive conectado correctamente: {email}', { email: driveStatus.email })
+                : t('toasts.driveConnected', 'Google Drive conectado correctamente.'))
+            : t('toasts.driveNotConnected', 'Google Drive todavía no está conectado.');
         },
-        fallbackError: 'No se pudo consultar Google Drive. Verifica que Django esté encendido.',
+        fallbackError: t('toasts.driveError', 'No se pudo consultar Google Drive. Verifica que Django esté encendido.'),
       }
     );
     setTestingDrive(false);
@@ -357,9 +361,9 @@ export function useIntegrationsController({
       () => makeApi.testConnection(webhookUrl),
       {
         showToast,
-        successTitle: 'Conexión con Make Exitosa',
-        successMessage: (res) => res?.message || 'El webhook de Make respondió correctamente.',
-        fallbackError: 'Error de conexión con el webhook de Make.',
+        successTitle: t('integrations.makeConnectionSuccessTitle', 'Conexión con Make Exitosa'),
+        successMessage: (res) => res?.message || t('integrations.makeWebhookSuccess', 'El webhook de Make respondió correctamente.'),
+        fallbackError: t('integrations.makeWebhookConnError', 'Error de conexión con el webhook de Make.'),
       }
     );
     setTestingMake(false);
@@ -370,7 +374,7 @@ export function useIntegrationsController({
 
     setIntegrationsData((prev) => testIntegration(prev, 'make'));
     return true;
-  }, [showToast]);
+  }, [showToast, t]);
 
   // 5. Disparar un evento hacia Make (para notificaciones, asignaciones, 2FA, etc.)
   const triggerMakeEvent = useCallback(async (event, payload = {}, webhookUrl = '') => {
@@ -389,26 +393,28 @@ export function useIntegrationsController({
       const updated = updateIntegration(prev, integrationId, draft);
       if (showToast) {
         showToast({
-          title: 'Configuración Guardada',
-          message: updated === prev ? 'No había cambios que guardar.' : 'Configuración de integración actualizada con éxito.',
+          title: t('toasts.configSavedTitle', 'Configuración Guardada'),
+          message: updated === prev
+            ? t('toasts.noChangesToSave', 'No había cambios que guardar.')
+            : t('toasts.configSavedMsg', 'Configuración de integración actualizada con éxito.'),
           type: 'info',
         });
       }
       return updated;
     });
-  }, [showToast]);
+  }, [showToast, t]);
 
   // 7. Probar integración genérica (local / sesión)
   const testLocalIntegration = useCallback((integrationId) => {
     setIntegrationsData((prev) => testIntegration(prev, integrationId));
     if (showToast) {
       showToast({
-        title: 'Prueba Completada',
-        message: 'La integración se marcó como conectada en la sesión actual.',
+        title: t('toasts.testCompleted', 'Prueba Completada'),
+        message: t('toasts.testCompletedMsg', 'La integración se marcó como conectada en la sesión actual.'),
         type: 'info',
       });
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   // 8. Enlace para iniciar OAuth de Google Drive
   const googleDriveConnectUrl = `${apiBaseUrl}/integrations/google-drive/connect/`;
@@ -417,13 +423,13 @@ export function useIntegrationsController({
       window.open(googleDriveConnectUrl, '_blank', 'noopener,noreferrer');
       if (showToast) {
         showToast({
-          title: 'Autorización Iniciada',
-          message: 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".',
+          title: t('toasts.authStarted', 'Autorización Iniciada'),
+          message: t('toasts.authStartedMsg', 'Autoriza Google Drive en la nueva pestaña y luego pulsa "Probar conexión".'),
           type: 'info',
         });
       }
     }
-  }, [googleDriveConnectUrl, showToast]);
+  }, [googleDriveConnectUrl, showToast, t]);
 
   // Verificación inicial de conectores al montar
   useEffect(() => {

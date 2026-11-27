@@ -342,13 +342,14 @@ export const projectsApi = {
   /**
    * Actualiza la foto de perfil, correo electrónico y datos de contacto en la Base de Datos.
    */
-  updateProfile: async ({ userId, identifier, name, email, photo, phone }) => {
+  updateProfile: async ({ userId, identifier, name, email, photo, phone, currentPassword }) => {
     const payload = {
       userId,
       identifier,
       name,
       email,
       phone,
+      current_password: currentPassword,
     };
     if (photo !== undefined) {
       payload.photo = photo;

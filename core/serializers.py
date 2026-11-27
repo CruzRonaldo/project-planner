@@ -84,6 +84,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
     project_name = serializers.ReadOnlyField(source='project.name')
     full_name = serializers.SerializerMethodField()
     phone = serializers.SerializerMethodField()
+    joined_date = serializers.SerializerMethodField()
     change_comment = serializers.CharField(
         write_only=True,
         required=False,
@@ -113,6 +114,7 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             'allocation_percentage',
             'is_active',
             'created_at',
+            'joined_date',
             'updated_at',
             'phone',
             'change_comment',
@@ -120,6 +122,19 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
+
+    def get_joined_date(self, obj):
+        if obj.created_at:
+            return obj.created_at.date().isoformat()
+        if obj.email:
+            try:
+                User = get_user_model()
+                user = User.objects.filter(email__iexact=obj.email).first()
+                if user and user.date_joined:
+                    return user.date_joined.date().isoformat()
+            except Exception:
+                pass
+        return None
 
     def get_phone(self, obj):
         direct_phone = getattr(obj, 'phone', None)

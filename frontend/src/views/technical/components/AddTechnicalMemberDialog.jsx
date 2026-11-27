@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Camera, UserPlus, Users } from 'lucide-react';
+import { Calendar, Camera, UserPlus, Users } from 'lucide-react';
 import ModalDialog from '../../../components/common/ModalDialog';
 import PasswordInput from '../../../components/common/PasswordInput';
 import {
@@ -46,6 +46,7 @@ export default function AddTechnicalMemberDialog({
     project: projectOptions[0] ?? technicalProjects[0],
     status: 'active',
     workload: 100,
+    joinedDate: new Date().toISOString().split('T')[0],
     avatar: null,
   });
   const [photoName, setPhotoName] = useState('');
@@ -97,12 +98,12 @@ export default function AddTechnicalMemberDialog({
     const file = event.target.files?.[0];
     if (!file) return;
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      setError('La foto debe ser PNG o JPG.');
+      setError(t('technicalTeam.photoFormatError', 'La foto debe ser PNG o JPG.'));
       event.target.value = '';
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError('La foto no debe superar 2 MB.');
+      setError(t('technicalTeam.photoSizeError', 'La foto no debe superar 2 MB.'));
       event.target.value = '';
       return;
     }
@@ -112,7 +113,7 @@ export default function AddTechnicalMemberDialog({
       setPhotoName(file.name);
       setError('');
     };
-    reader.onerror = () => setError('No se pudo leer la foto seleccionada.');
+    reader.onerror = () => setError(t('technicalTeam.photoReadError', 'No se pudo leer la foto seleccionada.'));
     reader.readAsDataURL(file);
   };
 
@@ -255,7 +256,9 @@ export default function AddTechnicalMemberDialog({
           {t('technicalTeam.initialAssignedProject', 'Proyecto asignado inicial')}
           <select value={draft.project} onChange={changeField('project')} className={inputClass}>
             {projectOptions.map((project) => (
-              <option key={project}>{project}</option>
+              <option key={project} value={project}>
+                {project === 'Sin proyecto inicial' ? t('technicalTeam.noInitialProject', 'Sin proyecto inicial') : project}
+              </option>
             ))}
           </select>
         </label>
@@ -286,6 +289,19 @@ export default function AddTechnicalMemberDialog({
               %
             </span>
           </div>
+        </label>
+        <label className={labelClass}>
+          <span className="inline-flex items-center gap-1.5">
+            <Calendar size={13} aria-hidden="true" className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400" />
+            <span>{t('technicalTeam.joinedDateField', 'Fecha de incorporación / unión')} <span className="text-cyan-600 dark:text-cyan-400 midnight:text-cyan-400">*</span></span>
+          </span>
+          <input
+            type="date"
+            required
+            value={draft.joinedDate}
+            onChange={changeField('joinedDate')}
+            className={inputClass}
+          />
         </label>
       </div>
 

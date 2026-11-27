@@ -339,9 +339,12 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       },
       {
         showToast,
-        successTitle: 'Hito Creado',
-        successMessage: `Hito “${updated.milestones[0].title}” registrado${projectLabel} en el calendario global.`,
-        fallbackError: 'No se pudo guardar el hito en el servidor.',
+        successTitle: t('strategicPlanning.milestoneCreatedTitle', 'Hito Creado'),
+        successMessage: t('strategicPlanning.milestoneCreatedMessage', 'Hito “{title}” registrado{projectLabel} en el calendario global.', {
+          title: updated.milestones[0].title,
+          projectLabel,
+        }),
+        fallbackError: t('strategicPlanning.milestoneCreateError', 'No se pudo guardar el hito en el servidor.'),
       }
     );
 
@@ -351,9 +354,12 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
 
   const handleStatusChange = async (milestoneId, newStatus) => {
     const currentMilestone = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
-    const statusLabel = milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus;
+    const statusLabel = t(`statuses.${newStatus}`, milestoneStatuses.find((s) => s.id === newStatus)?.label || newStatus);
     const titleLabel = currentMilestone ? ` “${currentMilestone.title}”` : '';
-    const msg = `Estado del hito${titleLabel} actualizado a “${statusLabel}”.`;
+    const msg = t('strategicPlanning.milestoneUpdatedMessage', 'Estado del hito{titleLabel} actualizado a “{statusLabel}”.', {
+      titleLabel,
+      statusLabel,
+    });
 
     await runSafe(
       async () => {
@@ -363,9 +369,9 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       },
       {
         showToast,
-        successTitle: 'Hito Actualizado',
+        successTitle: t('strategicPlanning.milestoneUpdatedTitle', 'Hito Actualizado'),
         successMessage: msg,
-        fallbackError: 'No se pudo actualizar el estado del hito en el servidor.',
+        fallbackError: t('strategicPlanning.milestoneUpdateError', 'No se pudo actualizar el estado del hito en el servidor.'),
       }
     );
 
@@ -378,8 +384,8 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
   const handleDeleteMilestone = async (milestoneId, title) => {
     const milestoneToDelete = (data?.milestones || []).find((m) => String(m.id) === String(milestoneId));
     const associatedProject = projects.find((p) => String(p.id) === String(milestoneToDelete?.projectId));
-    const projectLabel = associatedProject ? ` del proyecto '${associatedProject.name}'` : '';
-    const msg = `Hito “${title}”${projectLabel} eliminado.`;
+    const projectLabel = associatedProject ? t('strategicPlanning.ofProject', " del proyecto '{project}'", { project: associatedProject.name }) : '';
+    const msg = t('strategicPlanning.milestoneDeletedMessage', 'Hito “{title}”{projectLabel} eliminado.', { title, projectLabel });
 
     await runSafe(
       async () => {
@@ -389,9 +395,9 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
       },
       {
         showToast,
-        successTitle: 'Hito Eliminado',
+        successTitle: t('strategicPlanning.milestoneDeletedTitle', 'Hito Eliminado'),
         successMessage: msg,
-        fallbackError: 'No se pudo eliminar el hito en el servidor.',
+        fallbackError: t('strategicPlanning.milestoneDeleteError', 'No se pudo eliminar el hito en el servidor.'),
       }
     );
 
@@ -555,7 +561,7 @@ export default function StrategicPlanning({ data = createStrategicPlanningData()
           onMilestoneClick={(m) => {
             showToast({
               title: m.title,
-              message: `${formatMilestoneDate(m.targetDate)} · Estado: ${m.status}`,
+              message: `${formatMilestoneDate(m.targetDate)} · ${t('strategicPlanning.statusLabel', 'Estado')}: ${t('statuses.' + m.status, m.status)}`,
               type: 'info',
             });
           }}

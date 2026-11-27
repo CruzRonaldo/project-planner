@@ -10,6 +10,7 @@ import {
   BackupAndSecurityCard,
   AuditLogCard,
   EditProfileModal,
+  ConfirmPasswordModal,
   ChangePasswordModal,
 } from './configuration/index.js';
 import { useLanguage } from '../../context/LanguageContext';
@@ -58,6 +59,7 @@ export default function Configuration({
     name: currentUser?.name || '',
     phone: currentUser?.phone || '',
     email: currentUser?.email || '',
+    currentPassword: '',
   });
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -74,6 +76,11 @@ export default function Configuration({
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+
+  // Estado para el modal de confirmación de contraseña al cambiar de correo
+  const [isConfirmEmailPasswordOpen, setIsConfirmEmailPasswordOpen] = useState(false);
+  const [confirmEmailPasswordError, setConfirmEmailPasswordError] = useState('');
+  const [isSubmittingEmailPassword, setIsSubmittingEmailPassword] = useState(false);
 
   // Bitácora de Auditoría y Respaldo
   const [auditLogs, setAuditLogs] = useState([]);
@@ -256,34 +263,11 @@ export default function Configuration({
     }
   };
 
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
-    setProfileError('');
-
-    const trimmedName = profileEditForm.name.trim();
-    if (!trimmedName) {
-      setProfileError(t('configuration.nameEmptyError', 'El nombre no puede estar vacío.'));
-      return;
-    }
-
-    const trimmedEmail = profileEditForm.email.trim().toLowerCase();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!trimmedEmail) {
-      setProfileError(t('configuration.emailEmptyError', 'El correo electrónico no puede estar vacío.'));
-      return;
-    }
-    if (!emailRegex.test(trimmedEmail)) {
-      setProfileError(t('configuration.emailInvalidError', 'Ingrese un formato de correo electrónico válido (ej. usuario@gmail.com).'));
-      return;
-    }
-
-    const phoneCheck = evaluatePhone(profileEditForm.phone, { isOptional: true, t });
-    if (!phoneCheck.isValid) {
-      setProfileError(phoneCheck.error);
-      return;
-    }
-
+  const executeProfileUpdate = async (currentPassword = '') => {
     setIsSubmittingProfile(true);
+    const trimmedName = profileEditForm.name.trim();
+    const trimmedEmail = profileEditForm.email.trim().toLowerCase();
+    const phoneCheck = evaluatePhone(profileEditForm.phone, { isOptional: true, t });
     const updatedPhone = phoneCheck.formattedPhone;
 
     try {
@@ -300,6 +284,7 @@ export default function Configuration({
           email: trimmedEmail,
           phone: updatedPhone,
           photo: userPhoto,
+          currentPassword,
         });
 
         if (updateResult?.session_token && onSessionTokenChange) {
@@ -336,17 +321,83 @@ export default function Configuration({
         setProfileSuccess(false);
         setIsProfileModalOpen(false);
       }, 1200);
+      return true;
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
       const msg =
         err.response?.data?.message ||
         (err.response?.data?.error ? String(err.response.data.error) : null) ||
+        (err.response?.data?.detail ? String(err.response.data.detail) : null) ||
         err.message ||
         'Error al guardar el perfil. Verifique los datos e intente nuevamente.';
       setProfileError(msg);
+      throw err;
     } finally {
       setIsSubmittingProfile(false);
     }
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setProfileError('');
+
+    const trimmedName = profileEditForm.name.trim();
+    if (!trimmedName) {
+      setProfileError(t('configuration.nameEmptyError', 'El nombre no puede estar vacío.'));
+      return;
+    }
+
+    const trimmedEmail = profileEditForm.email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      setProfileError(t('configuration.emailEmptyError', 'El correo electrónico no puede estar vacío.'));
+      return;
+    }
+    if (!emailRegex.test(trimmedEmail)) {
+      setProfileError(t('configuration.emailInvalidError', 'Ingrese un formato de correo electrónico válido (ej. usuario@gmail.com).'));
+      return;
+    }
+
+    const phoneCheck = evaluatePhone(profileEditForm.phone, { isOptional: true, t });
+    if (!phoneCheck.isValid) {
+      setProfileError(phoneCheck.error);
+      return;
+    }
+
+    const isEmailChanging = trimmedEmail !== (userEmail || currentUser?.email || '').trim().toLowerCase();
+    if (isEmailChanging) {
+      setIsProfileModalOpen(false);
+      setConfirmEmailPasswordError('');
+      setIsConfirmEmailPasswordOpen(true);
+      return;
+    }
+
+    await executeProfileUpdate();
+  };
+
+  const handleConfirmEmailWithPassword = async (password) => {
+    setConfirmEmailPasswordError('');
+    setIsSubmittingEmailPassword(true);
+    try {
+      await executeProfileUpdate(password);
+      setIsConfirmEmailPasswordOpen(false);
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        (err.response?.data?.error ? String(err.response.data.error) : null) ||
+        err.message ||
+        t('configuration.currentPasswordWrong', 'La contraseña actual no es correcta. Puede intentarlo nuevamente.');
+      setConfirmEmailPasswordError(msg);
+    } finally {
+      setIsSubmittingEmailPassword(false);
+    }
+  };
+
+  const handleCancelEmailConfirm = () => {
+    setIsConfirmEmailPasswordOpen(false);
+    setConfirmEmailPasswordError('');
+    setIsProfileModalOpen(true);
   };
 
   const handleOpenEditProfile = () => {
@@ -437,6 +488,17 @@ export default function Configuration({
         error={profileError}
         success={profileSuccess}
         isSubmitting={isSubmittingProfile}
+      />
+
+      <ConfirmPasswordModal
+        isOpen={isConfirmEmailPasswordOpen}
+        onClose={handleCancelEmailConfirm}
+        onConfirm={handleConfirmEmailWithPassword}
+        isSubmitting={isSubmittingEmailPassword}
+        error={confirmEmailPasswordError}
+        setError={setConfirmEmailPasswordError}
+        title={t('configuration.changePasswordModalTitle', 'Cambiar Contraseña')}
+        subtitle={t('configuration.verifyCurrentPasswordSubtitle', 'Primero verifique su contraseña actual')}
       />
 
       <ChangePasswordModal

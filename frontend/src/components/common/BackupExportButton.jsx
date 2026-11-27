@@ -190,7 +190,7 @@ export default function BackupExportButton({ onCreated }) {
       }
 
       const fullMessage = (detail || t('backup.genericError', 'No se pudo completar la operación.')) +
-        (data?.safety_backup ? ` Copia previa disponible: ${data.safety_backup}` : '');
+        (data?.safety_backup ? ` ${t('backup.safetyBackupAvailable', 'Copia previa disponible: {backup}', { backup: data.safety_backup })}` : '');
 
       if (!silentError) {
         showToast({
@@ -278,7 +278,7 @@ export default function BackupExportButton({ onCreated }) {
     close();
     showToast({
       title: t('toasts.restoreSuccess', 'Restauración Completada'),
-      message: `${data.detail} Copia previa guardada: ${data.safety_backup}`,
+      message: `${data.detail} ${t('backup.safetyBackupSaved', 'Copia previa guardada: {backup}', { backup: data.safety_backup })}`,
       type: 'success',
       duration: 8000,
     });

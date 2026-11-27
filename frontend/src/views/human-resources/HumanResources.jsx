@@ -262,13 +262,13 @@ export default function HumanResources({
       },
       {
         showToast,
-        successTitle: 'Personal Actualizado',
-        successMessage: 'Los datos del integrante se guardaron correctamente en el sistema.',
-        fallbackError: 'No se pudo guardar el cambio en el sistema.',
+        successTitle: t('humanResources.memberUpdatedTitle', 'Personal Actualizado'),
+        successMessage: t('humanResources.memberUpdatedMessage', 'Los datos del integrante se guardaron correctamente en el sistema.'),
+        fallbackError: t('humanResources.memberUpdateError', 'No se pudo guardar el cambio en el sistema.'),
         onSuccess: () => {
           setEditing(null);
           setFeedbackType('success');
-          setFeedback('Cambio guardado correctamente en el sistema.');
+          setFeedback(t('humanResources.memberUpdatedMessage', 'Cambio guardado correctamente en el sistema.'));
         },
         onError: (_err, message) => {
           onChange(previousData);
@@ -347,7 +347,9 @@ export default function HumanResources({
 
   const saveIncident = async (draft) => {
     const member = members.find((item) => item.id === draft.memberId);
-    const incidentMsg = `Incidencia registrada${member ? ` para ${member.name}` : ''} y enviada a revisión.`;
+    const incidentMsg = t('humanResources.incidentRegisteredMessage', 'Incidencia registrada{memberLabel} y enviada a revisión.', {
+      memberLabel: member ? ` para ${member.name}` : '',
+    });
 
     const [, error] = await runSafe(
       async () => {
@@ -356,9 +358,9 @@ export default function HumanResources({
       },
       {
         showToast,
-        successTitle: 'Incidencia Registrada',
+        successTitle: t('humanResources.incidentRegisteredTitle', 'Incidencia Registrada'),
         successMessage: incidentMsg,
-        fallbackError: 'No se pudo registrar la incidencia.',
+        fallbackError: t('humanResources.incidentCreateError', 'No se pudo registrar la incidencia.'),
         onSuccess: () => {
           setIncidentDialogOpen(false);
           setEditing(null);
@@ -374,8 +376,14 @@ export default function HumanResources({
   };
 
   const submitIncidentAction = async (incidentId, action, comment) => {
-    const labels = { approve: 'aprobada', reject: 'rechazada', finalize: 'finalizada' };
-    const actionMsg = `Incidencia ${labels[action] || 'actualizada'} correctamente.`;
+    const actionLabels = {
+      approve: t('statuses.approved', 'aprobada'),
+      reject: t('statuses.rejected', 'rechazada'),
+      finalize: t('statuses.finalized', 'finalizada'),
+    };
+    const actionMsg = t('humanResources.incidentWorkflowMessage', 'Incidencia {action} correctamente.', {
+      action: actionLabels[action] || t('common.updated', 'actualizada'),
+    });
 
     const [, error] = await runSafe(
       async () => {
@@ -384,9 +392,9 @@ export default function HumanResources({
       },
       {
         showToast,
-        successTitle: 'Flujo de Incidencias',
+        successTitle: t('humanResources.incidentWorkflowTitle', 'Flujo de Incidencias'),
         successMessage: actionMsg,
-        fallbackError: 'No se pudo procesar la acción sobre la incidencia.',
+        fallbackError: t('humanResources.incidentWorkflowError', 'No se pudo procesar la acción sobre la incidencia.'),
         onSuccess: () => {
           setIncidentAction(null);
           setFeedbackType('success');
@@ -429,16 +437,18 @@ export default function HumanResources({
     if (isExportingMatrix) return;
     setFeedback('');
     setFeedbackType('success');
-    const exportMsg = `Matriz de Recursos Humanos exportada en Excel con ${members.length} ${members.length === 1 ? 'integrante' : 'integrantes'}.`;
+    const exportMsg = t('humanResources.matrixExportedMessage', 'Matriz de Recursos Humanos exportada en Excel con {count} integrantes.', {
+      count: members.length,
+    });
 
     await runSafe(
       () => downloadPersonnelWorkbook(members),
       {
         setLoading: setIsExportingMatrix,
         showToast,
-        successTitle: 'Matriz Exportada',
+        successTitle: t('humanResources.matrixExportedTitle', 'Matriz Exportada'),
         successMessage: exportMsg,
-        fallbackError: 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.',
+        fallbackError: t('humanResources.matrixExportError', 'No se pudo generar el archivo Excel en este momento. Inténtalo nuevamente.'),
         onSuccess: () => {
           setFeedback(exportMsg);
         },
