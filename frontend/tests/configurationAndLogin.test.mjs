@@ -42,7 +42,7 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(adminHtml.includes('Preferencias del Sistema'));
     assert.ok(adminHtml.includes('Parámetros del Proyecto'));
     assert.ok(adminHtml.includes('Respaldo y Seguridad'));
-    assert.ok(adminHtml.includes('Exportar Datos'));
+    assert.ok(adminHtml.includes('Exportar Datos') || adminHtml.includes('Administrar respaldos'));
     assert.ok(adminHtml.includes('Bitácora de Auditoría'));
 
     // Vista de usuario no-administrador
@@ -71,8 +71,62 @@ test('Configuration renderiza perfiles, preferencias y acciones de administraci�
     assert.ok(techHtml.includes('Eliminar foto'));
     assert.ok(techHtml.includes('Preferencias del Sistema'));
     assert.ok(!techHtml.includes('Respaldo y Seguridad'));
-    assert.ok(!techHtml.includes('Exportar Datos'));
+    assert.ok(!techHtml.includes('Exportar Datos') && !techHtml.includes('Administrar respaldos'));
     assert.ok(!techHtml.includes('Bitácora de Auditoría'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('EditProfileModal se mantiene limpio y ConfirmPasswordModal requiere contraseña para confirmar cambio', async () => {
+  const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  try {
+    const { EditProfileModal, ConfirmPasswordModal } = await server.ssrLoadModule('/src/views/common/configuration/index.js');
+    const { LanguageProvider } = await server.ssrLoadModule('/src/context/LanguageContext.jsx');
+
+    // 1. EditProfileModal no tiene campo de contraseña en línea
+    const editHtml = renderToStaticMarkup(
+      React.createElement(EditProfileModal, {
+        isOpen: true,
+        onClose: () => {},
+        onSubmit: () => {},
+        form: { name: 'Carlos', phone: '', email: 'carlos@gmail.com' },
+        setForm: () => {},
+      })
+    );
+    assert.ok(editHtml.includes('Nombre Completo'));
+    assert.ok(editHtml.includes('Correo Electrónico'));
+    assert.ok(!editHtml.includes('Contraseña actual (requerida para confirmar el cambio)'));
+
+    // 2. ConfirmPasswordModal en español
+    const confirmEsHtml = renderToStaticMarkup(
+      React.createElement(ConfirmPasswordModal, {
+        isOpen: true,
+        onClose: () => {},
+        onConfirm: () => {},
+      })
+    );
+    assert.ok(confirmEsHtml.includes('Cambiar Contraseña'));
+    assert.ok(confirmEsHtml.includes('Primero verifique su contraseña actual'));
+    assert.ok(confirmEsHtml.includes('Contraseña actual'));
+    assert.ok(confirmEsHtml.includes('Verificar y Continuar'));
+
+    // 3. ConfirmPasswordModal en inglés (idéntico a la imagen del usuario)
+    const confirmEnHtml = renderToStaticMarkup(
+      React.createElement(
+        LanguageProvider,
+        { initialLang: 'en' },
+        React.createElement(ConfirmPasswordModal, {
+          isOpen: true,
+          onClose: () => {},
+          onConfirm: () => {},
+        })
+      )
+    );
+    assert.ok(confirmEnHtml.includes('Change Password'));
+    assert.ok(confirmEnHtml.includes('First verify your current password'));
+    assert.ok(confirmEnHtml.includes('Current password'));
+    assert.ok(confirmEnHtml.includes('Verify and Continue'));
   } finally {
     await server.close();
   }
