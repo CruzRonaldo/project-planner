@@ -13,6 +13,8 @@ Bienvenido a la base de conocimiento y documentación técnica de **Project Plan
 ## 🏛️ 1. [Documentación General y Arquitectura](./general/)
 Documentación transversal sobre la arquitectura del sistema, ciclo de vida corporativo, especificación de API y matriz de auditoría:
 
+* **[Documento de Diseño Frontend (IEEE 1016)](./Project_Planner-Frontend.md):** Software Design Description (SDD) de la capa de presentación, interfaz de usuario, componentes comunes, accesibilidad (WCAG 2.2 AA) y consumo de API.
+* **[Documento de Diseño Backend (IEEE 1016)](./Project_Planner-Backend.md):** Software Design Description (SDD) de la capa de lógica, servicios, seguridad (OWASP Top 10), contratos OpenAPI y modelo físico de datos relacional/vectorial (23 entidades).
 * **[Directrices de Arquitectura y Estándares](./architecture.md):** Clean Code, principios SOLID, diseño multitema y catálogo consolidado de componentes UI comunes.
 * **[01. Flujo de Negocio y Procesos (Mermaid)](./general/01.%20Flujo%20de%20Negocio%20y%20Procesos%20(Mermaid).md):** Diagramas de secuencia y flujo de fases 1 a 4.
 * **[02. Documentación API y Endpoints](./general/02.%20Documentación%20API%20y%20Endpoints.md):** Catálogo de endpoints DRF y especificación OpenAPI.
